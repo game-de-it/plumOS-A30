@@ -104,7 +104,9 @@
 - [x] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
 - [x] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
 - [ ] A30 settings の write-enabled controls は backend 検証、backup、atomic write、`sync` 方針を固めてから実装する。
-- [ ] SDL/input/audio/video の最小 test binary を A30 上で動かす。
+- [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
+- [ ] plumOS 同梱 SDL2 の最小 linked/render test binary を A30 上で動かす。
+- [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [ ] RetroArch 実行中の電源キー短押しで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
 

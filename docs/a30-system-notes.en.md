@@ -104,6 +104,20 @@ Backend candidates:
 
 Detailed UI policy lives in [A30 settings UI policy](a30-settings-policy.en.md).
 
+## Runtime Probe
+
+On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
+
+- Video: `/dev/fb0` reports `480x640`, `32bpp`, line length `1920`.
+- Video write: a small 64x64 patch can be drawn briefly and restored.
+- Input: `gpio-keys-polled` opens and polls as `/dev/input/event3`.
+- Audio: `/dev/dsp` exists, but is busy while stock `MainUI` holds
+  `/dev/snd/pcmC0D0p`.
+- SDL2: stock libraries exist, but are not adopted as plumOS runtime
+  dependencies yet.
+
+Details live in [A30 runtime probe](a30-runtime-probe.en.md).
+
 ## Frontend Data Model To Preserve
 
 The stock UI reads SD-card content from these families:

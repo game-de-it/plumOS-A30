@@ -23,6 +23,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [plumOS 設計方針](docs/plumos-design-policy.md)
 - [Docker toolchain](docs/docker-toolchain.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.md)
+- [A30 runtime probe](docs/a30-runtime-probe.md)
 - [Frontend prototype](docs/frontend-prototype.md)
 - [Stock frontend inventory](docs/stock-frontend-inventory.md)
 - [plumOS frontend data model](docs/frontend-data-model.md)

@@ -55,6 +55,19 @@ dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
+Build the runtime probe.
+
+```sh
+./scripts/docker-build.sh runtime-probe
+```
+
+Outputs:
+
+```text
+dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
+dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
+```
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
@@ -82,6 +95,14 @@ Deploy the frontend prototype to the SD card root.
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+Deploy the runtime probe to the SD card root.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-runtime-probe /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-runtime-probe --draw-ms 80 --input-ms 100 --audio-ms 80 --allow-busy-audio'
 ```
 
 Collect logs.

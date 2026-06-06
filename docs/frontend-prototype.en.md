@@ -428,4 +428,4 @@ Observations:
 - Match ROM filenames to artwork filenames.
 - Parse `gamelist` XML.
 - Parse/update `recentlist.json`.
-- Build the first SDL/input UI.
+- Build a linked/render test and minimal UI with plumOS-bundled SDL2.

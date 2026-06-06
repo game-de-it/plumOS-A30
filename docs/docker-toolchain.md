@@ -55,6 +55,19 @@ dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
+runtime probe を build します。
+
+```sh
+./scripts/docker-build.sh runtime-probe
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
+dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -82,6 +95,14 @@ frontend prototype も SD カード root に展開します。
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+runtime probe も SD カード root に展開します。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-runtime-probe /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-runtime-probe --draw-ms 80 --input-ms 100 --audio-ms 80 --allow-busy-audio'
 ```
 
 log を回収します。

@@ -128,7 +128,10 @@
   keymap.
 - [ ] Implement write-enabled A30 settings controls only after backend
   validation, backup, atomic write, and `sync` policy are settled.
-- [ ] Run minimal SDL/input/audio/video test binaries on the A30.
+- [x] Run a minimal framebuffer/input/audio runtime probe binary on the A30.
+- [ ] Run a minimal linked/render SDL2 test binary with plumOS-bundled SDL2 on
+  the A30.
+- [ ] Re-test audio playback with stock MainUI stopped or replaced.
 - [ ] Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
 - [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key
   press while RetroArch is running.

@@ -127,6 +127,18 @@ backend 候補:
 
 詳細な UI 方針は [A30 設定 UI 方針](a30-settings-policy.md) に分離しています。
 
+## Runtime probe
+
+2026-06-06 に `plumos-runtime-probe` を A30 上で実行し、以下を確認しました。
+
+- video: `/dev/fb0` は `480x640`, `32bpp`, line length `1920`
+- video write: 64x64 の小さい patch を短時間描画し、復元できる
+- input: `gpio-keys-polled` は `/dev/input/event3` として open/poll できる
+- audio: `/dev/dsp` は存在するが、stock `MainUI` が `/dev/snd/pcmC0D0p` を保持している間は busy
+- SDL2: stock library は存在するが、plumOS の runtime dependency としてはまだ採用しない
+
+詳細は [A30 runtime probe](a30-runtime-probe.md) にまとめています。
+
 ## 継承すべきフロントエンド互換情報
 
 stock UI は SD カード上の以下を読みます。
