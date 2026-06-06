@@ -74,7 +74,9 @@
 
 ## Phase 6 - Frontend Implementation
 
-- [ ] plumOS frontend 独自の system/app/theme data model を設計する。
+- [x] plumOS frontend 独自の system/app/theme data model を設計する。
+- [ ] `systems.json` の初期 seed を作る。
+- [ ] Miyoo/ROCKNIX directory alias を使った ROM scan prototype を作る。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。

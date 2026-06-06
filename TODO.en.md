@@ -81,7 +81,9 @@
 
 ## Phase 6 - Frontend Implementation
 
-- [ ] Design a plumOS-native system/app/theme data model.
+- [x] Design a plumOS-native system/app/theme data model.
+- [ ] Create the initial `systems.json` seed.
+- [ ] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.

@@ -189,6 +189,8 @@ Existing SD-card data still needs to be readable, but only as input for
 migration, inventory, or compatibility shims. Promoting stock behavior into the
 new UI or launcher specification requires an explicit decision.
 
+The native model is documented in
+[plumOS frontend data model](frontend-data-model.en.md).
 Use the [Stock reuse decision template](decisions/stock-reuse-template.en.md)
 for decision records.
 

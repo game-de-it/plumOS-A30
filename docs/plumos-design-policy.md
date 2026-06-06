@@ -177,6 +177,7 @@ plumOS frontend は、以下を新しく設計します。
 入力として扱います。stock 仕様を UI や launcher の新仕様へ昇格させる場合は、必ず個別に
 判断します。
 
+独自 data model は [plumOS frontend data model](frontend-data-model.md) にまとめます。
 判断記録には [Stock reuse decision template](decisions/stock-reuse-template.md) を使います。
 
 ## CPU 方針
