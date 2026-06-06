@@ -139,6 +139,54 @@ summary js_events=370 evdev_events=759 timeout_ms=10000
 確認では観測できておらず、stockOS/spruceOS の保存項目にも見当たりません。このため、
 初期 plumOS の analog stick daemon は X/Y 軸だけを提供します。
 
+## RetroArch / SDL 確認
+
+stock RetroArch 1.16.0 の build feature は以下でした。
+
+```text
+SDL             - SDL input/audio/video drivers: yes
+SDL2            - SDL2 input/audio/video drivers: no
+UDEV            - UDEV/EVDEV input driver: no
+```
+
+stock `retroarch.cfg` は `input_driver = "sdl"`、
+`input_joypad_driver = "sdl"` です。そのため stock RetroArch では SDL1 joystick 経路が
+確認対象になります。
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --deploy
+```
+
+2026-06-06 の確認結果:
+
+```text
+js info path=/dev/input/js0 name="plumOS A30 Analog Stick" axes=2 buttons=0
+evdev info path=/dev/input/event4 name="plumOS A30 Analog Stick"
+[INFO] [Input]: Found input driver: "sdl".
+[INFO] [Joypad]: Found joypad driver: "sdl".
+result=retroarch_sdl_driver_only
+```
+
+`sdl` と `sdl_dingux` の一時 autoconfig を試しましたが、RetroArch log には
+`plumOS A30 Analog Stick` の configured/connection log は出ませんでした。
+
+MainUI から stock RetroArch を起動した手動確認では、Port1 Controls の bind 待ち受けで
+左スティックが `Axis -2`/`±2` として検出される一方、実際に左スティックを動かしても
+メニューカーソルは移動しませんでした。SSH 側で確認した stock RetroArch process は
+`libSDL-1.2.so.0` を map していましたが、開いていた input fd は `/dev/input/event0`
+のみで、`/dev/input/js*` や `event4` は開いていませんでした。
+
+現時点の判断:
+
+- `plumos-joystickd` の virtual device は Linux joystick API/evdev では正常に見える
+- stock RetroArch の SDL1 joypad driver は有効だが、log 上は axes-only `js0` の
+  autoconfig/接続を確認できていない
+- stock RetroArch は bind 待ち受けで軸らしき入力を拾うが、通常操作には使えていない
+- plumOS RetroArch では stock SDL1 挙動を前提にせず、SDL2/evdev 対応 build または
+  buttons+axes の composite virtual pad を検討する
+
 ## options
 
 - `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`

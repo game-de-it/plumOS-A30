@@ -165,8 +165,19 @@
   can be read through the Linux joystick API and evdev.
 - [x] Remove the provisional `BTN_THUMBL` from the `plumos-joystickd` virtual
   device because the left-stick click is treated as unsupported.
+- [x] Add `js0` device name/axes/buttons output to `plumos-joystick-reader`.
+- [x] Check stock RetroArch build features and record that SDL1 is enabled while
+  SDL2 and udev/evdev are disabled.
+- [x] Add `scripts/probe-a30-retroarch-joystick.sh` so the stock RetroArch SDL
+  joystick log probe can be repeated while `plumos-joystickd` is running.
+- [x] Record that the stock RetroArch log probe reaches the SDL joypad driver,
+  but does not show autoconfig/connection logs for `plumOS A30 Analog Stick`.
+- [x] Record that stock RetroArch detects the left stick as `Axis -2`/`+/-2`
+  during Port 1 Controls binding, but the stick does not move the menu cursor.
 - [ ] Check whether RetroArch/SDL can see the `plumos-joystickd` virtual input
   device.
+- [ ] Choose the RetroArch analog strategy: axes-only device, composite virtual
+  pad with buttons+axes, or SDL2/evdev support in the plumOS RetroArch build.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
   it is required beyond stock calibration/test screens.
 - [x] Implement a controller UI SAFE menu prototype opened by Function.

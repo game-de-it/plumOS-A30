@@ -123,7 +123,13 @@
 - [x] `plumos-joystick-reader` を追加し、Linux joystick API と evdev で `plumos-joystickd` の virtual input を監視できるようにする。
 - [x] `plumos-joystick-reader` を A30 実機で動かし、Linux joystick API と evdev から `js0`/`event4` を読めるか確認する。
 - [x] 左スティック押し込み未対応方針に合わせ、`plumos-joystickd` の virtual device から仮の `BTN_THUMBL` を外す。
+- [x] `plumos-joystick-reader` に `js0` device name/axes/buttons 表示を追加する。
+- [x] stock RetroArch の build feature を確認し、SDL1 は有効、SDL2 と udev/evdev は無効であることを記録する。
+- [x] `scripts/probe-a30-retroarch-joystick.sh` を追加し、`plumos-joystickd` 起動中の stock RetroArch SDL joystick log probe を再実行可能にする。
+- [x] stock RetroArch log probe では SDL joypad driver までは確認できるが、`plumOS A30 Analog Stick` の autoconfig/接続ログは出ないことを記録する。
+- [x] stock RetroArch 実操作で、Port1 Controls の bind 待ち受けでは `Axis -2`/`±2` として検出されるが、左スティックでメニューカーソルは動かないことを記録する。
 - [ ] `plumos-joystickd` の virtual input device が RetroArch/SDL から見えるか検証する。
+- [ ] RetroArch 向け analog strategy を、axes-only device、buttons+axes の composite virtual pad、または plumOS build の SDL2/evdev 対応から選ぶ。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。

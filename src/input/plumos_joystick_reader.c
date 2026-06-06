@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -181,6 +182,61 @@ static const char *js_type_name(unsigned char type) {
   return (type & JS_EVENT_INIT) ? "JS_UNKNOWN_INIT" : "JS_UNKNOWN";
 }
 
+static void print_js_device_info(int fd, const char *path) {
+#if defined(PLUMOS_HAS_LINUX_JOYSTICK)
+  unsigned char axes = 0;
+  unsigned char buttons = 0;
+  char name[128];
+  int have_name;
+  int have_axes;
+  int have_buttons;
+
+  memset(name, 0, sizeof(name));
+  have_name = ioctl(fd, JSIOCGNAME(sizeof(name)), name) >= 0;
+  have_axes = ioctl(fd, JSIOCGAXES, &axes) >= 0;
+  have_buttons = ioctl(fd, JSIOCGBUTTONS, &buttons) >= 0;
+
+  printf("js info path=%s name=", path);
+  if (have_name) {
+    printf("\"%s\"", name);
+  } else {
+    printf("-");
+  }
+  printf(" axes=");
+  if (have_axes) {
+    printf("%u", (unsigned int)axes);
+  } else {
+    printf("-");
+  }
+  printf(" buttons=");
+  if (have_buttons) {
+    printf("%u", (unsigned int)buttons);
+  } else {
+    printf("-");
+  }
+  printf("\n");
+#else
+  (void)fd;
+  printf("js info path=%s unavailable=linux_joystick_headers_missing\n", path);
+#endif
+}
+
+static void print_evdev_device_info(int fd, const char *path) {
+#if defined(PLUMOS_HAS_LINUX_INPUT)
+  char name[128];
+
+  memset(name, 0, sizeof(name));
+  if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0) {
+    printf("evdev info path=%s name=\"%s\"\n", path, name);
+  } else {
+    printf("evdev info path=%s name=- errno=%d %s\n", path, errno, strerror(errno));
+  }
+#else
+  (void)fd;
+  printf("evdev info path=%s unavailable=linux_input_headers_missing\n", path);
+#endif
+}
+
 static void usage(const char *argv0) {
   printf("Usage: %s [--js PATH] [--event PATH] [--name NAME] [--timeout-ms MS] [--no-js] [--no-event]\n",
          argv0);
@@ -242,6 +298,7 @@ int main(int argc, char **argv) {
       printf("js path=%s open=no errno=%d %s\n", js_path, errno, strerror(errno));
     } else {
       printf("js path=%s open=yes\n", js_path);
+      print_js_device_info(js_fd, js_path);
     }
   }
 
@@ -251,6 +308,7 @@ int main(int argc, char **argv) {
       printf("evdev path=%s open=no errno=%d %s\n", event_path, errno, strerror(errno));
     } else {
       printf("evdev path=%s open=yes\n", event_path);
+      print_evdev_device_info(event_fd, event_path);
     }
   }
 

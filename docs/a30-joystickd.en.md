@@ -144,6 +144,57 @@ or `/dev/ttyS0` serial frames, and no saved stockOS/spruceOS setting for it was
 observed. Initial plumOS therefore exposes only X/Y axes from the analog stick
 daemon.
 
+## RetroArch / SDL Check
+
+Stock RetroArch 1.16.0 reports these build features:
+
+```text
+SDL             - SDL input/audio/video drivers: yes
+SDL2            - SDL2 input/audio/video drivers: no
+UDEV            - UDEV/EVDEV input driver: no
+```
+
+Stock `retroarch.cfg` uses `input_driver = "sdl"` and
+`input_joypad_driver = "sdl"`, so the stock path to check is SDL1 joystick
+input.
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --deploy
+```
+
+Result observed on 2026-06-06:
+
+```text
+js info path=/dev/input/js0 name="plumOS A30 Analog Stick" axes=2 buttons=0
+evdev info path=/dev/input/event4 name="plumOS A30 Analog Stick"
+[INFO] [Input]: Found input driver: "sdl".
+[INFO] [Joypad]: Found joypad driver: "sdl".
+result=retroarch_sdl_driver_only
+```
+
+Temporary `sdl` and `sdl_dingux` autoconfig files were tested, but the RetroArch
+log did not show configured/connection lines for `plumOS A30 Analog Stick`.
+
+In a manual stock RetroArch launch from MainUI, the Port 1 Controls binding UI
+detects the left stick as `Axis -2`/`+/-2`, but moving the stick does not move
+the menu cursor. From SSH, the stock RetroArch process mapped `libSDL-1.2.so.0`,
+but its open input fd was only `/dev/input/event0`; it did not open
+`/dev/input/js*` or `event4`.
+
+Current judgment:
+
+- The `plumos-joystickd` virtual device is visible through the Linux joystick
+  API and evdev.
+- The stock RetroArch SDL1 joypad driver is enabled, but logs do not confirm
+  autoconfig/connection for the axes-only `js0` device.
+- Stock RetroArch appears to detect an axis during binding, but that does not
+  translate into normal menu/game operation.
+- The plumOS RetroArch path should not rely on this stock SDL1 behavior. Prefer
+  a plumOS build with SDL2/evdev support, or evaluate a composite virtual pad
+  with both buttons and axes.
+
 ## Options
 
 - `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.

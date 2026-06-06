@@ -146,6 +146,12 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - Observed stockOS/spruceOS analog-stick calibration storage only contains X/Y
   axis min/max/center values, with no stick-click setting. Initial plumOS treats
   the left-stick click as unconnected/unsupported.
+- Stock RetroArch has SDL1 enabled and SDL2/udev/evdev disabled. The axes-only
+  `js0` from `plumos-joystickd` is visible through the Linux joystick API, but
+  stock RetroArch logs did not confirm autoconfig/connection.
+- In stock RetroArch launched from MainUI, the Port 1 Controls binding UI
+  detects the left stick as `Axis -2`/`+/-2`, but the stick does not move the
+  menu cursor in normal operation.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

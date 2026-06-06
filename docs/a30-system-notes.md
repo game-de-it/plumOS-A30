@@ -166,6 +166,12 @@ backend 候補:
 - stockOS/spruceOS の analog stick calibration 保存内容は X/Y 軸の
   min/max/center のみで、押し込み設定は見当たらない。初期 plumOS では
   左スティック押し込みを未接続/未対応として扱う
+- stock RetroArch は SDL1 有効、SDL2/udev/evdev 無効。`plumos-joystickd` の
+  axes-only `js0` は Linux joystick API では見えるが、stock RetroArch log では
+  autoconfig/接続を確認できなかった
+- MainUI から起動した stock RetroArch の Port1 Controls bind 待ち受けでは
+  左スティックが `Axis -2`/`±2` として検出されるが、実際のメニューカーソル移動には
+  使えていない
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 
