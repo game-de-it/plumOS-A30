@@ -103,8 +103,8 @@
 - [x] Manage auto-resume target ROM/core/launch profile/pending state in
   `resume-session.json`.
 - [x] Implement a text UI prototype for `boot_resume_mode=off|last|picker`.
-- [ ] Auto-launch the same ROM/core/launch profile on boot when a pending resume
-  session exists.
+- [x] Build a launch plan for the same ROM/core/launch profile on boot, and
+  auto-launch it with `boot --execute` when a pending resume session exists.
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.

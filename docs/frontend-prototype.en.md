@@ -255,13 +255,23 @@ Boot resume decision:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui boot'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute'
 ```
 
 `recent.json` is the browsing history; `resume-session.json` is the next-boot
 resume candidate. `boot_resume_mode` in `settings.json` accepts `off`, `last`,
-and `picker`. The `boot` prototype only prints the decision; it does not launch
-RetroArch yet. Real auto state load integration belongs to the later
-RetroArch/launcher implementation.
+and `picker`. By default, `boot` only prints the decision and launch plan.
+With `--execute`, it launches the same ROM/launch profile only when
+`boot_resume_mode=last` and a pending resume session exists. RetroArch profiles
+are executable only when `/mnt/SDCARD/plumos/retroarch/bin/retroarch` and
+`/mnt/SDCARD/plumos/retroarch/cores/<core>_libretro.so` exist. Real Auto State
+Load integration belongs to the later RetroArch/launcher implementation.
+
+When `plumos-frontend` starts in boot mode, it calls
+`/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` once. The default
+`boot_resume_mode=off` only continues to the normal TOP flow.
 
 A30 device check on 2026-06-06:
 

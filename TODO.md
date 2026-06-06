@@ -90,7 +90,7 @@
 - [x] `recent.json` で履歴 ROM/launch profile/resume availability を管理する。
 - [x] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。
 - [x] `boot_resume_mode=off|last|picker` の text UI prototype を実装する。
-- [ ] 起動時に pending resume session があれば同じ ROM/core/launch profile で自動起動する。
+- [x] 起動時に pending resume session があれば同じ ROM/core/launch profile の launch plan を作り、`boot --execute` で自動起動する。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。

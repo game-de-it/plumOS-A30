@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+
+#define FRONTEND_COMMAND_MAX 8192
 
 struct log_ctx {
   FILE *log;
@@ -112,6 +115,29 @@ static int append_string(char *out, size_t out_size, size_t *pos, const char *in
   *pos += len;
   out[*pos] = '\0';
   return 1;
+}
+
+static int append_shell_quoted(char *out, size_t out_size, size_t *pos, const char *in) {
+  const char *p;
+
+  if (!append_string(out, out_size, pos, "'")) {
+    return 0;
+  }
+  for (p = in; p && *p; p++) {
+    char c[2];
+    if (*p == '\'') {
+      if (!append_string(out, out_size, pos, "'\\''")) {
+        return 0;
+      }
+    } else {
+      c[0] = *p;
+      c[1] = '\0';
+      if (!append_string(out, out_size, pos, c)) {
+        return 0;
+      }
+    }
+  }
+  return append_string(out, out_size, pos, "'");
 }
 
 static int normalize_path(char *out, size_t out_size, const char *in) {
@@ -699,6 +725,49 @@ static void ensure_log_dir(const char *root) {
   mkdir(path, 0755);
 }
 
+static void maybe_run_boot_resume(struct log_ctx *ctx, const char *plumos_root,
+                                  const char *sd_root, const char *log_path) {
+  char text_ui[PATH_MAX];
+  char cmd[FRONTEND_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!join_path(text_ui, sizeof(text_ui), plumos_root, "bin/plumos-text-ui")) {
+    emit(ctx, "[boot-resume] skip reason=text-ui-path-too-long");
+    return;
+  }
+  if (!is_file(text_ui)) {
+    emit(ctx, "[boot-resume] skip reason=text-ui-missing path=%s", text_ui);
+    return;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, sd_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, " boot --execute >> ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    emit(ctx, "[boot-resume] skip reason=command-too-long");
+    return;
+  }
+
+  emit(ctx, "[boot-resume] begin");
+  rc = system(cmd);
+  if (rc == -1) {
+    emit(ctx, "[boot-resume] failed reason=system-call");
+    return;
+  }
+  if (WIFEXITED(rc)) {
+    emit(ctx, "[boot-resume] end status=%d exit=%d", rc, WEXITSTATUS(rc));
+    return;
+  }
+  emit(ctx, "[boot-resume] end status=%d", rc);
+}
+
 int main(int argc, char **argv) {
   const char *mode = getenv("PLUMOS_FRONTEND_MODE");
   const char *sd_root = getenv("PLUMOS_SDCARD_ROOT");
@@ -735,6 +804,10 @@ int main(int argc, char **argv) {
   now = time(NULL);
   emit(&ctx, "===== plumOS frontend prototype =====");
   emit(&ctx, "time=%ld mode=%s sd_root=%s plumos_root=%s", (long)now, mode, sd_root, plumos_root);
+
+  if (strcmp(mode, "manual") != 0) {
+    maybe_run_boot_resume(&ctx, plumos_root, sd_root, log_path);
+  }
 
   emu_totals = scan_category(&ctx, sd_root, "Emu", "label");
   rapp_totals = scan_category(&ctx, sd_root, "RApp", "label");

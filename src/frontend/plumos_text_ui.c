@@ -21,6 +21,7 @@
 #define MAX_ROM_CORE_OVERRIDES 1024
 #define MAX_FAVORITES 2048
 #define MAX_RECENTS 256
+#define TEXT_COMMAND_MAX 8192
 #define TEXT_PATH_MAX 1024
 
 struct top_entry {
@@ -129,6 +130,24 @@ struct resume_session {
   char launch_profile[128];
   char updated_at[64];
   int auto_state_load;
+};
+
+struct launch_plan {
+  char kind[32];
+  char system_id[64];
+  char relative_path[TEXT_PATH_MAX];
+  char title[256];
+  char rom_path[TEXT_PATH_MAX];
+  char launch_profile[128];
+  char retroarch_path[TEXT_PATH_MAX];
+  char core_path[TEXT_PATH_MAX];
+  char config_path[TEXT_PATH_MAX];
+  char command[TEXT_COMMAND_MAX];
+  int auto_state_load;
+  int rom_exists;
+  int runtime_exists;
+  int core_exists;
+  int can_execute;
 };
 
 struct frontend_settings {
@@ -270,6 +289,29 @@ static void current_utc_timestamp(char *out, size_t out_size) {
   if (!tm_now || strftime(out, out_size, "%Y-%m-%dT%H:%M:%SZ", tm_now) == 0) {
     copy_string(out, out_size, "unknown");
   }
+}
+
+static int append_shell_quoted(char *out, size_t out_size, size_t *pos, const char *in) {
+  const char *p;
+
+  if (!append_string(out, out_size, pos, "'")) {
+    return 0;
+  }
+  for (p = in; p && *p; p++) {
+    char c[2];
+    if (*p == '\'') {
+      if (!append_string(out, out_size, pos, "'\\''")) {
+        return 0;
+      }
+    } else {
+      c[0] = *p;
+      c[1] = '\0';
+      if (!append_string(out, out_size, pos, c)) {
+        return 0;
+      }
+    }
+  }
+  return append_string(out, out_size, pos, "'");
 }
 
 static char *read_file(const char *path, size_t *size_out) {
@@ -1511,6 +1553,129 @@ static void resume_session_from_rom(struct resume_session *session, const char *
   session->auto_state_load = auto_state_load;
 }
 
+static int build_retroarch_core_path(char *out, size_t out_size, const char *plumos_root,
+                                     const char *core_id) {
+  char file_name[256];
+  char cores_dir[PATH_MAX];
+
+  if (snprintf(file_name, sizeof(file_name), "%s_libretro.so", core_id) >=
+      (int)sizeof(file_name)) {
+    return 0;
+  }
+  if (!join_path(cores_dir, sizeof(cores_dir), plumos_root, "retroarch/cores")) {
+    return 0;
+  }
+  return join_path(out, out_size, cores_dir, file_name);
+}
+
+static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
+                             const char *system_id, const char *relative_path,
+                             const char *title, const char *rom_path,
+                             const char *launch_profile, int auto_state_load) {
+  size_t pos = 0;
+
+  memset(plan, 0, sizeof(*plan));
+  copy_string(plan->system_id, sizeof(plan->system_id), system_id);
+  copy_string(plan->relative_path, sizeof(plan->relative_path), relative_path);
+  copy_string(plan->title, sizeof(plan->title), title && title[0] ? title : relative_path);
+  copy_string(plan->rom_path, sizeof(plan->rom_path), rom_path);
+  copy_string(plan->launch_profile, sizeof(plan->launch_profile), launch_profile);
+  plan->auto_state_load = auto_state_load;
+  plan->rom_exists = file_exists(plan->rom_path);
+
+  if (strncmp(launch_profile, "retroarch:", 10) == 0) {
+    const char *core_id = launch_profile + 10;
+    char retroarch_dir[PATH_MAX];
+
+    copy_string(plan->kind, sizeof(plan->kind), "retroarch");
+    if (!join_path(retroarch_dir, sizeof(retroarch_dir), plumos_root, "retroarch/bin") ||
+        !join_path(plan->retroarch_path, sizeof(plan->retroarch_path), retroarch_dir,
+                   "retroarch") ||
+        !build_retroarch_core_path(plan->core_path, sizeof(plan->core_path), plumos_root,
+                                   core_id) ||
+        !join_path(plan->config_path, sizeof(plan->config_path), plumos_root,
+                   "config/retroarch/retroarch.cfg")) {
+      return 0;
+    }
+    plan->runtime_exists = file_exists(plan->retroarch_path);
+    plan->core_exists = file_exists(plan->core_path);
+
+    if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->retroarch_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " --config ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->config_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " -L ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->core_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->rom_path)) {
+      return 0;
+    }
+    plan->can_execute = plan->runtime_exists && plan->core_exists && plan->rom_exists;
+    return 1;
+  }
+
+  if (strncmp(launch_profile, "external:", 9) == 0) {
+    copy_string(plan->kind, sizeof(plan->kind), "external");
+    plan->runtime_exists = 1;
+    plan->core_exists = 1;
+    if (!append_string(plan->command, sizeof(plan->command), &pos, "/bin/sh ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->rom_path)) {
+      return 0;
+    }
+    plan->can_execute = plan->rom_exists;
+    return 1;
+  }
+
+  if (strncmp(launch_profile, "internal:", 9) == 0) {
+    copy_string(plan->kind, sizeof(plan->kind), "internal");
+  } else {
+    copy_string(plan->kind, sizeof(plan->kind), "unknown");
+  }
+  plan->can_execute = 0;
+  return 1;
+}
+
+static void print_launch_plan(const struct launch_plan *plan) {
+  printf("plumOS text UI - launch plan\n");
+  printf("kind: %s\n", plan->kind);
+  printf("system: %s\n", plan->system_id);
+  printf("rom: %s\n", plan->relative_path);
+  printf("title: %s\n", plan->title);
+  printf("path: %s\n", plan->rom_path);
+  printf("launch_profile: %s\n", plan->launch_profile);
+  printf("auto_state_load: %s\n", plan->auto_state_load ? "yes" : "no");
+  if (plan->retroarch_path[0]) {
+    printf("retroarch: %s (%s)\n", plan->retroarch_path,
+           plan->runtime_exists ? "exists" : "missing");
+  }
+  if (plan->core_path[0]) {
+    printf("core: %s (%s)\n", plan->core_path, plan->core_exists ? "exists" : "missing");
+  }
+  printf("rom_exists: %s\n", plan->rom_exists ? "yes" : "no");
+  printf("can_execute: %s\n", plan->can_execute ? "yes" : "no");
+  if (plan->command[0]) {
+    printf("command: %s\n", plan->command);
+  }
+}
+
+static int execute_launch_plan(const struct launch_plan *plan) {
+  int rc;
+
+  if (!plan->can_execute || !plan->command[0]) {
+    fprintf(stderr, "error: launch plan is not executable\n");
+    return 0;
+  }
+  rc = system(plan->command);
+  if (rc == -1) {
+    fprintf(stderr, "error: failed to execute launch command\n");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    return 1;
+  }
+  fprintf(stderr, "error: launch command failed with status %d\n", rc);
+  return 0;
+}
+
 static int append_favorites_top_entry(struct top_entry *entries, size_t max_entries,
                                       size_t *count, const struct favorite_state *favorites) {
   struct top_entry entry;
@@ -2236,7 +2401,7 @@ static void usage(const char *argv0) {
   printf("  %s resume show|clear\n", argv0);
   printf("  %s resume set SYSTEM RELATIVE_PATH [--profile PROFILE] [--reason REASON] [--no-scan]\n",
          argv0);
-  printf("  %s boot [--limit N]\n", argv0);
+  printf("  %s boot [--limit N] [--execute]\n", argv0);
   printf("\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
@@ -2834,12 +2999,17 @@ int main(int argc, char **argv) {
     struct frontend_settings settings;
     static struct resume_session session;
     static struct recent_state recent;
+    static struct launch_plan plan;
     const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
+    int execute = 0;
+    int has_pending_resume = 0;
 
     limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 10;
     for (i = 2; i < argc; i++) {
       if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
         limit = (size_t)strtoul(argv[++i], NULL, 10);
+      } else if (strcmp(argv[i], "--execute") == 0) {
+        execute = 1;
       } else {
         fprintf(stderr, "error: unknown boot option: %s\n", argv[i]);
         usage(argv[0]);
@@ -2853,6 +3023,26 @@ int main(int argc, char **argv) {
       return 1;
     }
     print_boot_resume(&settings, &session, &recent, limit, resume_session_path, recent_path);
+    has_pending_resume = session.pending && session.system_id[0] && session.relative_path[0];
+    if (strcmp(settings.boot_resume_mode, "last") == 0 && has_pending_resume) {
+      if (!build_launch_plan(&plan, plumos_root, session.system_id, session.relative_path,
+                             session.title, session.path, session.launch_profile,
+                             session.auto_state_load)) {
+        fprintf(stderr, "error: cannot build launch plan\n");
+        return 1;
+      }
+      printf("\n");
+      print_launch_plan(&plan);
+      if (execute) {
+        return execute_launch_plan(&plan) ? 0 : 1;
+      }
+      printf("execute: no (--execute not specified)\n");
+      return 0;
+    }
+    if (execute) {
+      printf("\n");
+      printf("execute: no action\n");
+    }
     return 0;
   }
 

@@ -246,12 +246,22 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui boot'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute'
 ```
 
 `recent.json` は履歴一覧、`resume-session.json` は次回起動時の再開候補です。
 `settings.json` の `boot_resume_mode` は `off`, `last`, `picker` を指定できます。
-この prototype の `boot` は判断を表示するだけで、RetroArch はまだ起動しません。
-実際の auto state load は RetroArch/launcher 実装時に接続します。
+`boot` は default では判断と launch plan を表示するだけです。`--execute` を付けた場合だけ、
+`boot_resume_mode=last` かつ pending resume session がある時に同じ ROM/launch profile を
+実行します。RetroArch profile は `/mnt/SDCARD/plumos/retroarch/bin/retroarch` と
+`/mnt/SDCARD/plumos/retroarch/cores/<core>_libretro.so` が存在する場合だけ実行可能です。
+実際の Auto State Load は RetroArch/launcher 実装時に接続します。
+
+`plumos-frontend` は boot mode で起動した時に
+`/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` を一度呼びます。既定値は
+`boot_resume_mode=off` なので、通常は TOP 表示へ進むだけです。
 
 2026-06-06 の A30 実機確認:
 

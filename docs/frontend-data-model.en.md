@@ -469,10 +469,14 @@ Rules:
   recent/resume state over the current system default.
 - `pending=true` in `resume-session.json` means the target should be offered on
   the next boot.
-- `boot_resume_mode=last` launches pending resume directly. The initial text
-  prototype only prints that boot decision; real launching is handled later.
+- `boot_resume_mode=last` launches pending resume directly. The text UI `boot`
+  command prints only the decision and launch plan by default; `boot --execute`
+  performs the launch.
 - `boot_resume_mode=picker` shows pending resume plus recent list so the user can
   choose what to resume.
+- For `retroarch:<core>` launch profiles, the plan is executable only when the
+  plumOS RetroArch binary and matching `<core>_libretro.so` exist. Missing
+  runtime files keep the launch plan non-executable.
 - RetroArch Auto Save State / Auto Load State integration belongs to the later
   launcher/RetroArch implementation.
 

@@ -463,9 +463,12 @@ rules:
 - 履歴から再開する場合は、現在の system default ではなく recent/resume に保存された
   `launch_profile` を優先する
 - `resume-session.json` の `pending=true` は「次回起動時に再開候補として扱う」ことを示す
-- `boot_resume_mode=last` は pending resume を直接起動する。ただし初期 prototype では
-  実起動せず、起動判断だけを text UI で表示する
+- `boot_resume_mode=last` は pending resume を直接起動する。text UI の `boot` は default
+  では判断と launch plan だけを表示し、`boot --execute` の時だけ実行する
 - `boot_resume_mode=picker` は pending resume と recent list を表示し、ユーザー選択で再開する
+- launch profile が `retroarch:<core>` の場合は、plumOS 配下の RetroArch binary と
+  `<core>_libretro.so` が存在する場合だけ実行可能にする。欠けている場合は launch plan を
+  non-executable として扱う
 - RetroArch の Auto Save State / Auto Load State との実接続は launcher/RetroArch 実装時に行う
 
 ## START menu model
