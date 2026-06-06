@@ -128,8 +128,13 @@
 - [x] `scripts/probe-a30-retroarch-joystick.sh` を追加し、`plumos-joystickd` 起動中の stock RetroArch SDL joystick log probe を再実行可能にする。
 - [x] stock RetroArch log probe では SDL joypad driver までは確認できるが、`plumOS A30 Analog Stick` の autoconfig/接続ログは出ないことを記録する。
 - [x] stock RetroArch 実操作で、Port1 Controls の bind 待ち受けでは `Axis -2`/`±2` として検出されるが、左スティックでメニューカーソルは動かないことを記録する。
+- [x] stock PPSSPP が `miyoo282_xpad_inputd` を起動し、`/dev/ttyS0` + `/config/joypad.config` + `/dev/uinput` で `MIYOO Pad1` を作る経路を確認する。
+- [x] `scripts/probe-a30-ppsspp-input.sh` を追加し、PPSSPP 起動中の analog input 経路を再調査可能にする。
+- [x] stock PPSSPP は SDL2 GameController/Joystick 経路で Xbox 360 互換風の `MIYOO Pad1` (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) を読んでいることを記録する。
 - [ ] `plumos-joystickd` の virtual input device が RetroArch/SDL から見えるか検証する。
 - [ ] RetroArch 向け analog strategy を、axes-only device、buttons+axes の composite virtual pad、または plumOS build の SDL2/evdev 対応から選ぶ。
+- [ ] `plumos-joystickd` に PPSSPP と同系統の buttons+axes composite virtual pad mode を実装し、SDL2 GameController/evdev で認識できるか検証する。
+- [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。

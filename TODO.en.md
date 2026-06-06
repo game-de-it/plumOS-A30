@@ -174,10 +174,22 @@
   but does not show autoconfig/connection logs for `plumOS A30 Analog Stick`.
 - [x] Record that stock RetroArch detects the left stick as `Axis -2`/`+/-2`
   during Port 1 Controls binding, but the stick does not move the menu cursor.
+- [x] Confirm that stock PPSSPP starts `miyoo282_xpad_inputd`, which uses
+  `/dev/ttyS0`, `/config/joypad.config`, and `/dev/uinput` to create
+  `MIYOO Pad1`.
+- [x] Add `scripts/probe-a30-ppsspp-input.sh` so the PPSSPP analog input path
+  can be re-inspected while PPSSPP is running.
+- [x] Document that stock PPSSPP reads an Xbox 360-like `MIYOO Pad1`
+  (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) through SDL2
+  GameController/Joystick APIs.
 - [ ] Check whether RetroArch/SDL can see the `plumos-joystickd` virtual input
   device.
 - [ ] Choose the RetroArch analog strategy: axes-only device, composite virtual
   pad with buttons+axes, or SDL2/evdev support in the plumOS RetroArch build.
+- [ ] Add a PPSSPP-like buttons+axes composite virtual pad mode to
+  `plumos-joystickd` and verify it through SDL2 GameController/evdev.
+- [ ] For the plumOS RetroArch build, prioritize testing SDL2/evdev plus a
+  composite virtual pad instead of relying on the stock SDL1 path.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
   it is required beyond stock calibration/test screens.
 - [x] Implement a controller UI SAFE menu prototype opened by Function.

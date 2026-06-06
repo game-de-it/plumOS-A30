@@ -152,6 +152,15 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - In stock RetroArch launched from MainUI, the Port 1 Controls binding UI
   detects the left stick as `Axis -2`/`+/-2`, but the stick does not move the
   menu cursor in normal operation.
+- Stock PPSSPP starts `miyoo282_xpad_inputd` from `launch.sh`; that daemon uses
+  `/dev/ttyS0` and `/config/joypad.config` to create `MIYOO Pad1`
+  (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) through `/dev/uinput`.
+- PPSSPP itself reads `MIYOO Pad1` through `libSDL2-2.0.so.0` and
+  `SDL_GameController*` / `SDL_Joystick*` APIs. The left-stick click also did
+  not react in PPSSPP controller settings.
+- For RetroArch and standalone emulator analog input, prioritize testing a
+  `plumos-joystickd` buttons+axes composite virtual pad mode plus SDL2/evdev in
+  the plumOS RetroArch build instead of relying on the stock SDL1 path.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 
@@ -236,7 +245,8 @@ Most emulator scripts:
 
 Notable exceptions:
 
-- PPSSPP has a standalone `PPSSPPSDL` path and an input daemon.
+- PPSSPP has a standalone `PPSSPPSDL` path and `miyoo282_xpad_inputd`, which
+  creates an Xbox 360-like `MIYOO Pad1` virtual pad read through SDL2.
 - Some arcade/shooting paths use `ra32.miyoo` with `"$*"`.
 - PS launch scripts copy per-game BIOS files into RetroArch system paths.
 

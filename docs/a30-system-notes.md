@@ -172,6 +172,15 @@ backend 候補:
 - MainUI から起動した stock RetroArch の Port1 Controls bind 待ち受けでは
   左スティックが `Axis -2`/`±2` として検出されるが、実際のメニューカーソル移動には
   使えていない
+- stock PPSSPP は `launch.sh` から `miyoo282_xpad_inputd` を起動し、
+  `/dev/ttyS0` と `/config/joypad.config` を使って `/dev/uinput` に
+  `MIYOO Pad1` (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) を作る
+- PPSSPP 本体は `libSDL2-2.0.so.0` と `SDL_GameController*` /
+  `SDL_Joystick*` API で `MIYOO Pad1` を読んでおり、左スティック押し込みは
+  PPSSPP の controller 設定でも反応しなかった
+- RetroArch/standalone emulator 向け analog 方針は、stock SDL1 依存ではなく
+  `plumos-joystickd` の buttons+axes composite virtual pad mode と
+  plumOS RetroArch の SDL2/evdev 対応を優先して検証する
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 
@@ -254,7 +263,8 @@ stock UI は SD カード上の以下を読みます。
 
 例外:
 
-- PPSSPP は standalone の `PPSSPPSDL` と input daemon を使う
+- PPSSPP は standalone の `PPSSPPSDL` と `miyoo282_xpad_inputd` を使い、
+  Xbox 360 互換風の `MIYOO Pad1` virtual pad を SDL2 経由で読む
 - arcade/shooting 系では `ra32.miyoo` と `"$*"` を使う path がある
 - PS 系 script は game ごとの BIOS または default BIOS を RetroArch system path に
   copy することがある

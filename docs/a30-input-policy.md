@@ -216,6 +216,40 @@ axisXR min=127 max=127 avg=127.00
   には出ていない。stockOS/spruceOS の設定保存にも押し込み項目が見当たらないため、
   初期 plumOS では未接続/未対応として扱う
 
+## PPSSPP の analog input 経路
+
+stock PPSSPP を MainUI から起動し、左スティックが PPSSPP 内で動作している状態で確認しました。
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
+```
+
+確認結果:
+
+- PPSSPP の `launch.sh` は `./miyoo282_xpad_inputd&` を起動してから
+  `./PPSSPPSDL "$*"` を実行する
+- `miyoo282_xpad_inputd` は `/dev/uinput` と `/dev/ttyS0` を開く
+- `miyoo282_xpad_inputd` の binary 文字列には `/config/joypad.config`,
+  `/dev/ttyS0`, `MIYOO Pad1`, `/dev/uinput` がある
+- PPSSPP 起動中は `MIYOO Pad1` という virtual input device が追加される
+- `MIYOO Pad1` は `045e:028e`, `js0`/`event4`, 8 axes / 11 buttons の
+  Xbox 360 互換風 composite device として見える
+- `PPSSPPSDL` は `/dev/input/event4` を開き、`libSDL2-2.0.so.0` と
+  `SDL_GameController*` / `SDL_Joystick*` API を使う
+- 左スティック押し込みは PPSSPP の controller 設定でも反応しなかった
+
+判断:
+
+- standalone emulator 向けの analog 経路は axes-only よりも buttons+axes の
+  composite virtual pad が有利
+- stock `miyoo282_xpad_inputd` は流用せず、plumOS では同じ原理を
+  `plumos-joystickd` の mode として実装する
+- RetroArch も stock SDL1 経路に合わせるより、plumOS build の SDL2/evdev と
+  composite virtual pad で検証する
+- 左スティック押し込みは、PPSSPP でも反応しないため引き続き未対応扱いにする
+
 ## 方針
 
 - 初期 frontend では stock `keymon` を残す
@@ -225,5 +259,7 @@ axisXR min=127 max=127 avg=127.00
 - safe shutdown/resume menu は電源キーではなく Function button から開く案を第一候補にする
 - plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
 - 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
+- emulator 向け analog stick は `plumos-joystickd` の composite virtual pad mode を
+  優先して検証する
 
 現時点の推奨は「`keymon` は残すが、plumOS frontend は直接 input event を読む」です。

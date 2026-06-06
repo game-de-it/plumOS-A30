@@ -224,6 +224,42 @@ Current inference:
   stockOS/spruceOS settings, so initial plumOS treats it as
   unconnected/unsupported.
 
+## PPSSPP Analog Input Path
+
+This was checked while stock PPSSPP was launched from MainUI and the left stick
+was working inside PPSSPP.
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
+```
+
+Results:
+
+- PPSSPP `launch.sh` starts `./miyoo282_xpad_inputd&` before running
+  `./PPSSPPSDL "$*"`.
+- `miyoo282_xpad_inputd` opens `/dev/uinput` and `/dev/ttyS0`.
+- Strings in `miyoo282_xpad_inputd` include `/config/joypad.config`,
+  `/dev/ttyS0`, `MIYOO Pad1`, and `/dev/uinput`.
+- While PPSSPP is running, a virtual input device named `MIYOO Pad1` appears.
+- `MIYOO Pad1` looks like an Xbox 360-style composite device:
+  `045e:028e`, `js0`/`event4`, 8 axes / 11 buttons.
+- `PPSSPPSDL` opens `/dev/input/event4` and uses `libSDL2-2.0.so.0` plus
+  `SDL_GameController*` / `SDL_Joystick*` APIs.
+- The left-stick click did not react in PPSSPP controller settings.
+
+Judgment:
+
+- For standalone emulators, a buttons+axes composite virtual pad is more
+  promising than an axes-only device.
+- Do not reuse stock `miyoo282_xpad_inputd`; implement the same principle as a
+  `plumos-joystickd` mode.
+- For RetroArch, prefer testing a plumOS SDL2/evdev build with a composite
+  virtual pad over matching the stock SDL1 path.
+- Keep treating the left-stick click as unsupported because PPSSPP does not see
+  it either.
+
 ## Policy
 
 - Keep stock `keymon` for the initial frontend work.
@@ -237,6 +273,8 @@ Current inference:
   boot frontend.
 - Do not include the left-stick click in the initial mapping. Revisit only if
   new evidence appears.
+- Prioritize a `plumos-joystickd` composite virtual pad mode for emulator-facing
+  analog-stick support.
 
 Current recommendation: keep `keymon`, but let the plumOS frontend read input
 events directly.

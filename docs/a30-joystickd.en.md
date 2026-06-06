@@ -195,6 +195,94 @@ Current judgment:
   a plumOS build with SDL2/evdev support, or evaluate a composite virtual pad
   with both buttons and axes.
 
+## PPSSPP / SDL2 GameController Check
+
+This was checked while stock PPSSPP was launched from MainUI and the left stick
+was working in PPSSPP.
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
+```
+
+`/mnt/SDCARD/Emu/PPSSPP/launch.sh` starts a dedicated input daemon before
+starting PPSSPP.
+
+```sh
+./miyoo282_xpad_inputd&
+./PPSSPPSDL "$*"
+killall miyoo282_xpad_inputd
+```
+
+Processes observed while PPSSPP was running:
+
+```text
+/mnt/SDCARD/Emu/PPSSPP/launch.sh
+./miyoo282_xpad_inputd
+./PPSSPPSDL /mnt/SDCARD/Emu/PPSSPP/../../Roms/PSP/Puzzle_Bobble.cso
+```
+
+The following virtual pad appears in `/proc/bus/input/devices`:
+
+```text
+I: Bus=0003 Vendor=045e Product=028e Version=045e
+N: Name="MIYOO Pad1"
+S: Sysfs=/devices/virtual/input/input18
+H: Handlers=js0 event4
+B: EV=2b
+B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
+B: ABS=3003f
+```
+
+Through `plumos-joystick-reader`, `MIYOO Pad1` appears as an 8-axis /
+11-button composite device.
+
+```text
+js info path=/dev/input/js0 name="MIYOO Pad1" axes=8 buttons=11
+evdev info path=/dev/input/event4 name="MIYOO Pad1"
+```
+
+Observed process fds:
+
+```text
+miyoo282_xpad_inputd -> /dev/uinput
+miyoo282_xpad_inputd -> /dev/ttyS0
+PPSSPPSDL -> /dev/input/event4
+PPSSPPSDL -> /dev/ttyS0
+```
+
+`miyoo282_xpad_inputd` contains strings for:
+
+```text
+/config/joypad.config
+/dev/ttyS0
+MIYOO Pad1
+/dev/uinput
+```
+
+`PPSSPPSDL` uses `libSDL2-2.0.so.0` and `SDL_GameController*` /
+`SDL_Joystick*` APIs. Embedded paths indicate a PPSSPP 1.16.6-based build.
+`assets/gamecontrollerdb.txt` contains Xbox 360 controller mappings, and
+`MIYOO Pad1`'s `045e:028e` identity is likely routed through that family of
+mappings.
+
+Current judgment:
+
+- PPSSPP analog stick support works because the launch script starts
+  `miyoo282_xpad_inputd`, which creates a composite virtual pad, not because
+  PPSSPP itself directly handles the raw serial stick protocol.
+- `miyoo282_xpad_inputd` reads `/dev/ttyS0` and `/config/joypad.config`, then
+  creates an Xbox 360-like `MIYOO Pad1` through `/dev/uinput`.
+- PPSSPP reads `MIYOO Pad1` from `/dev/input/event4` through SDL2
+  GameController/Joystick APIs.
+- The left-stick click did not react in PPSSPP controller settings, so keep
+  treating it as unconnected/unsupported.
+- plumOS should not reuse the stock binary, but this strongly supports adding a
+  buttons+axes composite virtual pad mode to `plumos-joystickd`.
+- The plumOS RetroArch path should prioritize SDL2/evdev plus a composite
+  virtual pad instead of relying on the stock SDL1 path.
+
 ## Options
 
 - `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.

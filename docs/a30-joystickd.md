@@ -187,6 +187,92 @@ MainUI から stock RetroArch を起動した手動確認では、Port1 Controls
 - plumOS RetroArch では stock SDL1 挙動を前提にせず、SDL2/evdev 対応 build または
   buttons+axes の composite virtual pad を検討する
 
+## PPSSPP / SDL2 GameController 確認
+
+stock PPSSPP を MainUI から起動し、左スティックが動作している状態で確認しました。
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
+```
+
+`/mnt/SDCARD/Emu/PPSSPP/launch.sh` は PPSSPP 起動前に専用 daemon を起動しています。
+
+```sh
+./miyoo282_xpad_inputd&
+./PPSSPPSDL "$*"
+killall miyoo282_xpad_inputd
+```
+
+PPSSPP 起動中の process:
+
+```text
+/mnt/SDCARD/Emu/PPSSPP/launch.sh
+./miyoo282_xpad_inputd
+./PPSSPPSDL /mnt/SDCARD/Emu/PPSSPP/../../Roms/PSP/Puzzle_Bobble.cso
+```
+
+`/proc/bus/input/devices` には次の virtual pad が追加されます。
+
+```text
+I: Bus=0003 Vendor=045e Product=028e Version=045e
+N: Name="MIYOO Pad1"
+S: Sysfs=/devices/virtual/input/input18
+H: Handlers=js0 event4
+B: EV=2b
+B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
+B: ABS=3003f
+```
+
+`plumos-joystick-reader` で読むと、`MIYOO Pad1` は 8 axes / 11 buttons の
+composite device として見えました。
+
+```text
+js info path=/dev/input/js0 name="MIYOO Pad1" axes=8 buttons=11
+evdev info path=/dev/input/event4 name="MIYOO Pad1"
+```
+
+process fd の観測:
+
+```text
+miyoo282_xpad_inputd -> /dev/uinput
+miyoo282_xpad_inputd -> /dev/ttyS0
+PPSSPPSDL -> /dev/input/event4
+PPSSPPSDL -> /dev/ttyS0
+```
+
+`miyoo282_xpad_inputd` の文字列には以下がありました。
+
+```text
+/config/joypad.config
+/dev/ttyS0
+MIYOO Pad1
+/dev/uinput
+```
+
+`PPSSPPSDL` は `libSDL2-2.0.so.0` と `SDL_GameController*` /
+`SDL_Joystick*` API を使っており、binary 内の path から PPSSPP 1.16.6 系と
+判断できます。`assets/gamecontrollerdb.txt` には Xbox 360 controller mapping が
+含まれており、`MIYOO Pad1` の `045e:028e` はこの系統の mapping に乗せている
+可能性が高いです。
+
+現時点の判断:
+
+- PPSSPP で analog stick が動く理由は、PPSSPP 本体が raw serial を直接処理している
+  からではなく、起動 script が `miyoo282_xpad_inputd` を起動して composite virtual
+  pad を作っているため
+- `miyoo282_xpad_inputd` は `/dev/ttyS0` と `/config/joypad.config` を読み、
+  `/dev/uinput` で Xbox 360 互換風の `MIYOO Pad1` を作る
+- PPSSPP は SDL2 GameController/Joystick 経路で `/dev/input/event4` の
+  `MIYOO Pad1` を読む
+- 左スティック押し込みは PPSSPP の controller 設定でも反応しなかったため、引き続き
+  未接続/未対応として扱う
+- plumOS では stock binary を流用せず、`plumos-joystickd` を axes-only から
+  buttons+axes の composite virtual pad mode へ拡張する案を優先する
+- plumOS RetroArch は stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad
+  を優先して検証する
+
 ## options
 
 - `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`
