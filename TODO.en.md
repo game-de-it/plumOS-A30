@@ -105,7 +105,7 @@
 - [x] Implement a text UI prototype for `boot_resume_mode=off|last|picker`.
 - [x] Build a launch plan for the same ROM/core/launch profile on boot, and
   auto-launch it with `boot --execute` when a pending resume session exists.
-- [ ] Build a minimal controller-first frontend prototype.
+- [x] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.
 - [x] Implement thumbnail lookup that preserves paths relative to the ROM alias

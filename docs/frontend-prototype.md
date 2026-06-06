@@ -21,6 +21,7 @@ stock SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.j
 dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
@@ -262,6 +263,43 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `plumos-frontend` は boot mode で起動した時に
 `/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` を一度呼びます。既定値は
 `boot_resume_mode=off` なので、通常は TOP 表示へ進むだけです。
+
+## plumOS controller UI
+
+`plumos-controller-ui` は controller-first の最小 prototype です。まだ framebuffer/SDL の
+画面描画は行わず、SSH stdout に TOP/ROM list の状態を描き、`/dev/input/event*` または
+stdin fallback から入力を受けます。A30 では `/proc/bus/input/devices` から
+`gpio-keys-polled` を探し、通常は `/dev/input/event3` を自動選択します。
+
+TOP を 1 回だけ表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --once --no-clear'
+```
+
+script 入力で状態遷移を確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script down,a,b,select,start,q'
+```
+
+実機ボタンの raw event を確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --dump-events --timeout 10'
+```
+
+操作:
+
+- D-pad: cursor 移動
+- A/right: TOP では ROM list へ入る。ROM list では launch preview を出す
+- B/left: ROM list から TOP へ戻る
+- START: START menu preview
+- SELECT: system/per-ROM core preview
+- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `q`
 
 2026-06-06 の A30 実機確認:
 

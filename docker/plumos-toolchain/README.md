@@ -72,6 +72,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plum
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/bin/plumos-text-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 

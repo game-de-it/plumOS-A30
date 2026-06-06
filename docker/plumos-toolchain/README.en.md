@@ -73,6 +73,9 @@ Outputs:
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/bin/plumos-text-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
