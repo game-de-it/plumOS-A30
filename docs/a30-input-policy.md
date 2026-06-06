@@ -271,7 +271,16 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 - plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
   `plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2
   GameController として自動認識されることを確認済み
-- `plumos-joystickd --device-mode xbox` は常駐候補にする。ただし default service 化は
-  FE/`keymon`/emulator の二重入力と fd 残りを実機で確認してから行う
+- `scripts/probe-a30-joystickd-residency.sh` で、stockless plumOS 状態のまま
+  `plumos-joystickd --device-mode xbox` を常駐させ、FE は `/dev/input/event3` を
+  非排他で直接読み、SDL2 probe と PPSSPP direct launch は `plumOS A30 Gamepad`
+  (`event4`) を GameController として認識することを確認済み
+- 上記常駐 probe の終了後、`plumos-joystickd` process、`plumOS A30 Gamepad` device、
+  `/dev/uinput`/`event4`/`ttyS0` fd は残らなかった
+- PPSSPP direct launch は plumOS gamepad の `event4` に加え、`/dev/input/event3` と
+  `/dev/ttyS0` も開く。物理操作時の二重入力や serial read 競合がないかは追加確認する
 
-現時点の推奨は「`keymon` は残すが、plumOS frontend は直接 input event を読む」です。
+現時点の推奨は「plumOS 常用時は stock `keymon` を止め、frontend は
+`/dev/input/event3` を直接読み、emulator 向けには `plumos-joystickd --device-mode xbox`
+常駐を第一候補にする」です。PPSSPP は `event3`/`ttyS0` の追加 open を確認してから
+default launch profile 化します。

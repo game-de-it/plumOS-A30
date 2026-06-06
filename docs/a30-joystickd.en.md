@@ -359,8 +359,9 @@ Always-running policy:
   adds another input device.
 - Let the plumOS frontend continue reading `/dev/input/event3` directly for its
   own UI, and prefer passing the composite gamepad to emulators.
-- Before making it the default service, check duplicate input and stale fd
-  behavior in the frontend, `keymon`, RetroArch, and standalone emulators.
+- PPSSPP direct launch still opens `/dev/input/event3` and `/dev/ttyS0` in
+  addition to `event4`, so check physical duplicate input and serial contention
+  before making it the default PPSSPP launch profile.
 
 Hardware result on 2026-06-06:
 
@@ -503,6 +504,53 @@ This confirms that `xbox` mode lands on the SDL2 GameController mapping not only
 in stock PPSSPP, but also with the plumOS-bundled SDL2 API runtime. For RetroArch,
 continue prioritizing the plumOS SDL2/evdev build plus this composite pad rather
 than tuning for the stock SDL1 path.
+
+### Residency Probe
+
+With stock `/etc/main`, `MainUI.stock`, and `keymon` stopped, `plumos-joystickd
+--device-mode xbox` was kept resident for 30 seconds while the FE, SDL2 probe,
+and PPSSPP direct launch were checked in sequence.
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-residency.sh
+```
+
+Hardware result on 2026-06-07:
+
+```text
+check=gamepad_detected status=pass
+check=frontend_with_joystickd status=pass
+check=sdl2_gamecontroller_with_resident_joystickd status=pass
+check=ppsspp_direct_with_resident_joystickd status=pass
+check=gamepad_removed_after_joystickd_exit status=pass
+check=stale_processes status=pass
+result=joystickd_residency_ok
+```
+
+Observed fds:
+
+```text
+plumos-joystickd -> /dev/ttyS0
+plumos-joystickd -> /dev/uinput
+plumos-joystickd -> /dev/input/event3
+plumos-controller-ui-mali -> /dev/input/event3
+PPSSPPSDL -> /dev/input/event4
+PPSSPPSDL -> /dev/ttyS0
+PPSSPPSDL -> /dev/input/event3
+```
+
+The FE and `plumos-joystickd` can read `/dev/input/event3` concurrently without
+exclusive grabs. The SDL2 probe and PPSSPP direct launch both recognize the
+resident `plumOS A30 Gamepad` as a GameController. After the probe exits, no
+stale `plumos-joystickd` process, `plumOS A30 Gamepad` device, or
+`/dev/uinput`/`event4`/`ttyS0` fd remains.
+
+One caveat: PPSSPP opens `/dev/input/event3` and `/dev/ttyS0` as well as the
+plumOS gamepad `event4`. Before turning this into a default PPSSPP launch
+profile, check whether real physical input causes duplicate actions or serial
+read contention.
 
 ## Options
 

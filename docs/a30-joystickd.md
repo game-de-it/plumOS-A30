@@ -346,8 +346,8 @@ composite gamepad に流します。
   `--timeout-ms` 付きで短時間確認する
 - plumOS frontend は自分の操作用には引き続き `/dev/input/event3` を直接読み、
   emulator には composite gamepad を渡す構成を優先する
-- 常駐を default にする前に、FE/`keymon`/RetroArch/standalone emulator で二重入力や
-  stale fd が残らないか確認する
+- PPSSPP は direct launch でも `event4` に加えて `/dev/input/event3` と `/dev/ttyS0`
+  を開くため、default launch profile 化の前に物理操作時の二重入力や serial 競合を確認する
 
 2026-06-06 実機結果:
 
@@ -484,6 +484,51 @@ result=sdl2_gamecontroller_visible
 この結果から、stock PPSSPP だけでなく plumOS 同梱 SDL2 API でも `xbox` mode の
 virtual pad は GameController mapping に乗ると判断します。RetroArch 向けには引き続き、
 stock SDL1 ではなく plumOS build の SDL2/evdev とこの composite pad を優先して検証します。
+
+### 常駐 probe
+
+stock `/etc/main`、`MainUI.stock`、`keymon` を止めた plumOS 想定状態で、
+`plumos-joystickd --device-mode xbox` を 30 秒常駐させたまま FE、SDL2 probe、
+PPSSPP direct launch を順に確認しました。
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-residency.sh
+```
+
+2026-06-07 実機結果:
+
+```text
+check=gamepad_detected status=pass
+check=frontend_with_joystickd status=pass
+check=sdl2_gamecontroller_with_resident_joystickd status=pass
+check=ppsspp_direct_with_resident_joystickd status=pass
+check=gamepad_removed_after_joystickd_exit status=pass
+check=stale_processes status=pass
+result=joystickd_residency_ok
+```
+
+観測した fd:
+
+```text
+plumos-joystickd -> /dev/ttyS0
+plumos-joystickd -> /dev/uinput
+plumos-joystickd -> /dev/input/event3
+plumos-controller-ui-mali -> /dev/input/event3
+PPSSPPSDL -> /dev/input/event4
+PPSSPPSDL -> /dev/ttyS0
+PPSSPPSDL -> /dev/input/event3
+```
+
+FE と `plumos-joystickd` は `/dev/input/event3` を非排他で同時に読めました。
+SDL2 probe と PPSSPP direct launch は resident `plumOS A30 Gamepad` を
+GameController として認識しました。probe 終了後、`plumos-joystickd` process、
+`plumOS A30 Gamepad` device、`/dev/uinput`/`event4`/`ttyS0` fd は残りませんでした。
+
+注意点として、PPSSPP は plumOS gamepad の `event4` だけでなく `/dev/input/event3` と
+`/dev/ttyS0` も開きます。実際の物理操作で二重入力や serial read 競合が出ないかは、
+PPSSPP launch profile 化の前に追加確認します。
 
 ## options
 

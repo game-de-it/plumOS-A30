@@ -162,7 +162,8 @@
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
 - [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
 - [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
-- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/emulator に二重入力や fd 残りの弊害がないか確認する。比較調査では、stock `keymon` が削除済み `js*`/`event*` fd を保持する場合も見る。
+- [x] `scripts/probe-a30-joystickd-residency.sh` を追加し、stockless plumOS 状態で `plumos-joystickd --device-mode xbox` 常駐中の FE/SDL2/PPSSPP direct launch と終了後の stale process/device/fd なしを確認する。
+- [ ] PPSSPP direct launch は `plumOS A30 Gamepad` の `event4` に加えて `/dev/input/event3` と `/dev/ttyS0` も開くため、物理操作時の二重入力/serial 競合の有無と抑止方法を確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。

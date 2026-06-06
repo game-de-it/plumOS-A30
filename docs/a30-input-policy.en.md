@@ -287,9 +287,18 @@ Judgment:
 - The plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe also
   confirms that `plumos-joystickd --device-mode xbox` is auto-detected as an
   SDL2 GameController.
-- Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
-  but only make it the default service after checking duplicate input and stale
-  fd behavior across the frontend, `keymon`, and emulators on hardware.
+- `scripts/probe-a30-joystickd-residency.sh` confirms that in the stockless
+  plumOS state, `plumos-joystickd --device-mode xbox` can stay resident while
+  the FE reads `/dev/input/event3` directly and the SDL2 probe plus PPSSPP
+  direct launch recognize `plumOS A30 Gamepad` (`event4`) as a GameController.
+- After that residency probe exits, no stale `plumos-joystickd` process,
+  `plumOS A30 Gamepad` device, or `/dev/uinput`/`event4`/`ttyS0` fd remains.
+- PPSSPP direct launch also opens `/dev/input/event3` and `/dev/ttyS0` in
+  addition to the plumOS gamepad `event4`; physical duplicate-input or serial
+  read contention still needs a targeted check.
 
-Current recommendation: keep `keymon`, but let the plumOS frontend read input
-events directly.
+Current recommendation: stop stock `keymon` during regular plumOS operation,
+let the frontend read `/dev/input/event3` directly, and treat resident
+`plumos-joystickd --device-mode xbox` as the leading emulator input path.
+Default PPSSPP launch profiles should wait until the extra `event3`/`ttyS0`
+opens are understood.

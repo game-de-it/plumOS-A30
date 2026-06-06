@@ -258,10 +258,13 @@
   upstream SDL3 3.4.10 + sdl2-compat 2.32.68 automatically recognizes the
   `plumos-joystickd --device-mode xbox` composite virtual pad as a
   GameController.
-- [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
-  during plumOS causes duplicate input or stale fd issues in the frontend or
-  emulators. For comparison probes, also watch the case where stock `keymon`
-  keeps deleted `js*`/`event*` fds open.
+- [x] Add `scripts/probe-a30-joystickd-residency.sh` and confirm that in the
+  stockless plumOS state, the FE, SDL2, and PPSSPP direct launch work while
+  `plumos-joystickd --device-mode xbox` is resident, with no stale
+  process/device/fd after exit.
+- [ ] PPSSPP direct launch opens `/dev/input/event3` and `/dev/ttyS0` in
+  addition to `plumOS A30 Gamepad` on `event4`; check for duplicate physical
+  input or serial contention and find a way to suppress it if needed.
 - [ ] For the plumOS RetroArch build, prioritize testing SDL2/evdev plus a
   composite virtual pad instead of relying on the stock SDL1 path.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
