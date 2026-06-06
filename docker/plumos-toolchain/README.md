@@ -121,6 +121,32 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 100'
 ```
 
+## joystickd build
+
+```sh
+./scripts/docker-build.sh joystickd
+```
+
+生成物:
+
+```text
+dist/plumos-joystickd/plumos/bin/plumos-joystickd
+dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
+```
+
+転送:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-joystickd /mnt/SDCARD
+```
+
+読み取り確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
+```
+
 ## shell
 
 ```sh

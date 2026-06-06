@@ -15,6 +15,7 @@ Commands:
   smoke          Build the armhf smoke binary into dist/docker-smoke.
   userland       Build the plumOS BusyBox userland into dist/plumos-userland.
   frontend       Build the frontend prototype into dist/plumos-frontend.
+  joystickd      Build the A30 serial-to-uinput joystick daemon into dist/plumos-joystickd.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
@@ -77,6 +78,10 @@ case "$cmd" in
   frontend)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-frontend.sh
+    ;;
+  joystickd)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-joystickd.sh
     ;;
   runtime-probe|probe)
     ensure_image

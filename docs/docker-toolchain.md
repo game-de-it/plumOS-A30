@@ -69,6 +69,19 @@ dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
+joystickd を build します。
+
+```sh
+./scripts/docker-build.sh joystickd
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-joystickd/plumos/bin/plumos-joystickd
+dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -106,6 +119,14 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-runtime-probe --draw-ms 80 --input-ms 100 --audio-ms 80 --allow-busy-audio'
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 100'
+```
+
+joystickd も SD カード root に展開します。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-joystickd /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
 log を回収します。

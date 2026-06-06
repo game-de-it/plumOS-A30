@@ -149,8 +149,14 @@
   `axisYR`/`axisXR` are close to the `/config/joypad.config` min/max values.
 - [ ] Capture up/down/left/right separately and confirm the X/Y assignment and
   sign for `axisYR`/`axisXR`.
-- [ ] Analyze `/config/joypad.config` and the `/dev/ttyS0` raw serial path, then
-  design plumOS `plumos-joystickd`.
+- [x] Record a minimal plumOS `plumos-joystickd` design around
+  `/config/joypad.config` and the `/dev/ttyS0` raw serial path.
+- [x] Add a minimal `plumos-joystickd` implementation that converts `/dev/ttyS0`
+  raw frames into virtual `/dev/uinput` `ABS_X`/`ABS_Y` events.
+- [x] Validate that the `plumos-joystickd` virtual input device appears on the
+  A30 as `js0`/`event4`.
+- [ ] Check whether RetroArch/SDL can see the `plumos-joystickd` virtual input
+  device.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
   it is required beyond stock calibration/test screens.
 - [x] Implement a controller UI SAFE menu prototype opened by Function.

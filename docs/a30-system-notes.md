@@ -157,6 +157,8 @@ backend 候補:
   は driver 上利用可能
 - 2026-06-06 の実機では `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe`
   joystick frame を確認した
+- `plumos-joystickd` の最小実装で `/dev/uinput` から `plumOS A30 Analog Stick`
+  (`js0`/`event4`) を作成できることを確認した
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

@@ -137,6 +137,8 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   is not created initially, but the `ttyS` driver exposes minors 0-4.
 - On the device observed on 2026-06-06, `/dev/ttyS0` produced 9600/8N1 joystick
   frames in the form `ff b1 b2 b3 b4 fe`.
+- The minimal `plumos-joystickd` implementation can create a
+  `plumOS A30 Analog Stick` (`js0`/`event4`) device through `/dev/uinput`.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

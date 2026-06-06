@@ -116,7 +116,10 @@
 - [x] A30 実機では `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe` frame が出ることを確認する。
 - [x] 左スティック操作時の serial frame 範囲を capture し、`axisYR`/`axisXR` が `/config/joypad.config` の min/max に近いことを確認する。
 - [ ] 左スティックの上下左右を個別 capture し、`axisYR`/`axisXR` の X/Y と符号を確定する。
-- [ ] `/config/joypad.config` と `/dev/ttyS0` raw serial 経路を解析し、plumOS 用 `plumos-joystickd` を設計する。
+- [x] `/config/joypad.config` と `/dev/ttyS0` raw serial 経路を使う plumOS 用 `plumos-joystickd` の最小設計を記録する。
+- [x] `/dev/ttyS0` raw frame を `/dev/uinput` の virtual `ABS_X`/`ABS_Y` に変換する `plumos-joystickd` 最小実装を追加する。
+- [x] `plumos-joystickd` の virtual input device が A30 実機で `js0`/`event4` として作成されることを確認する。
+- [ ] `plumos-joystickd` の virtual input device が RetroArch/SDL から見えるか検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。
