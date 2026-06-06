@@ -58,11 +58,18 @@
 ## Phase 5 - Frontend Compatibility Layer
 
 - [x] Read stock `config.json` files from `Emu`, `RApp`, `App`, and `Themes`.
-- [ ] Read stock data schema from `Roms`, `Imgs`, `gamelist`, and artwork.
+- [x] Resolve `rompath`, `imgpath`, `gamelist`, and `launchlist` and check
+  existence/counts.
+- [ ] Confirm ROM filename to artwork filename matching rules.
+- [ ] Read the stock `gamelist` XML data schema.
 - [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
-- [ ] Implement ROM filtering through `extlist`.
-- [ ] Support alternate launchers/cores through `launchlist`.
-- [ ] Handle a `Roms/recentlist.json` compatible recent list.
+- [x] Implement `extlist` ROM count filtering in the compatibility scanner.
+- [ ] Implement `extlist` filtering in the frontend ROM list.
+- [x] Detect `launchlist` entries in the compatibility scanner.
+- [ ] Support alternate launchers/cores through UI and launch profiles.
+- [x] Detect existence and entry count for `Roms/recentlist.json` in the
+  compatibility scanner.
+- [ ] Parse/update a `Roms/recentlist.json` compatible recent list.
 - [ ] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path
   `$1`.
 - [ ] Eventually move away from shell launch scripts toward plumOS launch

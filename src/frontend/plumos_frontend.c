@@ -18,6 +18,24 @@ struct log_ctx {
   int stdout_enabled;
 };
 
+struct dir_stats {
+  int exists;
+  size_t files;
+  size_t matching_files;
+  size_t subdirs;
+};
+
+struct scan_totals {
+  int configs;
+  size_t rom_dirs;
+  size_t rom_files;
+  size_t rom_matching_files;
+  size_t image_dirs;
+  size_t image_files;
+  size_t gamelists;
+  size_t launchers;
+};
+
 static void emit(struct log_ctx *ctx, const char *fmt, ...) {
   va_list ap;
   va_list aq;
@@ -47,6 +65,14 @@ static int is_file(const char *path) {
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+static long file_size_or_negative(const char *path) {
+  struct stat st;
+  if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
+    return -1;
+  }
+  return (long)st.st_size;
+}
+
 static int join_path(char *out, size_t out_size, const char *a, const char *b) {
   size_t a_len = strlen(a);
   size_t b_len = strlen(b);
@@ -63,6 +89,229 @@ static int join_path(char *out, size_t out_size, const char *a, const char *b) {
   memcpy(out + a_len + 1, b, b_len);
   out[a_len + 1 + b_len] = '\0';
   return 1;
+}
+
+static int copy_string(char *out, size_t out_size, const char *in) {
+  size_t len = strlen(in);
+  if (len + 1 > out_size) {
+    if (out_size > 0) {
+      out[0] = '\0';
+    }
+    return 0;
+  }
+  memcpy(out, in, len + 1);
+  return 1;
+}
+
+static int append_string(char *out, size_t out_size, size_t *pos, const char *in) {
+  size_t len = strlen(in);
+  if (*pos + len + 1 > out_size) {
+    return 0;
+  }
+  memcpy(out + *pos, in, len);
+  *pos += len;
+  out[*pos] = '\0';
+  return 1;
+}
+
+static int normalize_path(char *out, size_t out_size, const char *in) {
+  char tmp[PATH_MAX];
+  char *segments[256];
+  char *p;
+  size_t count = 0;
+  size_t pos = 0;
+  int absolute;
+
+  if (!in || !in[0]) {
+    if (out_size > 0) {
+      out[0] = '\0';
+    }
+    return 0;
+  }
+  if (!copy_string(tmp, sizeof(tmp), in)) {
+    if (out_size > 0) {
+      out[0] = '\0';
+    }
+    return 0;
+  }
+
+  absolute = tmp[0] == '/';
+  p = tmp;
+  while (*p) {
+    char *start;
+    while (*p == '/') {
+      p++;
+    }
+    if (!*p) {
+      break;
+    }
+    start = p;
+    while (*p && *p != '/') {
+      p++;
+    }
+    if (*p == '/') {
+      *p++ = '\0';
+    }
+
+    if (strcmp(start, ".") == 0) {
+      continue;
+    }
+    if (strcmp(start, "..") == 0) {
+      if (count > 0 && strcmp(segments[count - 1], "..") != 0) {
+        count--;
+      } else if (!absolute && count < sizeof(segments) / sizeof(segments[0])) {
+        segments[count++] = start;
+      }
+      continue;
+    }
+    if (count < sizeof(segments) / sizeof(segments[0])) {
+      segments[count++] = start;
+    }
+  }
+
+  if (out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+
+  if (absolute) {
+    if (!append_string(out, out_size, &pos, "/")) {
+      return 0;
+    }
+  }
+
+  if (count > 0) {
+    size_t i;
+    for (i = 0; i < count; i++) {
+      if (i > 0) {
+        if (!append_string(out, out_size, &pos, "/")) {
+          return 0;
+        }
+      }
+      if (!append_string(out, out_size, &pos, segments[i])) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+
+  if (!absolute) {
+    return copy_string(out, out_size, ".");
+  }
+  return 1;
+}
+
+static int resolve_path(char *out, size_t out_size, const char *base_dir, const char *path) {
+  char joined[PATH_MAX];
+
+  if (!path || !path[0]) {
+    if (out_size > 0) {
+      out[0] = '\0';
+    }
+    return 0;
+  }
+
+  if (path[0] == '/') {
+    return normalize_path(out, out_size, path);
+  }
+
+  if (!join_path(joined, sizeof(joined), base_dir, path)) {
+    if (out_size > 0) {
+      out[0] = '\0';
+    }
+    return 0;
+  }
+  return normalize_path(out, out_size, joined);
+}
+
+static int ascii_equal_ci(const char *a, size_t a_len, const char *b, size_t b_len) {
+  size_t i;
+  if (a_len != b_len) {
+    return 0;
+  }
+  for (i = 0; i < a_len; i++) {
+    if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static const char *file_extension(const char *name) {
+  const char *dot = strrchr(name, '.');
+  const char *slash = strrchr(name, '/');
+  if (!dot || (slash && dot < slash) || dot[1] == '\0') {
+    return "";
+  }
+  return dot + 1;
+}
+
+static int extlist_contains(const char *extlist, const char *ext) {
+  const char *p = extlist;
+  size_t ext_len = strlen(ext);
+
+  if (!extlist || !extlist[0]) {
+    return 1;
+  }
+
+  while (*p) {
+    const char *start;
+    const char *end;
+    while (*p == '|' || isspace((unsigned char)*p)) {
+      p++;
+    }
+    start = p;
+    while (*p && *p != '|') {
+      p++;
+    }
+    end = p;
+    while (end > start && isspace((unsigned char)end[-1])) {
+      end--;
+    }
+    if (end > start && ascii_equal_ci(start, (size_t)(end - start), ext, ext_len)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+static struct dir_stats scan_regular_files(const char *path, const char *extlist) {
+  struct dir_stats stats;
+  DIR *dir;
+  struct dirent *ent;
+
+  memset(&stats, 0, sizeof(stats));
+  dir = opendir(path);
+  if (!dir) {
+    return stats;
+  }
+  stats.exists = 1;
+
+  while ((ent = readdir(dir)) != NULL) {
+    char child[PATH_MAX];
+
+    if (ent->d_name[0] == '.') {
+      continue;
+    }
+    if (!join_path(child, sizeof(child), path, ent->d_name)) {
+      continue;
+    }
+    if (is_dir(child)) {
+      stats.subdirs++;
+      continue;
+    }
+    if (!is_file(child)) {
+      continue;
+    }
+    stats.files++;
+    if (extlist_contains(extlist, file_extension(ent->d_name))) {
+      stats.matching_files++;
+    }
+  }
+
+  closedir(dir);
+  return stats;
 }
 
 static char *read_file(const char *path, size_t *size_out) {
@@ -103,6 +352,31 @@ static char *read_file(const char *path, size_t *size_out) {
     *size_out = (size_t)size;
   }
   return buf;
+}
+
+static size_t count_nonempty_lines(const char *text) {
+  size_t count = 0;
+  int in_line = 0;
+
+  if (!text) {
+    return 0;
+  }
+
+  while (*text) {
+    if (*text == '\n' || *text == '\r') {
+      if (in_line) {
+        count++;
+        in_line = 0;
+      }
+    } else if (!isspace((unsigned char)*text)) {
+      in_line = 1;
+    }
+    text++;
+  }
+  if (in_line) {
+    count++;
+  }
+  return count;
 }
 
 static const char *skip_ws(const char *p) {
@@ -151,6 +425,95 @@ static int json_get_string(const char *json, const char *key, char *out, size_t 
   }
 
   return 0;
+}
+
+static int json_find_array(const char *json, const char *key, const char **start_out, const char **end_out) {
+  char pattern[128];
+  const char *p;
+
+  if (!json || !key || !start_out || !end_out) {
+    return 0;
+  }
+
+  snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+  p = strstr(json, pattern);
+  if (!p) {
+    return 0;
+  }
+  p += strlen(pattern);
+  p = skip_ws(p);
+  if (*p != ':') {
+    return 0;
+  }
+  p++;
+  p = skip_ws(p);
+  if (*p != '[') {
+    return 0;
+  }
+
+  {
+    const char *q = p;
+    int depth = 0;
+    int in_string = 0;
+    int escape = 0;
+
+    while (*q) {
+      if (escape) {
+        escape = 0;
+        q++;
+        continue;
+      }
+      if (in_string && *q == '\\') {
+        escape = 1;
+        q++;
+        continue;
+      }
+      if (*q == '"') {
+        in_string = !in_string;
+        q++;
+        continue;
+      }
+      if (!in_string && *q == '[') {
+        depth++;
+      } else if (!in_string && *q == ']') {
+        depth--;
+        if (depth == 0) {
+          *start_out = p + 1;
+          *end_out = q;
+          return 1;
+        }
+      }
+      q++;
+    }
+  }
+
+  return 0;
+}
+
+static size_t count_key_between(const char *start, const char *end, const char *key) {
+  char pattern[128];
+  const char *p = start;
+  size_t count = 0;
+
+  if (!start || !end || start >= end) {
+    return 0;
+  }
+
+  snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+  while ((p = strstr(p, pattern)) != NULL && p < end) {
+    count++;
+    p += strlen(pattern);
+  }
+  return count;
+}
+
+static size_t json_count_launchlist_entries(const char *json) {
+  const char *start = NULL;
+  const char *end = NULL;
+  if (!json_find_array(json, "launchlist", &start, &end)) {
+    return 0;
+  }
+  return count_key_between(start, end, "launch");
 }
 
 static int cmp_strptr(const void *a, const void *b) {
@@ -215,13 +578,15 @@ static void free_list(char **items, size_t count) {
   free(items);
 }
 
-static int scan_category(struct log_ctx *ctx, const char *sd_root, const char *category,
-                         const char *display_key) {
+static struct scan_totals scan_category(struct log_ctx *ctx, const char *sd_root,
+                                        const char *category, const char *display_key) {
   char base[PATH_MAX];
   char **dirs;
   size_t count = 0;
   size_t i;
-  int configs = 0;
+  struct scan_totals totals;
+
+  memset(&totals, 0, sizeof(totals));
 
   join_path(base, sizeof(base), sd_root, category);
   dirs = list_dirs(base, &count);
@@ -232,9 +597,21 @@ static int scan_category(struct log_ctx *ctx, const char *sd_root, const char *c
     char config_path[PATH_MAX];
     char label[256] = "";
     char rompath[512] = "";
+    char imgpath[512] = "";
+    char gamelist[512] = "";
     char extlist[512] = "";
     char launch[256] = "";
+    char resolved_rompath[PATH_MAX] = "";
+    char resolved_imgpath[PATH_MAX] = "";
+    char resolved_gamelist[PATH_MAX] = "";
+    long gamelist_size = -1;
+    size_t launcher_count = 0;
+    struct dir_stats rom_stats;
+    struct dir_stats image_stats;
     char *json;
+
+    memset(&rom_stats, 0, sizeof(rom_stats));
+    memset(&image_stats, 0, sizeof(image_stats));
 
     join_path(dir_path, sizeof(dir_path), base, dirs[i]);
     join_path(config_path, sizeof(config_path), dir_path, "config.json");
@@ -254,18 +631,65 @@ static int scan_category(struct log_ctx *ctx, const char *sd_root, const char *c
       json_get_string(json, "label", label, sizeof(label));
     }
     json_get_string(json, "rompath", rompath, sizeof(rompath));
+    json_get_string(json, "imgpath", imgpath, sizeof(imgpath));
+    json_get_string(json, "gamelist", gamelist, sizeof(gamelist));
     json_get_string(json, "extlist", extlist, sizeof(extlist));
     json_get_string(json, "launch", launch, sizeof(launch));
+    launcher_count = json_count_launchlist_entries(json);
 
-    emit(ctx, "  - %s label=\"%s\" launch=\"%s\" rompath=\"%s\" extlist=\"%s\"",
+    if (rompath[0] && resolve_path(resolved_rompath, sizeof(resolved_rompath), dir_path, rompath)) {
+      rom_stats = scan_regular_files(resolved_rompath, extlist);
+      if (rom_stats.exists) {
+        totals.rom_dirs++;
+        totals.rom_files += rom_stats.files;
+        totals.rom_matching_files += rom_stats.matching_files;
+      }
+    }
+
+    if (imgpath[0] && resolve_path(resolved_imgpath, sizeof(resolved_imgpath), dir_path, imgpath)) {
+      image_stats = scan_regular_files(resolved_imgpath, "png|jpg|jpeg|bmp");
+      if (image_stats.exists) {
+        totals.image_dirs++;
+        totals.image_files += image_stats.matching_files;
+      }
+    }
+
+    if (gamelist[0] && resolve_path(resolved_gamelist, sizeof(resolved_gamelist), dir_path, gamelist)) {
+      gamelist_size = file_size_or_negative(resolved_gamelist);
+      if (gamelist_size >= 0) {
+        totals.gamelists++;
+      }
+    }
+    totals.launchers += launcher_count;
+
+    emit(ctx, "  - %s label=\"%s\" launch=\"%s\" rompath=\"%s\" imgpath=\"%s\" extlist=\"%s\"",
          dirs[i], label[0] ? label : "(none)", launch[0] ? launch : "(none)",
-         rompath[0] ? rompath : "(none)", extlist[0] ? extlist : "(none)");
-    configs++;
+         rompath[0] ? rompath : "(none)", imgpath[0] ? imgpath : "(none)",
+         extlist[0] ? extlist : "(none)");
+    if (rompath[0]) {
+      emit(ctx, "    roms path=%s exists=%s files=%zu matched=%zu subdirs=%zu",
+           resolved_rompath[0] ? resolved_rompath : "(unresolved)", rom_stats.exists ? "yes" : "no",
+           rom_stats.files, rom_stats.matching_files, rom_stats.subdirs);
+    }
+    if (imgpath[0]) {
+      emit(ctx, "    artwork path=%s exists=%s images=%zu subdirs=%zu",
+           resolved_imgpath[0] ? resolved_imgpath : "(unresolved)", image_stats.exists ? "yes" : "no",
+           image_stats.matching_files, image_stats.subdirs);
+    }
+    if (gamelist[0]) {
+      emit(ctx, "    gamelist path=%s exists=%s size=%ld",
+           resolved_gamelist[0] ? resolved_gamelist : "(unresolved)", gamelist_size >= 0 ? "yes" : "no",
+           gamelist_size);
+    }
+    if (launcher_count > 0) {
+      emit(ctx, "    launchlist entries=%zu", launcher_count);
+    }
+    totals.configs++;
     free(json);
   }
 
   free_list(dirs, count);
-  return configs;
+  return totals;
 }
 
 static void ensure_log_dir(const char *root) {
@@ -282,11 +706,13 @@ int main(int argc, char **argv) {
   char log_path[PATH_MAX];
   struct log_ctx ctx;
   time_t now;
-  int emu_configs;
-  int rapp_configs;
-  int app_configs;
-  int theme_configs;
+  struct scan_totals emu_totals;
+  struct scan_totals rapp_totals;
+  struct scan_totals app_totals;
+  struct scan_totals theme_totals;
   char recent_path[PATH_MAX];
+  long recent_size;
+  size_t recent_entries = 0;
 
   (void)argc;
   (void)argv;
@@ -310,15 +736,31 @@ int main(int argc, char **argv) {
   emit(&ctx, "===== plumOS frontend prototype =====");
   emit(&ctx, "time=%ld mode=%s sd_root=%s plumos_root=%s", (long)now, mode, sd_root, plumos_root);
 
-  emu_configs = scan_category(&ctx, sd_root, "Emu", "label");
-  rapp_configs = scan_category(&ctx, sd_root, "RApp", "label");
-  app_configs = scan_category(&ctx, sd_root, "App", "label");
-  theme_configs = scan_category(&ctx, sd_root, "Themes", "name");
+  emu_totals = scan_category(&ctx, sd_root, "Emu", "label");
+  rapp_totals = scan_category(&ctx, sd_root, "RApp", "label");
+  app_totals = scan_category(&ctx, sd_root, "App", "label");
+  theme_totals = scan_category(&ctx, sd_root, "Themes", "name");
 
   snprintf(recent_path, sizeof(recent_path), "%s/Roms/recentlist.json", sd_root);
-  emit(&ctx, "[recent] path=%s exists=%s", recent_path, is_file(recent_path) ? "yes" : "no");
-  emit(&ctx, "summary emu=%d rapp=%d app=%d themes=%d", emu_configs, rapp_configs, app_configs,
-       theme_configs);
+  recent_size = file_size_or_negative(recent_path);
+  if (recent_size >= 0) {
+    char *recent_json = read_file(recent_path, NULL);
+    recent_entries = count_nonempty_lines(recent_json);
+    free(recent_json);
+  }
+  emit(&ctx, "[recent] path=%s exists=%s size=%ld entries=%zu", recent_path,
+       recent_size >= 0 ? "yes" : "no", recent_size, recent_entries);
+  emit(&ctx, "summary configs emu=%d rapp=%d app=%d themes=%d", emu_totals.configs,
+       rapp_totals.configs, app_totals.configs, theme_totals.configs);
+  emit(&ctx, "summary roms dirs=%zu files=%zu matched=%zu", emu_totals.rom_dirs + rapp_totals.rom_dirs,
+       emu_totals.rom_files + rapp_totals.rom_files,
+       emu_totals.rom_matching_files + rapp_totals.rom_matching_files);
+  emit(&ctx, "summary artwork dirs=%zu images=%zu",
+       emu_totals.image_dirs + rapp_totals.image_dirs,
+       emu_totals.image_files + rapp_totals.image_files);
+  emit(&ctx, "summary metadata gamelists=%zu launchers=%zu",
+       emu_totals.gamelists + rapp_totals.gamelists,
+       emu_totals.launchers + rapp_totals.launchers);
 
   if (ctx.log) {
     fclose(ctx.log);

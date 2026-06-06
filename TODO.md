@@ -57,11 +57,16 @@
 ## Phase 5 - Frontend Compatibility Layer
 
 - [x] `Emu`, `RApp`, `App`, `Themes` の stock `config.json` を読む。
-- [ ] `Roms`, `Imgs`, `gamelist`, artwork の stock data schema を読む。
+- [x] `rompath`, `imgpath`, `gamelist`, `launchlist` を解決して存在と件数を確認する。
+- [ ] ROM file と artwork file の名前対応 rule を確認する。
+- [ ] `gamelist` XML の stock data schema を読む。
 - [ ] 既存 ROM、artwork、save、state を移動せずに認識できるようにする。
-- [ ] `extlist` による ROM filter を実装する。
-- [ ] `launchlist` の代替 launcher/core を扱えるようにする。
-- [ ] `Roms/recentlist.json` 互換の recent list を扱う。
+- [x] compatibility scanner で `extlist` による ROM count filter を実装する。
+- [ ] frontend の ROM list で `extlist` による filter を実装する。
+- [x] compatibility scanner で `launchlist` entry を検出する。
+- [ ] `launchlist` の代替 launcher/core を UI と launch profile で扱えるようにする。
+- [x] compatibility scanner で `Roms/recentlist.json` の存在と entry 数を検出する。
+- [ ] `Roms/recentlist.json` 互換の recent list を parse/update できるようにする。
 - [ ] `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path `$1` の launch 互換を再現する。
 - [ ] 最終的には shell launch script 依存を plumOS launch profile へ移す。
 
