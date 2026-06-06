@@ -105,6 +105,17 @@
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.
+- [ ] Design a plumOS theme model that separates theme, layout preset, and
+  frontend behavior.
+- [ ] Define the schema for `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json`.
+- [ ] Limit themes to colors, fonts, backgrounds, system icons, selection style,
+  spacing, thumbnail frames, and sound effects.
+- [ ] Prevent themes from changing behavior such as button mappings, START menu,
+  SELECT core menu, favorites, ROM scanning, and resume.
+- [ ] Implement a text-mode fallback that remains usable with default font/color
+  even when theme assets or fonts are missing/broken.
+- [ ] Keep stock theme compatibility out of the initial spec; consider it later
+  only as an importer if needed.
 - [ ] Decide how to handle A30 settings such as brightness, volume, Wi-Fi, and
   keymap.
 - [ ] Run minimal SDL/input/audio/video test binaries on the A30.

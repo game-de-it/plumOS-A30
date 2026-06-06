@@ -91,6 +91,12 @@
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
+- [ ] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
+- [ ] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
+- [ ] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。
+- [ ] button 操作、START menu、SELECT core menu、favorite、ROM scan、resume などの behavior は theme から変更できないようにする。
+- [ ] text mode は theme asset/font が壊れていても default font/color で必ず操作できる fallback を実装する。
+- [ ] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
 - [ ] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
 - [ ] SDL/input/audio/video の最小 test binary を A30 上で動かす。
 - [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
