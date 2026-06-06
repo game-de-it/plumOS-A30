@@ -17,6 +17,7 @@ Outputs:
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
+dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -42,6 +43,17 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `--allow-busy-audio` treats the stock MainUI holding the PCM device as an
 observed state rather than a probe failure.
+
+Read-only SysV shared memory watch for stock `keymon`/`MainUI`:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-shm-watch --timeout-ms 10000 --interval-ms 100 --max-bytes 128'
+```
+
+`plumos-shm-watch` is a helper for investigating paths that do not appear as
+kernel input events, such as left stick calibration. It does not write to shared
+memory.
 
 ## Options
 
@@ -93,6 +105,8 @@ a test tone through `/dev/dsp`.
 - Video: `/dev/fb0` reports 480x640, 32bpp, line length 1920, and short
   draw/restore succeeds.
 - Input: `gpio-keys-polled` opens and polls as `/dev/input/event3`.
+- Shared memory: `plumos-shm-watch` can attach to stock `keymon`/`MainUI` SysV
+  shm read-only.
 - Audio: OSS `/dev/dsp` exists, but is busy while stock MainUI holds PCM.
 - SDL2: stock libraries exist, but are not adopted as plumOS runtime
   dependencies. Build a linked probe after plumOS bundles its own SDL2 package.

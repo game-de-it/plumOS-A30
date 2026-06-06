@@ -150,6 +150,8 @@ backend 候補:
 - 電源ボタン以外の物理ボタン mapping を確認済み:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, SELECT=`KEY_RIGHTCTRL`,
   Function=`KEY_ESC`
+- 左スティック軸は `/dev/input/event*` の `EV_ABS` としては観測できず、MainUI の
+  calibration が `/config/joypad.config` を更新することを確認した
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

@@ -134,8 +134,14 @@
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
 - [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
   directly.
-- [x] Confirm physical button code/action mapping except power with
+- [x] Confirm physical button code/action mapping except power and left-stick
+  click with
   `plumos-input-compare --all-events`.
+- [x] Add `EV_ABS` output to `plumos-input-compare` and check whether the left
+  stick is exposed as kernel input.
+- [ ] Confirm the left stick click button code with a short capture.
+- [ ] Analyze `/config/joypad.config` and the `/dev/mem` ADC read path, then
+  design a plumOS left stick reader.
 - [x] Implement a controller UI SAFE menu prototype opened by Function.
 - [ ] Safely confirm the short power-button event code and stock sleep/shutdown
   side effects.

@@ -23,12 +23,17 @@
 
 #ifndef PLUMOS_HAS_LINUX_INPUT
 #define EV_KEY 0x01
+#define EV_ABS 0x03
 struct input_event {
   struct timeval time;
   unsigned short type;
   unsigned short code;
   int value;
 };
+#endif
+
+#ifndef EV_ABS
+#define EV_ABS 0x03
 #endif
 
 #ifndef KEY_ESC
@@ -130,11 +135,42 @@ struct input_event {
 #ifndef BTN_MODE
 #define BTN_MODE 316
 #endif
+#ifndef BTN_THUMBL
+#define BTN_THUMBL 317
+#endif
+#ifndef BTN_THUMBR
+#define BTN_THUMBR 318
+#endif
 #ifndef KEY_SELECT
 #define KEY_SELECT 0x161
 #endif
 #ifndef KEY_MENU
 #define KEY_MENU 139
+#endif
+
+#ifndef ABS_X
+#define ABS_X 0
+#endif
+#ifndef ABS_Y
+#define ABS_Y 1
+#endif
+#ifndef ABS_Z
+#define ABS_Z 2
+#endif
+#ifndef ABS_RX
+#define ABS_RX 3
+#endif
+#ifndef ABS_RY
+#define ABS_RY 4
+#endif
+#ifndef ABS_RZ
+#define ABS_RZ 5
+#endif
+#ifndef ABS_HAT0X
+#define ABS_HAT0X 16
+#endif
+#ifndef ABS_HAT0Y
+#define ABS_HAT0Y 17
 #endif
 
 #define MAX_INPUT_DEVICES 16
@@ -171,6 +207,7 @@ struct poll_target {
   int device_index;
   int events;
   int key_events;
+  int abs_events;
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -299,6 +336,10 @@ static const char *event_action(unsigned short code) {
     return "power";
   case KEY_ESC:
     return "function";
+  case BTN_THUMBL:
+    return "l3";
+  case BTN_THUMBR:
+    return "r3";
   case KEY_ENTER:
   case KEY_MENU:
   case BTN_START:
@@ -388,6 +429,67 @@ static const char *key_name(unsigned short code) {
     return "BTN_START";
   case BTN_MODE:
     return "BTN_MODE";
+  case BTN_THUMBL:
+    return "BTN_THUMBL";
+  case BTN_THUMBR:
+    return "BTN_THUMBR";
+  default:
+    return "-";
+  }
+}
+
+static const char *event_type_name(unsigned short type) {
+  switch (type) {
+  case EV_KEY:
+    return "EV_KEY";
+  case EV_ABS:
+    return "EV_ABS";
+  default:
+    return "-";
+  }
+}
+
+static const char *abs_name(unsigned short code) {
+  switch (code) {
+  case ABS_X:
+    return "ABS_X";
+  case ABS_Y:
+    return "ABS_Y";
+  case ABS_Z:
+    return "ABS_Z";
+  case ABS_RX:
+    return "ABS_RX";
+  case ABS_RY:
+    return "ABS_RY";
+  case ABS_RZ:
+    return "ABS_RZ";
+  case ABS_HAT0X:
+    return "ABS_HAT0X";
+  case ABS_HAT0Y:
+    return "ABS_HAT0Y";
+  default:
+    return "-";
+  }
+}
+
+static const char *abs_action(unsigned short code) {
+  switch (code) {
+  case ABS_X:
+    return "left_stick_x";
+  case ABS_Y:
+    return "left_stick_y";
+  case ABS_Z:
+    return "left_stick_z";
+  case ABS_RX:
+    return "right_stick_x";
+  case ABS_RY:
+    return "right_stick_y";
+  case ABS_RZ:
+    return "right_stick_z";
+  case ABS_HAT0X:
+    return "hat_x";
+  case ABS_HAT0Y:
+    return "hat_y";
   default:
     return "-";
   }
@@ -573,7 +675,7 @@ static void load_process_refs(struct compare_state *state) {
     if (strcmp(comm, "keymon") == 0) {
       state->keymon_running = 1;
       scan_process_fds(state, pid, comm);
-    } else if (strcmp(comm, "MainUI") == 0) {
+    } else if (strncmp(comm, "MainUI", 6) == 0) {
       state->mainui_running = 1;
       scan_process_fds(state, pid, comm);
     }
@@ -587,6 +689,7 @@ static int poll_direct_input(const char *event_path, int timeout_ms, int *events
   long long deadline;
   int events = 0;
   int key_events = 0;
+  int abs_events = 0;
 
   fd = open(event_path, O_RDONLY | O_NONBLOCK);
   if (fd < 0) {
@@ -607,16 +710,21 @@ static int poll_direct_input(const char *event_path, int timeout_ms, int *events
         events++;
         if (ev.type == EV_KEY) {
           key_events++;
-          printf("direct event path=%s type=%u code=%u key=%s value=%d action=%s\n",
-                 event_path, ev.type, ev.code, key_name(ev.code), ev.value,
+          printf("direct event path=%s type=%u type_name=%s code=%u key=%s value=%d action=%s\n",
+                 event_path, ev.type, event_type_name(ev.type), ev.code, key_name(ev.code), ev.value,
                  event_action(ev.code));
+        } else if (ev.type == EV_ABS) {
+          abs_events++;
+          printf("direct event path=%s type=%u type_name=%s code=%u axis=%s value=%d action=%s\n",
+                 event_path, ev.type, event_type_name(ev.type), ev.code, abs_name(ev.code),
+                 ev.value, abs_action(ev.code));
         }
       }
     }
   }
   close(fd);
-  printf("direct path=%s open=yes timeout_ms=%d events=%d key_events=%d\n",
-         event_path, timeout_ms, events, key_events);
+  printf("direct path=%s open=yes timeout_ms=%d events=%d key_events=%d abs_events=%d\n",
+         event_path, timeout_ms, events, key_events, abs_events);
   if (events_out) {
     *events_out = events;
   }
@@ -647,6 +755,7 @@ static int poll_all_inputs(const struct compare_state *state, int timeout_ms,
     targets[target_count].device_index = i;
     targets[target_count].events = 0;
     targets[target_count].key_events = 0;
+    targets[target_count].abs_events = 0;
     pfds[target_count].fd = fd;
     pfds[target_count].events = POLLIN;
     pfds[target_count].revents = 0;
@@ -679,9 +788,16 @@ static int poll_all_inputs(const struct compare_state *state, int timeout_ms,
           if (ev.type == EV_KEY) {
             targets[i].key_events++;
             total_key_events++;
-            printf("direct event path=%s name=%s type=%u code=%u key=%s value=%d action=%s\n",
-                   device->path, device->name[0] ? device->name : "-", ev.type, ev.code,
-                   key_name(ev.code), ev.value, event_action(ev.code));
+            printf("direct event path=%s name=%s type=%u type_name=%s code=%u key=%s value=%d action=%s\n",
+                   device->path, device->name[0] ? device->name : "-", ev.type,
+                   event_type_name(ev.type), ev.code, key_name(ev.code), ev.value,
+                   event_action(ev.code));
+          } else if (ev.type == EV_ABS) {
+            targets[i].abs_events++;
+            printf("direct event path=%s name=%s type=%u type_name=%s code=%u axis=%s value=%d action=%s\n",
+                   device->path, device->name[0] ? device->name : "-", ev.type,
+                   event_type_name(ev.type), ev.code, abs_name(ev.code), ev.value,
+                   abs_action(ev.code));
           }
         }
       }
@@ -690,13 +806,19 @@ static int poll_all_inputs(const struct compare_state *state, int timeout_ms,
 
   for (int i = 0; i < target_count; i++) {
     const struct input_device_info *device = &state->devices[targets[i].device_index];
-    printf("direct_summary path=%s name=%s timeout_ms=%d events=%d key_events=%d\n",
+    printf("direct_summary path=%s name=%s timeout_ms=%d events=%d key_events=%d abs_events=%d\n",
            device->path, device->name[0] ? device->name : "-", timeout_ms,
-           targets[i].events, targets[i].key_events);
+           targets[i].events, targets[i].key_events, targets[i].abs_events);
     close(targets[i].fd);
   }
-  printf("direct_all open_count=%d timeout_ms=%d events=%d key_events=%d\n",
-         target_count, timeout_ms, total_events, total_key_events);
+  {
+    int total_abs_events = 0;
+    for (int i = 0; i < target_count; i++) {
+      total_abs_events += targets[i].abs_events;
+    }
+    printf("direct_all open_count=%d timeout_ms=%d events=%d key_events=%d abs_events=%d\n",
+           target_count, timeout_ms, total_events, total_key_events, total_abs_events);
+  }
   if (events_out) {
     *events_out = total_events;
   }
@@ -714,7 +836,7 @@ static void update_hold_flags(struct compare_state *state, const char *event_pat
     }
     if (strcmp(ref->comm, "keymon") == 0) {
       state->keymon_holds_direct = 1;
-    } else if (strcmp(ref->comm, "MainUI") == 0) {
+    } else if (strncmp(ref->comm, "MainUI", 6) == 0) {
       state->mainui_holds_direct = 1;
     }
   }
@@ -782,7 +904,7 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[i], "--all-events") == 0) {
       all_events = 1;
     } else if (strcmp(argv[i], "--timeout-ms") == 0 && i + 1 < argc) {
-      if (!parse_int_arg("--timeout-ms", argv[++i], 0, 60000, &timeout_ms)) {
+      if (!parse_int_arg("--timeout-ms", argv[++i], 0, 300000, &timeout_ms)) {
         return 2;
       }
     } else if (strcmp(argv[i], "--no-poll") == 0) {

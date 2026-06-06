@@ -102,6 +102,8 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
+| Left stick axes | - | - | - | not exposed through kernel input yet |
+| Left stick click | - | - | - | unconfirmed |
 
 Notes:
 
@@ -113,6 +115,52 @@ Notes:
 - The power button remains unconfirmed to avoid stock or kernel-side
   sleep/shutdown side effects. Design plumOS auto-resume without depending on
   the power button, with Function as the preferred fallback trigger.
+
+## Left Analog Stick
+
+Additional checks on 2026-06-06 show that the left stick is not exposed as a
+normal analog axis under `/dev/input/event*`.
+
+What was checked:
+
+- Added `EV_ABS` output to `plumos-input-compare --all-events`.
+- `/proc/bus/input/devices` does not show a stick device with `ABS_X`/`ABS_Y`.
+- Moving the left stick did not produce observed `EV_ABS` events.
+- Stock `MainUI.stock` mmaps `/dev/mem` and contains strings for
+  `JoypadCalibration`, `JoypadTest`, `ADC INFO`, and `/config/joypad.config`.
+- Stock `keymon` also contains strings for `/dev/mem`, `ABS_X`, `ABS_Y`, and
+  `BTN_THUMBL`.
+- Running calibration from MainUI Settings updates `/config/joypad.config`.
+
+Observed `/config/joypad.config` values:
+
+```text
+before:
+x_min=15
+x_max=239
+y_min=18
+y_max=233
+x_zero=124
+y_zero=133
+
+after calibration:
+x_min=14
+x_max=235
+y_min=18
+y_max=232
+x_zero=126
+y_zero=130
+```
+
+Current inference:
+
+- The left stick axes are probably read by stock `MainUI`/`keymon` through
+  `/dev/mem` ADC access rather than through kernel input events.
+- Calibration saves raw ADC min/max/center values to `/config/joypad.config`.
+- Because plumOS should not reuse stock libraries directly, a later step must
+  identify the `/dev/mem` mapping or equivalent ADC read path.
+- Left stick click remains unconfirmed and needs a separate short button
+  capture.
 
 ## Policy
 

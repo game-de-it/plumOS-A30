@@ -108,7 +108,10 @@
 - [ ] plumOS 同梱 SDL2 の最小 linked/render test binary を A30 上で動かす。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
-- [x] `plumos-input-compare --all-events` で電源以外の物理ボタンの code/action mapping を確定する。
+- [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
+- [x] `plumos-input-compare` で `EV_ABS` を表示し、左スティックが kernel input に露出するか確認する。
+- [ ] 左スティック押し込み button code を短時間 capture で確定する。
+- [ ] `/config/joypad.config` と `/dev/mem` ADC 読み取り経路を解析し、plumOS 用 left stick reader を設計する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。
 - [ ] Function button で safe shutdown/resume menu を出す代替仕様を RetroArch 実行中に検証する。

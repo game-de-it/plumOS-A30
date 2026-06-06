@@ -99,6 +99,8 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
+| 左スティック軸 | - | - | - | kernel input には未露出 |
+| 左スティック押し込み | - | - | - | 未確定 |
 
 注意:
 
@@ -109,6 +111,50 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
   通常操作に割り当てません。
 - 電源ボタンは stock 側または kernel 側の sleep/shutdown 介入を避けるため未確定です。
   plumOS の自動再開機能は電源ボタンに依存せず、Function button 代替を優先して設計します。
+
+## 左アナログスティック
+
+2026-06-06 に追加確認しました。結論として、左スティックは通常の
+`/dev/input/event*` には analog axis として出ていません。
+
+確認内容:
+
+- `plumos-input-compare --all-events` に `EV_ABS` 表示を追加した
+- `/proc/bus/input/devices` では stick 用の `ABS_X`/`ABS_Y` device は見つからない
+- 左スティック操作中も `EV_ABS` は観測できなかった
+- stock `MainUI.stock` は `/dev/mem` を mmap しており、binary 文字列に
+  `JoypadCalibration`, `JoypadTest`, `ADC INFO`, `/config/joypad.config` がある
+- stock `keymon` にも `/dev/mem`, `ABS_X`, `ABS_Y`, `BTN_THUMBL` などの文字列がある
+- MainUI の Settings から calibration を実行すると `/config/joypad.config` が更新された
+
+`/config/joypad.config` の観測値:
+
+```text
+before:
+x_min=15
+x_max=239
+y_min=18
+y_max=233
+x_zero=124
+y_zero=133
+
+after calibration:
+x_min=14
+x_max=235
+y_min=18
+y_max=232
+x_zero=126
+y_zero=130
+```
+
+現時点の推定:
+
+- 左スティック軸は kernel input event ではなく、stock `MainUI`/`keymon` が `/dev/mem`
+  経由で ADC 値を読む実装の可能性が高い
+- calibration は raw ADC 値の min/max/center を `/config/joypad.config` に保存する
+- plumOS では stock library を流用せず、後続で `/dev/mem` mapping または同等の ADC 読み取り
+  方法を特定する必要がある
+- 左スティック押し込みは今回まだ確定できていないため、別途短時間の button capture を行う
 
 ## 方針
 

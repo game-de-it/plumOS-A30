@@ -130,6 +130,8 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - Physical button mapping is confirmed for every button except power:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
   SELECT=`KEY_RIGHTCTRL`, Function=`KEY_ESC`.
+- Left stick axes were not observed as `EV_ABS` under `/dev/input/event*`.
+  MainUI calibration updates `/config/joypad.config`.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 
