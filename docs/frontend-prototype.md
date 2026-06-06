@@ -275,6 +275,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 自動選択します。
 `plumos-input-compare` では、stock `keymon` と stock `MainUI` が動作中でも
 `/dev/input/event3` を非排他で直接 open/poll できることを確認しています。
+実機 mapping では A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
+SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は現時点では通常操作に割り当てず、
+将来の hotkey/menu 用に予約します。
 
 TOP を 1 回だけ表示:
 

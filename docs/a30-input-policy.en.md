@@ -38,6 +38,14 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 10000'
 ```
 
+Use `--all-events` when every discovered input event device should be polled at
+the same time.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-input-compare --all-events --timeout-ms 30000'
+```
+
 ## Device Result On 2026-06-06
 
 ```text
@@ -69,14 +77,49 @@ Observations:
 - The 100ms run had no physical button press, so it recorded `events=0`.
 - `pid` values are observational and change across boots.
 
+## Physical Button Mapping
+
+Captured on 2026-06-06 with stock `keymon` and stock `MainUI` still running,
+using `plumos-input-compare --all-events`. All listed buttons were observed on
+`/dev/input/event3`, `gpio-keys-polled`.
+
+| Physical button | code | key name | probe action | frontend action |
+| --- | ---: | --- | --- | --- |
+| Up | 103 | `KEY_UP` | `up` | cursor up |
+| Down | 108 | `KEY_DOWN` | `down` | cursor down |
+| Left | 105 | `KEY_LEFT` | `left` | cursor left/back |
+| Right | 106 | `KEY_RIGHT` | `right` | cursor right/open |
+| A | 57 | `KEY_SPACE` | `a` | A/open |
+| B | 29 | `KEY_LEFTCTRL` | `b` | B/back |
+| X | 42 | `KEY_LEFTSHIFT` | `x` | reserved |
+| Y | 56 | `KEY_LEFTALT` | `y` | reserved |
+| L | 15 | `KEY_TAB` | `l` | reserved |
+| R | 14 | `KEY_BACKSPACE` | `r` | reserved |
+| L2 | 18 | `KEY_E` | `l2` | reserved |
+| R2 | 20 | `KEY_T` | `r2` | reserved |
+| Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | reserved |
+| Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | reserved |
+| Function | 1 | `KEY_ESC` | `function` | reserved |
+| START | 28 | `KEY_ENTER` | `start` | START menu |
+| SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
+
+Notes:
+
+- The START menu opens from physical START (`KEY_ENTER`).
+- Function (`KEY_ESC`) is not treated as an alternate START button. It is
+  reserved for future hotkey/menu behavior.
+- X/Y/L/R/L2/R2/volume buttons are identified by the probe but are not assigned
+  to normal controller UI actions yet.
+- The power button remains unconfirmed to avoid stock sleep/shutdown side
+  effects. Capture it together with the RetroArch safe shutdown/resume design.
+
 ## Policy
 
 - Keep stock `keymon` for the initial frontend work.
 - Implement plumOS frontend controls by reading `/dev/input/event3` directly.
 - Do not use exclusive mechanisms such as `EVIOCGRAB` while coexisting with
   stock MainUI.
-- Confirm button code/action mapping with
-  `plumos-input-compare --timeout-ms 10000` while pressing physical buttons.
+- Button code/action mapping is confirmed for every button except power.
 - Revisit whether to keep or stop `keymon` when plumOS becomes the regular
   boot frontend.
 

@@ -56,11 +56,20 @@ struct input_event {
 #ifndef KEY_E
 #define KEY_E 18
 #endif
+#ifndef KEY_T
+#define KEY_T 20
+#endif
 #ifndef KEY_R
 #define KEY_R 19
 #endif
 #ifndef KEY_LEFTCTRL
 #define KEY_LEFTCTRL 29
+#endif
+#ifndef KEY_LEFTSHIFT
+#define KEY_LEFTSHIFT 42
+#endif
+#ifndef KEY_LEFTALT
+#define KEY_LEFTALT 56
 #endif
 #ifndef KEY_Z
 #define KEY_Z 44
@@ -73,6 +82,15 @@ struct input_event {
 #endif
 #ifndef KEY_HOME
 #define KEY_HOME 102
+#endif
+#ifndef KEY_VOLUMEDOWN
+#define KEY_VOLUMEDOWN 114
+#endif
+#ifndef KEY_VOLUMEUP
+#define KEY_VOLUMEUP 115
+#endif
+#ifndef KEY_POWER
+#define KEY_POWER 116
 #endif
 #ifndef KEY_UP
 #define KEY_UP 103
@@ -105,11 +123,26 @@ struct input_event {
 #ifndef BTN_WEST
 #define BTN_WEST 308
 #endif
+#ifndef BTN_TL
+#define BTN_TL 310
+#endif
+#ifndef BTN_TR
+#define BTN_TR 311
+#endif
+#ifndef BTN_TL2
+#define BTN_TL2 312
+#endif
+#ifndef BTN_TR2
+#define BTN_TR2 313
+#endif
 #ifndef BTN_SELECT
 #define BTN_SELECT 314
 #endif
 #ifndef BTN_START
 #define BTN_START 315
+#endif
+#ifndef BTN_MODE
+#define BTN_MODE 316
 #endif
 #ifndef KEY_SELECT
 #define KEY_SELECT 0x161
@@ -1787,28 +1820,26 @@ static enum ui_action action_from_key_code(unsigned int code) {
     return ACTION_LEFT;
   case KEY_RIGHT:
     return ACTION_RIGHT;
-  case KEY_ENTER:
   case KEY_SPACE:
   case BTN_SOUTH:
   case KEY_Z:
   case 7:
     return ACTION_A;
-  case KEY_ESC:
-  case KEY_BACKSPACE:
+  case KEY_LEFTCTRL:
   case BTN_EAST:
   case KEY_X:
   case 9:
     return ACTION_B;
+  case KEY_ENTER:
   case KEY_MENU:
   case BTN_START:
-  case KEY_RIGHTCTRL:
+  case BTN_MODE:
   case KEY_HOME:
   case 10:
     return ACTION_START;
+  case KEY_RIGHTCTRL:
   case KEY_SELECT:
   case BTN_SELECT:
-  case KEY_TAB:
-  case KEY_LEFTCTRL:
     return ACTION_SELECT;
   case KEY_Q:
     return ACTION_QUIT;

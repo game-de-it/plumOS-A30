@@ -285,6 +285,9 @@ stdin fallback. On the A30 it looks for `gpio-keys-polled` in
 `/proc/bus/input/devices`, which normally resolves to `/dev/input/event3`.
 `plumos-input-compare` confirms that `/dev/input/event3` can be opened and
 polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
+The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
+SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is reserved for future hotkey/menu
+behavior instead of being assigned to a normal UI action now.
 
 Render TOP once:
 

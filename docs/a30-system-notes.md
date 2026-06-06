@@ -147,6 +147,9 @@ backend 候補:
 - stock `MainUI` も `event0`, `event1`, `event3` を開いている
 - `gpio-keys-polled` は `/dev/input/event3`
 - `keymon` と `MainUI` が動作中でも plumOS は `/dev/input/event3` を直接 open/poll できる
+- 電源ボタン以外の物理ボタン mapping を確認済み:
+  A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, SELECT=`KEY_RIGHTCTRL`,
+  Function=`KEY_ESC`
 
 当面は stock `keymon` を残しつつ、plumOS frontend は `/dev/input/event3` を直接読む方針です。
 詳細は [A30 input policy](a30-input-policy.md) に分離しています。

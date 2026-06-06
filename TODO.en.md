@@ -134,8 +134,10 @@
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
 - [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
   directly.
-- [ ] Confirm physical button code/action mapping with
-  `plumos-input-compare --timeout-ms 10000`.
+- [x] Confirm physical button code/action mapping except power with
+  `plumos-input-compare --all-events`.
+- [ ] Safely confirm the short power-button event code and stock sleep/shutdown
+  side effects.
 - [ ] Make the final keep/stop decision for stock `keymon` when plumOS becomes
   the regular boot frontend.
 - [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key

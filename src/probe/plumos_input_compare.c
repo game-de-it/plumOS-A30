@@ -40,6 +40,12 @@ struct input_event {
 #ifndef KEY_TAB
 #define KEY_TAB 15
 #endif
+#ifndef KEY_E
+#define KEY_E 18
+#endif
+#ifndef KEY_T
+#define KEY_T 20
+#endif
 #ifndef KEY_Q
 #define KEY_Q 16
 #endif
@@ -55,8 +61,26 @@ struct input_event {
 #ifndef KEY_HOME
 #define KEY_HOME 102
 #endif
+#ifndef KEY_VOLUMEDOWN
+#define KEY_VOLUMEDOWN 114
+#endif
+#ifndef KEY_VOLUMEUP
+#define KEY_VOLUMEUP 115
+#endif
+#ifndef KEY_POWER
+#define KEY_POWER 116
+#endif
 #ifndef KEY_UP
 #define KEY_UP 103
+#endif
+#ifndef KEY_LEFTCTRL
+#define KEY_LEFTCTRL 29
+#endif
+#ifndef KEY_LEFTSHIFT
+#define KEY_LEFTSHIFT 42
+#endif
+#ifndef KEY_LEFTALT
+#define KEY_LEFTALT 56
 #endif
 #ifndef KEY_LEFT
 #define KEY_LEFT 105
@@ -79,11 +103,32 @@ struct input_event {
 #ifndef BTN_EAST
 #define BTN_EAST 305
 #endif
+#ifndef BTN_NORTH
+#define BTN_NORTH 307
+#endif
+#ifndef BTN_WEST
+#define BTN_WEST 308
+#endif
+#ifndef BTN_TL
+#define BTN_TL 310
+#endif
+#ifndef BTN_TR
+#define BTN_TR 311
+#endif
+#ifndef BTN_TL2
+#define BTN_TL2 312
+#endif
+#ifndef BTN_TR2
+#define BTN_TR2 313
+#endif
 #ifndef BTN_SELECT
 #define BTN_SELECT 314
 #endif
 #ifndef BTN_START
 #define BTN_START 315
+#endif
+#ifndef BTN_MODE
+#define BTN_MODE 316
 #endif
 #ifndef KEY_SELECT
 #define KEY_SELECT 0x161
@@ -119,6 +164,13 @@ struct compare_state {
   int mainui_running;
   int keymon_holds_direct;
   int mainui_holds_direct;
+};
+
+struct poll_target {
+  int fd;
+  int device_index;
+  int events;
+  int key_events;
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -215,27 +267,127 @@ static const char *event_action(unsigned short code) {
     return "left";
   case KEY_RIGHT:
     return "right";
-  case KEY_ENTER:
   case KEY_SPACE:
   case BTN_SOUTH:
-  case KEY_Z:
     return "a";
-  case KEY_ESC:
-  case KEY_BACKSPACE:
+  case KEY_LEFTCTRL:
   case BTN_EAST:
-  case KEY_X:
     return "b";
+  case KEY_LEFTSHIFT:
+  case BTN_NORTH:
+    return "x";
+  case KEY_LEFTALT:
+  case BTN_WEST:
+    return "y";
+  case KEY_TAB:
+  case BTN_TL:
+    return "l";
+  case KEY_BACKSPACE:
+  case BTN_TR:
+    return "r";
+  case KEY_E:
+  case BTN_TL2:
+    return "l2";
+  case KEY_T:
+  case BTN_TR2:
+    return "r2";
+  case KEY_VOLUMEDOWN:
+    return "volume_down";
+  case KEY_VOLUMEUP:
+    return "volume_up";
+  case KEY_POWER:
+    return "power";
+  case KEY_ESC:
+    return "function";
+  case KEY_ENTER:
   case KEY_MENU:
   case BTN_START:
-  case KEY_RIGHTCTRL:
   case KEY_HOME:
+  case BTN_MODE:
     return "start";
+  case KEY_RIGHTCTRL:
   case KEY_SELECT:
   case BTN_SELECT:
-  case KEY_TAB:
     return "select";
   case KEY_Q:
     return "quit";
+  default:
+    return "-";
+  }
+}
+
+static const char *key_name(unsigned short code) {
+  switch (code) {
+  case KEY_ESC:
+    return "KEY_ESC";
+  case KEY_BACKSPACE:
+    return "KEY_BACKSPACE";
+  case KEY_TAB:
+    return "KEY_TAB";
+  case KEY_E:
+    return "KEY_E";
+  case KEY_T:
+    return "KEY_T";
+  case KEY_Q:
+    return "KEY_Q";
+  case KEY_Z:
+    return "KEY_Z";
+  case KEY_X:
+    return "KEY_X";
+  case KEY_SPACE:
+    return "KEY_SPACE";
+  case KEY_LEFTCTRL:
+    return "KEY_LEFTCTRL";
+  case KEY_LEFTSHIFT:
+    return "KEY_LEFTSHIFT";
+  case KEY_LEFTALT:
+    return "KEY_LEFTALT";
+  case KEY_RIGHTCTRL:
+    return "KEY_RIGHTCTRL";
+  case KEY_HOME:
+    return "KEY_HOME";
+  case KEY_UP:
+    return "KEY_UP";
+  case KEY_DOWN:
+    return "KEY_DOWN";
+  case KEY_LEFT:
+    return "KEY_LEFT";
+  case KEY_RIGHT:
+    return "KEY_RIGHT";
+  case KEY_ENTER:
+    return "KEY_ENTER";
+  case KEY_MENU:
+    return "KEY_MENU";
+  case KEY_SELECT:
+    return "KEY_SELECT";
+  case KEY_VOLUMEUP:
+    return "KEY_VOLUMEUP";
+  case KEY_VOLUMEDOWN:
+    return "KEY_VOLUMEDOWN";
+  case KEY_POWER:
+    return "KEY_POWER";
+  case BTN_SOUTH:
+    return "BTN_SOUTH";
+  case BTN_EAST:
+    return "BTN_EAST";
+  case BTN_NORTH:
+    return "BTN_NORTH";
+  case BTN_WEST:
+    return "BTN_WEST";
+  case BTN_TL:
+    return "BTN_TL";
+  case BTN_TR:
+    return "BTN_TR";
+  case BTN_TL2:
+    return "BTN_TL2";
+  case BTN_TR2:
+    return "BTN_TR2";
+  case BTN_SELECT:
+    return "BTN_SELECT";
+  case BTN_START:
+    return "BTN_START";
+  case BTN_MODE:
+    return "BTN_MODE";
   default:
     return "-";
   }
@@ -455,8 +607,9 @@ static int poll_direct_input(const char *event_path, int timeout_ms, int *events
         events++;
         if (ev.type == EV_KEY) {
           key_events++;
-          printf("direct event type=%u code=%u value=%d action=%s\n", ev.type, ev.code,
-                 ev.value, event_action(ev.code));
+          printf("direct event path=%s type=%u code=%u key=%s value=%d action=%s\n",
+                 event_path, ev.type, ev.code, key_name(ev.code), ev.value,
+                 event_action(ev.code));
         }
       }
     }
@@ -471,6 +624,86 @@ static int poll_direct_input(const char *event_path, int timeout_ms, int *events
     *key_events_out = key_events;
   }
   return 1;
+}
+
+static int poll_all_inputs(const struct compare_state *state, int timeout_ms,
+                           int *events_out, int *key_events_out) {
+  struct poll_target targets[MAX_INPUT_DEVICES];
+  struct pollfd pfds[MAX_INPUT_DEVICES];
+  int target_count = 0;
+  int total_events = 0;
+  int total_key_events = 0;
+  long long deadline;
+
+  for (int i = 0; i < state->device_count && target_count < MAX_INPUT_DEVICES; i++) {
+    int fd = open(state->devices[i].path, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+      printf("direct target path=%s name=%s open=no errno=%d %s\n", state->devices[i].path,
+             state->devices[i].name[0] ? state->devices[i].name : "-", errno,
+             strerror(errno));
+      continue;
+    }
+    targets[target_count].fd = fd;
+    targets[target_count].device_index = i;
+    targets[target_count].events = 0;
+    targets[target_count].key_events = 0;
+    pfds[target_count].fd = fd;
+    pfds[target_count].events = POLLIN;
+    pfds[target_count].revents = 0;
+    printf("direct target path=%s name=%s open=yes\n", state->devices[i].path,
+           state->devices[i].name[0] ? state->devices[i].name : "-");
+    target_count++;
+  }
+
+  deadline = now_ms() + timeout_ms;
+  while (target_count > 0 && now_ms() < deadline) {
+    int rc;
+    for (int i = 0; i < target_count; i++) {
+      pfds[i].revents = 0;
+    }
+    rc = poll(pfds, (nfds_t)target_count, 50);
+    if (rc > 0) {
+      for (int i = 0; i < target_count; i++) {
+        const struct input_device_info *device = &state->devices[targets[i].device_index];
+        if (!(pfds[i].revents & POLLIN)) {
+          continue;
+        }
+        while (1) {
+          struct input_event ev;
+          ssize_t n = read(targets[i].fd, &ev, sizeof(ev));
+          if (n != (ssize_t)sizeof(ev)) {
+            break;
+          }
+          targets[i].events++;
+          total_events++;
+          if (ev.type == EV_KEY) {
+            targets[i].key_events++;
+            total_key_events++;
+            printf("direct event path=%s name=%s type=%u code=%u key=%s value=%d action=%s\n",
+                   device->path, device->name[0] ? device->name : "-", ev.type, ev.code,
+                   key_name(ev.code), ev.value, event_action(ev.code));
+          }
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < target_count; i++) {
+    const struct input_device_info *device = &state->devices[targets[i].device_index];
+    printf("direct_summary path=%s name=%s timeout_ms=%d events=%d key_events=%d\n",
+           device->path, device->name[0] ? device->name : "-", timeout_ms,
+           targets[i].events, targets[i].key_events);
+    close(targets[i].fd);
+  }
+  printf("direct_all open_count=%d timeout_ms=%d events=%d key_events=%d\n",
+         target_count, timeout_ms, total_events, total_key_events);
+  if (events_out) {
+    *events_out = total_events;
+  }
+  if (key_events_out) {
+    *key_events_out = total_key_events;
+  }
+  return target_count > 0;
 }
 
 static void update_hold_flags(struct compare_state *state, const char *event_path) {
@@ -525,6 +758,7 @@ static void usage(const char *argv0) {
   printf("\n");
   printf("Options:\n");
   printf("  --event PATH       Input event path. Default: gpio-keys-polled auto-detect\n");
+  printf("  --all-events       Poll every discovered /dev/input/event* device\n");
   printf("  --timeout-ms MS    Direct input poll duration. Default: 250\n");
   printf("  --no-poll          Only inspect devices/process fds\n");
 }
@@ -534,6 +768,7 @@ int main(int argc, char **argv) {
   char event_path[PATH_MAX];
   int timeout_ms = 250;
   int no_poll = 0;
+  int all_events = 0;
   int direct_open = 0;
   int events = 0;
   int key_events = 0;
@@ -544,6 +779,8 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
       copy_string(event_path, sizeof(event_path), argv[++i]);
+    } else if (strcmp(argv[i], "--all-events") == 0) {
+      all_events = 1;
     } else if (strcmp(argv[i], "--timeout-ms") == 0 && i + 1 < argc) {
       if (!parse_int_arg("--timeout-ms", argv[++i], 0, 60000, &timeout_ms)) {
         return 2;
@@ -565,7 +802,11 @@ int main(int argc, char **argv) {
 
   printf("plumOS input compare\n");
   if (!no_poll) {
-    direct_open = poll_direct_input(event_path, timeout_ms, &events, &key_events);
+    if (all_events) {
+      direct_open = poll_all_inputs(&state, timeout_ms, &events, &key_events);
+    } else {
+      direct_open = poll_direct_input(event_path, timeout_ms, &events, &key_events);
+    }
   } else {
     printf("direct path=%s poll=skipped\n", event_path);
     direct_open = -1;
