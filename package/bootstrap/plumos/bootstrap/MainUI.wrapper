@@ -8,6 +8,9 @@ LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
 LOG_FILE="${PLUMOS_MAINUI_LOG:-${LOG_DIR}/mainui-wrapper.log}"
 FRONTEND="${PLUMOS_FRONTEND:-${PLUMOS_ROOT}/bin/plumos-frontend}"
 ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
+CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
+NETWORK_RESCUE="${PLUMOS_NETWORK_RESCUE:-${PLUMOS_ROOT}/bin/plumos-network-rescue}"
+SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
 
@@ -30,9 +33,33 @@ run_stock() {
 
 log "wrapper start pid=$$ pwd=$(pwd)"
 
+if command -v killall >/dev/null 2>&1; then
+  killall keymon >/dev/null 2>&1 || true
+fi
+
+if [ -x "$SSH_START" ]; then
+  log "starting SSH helper: ${SSH_START}"
+  "$SSH_START" >> "$LOG_FILE" 2>&1 &
+elif [ -x "$NETWORK_RESCUE" ]; then
+  log "starting network rescue helper: ${NETWORK_RESCUE}"
+  "$NETWORK_RESCUE" >> "$LOG_FILE" 2>&1 &
+else
+  log "SSH/network helper missing"
+fi
+
 if [ -e "$DISABLE_FILE" ]; then
   log "disable file exists: ${DISABLE_FILE}"
   run_stock
+fi
+
+if [ -x "$CONTROLLER_UI" ]; then
+  log "starting controller network rescue UI: ${CONTROLLER_UI}"
+  "$CONTROLLER_UI" --rescue-network --rotation auto
+  status="$?"
+  log "controller network rescue UI exited with status ${status}"
+  if [ "$status" -eq 0 ]; then
+    exit 0
+  fi
 fi
 
 if [ ! -x "$FRONTEND" ]; then

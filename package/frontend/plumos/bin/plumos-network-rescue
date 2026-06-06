@@ -1,0 +1,69 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_ROOT}/logs"
+LOG_FILE="${LOG_DIR}/network-rescue.log"
+SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+log() {
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+process_running() {
+  ps w 2>/dev/null | grep "$1" | grep -v grep >/dev/null 2>&1
+}
+
+wait_for_ip() {
+  n=0
+  while [ "$n" -lt 20 ]; do
+    if ifconfig wlan0 2>/dev/null | grep -q "inet addr:"; then
+      return 0
+    fi
+    sleep 1
+    n=$((n + 1))
+  done
+  return 1
+}
+
+log "rescue begin"
+
+if [ -x /etc/init.d/network ]; then
+  log "network start"
+  /etc/init.d/network start >> "$LOG_FILE" 2>&1 || true
+fi
+
+if [ -x /etc/init.d/wpa_supplicant ]; then
+  if process_running "wpa_supplicant"; then
+    log "wpa_supplicant already running"
+  else
+    log "wpa_supplicant start"
+    /etc/init.d/wpa_supplicant start >> "$LOG_FILE" 2>&1 || true
+  fi
+fi
+
+ifconfig wlan0 up >> "$LOG_FILE" 2>&1 || true
+
+if process_running "udhcpc -i wlan0"; then
+  log "udhcpc already running"
+else
+  log "udhcpc start"
+  udhcpc -i wlan0 -n -q -t 5 >> "$LOG_FILE" 2>&1 || true
+fi
+
+if wait_for_ip; then
+  log "wlan0 has ip"
+else
+  log "wlan0 ip wait timed out"
+fi
+
+if [ -x "$SSH_START" ]; then
+  log "ssh start"
+  "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+else
+  log "ssh start missing: $SSH_START"
+fi
+
+log "rescue end"

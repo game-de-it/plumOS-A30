@@ -297,6 +297,7 @@ struct ui_state {
   int no_clear;
   int once;
   int renderer_mali;
+  int rescue_network;
   int render_failed;
   int timeout_sec;
   enum ui_screen screen;
@@ -1691,9 +1692,24 @@ static void render_safe_menu(struct ui_state *ui) {
   }
 }
 
+static void render_network_rescue(struct ui_state *ui) {
+  ui_printf(ui, "plumOS controller UI - NETWORK\n");
+  ui_printf(ui, "A: start Wi-Fi and SSH  Q: quit\n");
+  ui_printf(ui, "target=/mnt/SDCARD/plumos/bin/plumos-network-rescue\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, "1. Wi-Fi init script\n");
+  ui_printf(ui, "2. DHCP on wlan0\n");
+  ui_printf(ui, "3. Dropbear SSH on port 2222\n");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
-  if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+  if (ui->rescue_network) {
+    render_network_rescue(ui);
+  } else if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
       ui->screen == SCREEN_RECENT) {
     render_roms(ui);
   } else if (ui->screen == SCREEN_START_MENU) {
@@ -1812,12 +1828,59 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   }
 }
 
+static int run_network_rescue(struct ui_state *ui) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-rescue")) {
+    set_status(ui, "network rescue path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "network rescue script missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script)) {
+    set_status(ui, "network rescue command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (rc == -1) {
+    set_status(ui, "network rescue system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    set_status(ui, "network rescue complete");
+    return 1;
+  }
+  set_status(ui, "network rescue returned non-zero");
+  return 0;
+}
+
 static void handle_action(struct ui_state *ui, enum ui_action action) {
   if (action == ACTION_NONE) {
     return;
   }
   if (action == ACTION_QUIT) {
     set_status(ui, "quit");
+    return;
+  }
+  if (ui->rescue_network) {
+    if (action == ACTION_A || action == ACTION_RIGHT) {
+      run_network_rescue(ui);
+    } else if (action == ACTION_B || action == ACTION_LEFT) {
+      set_status(ui, "network rescue ready");
+    }
     return;
   }
   if (action == ACTION_FUNCTION) {
@@ -2317,7 +2380,7 @@ static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
-  printf("     [--rotation auto|none|cw|ccw]\n");
+  printf("     [--rotation auto|none|cw|ccw] [--rescue-network]\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
@@ -2331,6 +2394,7 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_EGL_LIB      Default for Mali renderer: /usr/lib/libEGL.so\n");
   printf("  PLUMOS_GLES_LIB     Default for Mali renderer: /usr/lib/libGLESv2.so\n");
   printf("  PLUMOS_MALI_ROTATION auto, none, cw, or ccw. Default: auto\n");
+  printf("  PLUMOS_CONTROLLER_RESCUE network enables A-button Wi-Fi/SSH rescue\n");
   printf("  PLUMOS_A30_SYSTEM_JSON  Default: /config/system.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
 }
@@ -2393,6 +2457,11 @@ int main(int argc, char **argv) {
   rotation_env = getenv("PLUMOS_MALI_ROTATION");
   copy_string(ui.mali_rotation, sizeof(ui.mali_rotation),
               rotation_env && rotation_env[0] ? rotation_env : "auto");
+  if (getenv("PLUMOS_CONTROLLER_RESCUE") &&
+      strcmp(getenv("PLUMOS_CONTROLLER_RESCUE"), "network") == 0) {
+    ui.rescue_network = 1;
+    copy_string(ui.status, sizeof(ui.status), "network rescue ready");
+  }
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--all") == 0) {
@@ -2435,6 +2504,9 @@ int main(int argc, char **argv) {
         return 2;
       }
       copy_string(ui.mali_rotation, sizeof(ui.mali_rotation), rotation);
+    } else if (strcmp(argv[i], "--rescue-network") == 0) {
+      ui.rescue_network = 1;
+      copy_string(ui.status, sizeof(ui.status), "network rescue ready");
     } else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
       script = argv[++i];
     } else if (strcmp(argv[i], "--dump-events") == 0) {
@@ -2469,7 +2541,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!load_top_entries(&ui)) {
+  if (!ui.rescue_network && !load_top_entries(&ui)) {
     fprintf(stderr, "error: cannot load TOP entries: %s\n", ui.top_cache_path);
     return 1;
   }

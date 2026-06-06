@@ -9,6 +9,10 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
 - stock MainUI は `/mnt/SDCARD/miyoo/app/MainUI.stock` として退避する
 - `/mnt/SDCARD/miyoo/app/MainUI` は shell wrapper にする
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動する
+- wrapper は boot 復旧用に `/mnt/SDCARD/plumos/ssh/start-ssh.sh` を自動起動する
+- wrapper は stock `/etc/main` が先に起動した `keymon` を止める
+- `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` が存在する場合は、まず
+  `--rescue-network` で起動し、A ボタンで Wi-Fi 起動処理、DHCP、SSH start を再実行できる
 - plumOS frontend が未完成または異常終了した場合は stock MainUI へ fallback する
 - log は `/mnt/SDCARD/plumos/logs/` へ出す
 - SD カード上のファイル操作だけで rollback できるようにする
@@ -43,6 +47,10 @@ install script は以下を行います。
 bootstrap package は `plumos-frontend` 本体を含みません。frontend は
 `./scripts/docker-build.sh frontend` で別 package として build/deploy します。
 frontend が存在しない場合や非ゼロ終了した場合、wrapper は stock MainUI へ戻ります。
+現段階では reboot 復旧を優先し、Mali controller UI が存在する場合は
+`plumos-frontend` より前に network rescue 画面を出します。A ボタンを押すと
+`/mnt/SDCARD/plumos/bin/plumos-network-rescue` が走り、Wi-Fi init、DHCP、dropbear SSH
+start を再実行します。
 
 ## disable
 

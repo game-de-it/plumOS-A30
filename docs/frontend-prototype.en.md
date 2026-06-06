@@ -315,6 +315,11 @@ stopped after the probe exits. Wi-Fi/SSH are maintained by
 MainUI/keymon were stopped. Omit `--no-restart-stock` only for comparison runs
 where the stock side should be restored.
 
+`--rescue-network` is a temporary reboot-recovery UI. On that screen, pressing A
+runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue`, which retries the Wi-Fi init
+script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. For now, the boot
+wrapper shows this Mali rescue UI before `plumos-frontend`.
+
 Mali renderer device checks:
 
 ```sh
@@ -323,6 +328,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 30
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock --no-scan --timeout 5 --exercise 2 --rotation auto
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  'PLUMOS_ROOT=/mnt/SDCARD/plumos /mnt/SDCARD/plumos/bin/plumos-controller-ui-mali --rescue-network --script a,q --timeout 1 --rotation auto'
 ```
 
 On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
@@ -341,6 +348,8 @@ probe, the stock side was left stopped, Wi-Fi/SSH remained connected, and no
 stale `plumos-controller-ui-mali` process remained. The `/dev/fb0` capture is
 portrait when viewed raw, but, like the stock MainUI capture, it is readable as
 landscape after a 90-degree rotation.
+`--rescue-network --script a,q` also succeeded: the Mali UI invoked the network
+rescue helper via the A action and exited with code `0`.
 
 Render TOP once:
 
