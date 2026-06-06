@@ -56,7 +56,7 @@
 - [x] stock MainUI を残したまま plumOS frontend prototype を手動起動して検証する。
 - [x] boot 時に stock `/etc/main` から起動される wrapper で stock `keymon` を止め、plumOS SSH helper を自動起動する。
 - [x] reboot 復旧用に controller UI の `--rescue-network` を追加し、A ボタンで Wi-Fi 起動処理、DHCP、SSH start を再実行できるようにする。
-- [ ] A30 再起動後も復旧可能な状態を保てることを確認する。
+- [x] A30 再起動後も復旧可能な状態を保てることを確認する。
 
 ## Phase 5 - Frontend Compatibility Layer
 

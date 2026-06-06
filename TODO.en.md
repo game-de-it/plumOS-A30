@@ -60,7 +60,7 @@
   start the plumOS SSH helper automatically during boot.
 - [x] Add controller UI `--rescue-network` for reboot recovery, so A reruns the
   Wi-Fi start path, DHCP, and SSH start.
-- [ ] Confirm the A30 remains recoverable after reboot.
+- [x] Confirm the A30 remains recoverable after reboot.
 
 ## Phase 5 - Frontend Compatibility Layer
 
