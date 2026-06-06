@@ -80,12 +80,21 @@
 - [ ] 機種選択時に対象 system だけ ROM directory を再 scan する prototype を作る。
 - [ ] 1000 dummy ROM files で text mode 初回表示時間を計測する。
 - [ ] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
+- [ ] TOP の system 選択中に SELECT で system default core を選ぶ UI を実装する。
+- [ ] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
+- [ ] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。
+- [ ] core 選択は core id だけでなく launch profile id として保存できるようにする。
+- [ ] ROM list で favorite toggle を実装し、START menu から Favorites を開けるようにする。
+- [ ] Favorites を TOP に仮想 system として表示する optional setting を用意する。
+- [ ] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。
+- [ ] 起動時に pending resume session があれば同じ ROM/core/launch profile で自動起動する。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
 - [ ] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
 - [ ] SDL/input/audio/video の最小 test binary を A30 上で動かす。
 - [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
+- [ ] RetroArch 実行中の電源キー短押しで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
 
 ## Phase 7 - RetroArch and Core Runtime
 
@@ -96,6 +105,10 @@
 - [ ] `--config` と override config で system/core ごとの差分を管理する。
 - [ ] libretro core は system ごとに段階更新する。
 - [ ] 起動、performance、save/state、input、audio/video を core ごとに検証する。
+- [ ] RetroArch の Auto Save State / Auto Load State を plumOS resume flow で検証する。
+- [ ] Network Control Interface または同等手段で `SAVE_STATE`、`CLOSE_CONTENT`、`QUIT` を安全に実行できるか確認する。
+- [ ] shutdown 前に save state、save RAM flush、RetroArch 終了、`sync` を順に実行する安全終了 script を作る。
+- [ ] A30 で本物の suspend/resume が可能か確認し、難しい場合は疑似 sleep 方針を検討する。
 
 ## Phase 8 - A30 System Policy Validation
 

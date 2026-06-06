@@ -87,6 +87,21 @@
 - [ ] Build an on-enter per-system ROM directory re-scan prototype.
 - [ ] Measure first text-mode display time with 1000 dummy ROM files.
 - [ ] Implement a START menu UI model for settings/apps/reboot/shutdown.
+- [ ] Implement system default core selection with SELECT on a highlighted TOP
+  system.
+- [ ] Implement per-ROM core override selection with SELECT on a highlighted ROM
+  entry.
+- [ ] Implement core priority as ROM override > system default > plumOS
+  recommended > auto detect.
+- [ ] Store core selection as an extensible launch profile id, not only a core
+  id.
+- [ ] Implement favorite toggle in the ROM list and open Favorites from the
+  START menu.
+- [ ] Add an optional setting to show Favorites as a virtual TOP system.
+- [ ] Manage auto-resume target ROM/core/launch profile/pending state in
+  `resume-session.json`.
+- [ ] Auto-launch the same ROM/core/launch profile on boot when a pending resume
+  session exists.
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.
@@ -94,6 +109,8 @@
   keymap.
 - [ ] Run minimal SDL/input/audio/video test binaries on the A30.
 - [ ] Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
+- [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key
+  press while RetroArch is running.
 
 ## Phase 7 - RetroArch and Core Runtime
 
@@ -104,6 +121,14 @@
 - [ ] Manage per-system/core differences through `--config` and override configs.
 - [ ] Update libretro cores per system in stages.
 - [ ] Validate boot, performance, save/state, input, and audio/video per core.
+- [ ] Validate RetroArch Auto Save State / Auto Load State for the plumOS resume
+  flow.
+- [ ] Check whether Network Control Interface or an equivalent mechanism can run
+  `SAVE_STATE`, `CLOSE_CONTENT`, and `QUIT` safely.
+- [ ] Build a safe shutdown script that runs save state, save RAM flush,
+  RetroArch exit, and `sync` before shutdown.
+- [ ] Check whether true suspend/resume works on the A30; if not, evaluate a
+  pseudo-sleep policy.
 
 ## Phase 8 - A30 System Policy Validation
 
