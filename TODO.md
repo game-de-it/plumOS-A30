@@ -113,7 +113,11 @@
 - [x] stock SDL2 の `mali` 挙動を参考に、stock SDL 非依存の fbdev + Mali EGL 最小 presenter probe を実装し、A30 上で `eglSwapBuffers` まで確認する。
 - [x] SDL 実画面出力は当面 frontend 直結の fbdev + Mali EGL presenter を優先し、`plumos-controller-ui-mali` として A30 上で TOP 表示/ROM list 遷移まで確認する。
 - [x] `plumos-controller-ui-mali` を A30 向け compact layout にし、TOP/ROM/Settings/SAFE の exercise と stock MainUI/keymon 併用 30 秒保持を確認する。
+- [x] `plumos-controller-ui-mali` に `--rotation auto|none|cw|ccw` を追加し、A30 の `480x640` framebuffer では `auto` で stock と同じ raw 向きへ横画面 UI を描く。
+- [x] Wi-Fi/SSH が stock `MainUI.stock`/`keymon` ではなく `wpa_supplicant`/`udhcpc`/`dropbear` で維持されることを確認する。
+- [x] `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock` で stock `/etc/main`、`MainUI.stock`、`keymon` を止めた plumOS 想定状態で Mali UI を確認する。
 - [ ] `plumos-controller-ui-mali` を実機画面で目視し、文字可読性、余白、配色、選択表示を最終調整する。
+- [ ] `--rotation auto` の物理画面向きをユーザー目視で確認し、逆向きなら `cw`/`ccw` を切り替える。
 - [ ] SDL3/sdl2-compat custom video backend 化は frontend presenter の挙動が固まってから再判断する。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
@@ -150,13 +154,13 @@
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
 - [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
 - [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
-- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。stock `keymon` が削除済み `js*`/`event*` fd を保持する場合も含めて見る。
+- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/emulator に二重入力や fd 残りの弊害がないか確認する。比較調査では、stock `keymon` が削除済み `js*`/`event*` fd を保持する場合も見る。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。
 - [ ] Function button で safe shutdown/resume menu を出す代替仕様を RetroArch 実行中に検証する。
-- [ ] plumOS frontend 常用起動時に stock `keymon` を残すか停止するか最終判断する。
+- [x] plumOS frontend 常用起動時は stock `keymon` を停止する方針にする。
 - [ ] RetroArch 実行中に Function button または利用可能なら電源キーで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
 
 ## Phase 7 - RetroArch and Core Runtime

@@ -321,6 +321,10 @@ A30 上で実画面へ swap できることを確認しました。`NULL` native
 - frontend Mali readability/stability: A30 向け compact layout に変更し、`--exercise 3`
   と stock `MainUI.stock`/`keymon` 併用 30 秒保持が `result=frontend_mali_renderer_rc_0`
   で完了した
+- frontend Mali stockless: Wi-Fi/SSH が `wpa_supplicant`/`udhcpc`/`dropbear` で
+  維持されることを確認した上で、stock `/etc/main`、`MainUI.stock`、`keymon` を止めた
+  plumOS 想定状態でも `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`
+  が `result=frontend_mali_renderer_rc_0` で完了した。終了後も stock 側は戻していない
 
 stock `keymon` と直接 input event の比較は [A30 input policy](a30-input-policy.md) に
 分離しました。次は、`plumos-controller-ui-mali` の実機画面での文字可読性/余白/配色の

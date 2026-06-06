@@ -299,6 +299,22 @@ the bundled dynamic loader/glibc, but does not export `LD_LIBRARY_PATH`. This
 prevents scanner calls inside the UI from making the stock `/bin/sh` load the
 bundled glibc by accident.
 
+The A30 exposes `/dev/fb0` as a `480x640` portrait framebuffer, while stock
+MainUI draws its landscape UI rotated in the raw framebuffer. The Mali renderer
+accepts `--rotation auto|none|cw|ccw`; `auto` draws a logical `640x480` UI into
+the `480x640` framebuffer in the same raw orientation as stock. A raw capture may
+look portrait on a PC, but, like the stock raw capture, it becomes a readable
+landscape frame after a 90-degree rotation. That is the expected orientation for
+the A30 physical screen.
+
+For plumOS-target tests, stock `MainUI.stock` and `keymon` are expected to be
+stopped. Use `--stop-mainui --stop-keymon --no-restart-stock` to pause the stock
+`/etc/main` supervisor, stop `MainUI.stock`/`keymon`, and leave the stock side
+stopped after the probe exits. Wi-Fi/SSH are maintained by
+`wpa_supplicant`/`udhcpc`/`dropbear`, and remained connected after
+MainUI/keymon were stopped. Omit `--no-restart-stock` only for comparison runs
+where the stock side should be restored.
+
 Mali renderer device checks:
 
 ```sh
@@ -306,6 +322,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --t
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 30
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock --no-scan --timeout 5 --exercise 2 --rotation auto
 ```
 
 On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
@@ -317,6 +334,13 @@ with profile details omitted so they fit the 480px width. `--exercise 3`
 automatically walked through TOP/ROM/Settings/SAFE, and a 30-second hold while
 stock `MainUI.stock` and `keymon` were still running also finished with
 `result=frontend_mali_renderer_rc_0`.
+`--stop-mainui --stop-keymon --no-restart-stock --rotation auto --exercise 2`
+also finished with `result=frontend_mali_renderer_rc_0` in the plumOS target
+state with stock `/etc/main`, `MainUI.stock`, and `keymon` stopped. After the
+probe, the stock side was left stopped, Wi-Fi/SSH remained connected, and no
+stale `plumos-controller-ui-mali` process remained. The `/dev/fb0` capture is
+portrait when viewed raw, but, like the stock MainUI capture, it is readable as
+landscape after a 90-degree rotation.
 
 Render TOP once:
 

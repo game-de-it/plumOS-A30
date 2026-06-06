@@ -318,6 +318,7 @@ struct ui_state {
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
+  char mali_rotation[16];
   char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t render_line_count;
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
@@ -2316,6 +2317,7 @@ static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
+  printf("     [--rotation auto|none|cw|ccw]\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
@@ -2328,6 +2330,7 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_FB           Default for Mali renderer: /dev/fb0\n");
   printf("  PLUMOS_EGL_LIB      Default for Mali renderer: /usr/lib/libEGL.so\n");
   printf("  PLUMOS_GLES_LIB     Default for Mali renderer: /usr/lib/libGLESv2.so\n");
+  printf("  PLUMOS_MALI_ROTATION auto, none, cw, or ccw. Default: auto\n");
   printf("  PLUMOS_A30_SYSTEM_JSON  Default: /config/system.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
 }
@@ -2341,6 +2344,7 @@ int main(int argc, char **argv) {
   const char *fb_path;
   const char *egl_path;
   const char *gles_path;
+  const char *rotation_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
   int dump_events = 0;
@@ -2386,6 +2390,9 @@ int main(int argc, char **argv) {
   fb_path = getenv("PLUMOS_FB");
   egl_path = getenv("PLUMOS_EGL_LIB");
   gles_path = getenv("PLUMOS_GLES_LIB");
+  rotation_env = getenv("PLUMOS_MALI_ROTATION");
+  copy_string(ui.mali_rotation, sizeof(ui.mali_rotation),
+              rotation_env && rotation_env[0] ? rotation_env : "auto");
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--all") == 0) {
@@ -2420,6 +2427,14 @@ int main(int argc, char **argv) {
       egl_path = argv[++i];
     } else if (strcmp(argv[i], "--gles-lib") == 0 && i + 1 < argc) {
       gles_path = argv[++i];
+    } else if (strcmp(argv[i], "--rotation") == 0 && i + 1 < argc) {
+      const char *rotation = argv[++i];
+      if (strcmp(rotation, "auto") != 0 && strcmp(rotation, "none") != 0 &&
+          strcmp(rotation, "cw") != 0 && strcmp(rotation, "ccw") != 0) {
+        fprintf(stderr, "error: unknown rotation: %s\n", rotation);
+        return 2;
+      }
+      copy_string(ui.mali_rotation, sizeof(ui.mali_rotation), rotation);
     } else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
       script = argv[++i];
     } else if (strcmp(argv[i], "--dump-events") == 0) {
@@ -2473,7 +2488,7 @@ int main(int argc, char **argv) {
                                    fb_path && fb_path[0] ? fb_path : "/dev/fb0",
                                    egl_path && egl_path[0] ? egl_path : "/usr/lib/libEGL.so",
                                    gles_path && gles_path[0] ? gles_path : "/usr/lib/libGLESv2.so",
-                                   render_error, sizeof(render_error))) {
+                                   ui.mali_rotation, render_error, sizeof(render_error))) {
       fprintf(stderr, "error: Mali renderer init failed: %s\n",
               render_error[0] ? render_error : "-");
       return 1;

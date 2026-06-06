@@ -288,6 +288,20 @@ wrapper は bundled dynamic loader/glibc で `plumos-controller-ui-mali.bin` を
 `LD_LIBRARY_PATH` は export しません。これは、UI 内の `plumos-library-scan` 呼び出しで
 stock `/bin/sh` が同梱 glibc を誤って読むのを防ぐためです。
 
+A30 の `/dev/fb0` は `480x640` の portrait framebuffer として見えますが、stock MainUI は
+raw framebuffer 上では横画面 UI を回転した向きに描いています。`plumos-controller-ui-mali`
+は `--rotation auto|none|cw|ccw` を持ち、`auto` では `480x640` framebuffer に対して
+stock と同じ raw 向きへ論理 `640x480` UI を描きます。PC で raw capture をそのまま見ると
+縦に見える場合がありますが、stock raw capture と同じく 90 度回すと横向きで読める状態が
+A30 実画面向けの想定です。
+
+plumOS としての本試験では、stock `MainUI.stock` と `keymon` は起動していない前提にします。
+`--stop-mainui --stop-keymon --no-restart-stock` を使うと、stock `/etc/main` supervisor を
+一時停止してから `MainUI.stock`/`keymon` を止め、probe 終了時にも stock 側を戻しません。
+Wi-Fi/SSH は `wpa_supplicant`/`udhcpc`/`dropbear` が維持しており、MainUI/keymon 停止後も
+接続が残ることを確認済みです。比較用に stock 側を戻したい場合だけ `--no-restart-stock`
+を外します。
+
 Mali renderer の実機確認:
 
 ```sh
@@ -295,6 +309,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --t
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 30
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock --no-scan --timeout 5 --exercise 2 --rotation auto
 ```
 
 2026-06-07 の A30 実機確認では、full scan 後に TOP を表示し、
@@ -304,6 +319,12 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --
 下部の2行ヒントへ分離し、リスト行は空白圧縮と profile 省略で 480px 幅に収めます。
 `--exercise 3` で TOP/ROM/Settings/SAFE を自動往復し、stock `MainUI.stock` と
 `keymon` が動いたまま 30 秒保持しても `result=frontend_mali_renderer_rc_0` でした。
+さらに `--stop-mainui --stop-keymon --no-restart-stock --rotation auto --exercise 2` で、
+stock `/etc/main`、`MainUI.stock`、`keymon` が動いていない plumOS 想定状態でも
+`result=frontend_mali_renderer_rc_0` でした。終了後も stock 側は復帰させず、
+Wi-Fi/SSH は維持され、stale `plumos-controller-ui-mali` process は残っていません。
+`/dev/fb0` capture は raw では縦に見えますが、stock MainUI capture と同じく 90 度回転後に
+横画面として読めることを確認しました。
 
 TOP を 1 回だけ表示:
 

@@ -331,6 +331,12 @@ stock SDL, can swap to the A30 display. `NULL` native window and a
   compact layout. `--exercise 3` and a 30-second hold while stock
   `MainUI.stock`/`keymon` were still running finished with
   `result=frontend_mali_renderer_rc_0`.
+- Frontend Mali stockless: after confirming Wi-Fi/SSH stay up through
+  `wpa_supplicant`/`udhcpc`/`dropbear`, the probe also finished with
+  `result=frontend_mali_renderer_rc_0` in the plumOS target state using
+  `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`, with stock
+  `/etc/main`, `MainUI.stock`, and `keymon` stopped. The stock side was left
+  stopped afterward.
 
 The stock `keymon` comparison is split into
 [A30 input policy](a30-input-policy.en.md). Next steps are visual tuning of text

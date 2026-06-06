@@ -8,10 +8,14 @@ TIMEOUT="${PLUMOS_FRONTEND_MALI_TIMEOUT:-3}"
 SCRIPT="${PLUMOS_FRONTEND_MALI_SCRIPT:-}"
 EXERCISE="${PLUMOS_FRONTEND_MALI_EXERCISE:-0}"
 RUN_SCAN="${PLUMOS_FRONTEND_MALI_SCAN:-1}"
+STOP_MAINUI="${PLUMOS_FRONTEND_MALI_STOP_MAINUI:-0}"
+STOP_KEYMON="${PLUMOS_FRONTEND_MALI_STOP_KEYMON:-0}"
+RESTART_STOCK="${PLUMOS_FRONTEND_MALI_RESTART_STOCK:-1}"
+ROTATION="${PLUMOS_FRONTEND_MALI_ROTATION:-auto}"
 
 usage() {
   cat <<EOF
-Usage: A30_TARGET=root@A30_IP $0 [--deploy] [--timeout SEC] [--script TOKENS] [--exercise N] [--no-scan]
+Usage: A30_TARGET=root@A30_IP $0 [--deploy] [--timeout SEC] [--script TOKENS] [--exercise N] [--rotation auto|none|cw|ccw] [--no-scan] [--stop-mainui] [--stop-keymon] [--no-restart-stock]
 
 Runs the plumOS controller UI through the fbdev + Mali EGL renderer on the A30.
 The binary dlopens /usr/lib/libEGL.so and /usr/lib/libGLESv2.so and does not
@@ -23,6 +27,10 @@ Environment:
   PLUMOS_FRONTEND_MALI_SCRIPT  Optional controller script, e.g. down,a,b,q.
   PLUMOS_FRONTEND_MALI_EXERCISE Generate a repeated navigation script. Default: ${EXERCISE}
   PLUMOS_FRONTEND_MALI_SCAN    Run plumos-library-scan first. Default: ${RUN_SCAN}
+  PLUMOS_FRONTEND_MALI_STOP_MAINUI Stop stock MainUI during the probe. Default: ${STOP_MAINUI}
+  PLUMOS_FRONTEND_MALI_STOP_KEYMON Stop stock keymon during the probe. Default: ${STOP_KEYMON}
+  PLUMOS_FRONTEND_MALI_RESTART_STOCK Resume/restart stock supervisor after the probe. Default: ${RESTART_STOCK}
+  PLUMOS_FRONTEND_MALI_ROTATION Rotation mode passed to the renderer. Default: ${ROTATION}
 EOF
 }
 
@@ -67,8 +75,24 @@ while [ "$#" -gt 0 ]; do
       EXERCISE="${2:?missing --exercise value}"
       shift 2
       ;;
+    --rotation)
+      ROTATION="${2:?missing --rotation value}"
+      shift 2
+      ;;
     --no-scan)
       RUN_SCAN=0
+      shift
+      ;;
+    --stop-mainui)
+      STOP_MAINUI=1
+      shift
+      ;;
+    --stop-keymon)
+      STOP_KEYMON=1
+      shift
+      ;;
+    --no-restart-stock|--no-restart-mainui)
+      RESTART_STOCK=0
       shift
       ;;
     -h|--help)
@@ -95,6 +119,38 @@ case "$RUN_SCAN" in
   0|1) ;;
   *)
     echo "error: PLUMOS_FRONTEND_MALI_SCAN must be 0 or 1: $RUN_SCAN" >&2
+    exit 2
+    ;;
+esac
+
+case "$STOP_MAINUI" in
+  0|1) ;;
+  *)
+    echo "error: PLUMOS_FRONTEND_MALI_STOP_MAINUI must be 0 or 1: $STOP_MAINUI" >&2
+    exit 2
+    ;;
+esac
+
+case "$STOP_KEYMON" in
+  0|1) ;;
+  *)
+    echo "error: PLUMOS_FRONTEND_MALI_STOP_KEYMON must be 0 or 1: $STOP_KEYMON" >&2
+    exit 2
+    ;;
+esac
+
+case "$RESTART_STOCK" in
+  0|1) ;;
+  *)
+    echo "error: PLUMOS_FRONTEND_MALI_RESTART_STOCK must be 0 or 1: $RESTART_STOCK" >&2
+    exit 2
+    ;;
+esac
+
+case "$ROTATION" in
+  auto|none|cw|ccw) ;;
+  *)
+    echo "error: --rotation must be auto, none, cw, or ccw: $ROTATION" >&2
     exit 2
     ;;
 esac
@@ -138,6 +194,70 @@ export PLUMOS_SDCARD_ROOT=/mnt/SDCARD
 UI="$PLUMOS_ROOT/bin/plumos-controller-ui-mali"
 SCAN="$PLUMOS_ROOT/bin/plumos-library-scan"
 SCAN_LOG=/tmp/plumos-frontend-mali-scan.log
+MAINUI_DIR=/mnt/SDCARD/miyoo/app
+STOCK_MAINUI="$MAINUI_DIR/MainUI.stock"
+STOCK_KEYMON="$MAINUI_DIR/keymon"
+MAINUI_WAS_RUNNING=0
+KEYMON_WAS_RUNNING=0
+MAIN_SUPERVISOR_PIDS=""
+MAIN_SUPERVISOR_STOPPED=0
+
+restore_stock_processes() {
+  if [ "$MAIN_SUPERVISOR_STOPPED" = "1" ] && [ -n "$MAIN_SUPERVISOR_PIDS" ]; then
+    if [ "$PLUMOS_FRONTEND_MALI_RESTART_STOCK" = "1" ]; then
+      echo "== resume stock main supervisor =="
+      kill -CONT $MAIN_SUPERVISOR_PIDS 2>/dev/null || true
+      sleep 1
+    else
+      echo "== leave stock main supervisor stopped =="
+      kill -KILL $MAIN_SUPERVISOR_PIDS 2>/dev/null || true
+      sleep 1
+    fi
+  fi
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_MAINUI" = "1" ] &&
+     [ "$PLUMOS_FRONTEND_MALI_RESTART_STOCK" = "1" ] &&
+     [ "$MAINUI_WAS_RUNNING" = "1" ] &&
+     [ "$MAIN_SUPERVISOR_STOPPED" != "1" ] &&
+     [ -x "$STOCK_MAINUI" ]; then
+    if [ -z "$(mainui_pids)" ]; then
+      echo "== restart stock MainUI =="
+      (cd "$MAINUI_DIR" && "$STOCK_MAINUI" >/tmp/plumos-mainui-restart.log 2>&1 &)
+    fi
+  fi
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_KEYMON" = "1" ] &&
+     [ "$PLUMOS_FRONTEND_MALI_RESTART_STOCK" = "1" ] &&
+     [ "$KEYMON_WAS_RUNNING" = "1" ] &&
+     [ "$MAIN_SUPERVISOR_STOPPED" != "1" ] &&
+     [ -x "$STOCK_KEYMON" ]; then
+    if [ -z "$(keymon_pids)" ]; then
+      echo "== restart stock keymon =="
+      (cd "$MAINUI_DIR" && "$STOCK_KEYMON" >/tmp/plumos-keymon-restart.log 2>&1 &)
+    fi
+  fi
+}
+
+trap restore_stock_processes EXIT
+
+mainui_pids() {
+  ps w 2>/dev/null |
+    grep -E "/mnt/SDCARD/miyoo/app/MainUI(\\.stock)?($| )" |
+    grep -v grep |
+    sed "s/^ *//; s/ .*//" || true
+}
+
+main_supervisor_pids() {
+  ps w 2>/dev/null |
+    grep -E "\\{main\\} /bin/sh /etc/main|/bin/sh /etc/main" |
+    grep -v grep |
+    sed "s/^ *//; s/ .*//" || true
+}
+
+keymon_pids() {
+  ps w 2>/dev/null |
+    grep -E "/mnt/SDCARD/miyoo/.*/app/keymon($| )|/mnt/SDCARD/miyoo//app/keymon($| )" |
+    grep -v grep |
+    sed "s/^ *//; s/ .*//" || true
+}
 
 echo "== device inventory =="
 ls -l /dev/fb* /dev/mali /dev/disp /dev/ion 2>/dev/null || true
@@ -147,6 +267,50 @@ echo "== frontend binaries =="
 ls -l "$UI" "$PLUMOS_ROOT/bin/plumos-controller-ui-mali.bin" "$SCAN" 2>/dev/null || true
 echo "== display/input processes before =="
 ps w 2>/dev/null | grep -E "MainUI|keymon|plumos-controller-ui-mali|plumos-library-scan" | grep -v grep || true
+
+if [ "$PLUMOS_FRONTEND_MALI_STOP_MAINUI" = "1" ] ||
+   [ "$PLUMOS_FRONTEND_MALI_STOP_KEYMON" = "1" ]; then
+  MAINUI_PIDS="$(mainui_pids)"
+  if [ -n "$MAINUI_PIDS" ]; then
+    MAINUI_WAS_RUNNING=1
+  fi
+  KEYMON_PIDS="$(keymon_pids)"
+  if [ -n "$KEYMON_PIDS" ]; then
+    KEYMON_WAS_RUNNING=1
+  fi
+  echo "== stop stock MainUI/keymon =="
+  MAIN_SUPERVISOR_PIDS="$(main_supervisor_pids)"
+  if [ -n "$MAIN_SUPERVISOR_PIDS" ]; then
+    kill -STOP $MAIN_SUPERVISOR_PIDS 2>/dev/null || true
+    MAIN_SUPERVISOR_STOPPED=1
+    sleep 1
+  fi
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_MAINUI" = "1" ] && [ -n "$MAINUI_PIDS" ]; then
+    kill $MAINUI_PIDS 2>/dev/null || true
+  fi
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_KEYMON" = "1" ] && [ -n "$KEYMON_PIDS" ]; then
+    kill $KEYMON_PIDS 2>/dev/null || true
+  fi
+  sleep 1
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_MAINUI" = "1" ]; then
+    MAINUI_PIDS="$(mainui_pids)"
+  else
+    MAINUI_PIDS=""
+  fi
+  if [ "$PLUMOS_FRONTEND_MALI_STOP_KEYMON" = "1" ]; then
+    KEYMON_PIDS="$(keymon_pids)"
+  else
+    KEYMON_PIDS=""
+  fi
+  if [ -n "$MAINUI_PIDS" ]; then
+    kill -KILL $MAINUI_PIDS 2>/dev/null || true
+  fi
+  if [ -n "$KEYMON_PIDS" ]; then
+    kill -KILL $KEYMON_PIDS 2>/dev/null || true
+  fi
+  sleep 1
+  ps w 2>/dev/null | grep -E "MainUI|keymon|plumos-controller-ui-mali|plumos-library-scan" | grep -v grep || true
+fi
 
 if [ "$PLUMOS_FRONTEND_MALI_SCAN" = "1" ] && [ -x "$SCAN" ]; then
   "$SCAN" --defer-thumbnails >"$SCAN_LOG" 2>&1 || {
@@ -161,9 +325,11 @@ fi
 set +e
 if [ -n "$PLUMOS_FRONTEND_MALI_SCRIPT" ]; then
   "$UI" --timeout "$PLUMOS_FRONTEND_MALI_TIMEOUT" \
+    --rotation "$PLUMOS_FRONTEND_MALI_ROTATION" \
     --script "$PLUMOS_FRONTEND_MALI_SCRIPT"
 else
-  "$UI" --timeout "$PLUMOS_FRONTEND_MALI_TIMEOUT"
+  "$UI" --timeout "$PLUMOS_FRONTEND_MALI_TIMEOUT" \
+    --rotation "$PLUMOS_FRONTEND_MALI_ROTATION"
 fi
 rc=$?
 set -e
@@ -177,5 +343,9 @@ A30_TARGET="$TARGET" "${ROOT_DIR}/scripts/run-a30.sh" \
   "PLUMOS_FRONTEND_MALI_TIMEOUT=$(shell_quote "$TIMEOUT")
 PLUMOS_FRONTEND_MALI_SCRIPT=$(shell_quote "$SCRIPT")
 PLUMOS_FRONTEND_MALI_EXERCISE=$(shell_quote "$EXERCISE")
+PLUMOS_FRONTEND_MALI_STOP_MAINUI=$(shell_quote "$STOP_MAINUI")
+PLUMOS_FRONTEND_MALI_STOP_KEYMON=$(shell_quote "$STOP_KEYMON")
+PLUMOS_FRONTEND_MALI_RESTART_STOCK=$(shell_quote "$RESTART_STOCK")
+PLUMOS_FRONTEND_MALI_ROTATION=$(shell_quote "$ROTATION")
 PLUMOS_FRONTEND_MALI_SCAN=$(shell_quote "$RUN_SCAN")
 $remote_script"

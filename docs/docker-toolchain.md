@@ -156,7 +156,13 @@ wrapper は bundled dynamic loader/glibc を使いますが、子プロセスへ
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock --no-scan --timeout 5 --exercise 2 --rotation auto
 ```
+
+plumOS としての本試験では `--stop-mainui --stop-keymon --no-restart-stock` で stock
+`/etc/main`、`MainUI.stock`、`keymon` を止めたままにします。A30 の `/dev/fb0` は
+`480x640` のため、`--rotation auto` で stock と同じ raw 向きに横画面 UI を描きます。
+Wi-Fi/SSH は `wpa_supplicant`/`udhcpc`/`dropbear` により維持されることを確認済みです。
 
 runtime probe も SD カード root に展開します。
 

@@ -61,6 +61,12 @@ typedef char GLchar;
 #define GL_COMPILE_STATUS 0x8b81
 #define GL_LINK_STATUS 0x8b82
 
+enum plumos_mali_rotation {
+  PLUMOS_MALI_ROTATION_NONE = 0,
+  PLUMOS_MALI_ROTATION_CW = 1,
+  PLUMOS_MALI_ROTATION_CCW = 2
+};
+
 struct plumos_mali_egl_api {
   void *handle;
   EGLDisplay (*GetDisplay)(EGLNativeDisplayType display_id);
@@ -121,8 +127,11 @@ struct plumos_mali_renderer {
   struct plumos_mali_egl_api egl;
   struct plumos_mali_gl_api gl;
   int fb_fd;
+  int fb_width;
+  int fb_height;
   int width;
   int height;
+  enum plumos_mali_rotation rotation;
   EGLDisplay display;
   EGLSurface surface;
   EGLContext context;
@@ -146,6 +155,23 @@ static int plumos_mali_copy_string(char *out, size_t out_size, const char *in) {
   }
   memcpy(out, in, len + 1);
   return 1;
+}
+
+static enum plumos_mali_rotation plumos_mali_parse_rotation(const char *mode,
+                                                            int fb_width, int fb_height) {
+  if (!mode || !mode[0] || strcmp(mode, "auto") == 0) {
+    return fb_height > fb_width ? PLUMOS_MALI_ROTATION_CCW : PLUMOS_MALI_ROTATION_NONE;
+  }
+  if (strcmp(mode, "none") == 0) {
+    return PLUMOS_MALI_ROTATION_NONE;
+  }
+  if (strcmp(mode, "cw") == 0) {
+    return PLUMOS_MALI_ROTATION_CW;
+  }
+  if (strcmp(mode, "ccw") == 0) {
+    return PLUMOS_MALI_ROTATION_CCW;
+  }
+  return fb_height > fb_width ? PLUMOS_MALI_ROTATION_CCW : PLUMOS_MALI_ROTATION_NONE;
 }
 
 static int plumos_mali_load_symbol(void *handle, const char *name, void *fn_out,
@@ -382,7 +408,8 @@ static int plumos_mali_setup_program(struct plumos_mali_renderer *renderer,
 
 static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, const char *fb_path,
                                      const char *egl_path, const char *gles_path,
-                                     char *error, size_t error_size) {
+                                     const char *rotation_mode, char *error,
+                                     size_t error_size) {
   EGLConfig config = NULL;
   EGLint major = 0;
   EGLint minor = 0;
@@ -396,6 +423,8 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
   renderer->display = EGL_NO_DISPLAY;
   renderer->surface = EGL_NO_SURFACE;
   renderer->context = EGL_NO_CONTEXT;
+  renderer->fb_width = 480;
+  renderer->fb_height = 640;
   renderer->width = 480;
   renderer->height = 640;
   if (!fb_path || !fb_path[0]) {
@@ -467,10 +496,20 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
       renderer->egl.QuerySurface(renderer->display, renderer->surface, EGL_HEIGHT, &height) ==
           EGL_TRUE &&
       width > 0 && height > 0) {
-    renderer->width = width;
-    renderer->height = height;
+    renderer->fb_width = width;
+    renderer->fb_height = height;
   }
-  renderer->gl.Viewport(0, 0, renderer->width, renderer->height);
+  renderer->rotation =
+      plumos_mali_parse_rotation(rotation_mode, renderer->fb_width, renderer->fb_height);
+  if (renderer->rotation == PLUMOS_MALI_ROTATION_CW ||
+      renderer->rotation == PLUMOS_MALI_ROTATION_CCW) {
+    renderer->width = renderer->fb_height;
+    renderer->height = renderer->fb_width;
+  } else {
+    renderer->width = renderer->fb_width;
+    renderer->height = renderer->fb_height;
+  }
+  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
   if (!plumos_mali_setup_program(renderer, error, error_size)) {
     return 0;
   }
@@ -566,6 +605,7 @@ static const unsigned char *plumos_mali_glyph(char ch) {
   static const unsigned char pipe_glyph[7] = {4, 4, 4, 4, 4, 4, 4};
   static const unsigned char quote[7] = {10, 10, 0, 0, 0, 0, 0};
   static const unsigned char star[7] = {0, 21, 14, 31, 14, 21, 0};
+  static const unsigned char tilde[7] = {0, 0, 8, 21, 2, 0, 0};
 
   if (ch >= 'a' && ch <= 'z') {
     ch = (char)(ch - 'a' + 'A');
@@ -684,6 +724,8 @@ static const unsigned char *plumos_mali_glyph(char ch) {
     return quote;
   case '*':
     return star;
+  case '~':
+    return tilde;
   default:
     return unknown;
   }
@@ -692,10 +734,31 @@ static const unsigned char *plumos_mali_glyph(char ch) {
 static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, float y,
                              float w, float h, float red, float green, float blue,
                              float alpha) {
-  GLfloat x0 = (x / (float)renderer->width) * 2.0f - 1.0f;
-  GLfloat x1 = ((x + w) / (float)renderer->width) * 2.0f - 1.0f;
-  GLfloat y0 = 1.0f - (y / (float)renderer->height) * 2.0f;
-  GLfloat y1 = 1.0f - ((y + h) / (float)renderer->height) * 2.0f;
+  float fx = x;
+  float fy = y;
+  float fw = w;
+  float fh = h;
+  GLfloat x0;
+  GLfloat x1;
+  GLfloat y0;
+  GLfloat y1;
+
+  if (renderer->rotation == PLUMOS_MALI_ROTATION_CCW) {
+    fx = y;
+    fy = (float)renderer->fb_height - (x + w);
+    fw = h;
+    fh = w;
+  } else if (renderer->rotation == PLUMOS_MALI_ROTATION_CW) {
+    fx = (float)renderer->fb_width - (y + h);
+    fy = x;
+    fw = h;
+    fh = w;
+  }
+
+  x0 = (fx / (float)renderer->fb_width) * 2.0f - 1.0f;
+  x1 = ((fx + fw) / (float)renderer->fb_width) * 2.0f - 1.0f;
+  y0 = 1.0f - (fy / (float)renderer->fb_height) * 2.0f;
+  y1 = 1.0f - ((fy + fh) / (float)renderer->fb_height) * 2.0f;
   GLfloat verts[8] = {x0, y0, x1, y0, x0, y1, x1, y1};
 
   renderer->gl.Uniform4f(renderer->color_uniform, red, green, blue, alpha);
@@ -834,11 +897,106 @@ static void plumos_mali_make_title(const char *line, char *out, size_t out_size)
   }
 }
 
-static void plumos_mali_make_entry(const char *line, char *out, size_t out_size) {
+static void plumos_mali_trim_right(char *s) {
+  size_t len;
+
+  if (!s) {
+    return;
+  }
+  len = strlen(s);
+  while (len > 0 && s[len - 1] == ' ') {
+    s[--len] = '\0';
+  }
+}
+
+static int plumos_mali_entry_head(const char *line, char *marker, char *number,
+                                  size_t number_size, const char **rest) {
+  const char *p = line;
+  size_t n = 0;
+
+  if (!line || !number || number_size == 0 || !rest) {
+    return 0;
+  }
+  *marker = ' ';
+  number[0] = '\0';
+  if (*p == '>') {
+    *marker = '>';
+    p++;
+  }
+  while (*p == ' ') {
+    p++;
+  }
+  while (*p >= '0' && *p <= '9' && n + 1 < number_size) {
+    number[n++] = *p++;
+  }
+  number[n] = '\0';
+  while (*p == ' ') {
+    p++;
+  }
+  *rest = p;
+  return number[0] != '\0' && *rest && **rest;
+}
+
+static int plumos_mali_make_rom_entry(const char *line, char *out, size_t out_size) {
+  char marker;
+  char number[16];
+  char title[48];
+  const char *rest;
+  size_t i;
+
+  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest)) {
+    return 0;
+  }
+  memset(title, 0, sizeof(title));
+  for (i = 0; i < 30 && rest[i] && i + 1 < sizeof(title); i++) {
+    title[i] = rest[i];
+  }
+  title[i] = '\0';
+  plumos_mali_trim_right(title);
+  if (!title[0]) {
+    return 0;
+  }
+  snprintf(out, out_size, "%c %s %s", marker, number, title);
+  plumos_mali_truncate(out, 38);
+  return 1;
+}
+
+static int plumos_mali_make_safe_entry(const char *line, char *out, size_t out_size) {
+  char marker;
+  char number[16];
+  char action[32];
+  const char *rest;
+  size_t n = 0;
+
+  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest)) {
+    return 0;
+  }
+  while (rest[n] && rest[n] != ' ' && n + 1 < sizeof(action)) {
+    action[n] = rest[n];
+    n++;
+  }
+  action[n] = '\0';
+  if (!action[0]) {
+    return 0;
+  }
+  snprintf(out, out_size, "%c %s %s", marker, number, action);
+  return 1;
+}
+
+static void plumos_mali_make_entry(const char *line, const char *screen_title,
+                                   char *out, size_t out_size) {
   char compact[160];
   char *profile;
 
   if (!out || out_size == 0) {
+    return;
+  }
+  if ((strstr(screen_title, "ROMS") || strstr(screen_title, "FAVORITES") ||
+       strstr(screen_title, "RECENT")) &&
+      plumos_mali_make_rom_entry(line, out, out_size)) {
+    return;
+  }
+  if (strstr(screen_title, "SAFE") && plumos_mali_make_safe_entry(line, out, out_size)) {
     return;
   }
   plumos_mali_compact_spaces(line, compact, sizeof(compact));
@@ -896,7 +1054,7 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
   float y;
   float line_height = 28.0f;
 
-  renderer->gl.Viewport(0, 0, renderer->width, renderer->height);
+  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
   renderer->gl.UseProgram(renderer->program);
   renderer->gl.ClearColor(0.012f, 0.016f, 0.018f, 1.0f);
   renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
@@ -932,7 +1090,7 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
       continue;
     }
     if (plumos_mali_is_entry_line(line) && entry_count < sizeof(entries) / sizeof(entries[0])) {
-      plumos_mali_make_entry(line, entries[entry_count], sizeof(entries[entry_count]));
+      plumos_mali_make_entry(line, title, entries[entry_count], sizeof(entries[entry_count]));
       entry_count++;
     }
   }

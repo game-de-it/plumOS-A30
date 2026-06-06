@@ -147,8 +147,19 @@
 - [x] Convert `plumos-controller-ui-mali` to an A30-oriented compact layout and
   confirm TOP/ROM/Settings/SAFE exercise plus a 30-second hold while stock
   MainUI/keymon are still present.
+- [x] Add `--rotation auto|none|cw|ccw` to `plumos-controller-ui-mali`; on the
+  A30 `480x640` framebuffer, `auto` draws the landscape UI in the same raw
+  orientation as stock.
+- [x] Confirm that Wi-Fi/SSH stay up through `wpa_supplicant`/`udhcpc`/`dropbear`
+  rather than stock `MainUI.stock`/`keymon`.
+- [x] Use
+  `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock`
+  to validate the Mali UI in the plumOS target state with stock `/etc/main`,
+  `MainUI.stock`, and `keymon` stopped.
 - [ ] Visually inspect `plumos-controller-ui-mali` on the device screen and tune
   text readability, spacing, colors, and selection display.
+- [ ] Have the user visually confirm the physical screen orientation for
+  `--rotation auto`; switch to `cw`/`ccw` if it is reversed.
 - [ ] Revisit SDL3/sdl2-compat custom video backend work after the frontend
   presenter behavior is stable.
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
@@ -225,12 +236,13 @@
   D-pad, L/R, L2/R2, START/SELECT, and Function are forwarded as
   `plumOS A30 Gamepad` button/hat/trigger events.
 - [x] Add `scripts/probe-a30-sdl2-gamepad.sh` and confirm that plumOS-bundled
-  SDL2 2.26.5 automatically recognizes the
+  upstream SDL3 3.4.10 + sdl2-compat 2.32.68 automatically recognizes the
   `plumos-joystickd --device-mode xbox` composite virtual pad as a
   GameController.
 - [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
-  during plumOS causes duplicate input or stale fd issues in the frontend,
-  `keymon`, or emulators.
+  during plumOS causes duplicate input or stale fd issues in the frontend or
+  emulators. For comparison probes, also watch the case where stock `keymon`
+  keeps deleted `js*`/`event*` fds open.
 - [ ] For the plumOS RetroArch build, prioritize testing SDL2/evdev plus a
   composite virtual pad instead of relying on the stock SDL1 path.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
@@ -240,8 +252,8 @@
   side effects.
 - [ ] Validate a Function-button fallback for the safe shutdown/resume menu
   while RetroArch is running.
-- [ ] Make the final keep/stop decision for stock `keymon` when plumOS becomes
-  the regular boot frontend.
+- [x] Decide to stop stock `keymon` when plumOS becomes the regular boot
+  frontend.
 - [ ] Investigate how to show a Sleep/Shutdown/Cancel menu from Function, or
   from power if available, while RetroArch is running.
 
