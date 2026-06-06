@@ -170,6 +170,8 @@
   `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock`
   to validate the Mali UI in the plumOS target state with stock `/etc/main`,
   `MainUI.stock`, and `keymon` stopped.
+- [x] Review TOP/ROM/START/Settings/SAFE through `/dev/fb0` captures and shorten
+  the Mali START menu rows to reduce right-edge truncation.
 - [ ] Visually inspect `plumos-controller-ui-mali` on the device screen and tune
   text readability, spacing, colors, and selection display.
 - [ ] Have the user visually confirm the physical screen orientation for

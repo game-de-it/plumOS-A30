@@ -122,6 +122,7 @@
 - [x] IP取得/DHCP は MainUI 側に依存していた可能性が高いため、FE 起動時に `plumos-network-rescue` を自動実行する方針にする。
 - [x] START menu の Network と Settings の `A30 Wi-Fi Config`/`A30 Wi-Fi Runtime` からも同じ network rescue を実行する。
 - [x] `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock` で stock `/etc/main`、`MainUI.stock`、`keymon` を止めた plumOS 想定状態で Mali UI を確認する。
+- [x] `/dev/fb0` capture で TOP/ROM/START/Settings/SAFE を確認し、START menu の Mali 表示を短縮して右端省略を減らす。
 - [ ] `plumos-controller-ui-mali` を実機画面で目視し、文字可読性、余白、配色、選択表示を最終調整する。
 - [ ] `--rotation auto` の物理画面向きをユーザー目視で確認し、逆向きなら `cw`/`ccw` を切り替える。
 - [ ] SDL3/sdl2-compat custom video backend 化は frontend presenter の挙動が固まってから再判断する。

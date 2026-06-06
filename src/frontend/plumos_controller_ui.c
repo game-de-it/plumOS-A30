@@ -1634,10 +1634,28 @@ static void render_start_menu(struct ui_state *ui) {
   ui_printf(ui, "\n");
   for (i = 0; i < ui->menu_count; i++) {
     const struct menu_entry *entry = &ui->menu_entries[i];
-    ui_printf(ui, "%c %3zu  %-24s %-10s %-24s %s\n",
-              i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
-              entry->kind[0] ? entry->kind : "-", entry->action,
-              entry->confirm ? "confirm" : "");
+    if (ui->renderer_mali) {
+      const char *role = entry->kind[0] ? entry->kind : "-";
+      if (strcmp(entry->action, "internal:settings") == 0 ||
+          strcmp(entry->action, "internal:favorites") == 0 ||
+          strcmp(entry->action, "internal:recent") == 0) {
+        role = "screen";
+      } else if (strcmp(entry->action, "internal:network") == 0) {
+        role = "rescue";
+      } else if (strcmp(entry->action, "scan:current") == 0) {
+        role = "scan";
+      } else if (strcmp(entry->action, "system:shutdown") == 0) {
+        role = "power";
+      }
+      ui_printf(ui, "%c %2zu  %-30s %-8s %s\n",
+                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name, role,
+                entry->confirm ? "confirm" : "");
+    } else {
+      ui_printf(ui, "%c %3zu  %-24s %-10s %-24s %s\n",
+                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
+                entry->kind[0] ? entry->kind : "-", entry->action,
+                entry->confirm ? "confirm" : "");
+    }
   }
   if (ui->menu_count == 0) {
     ui_printf(ui, "(menu entry is empty)\n");
