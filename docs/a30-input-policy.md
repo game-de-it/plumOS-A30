@@ -268,8 +268,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
   plumOS build の SDL2/evdev + composite virtual pad を優先する
 - `plumos-joystickd --device-mode xbox` の button forwarding では Function も
   `BTN_MODE` として転送できるため、emulator 実行中の safe menu 入力候補にできる
-- plumOS 同梱 SDL2 2.26.5 の probe でも、`plumos-joystickd --device-mode xbox` の
-  composite virtual pad が SDL2 GameController として自動認識されることを確認済み
+- plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
+  `plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2
+  GameController として自動認識されることを確認済み
 - `plumos-joystickd --device-mode xbox` は常駐候補にする。ただし default service 化は
   FE/`keymon`/emulator の二重入力と fd 残りを実機で確認してから行う
 

@@ -17,6 +17,7 @@ Commands:
   frontend       Build the frontend prototype into dist/plumos-frontend.
   joystickd      Build the A30 serial-to-uinput joystick daemon into dist/plumos-joystickd.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
+  sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
   sdl2-probe     Build the SDL2 joystick/GameController probe into dist/plumos-sdl2-probe.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
@@ -87,6 +88,10 @@ case "$cmd" in
   runtime-probe|probe)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-runtime-probe.sh
+    ;;
+  sdl2-runtime|sdl2rt)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-sdl2-runtime.sh
     ;;
   sdl2-probe|sdl2)
     ensure_image

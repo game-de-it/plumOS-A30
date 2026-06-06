@@ -3,6 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
 SRC="${ROOT_DIR}/src/probe/plumos_sdl2_probe.c"
+SDL2_SOURCE="${PLUMOS_SDL2_SOURCE:-upstream}"
+SDL2_RUNTIME_SCRIPT="${ROOT_DIR}/docker/plumos-toolchain/scripts/build-sdl2-runtime.sh"
+SDL2_RUNTIME_DIST="${ROOT_DIR}/dist/plumos-sdl2-runtime"
+SDL2_COMPAT_PREFIX="${ROOT_DIR}/build/sdl-upstream/sdl2-compat-install"
 DIST_DIR="${ROOT_DIR}/dist/plumos-sdl2-probe"
 BIN_DIR="${DIST_DIR}/plumos/bin"
 LIB_DIR="${DIST_DIR}/plumos/lib"
@@ -15,8 +19,16 @@ CC="${CC:-arm-linux-gnueabihf-gcc}"
 STRIP="${STRIP:-arm-linux-gnueabihf-strip}"
 READELF="${READELF:-arm-linux-gnueabihf-readelf}"
 PKG_CONFIG="${PKG_CONFIG:-pkg-config}"
+SDL2_PKG="${SDL2_PKG:-}"
 
-export PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig}"
+if [ "$SDL2_SOURCE" != "upstream" ]; then
+  echo "error: only PLUMOS_SDL2_SOURCE=upstream is supported: $SDL2_SOURCE" >&2
+  exit 2
+fi
+
+"$SDL2_RUNTIME_SCRIPT"
+SDL2_PKG="${SDL2_PKG:-sdl2-compat}"
+export PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-${SDL2_COMPAT_PREFIX}/lib/pkgconfig}"
 export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
 
 rm -rf "$DIST_DIR"
@@ -31,10 +43,10 @@ mkdir -p "$BIN_DIR" "$LIB_DIR" "$DOC_DIR"
   -mfloat-abi="${PLUMOS_MFLOAT_ABI:-hard}" \
   -Wall \
   -Wextra \
-  $("$PKG_CONFIG" --cflags sdl2) \
+  $("$PKG_CONFIG" --cflags "$SDL2_PKG") \
   "$SRC" \
   -o "$OUT_BIN" \
-  $("$PKG_CONFIG" --libs sdl2)
+  $("$PKG_CONFIG" --libs "$SDL2_PKG")
 
 "$STRIP" "$OUT_BIN" 2>/dev/null || true
 chmod 0755 "$OUT_BIN"
@@ -46,6 +58,9 @@ find_lib() {
   for dir in \
     /lib/arm-linux-gnueabihf \
     /lib/arm-linux-gnueabihf/pulseaudio \
+    "${SDL2_RUNTIME_DIST}/plumos/lib" \
+    "${SDL2_COMPAT_PREFIX}/lib" \
+    "${ROOT_DIR}/build/sdl-upstream/SDL3-install/lib" \
     /usr/lib/arm-linux-gnueabihf \
     /usr/lib/arm-linux-gnueabihf/pulseaudio \
     /usr/arm-linux-gnueabihf/lib; do
@@ -99,6 +114,11 @@ copy_loader() {
 }
 
 copy_loader
+if [ "$SDL2_SOURCE" = "upstream" ]; then
+  cp -f "${SDL2_RUNTIME_DIST}/plumos/lib/"* "$LIB_DIR/"
+  chmod 0644 "$LIB_DIR"/*
+  chmod 0755 "$LIB_DIR/ld-linux-armhf.so.3"
+fi
 copy_deps "$OUT_BIN"
 
 cat > "$OUT_WRAPPER" <<'EOF'
@@ -124,7 +144,9 @@ sha256sum "$OUT_BIN" "$OUT_WRAPPER" "$LIB_DIR"/* > "${DOC_DIR}/plumos-sdl2-probe
   echo "plumOS SDL2 probe"
   echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "cc: $("$CC" --version | head -n 1)"
-  echo "pkg-config: $("$PKG_CONFIG" --modversion sdl2)"
+  echo "sdl2_source: ${SDL2_SOURCE}"
+  echo "pkg-config-package: ${SDL2_PKG}"
+  echo "pkg-config: $("$PKG_CONFIG" --modversion "$SDL2_PKG")"
   echo
   file "$OUT_BIN"
   echo

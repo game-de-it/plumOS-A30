@@ -83,7 +83,21 @@ dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 
-SDL2 probe を build します。
+upstream SDL2 互換 runtime を build します。既定では SDL3 3.4.10 と
+sdl2-compat 2.32.68 を取得し、tag/URL/SHA-256/build option を manifest に残します。
+
+```sh
+./scripts/docker-build.sh sdl2-runtime
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-sdl2-runtime/plumos/lib/
+dist/plumos-sdl2-runtime/plumos/share/doc/plumos-sdl2-runtime/
+```
+
+SDL2 probe を build します。既定では上記 runtime を同梱します。
 
 ```sh
 ./scripts/docker-build.sh sdl2-probe

@@ -26,6 +26,7 @@ dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 SDL2 linked/GameController probe:
 
 ```sh
+./scripts/docker-build.sh sdl2-runtime
 ./scripts/docker-build.sh sdl2-probe
 ```
 
@@ -38,10 +39,10 @@ dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
 
-`plumos-sdl2-probe` runs with the Debian armhf SDL2 package plus the required
-dynamic loader and shared libraries bundled under `/mnt/SDCARD/plumos/lib`.
-Because the A30 SD card cannot create symlinks, sonames are copied as regular
-files rather than symlinks.
+`plumos-sdl2-probe` runs with upstream SDL3 3.4.10 and sdl2-compat 2.32.68 plus
+the required dynamic loader and shared libraries bundled under
+`/mnt/SDCARD/plumos/lib`. Because the A30 SD card cannot create symlinks,
+sonames are copied as regular files rather than symlinks.
 
 ## Deploy/Run
 
@@ -160,14 +161,14 @@ SDL2 linked/GameController probe:
 
 ```text
 plumOS SDL2 probe
-compiled_sdl=2.26.5 linked_sdl=2.26.5 timeout_ms=3000 no_video=no
+compiled_sdl=2.32.68 linked_sdl=2.32.68 timeout_ms=3000 no_video=no
 env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
 sdl init=yes current_video_driver=dummy current_audio_driver=-
 window create=yes error=""
 joysticks=1
-device index=0 name="Xbox 360 Controller" guid=030003f05e0400008e0200005e040000 is_controller=yes
+device index=0 name="Xbox 360 Controller" guid=0300e4fb5e0400008e0200005e040000 is_controller=yes
 controller open index=0 yes
-controller info index=0 name="Atari Xbox 360 Game Controller" attached=yes axes=6 buttons=11 hats=1
+controller info index=0 name="Xbox 360 Controller" attached=yes axes=6 buttons=11 hats=1
 summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joystick_events=1
 result=sdl2_gamecontroller_visible
 ```
@@ -192,10 +193,10 @@ without that environment variable.
   `/dev` only contains `/dev/ttyS0` and `/dev/ttyS1`. `/dev/ttyS0` emits
   joystick frames at 9600/8N1.
 - Audio: OSS `/dev/dsp` exists, but is busy while stock MainUI holds PCM.
-- SDL2: the plumOS-bundled SDL2 2.26.5 plus bundled dynamic loader/shared
-  libraries starts successfully and automatically recognizes the
-  `plumos-joystickd --device-mode xbox` composite virtual pad as a
-  GameController.
+- SDL2: the plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 plus
+  bundled dynamic loader/shared libraries starts successfully and automatically
+  recognizes the `plumos-joystickd --device-mode xbox` composite virtual pad as
+  a GameController.
 - SDL2 render: dummy-video window creation succeeds; the real
   framebuffer/render backend is still unvalidated.
 

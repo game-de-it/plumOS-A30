@@ -284,9 +284,9 @@ Judgment:
   plumOS RetroArch build.
 - `plumos-joystickd --device-mode xbox` forwards Function as `BTN_MODE`, so it
   can be used as a candidate safe-menu input while an emulator is running.
-- The plumOS-bundled SDL2 2.26.5 probe also confirms that
-  `plumos-joystickd --device-mode xbox` is auto-detected as an SDL2
-  GameController.
+- The plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe also
+  confirms that `plumos-joystickd --device-mode xbox` is auto-detected as an
+  SDL2 GameController.
 - Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
   but only make it the default service after checking duplicate input and stale
   fd behavior across the frontend, `keymon`, and emulators on hardware.

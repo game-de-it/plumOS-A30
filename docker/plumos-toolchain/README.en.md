@@ -149,6 +149,22 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
+## SDL2 Runtime Build
+
+```sh
+./scripts/docker-build.sh sdl2-runtime
+```
+
+Outputs:
+
+```text
+dist/plumos-sdl2-runtime/plumos/lib/
+dist/plumos-sdl2-runtime/plumos/share/doc/plumos-sdl2-runtime/
+```
+
+By default this builds upstream SDL3 3.4.10 and sdl2-compat 2.32.68, recording
+the tag, URL, SHA-256, and build options in the manifest.
+
 ## SDL2 Probe Build
 
 ```sh
@@ -163,6 +179,8 @@ dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe.bin
 dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
+
+By default this bundles the `sdl2-runtime` output.
 
 Device check:
 

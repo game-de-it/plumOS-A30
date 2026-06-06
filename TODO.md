@@ -18,6 +18,7 @@
 - [ ] A30 向け sysroot を Docker build で再現可能にする。
 - [ ] Docker 内で frontend、helper、RetroArch、libretro core を build できるようにする。
 - [ ] SDL2、RetroArch、libretro core、standalone emulator、補助 library は build 時点の latest stable upstream release を確認し、採用 version/tag/commit/build option を manifest 化する。
+- [x] SDL2 互換 runtime は upstream SDL3 3.4.10 + sdl2-compat 2.32.68 を採用し、tag/URL/SHA-256/build option を manifest 化する。
 - [x] Docker 内で frontend compatibility scanner を build できるようにする。
 - [x] Docker build output を `dist/` または staging directory へ集約する。
 - [x] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
@@ -142,7 +143,7 @@
 - [x] `plumos-joystickd --device-mode xbox` が PPSSPP/SDL2 GameController から認識され、GameController mapping が成功することを確認する。
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
 - [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
-- [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 SDL2 2.26.5 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
+- [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
 - [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。

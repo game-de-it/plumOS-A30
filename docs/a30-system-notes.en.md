@@ -113,10 +113,10 @@ On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
 - Input: `gpio-keys-polled` opens and polls as `/dev/input/event3`.
 - Audio: `/dev/dsp` exists, but is busy while stock `MainUI` holds
   `/dev/snd/pcmC0D0p`.
-- SDL2: plumOS-bundled SDL2 2.26.5 plus bundled dynamic loader/shared libraries
-  starts a linked/window/input probe and automatically recognizes the composite
-  virtual pad as a GameController. The real framebuffer/render backend is still
-  unvalidated.
+- SDL2: plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 plus bundled
+  dynamic loader/shared libraries starts a linked/window/input probe and
+  automatically recognizes the composite virtual pad as a GameController. The
+  real framebuffer/render backend is still unvalidated.
 
 Details live in [A30 runtime probe](a30-runtime-probe.en.md).
 
@@ -172,10 +172,9 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - `plumos-joystickd --device-mode xbox` button forwarding was confirmed for
   A/B/X/Y, D-pad, L/R, L2/R2, START/SELECT, and Function as
   `plumOS A30 Gamepad` button/hat/trigger events.
-- With the plumOS-bundled SDL2 2.26.5 probe, the
+- With the plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe, the
   `plumos-joystickd --device-mode xbox` composite virtual pad was also
-  auto-detected through the `Xbox 360 Controller` /
-  `Atari Xbox 360 Game Controller` mapping.
+  auto-detected through the `Xbox 360 Controller` mapping.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

@@ -135,9 +135,9 @@ backend 候補:
 - video write: 64x64 の小さい patch を短時間描画し、復元できる
 - input: `gpio-keys-polled` は `/dev/input/event3` として open/poll できる
 - audio: `/dev/dsp` は存在するが、stock `MainUI` が `/dev/snd/pcmC0D0p` を保持している間は busy
-- SDL2: plumOS 同梱 SDL2 2.26.5 と bundled dynamic loader/shared libraries で
-  linked/window/input probe が起動し、composite virtual pad を GameController として
-  自動認識できる。実 framebuffer/render backend は未検証
+- SDL2: plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 と bundled
+  dynamic loader/shared libraries で linked/window/input probe が起動し、composite
+  virtual pad を GameController として自動認識できる。実 framebuffer/render backend は未検証
 
 詳細は [A30 runtime probe](a30-runtime-probe.md) にまとめています。
 
@@ -191,9 +191,9 @@ backend 候補:
 - `plumos-joystickd --device-mode xbox` の button forwarding で A/B/X/Y、D-pad、
   L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` 側の
   button/hat/trigger event として出ることを確認した
-- plumOS 同梱 SDL2 2.26.5 の probe でも、`plumos-joystickd --device-mode xbox` の
-  composite virtual pad は `Xbox 360 Controller` / `Atari Xbox 360 Game Controller`
-  mapping として自動認識された
+- plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
+  `plumos-joystickd --device-mode xbox` の composite virtual pad は
+  `Xbox 360 Controller` mapping として自動認識された
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

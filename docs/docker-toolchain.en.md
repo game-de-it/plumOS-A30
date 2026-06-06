@@ -83,7 +83,22 @@ dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 
-Build the SDL2 probe.
+Build the upstream SDL2-compatible runtime. By default this fetches SDL3 3.4.10
+and sdl2-compat 2.32.68, then records the tag, URL, SHA-256, and build options
+in the manifest.
+
+```sh
+./scripts/docker-build.sh sdl2-runtime
+```
+
+Outputs:
+
+```text
+dist/plumos-sdl2-runtime/plumos/lib/
+dist/plumos-sdl2-runtime/plumos/share/doc/plumos-sdl2-runtime/
+```
+
+Build the SDL2 probe. By default it bundles the runtime above.
 
 ```sh
 ./scripts/docker-build.sh sdl2-probe
