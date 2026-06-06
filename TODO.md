@@ -59,7 +59,7 @@
 - [x] `Emu`, `RApp`, `App`, `Themes` の stock `config.json` を読む。
 - [x] stock `config.json` は plumOS 新仕様ではなく inventory/migration 入力だと明文化する。
 - [x] `rompath`, `imgpath`, `gamelist`, `launchlist` を解決して存在と件数を確認する。
-- [ ] ROM file と artwork file の名前対応 rule を確認する。
+- [x] ROM file と artwork file の名前対応 rule を確認する。
 - [ ] `gamelist` XML の stock data schema を読む。
 - [ ] 既存 ROM、artwork、save、state を移動せずに認識できるようにする。
 - [x] compatibility scanner で `extlist` による ROM count filter を実装する。
@@ -91,6 +91,8 @@
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
+- [ ] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
+- [ ] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
 - [ ] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
 - [ ] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
 - [ ] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。

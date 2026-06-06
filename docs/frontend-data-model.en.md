@@ -158,6 +158,49 @@ Generated scan result. It is not hand-written.
 Initial IDs can be hashes of normalized absolute paths. Later they can include
 file hash, mtime, and size.
 
+### Artwork Lookup
+
+Thumbnails are resolved from the representative ROM path stored in `RomEntry`.
+When a ROM lives in a subdirectory, preserve the path relative to the ROM
+directory alias root when looking under the artwork directory.
+
+Example:
+
+```text
+rom alias root: /mnt/SDCARD/Roms/nes
+artwork dir:    /mnt/SDCARD/images/nes
+rom path:       /mnt/SDCARD/Roms/nes/01/test.nes
+relative stem:  01/test
+```
+
+Lookup priority:
+
+```text
+1. /mnt/SDCARD/images/nes/01/test.png
+2. /mnt/SDCARD/images/nes/01/test.jpg
+3. /mnt/SDCARD/images/nes/01/test.jpeg
+4. /mnt/SDCARD/images/nes/01/test.webp
+5. /mnt/SDCARD/images/nes/test.png
+6. /mnt/SDCARD/images/nes/test.jpg
+7. /mnt/SDCARD/images/nes/test.jpeg
+8. /mnt/SDCARD/images/nes/test.webp
+9. placeholder
+```
+
+Rules:
+
+- If `artwork.lookup` has multiple directories, try these candidates in
+  definition order.
+- The canonical extension list is lowercase `png`, `jpg`, `jpeg`, and `webp`;
+  file lookup is case-insensitive.
+- Prefer artwork that preserves the ROM subdirectory layout over flat artwork.
+- Flat artwork remains as fallback for existing artwork and simple manual
+  placement.
+- Multi-file ROMs such as `.cue/.bin/.m3u` resolve thumbnails from the displayed
+  `RomEntry` representative file stem, not from every file in the set.
+- If no thumbnail is found, gallery mode shows a text fallback or the theme
+  placeholder.
+
 ### `AppDefinition`
 
 Apps/tools are separate from systems even if they appear near the TOP flow.
@@ -352,7 +395,7 @@ Scan algorithm:
 3. Scan existing directories.
 4. Create `RomEntry` objects only for matching extensions.
 5. Route shared directories by extension.
-6. Resolve artwork.
+6. Resolve artwork from each `RomEntry` representative path.
 7. Save generated output to `state/frontend/library-index.json`.
 
 ## Initial System Seed

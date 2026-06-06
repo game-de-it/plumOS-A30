@@ -62,7 +62,7 @@
   new plumOS specification.
 - [x] Resolve `rompath`, `imgpath`, `gamelist`, and `launchlist` and check
   existence/counts.
-- [ ] Confirm ROM filename to artwork filename matching rules.
+- [x] Confirm ROM filename to artwork filename matching rules.
 - [ ] Read the stock `gamelist` XML data schema.
 - [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
 - [x] Implement `extlist` ROM count filtering in the compatibility scanner.
@@ -105,6 +105,10 @@
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.
+- [ ] Implement thumbnail lookup that preserves paths relative to the ROM alias
+  root.
+- [ ] Implement thumbnail lookup with subdirectory priority, flat fallback, and
+  placeholder fallback.
 - [ ] Design a plumOS theme model that separates theme, layout preset, and
   frontend behavior.
 - [ ] Define the schema for `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json`.

@@ -155,6 +155,45 @@ scan 結果として生成される ROM 単位の entry です。手書きしま
 `id` は path だけに依存させず、将来的には file hash や mtime/size を使える形にします。
 初期実装は normalized absolute path の hash で十分です。
 
+### Artwork lookup
+
+thumbnail は `RomEntry` の代表 ROM path から解決します。ROM が subdirectory にある場合は、
+ROM directory alias root からの相対 path を artwork directory 側にも反映します。
+
+例:
+
+```text
+rom alias root: /mnt/SDCARD/Roms/nes
+artwork dir:    /mnt/SDCARD/images/nes
+rom path:       /mnt/SDCARD/Roms/nes/01/test.nes
+relative stem:  01/test
+```
+
+lookup priority:
+
+```text
+1. /mnt/SDCARD/images/nes/01/test.png
+2. /mnt/SDCARD/images/nes/01/test.jpg
+3. /mnt/SDCARD/images/nes/01/test.jpeg
+4. /mnt/SDCARD/images/nes/01/test.webp
+5. /mnt/SDCARD/images/nes/test.png
+6. /mnt/SDCARD/images/nes/test.jpg
+7. /mnt/SDCARD/images/nes/test.jpeg
+8. /mnt/SDCARD/images/nes/test.webp
+9. placeholder
+```
+
+rules:
+
+- `artwork.lookup` に複数 directory がある場合は、定義順に上の候補を試す
+- extension の canonical list は lowercase の `png`, `jpg`, `jpeg`, `webp` とし、
+  file 探索時は case-insensitive に扱う
+- subdirectory 構造を保った画像を flat 配置より優先する
+- flat 配置は既存 artwork や簡単な手動配置の fallback として扱う
+- `.cue/.bin/.m3u` のような multi-file ROM は、file 単体ではなく表示対象の
+  `RomEntry` 代表 file stem から thumbnail を探す
+- 見つからない場合、gallery mode は text fallback または theme の placeholder を表示する
+
 ### `AppDefinition`
 
 TOP 画面とは別の app/tool menu に出す項目です。system と混ぜても良いですが、data model
@@ -357,7 +396,7 @@ scan algorithm:
 3. 存在する directory を scan する
 4. `extensions` に一致する file だけを `RomEntry` にする
 5. 共有 directory では拡張子で system を振り分ける
-6. artwork lookup を実行する
+6. `RomEntry` の代表 path から artwork lookup を実行する
 7. 結果を `state/frontend/library-index.json` に保存する
 
 ## Initial system seed
