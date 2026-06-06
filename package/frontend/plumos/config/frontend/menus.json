@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "menus": [
+    {
+      "id": "start",
+      "display_name": "START",
+      "entries": [
+        {
+          "id": "settings",
+          "display_name": "Settings",
+          "kind": "internal",
+          "action": "internal:settings"
+        },
+        {
+          "id": "apps",
+          "display_name": "Apps",
+          "kind": "submenu",
+          "action": "menu:apps"
+        },
+        {
+          "id": "favorites",
+          "display_name": "Favorites",
+          "kind": "internal",
+          "action": "internal:favorites"
+        },
+        {
+          "id": "network",
+          "display_name": "Network",
+          "kind": "internal",
+          "action": "internal:network"
+        },
+        {
+          "id": "refresh-current",
+          "display_name": "Refresh Current System",
+          "kind": "scan",
+          "action": "scan:current"
+        },
+        {
+          "id": "reboot",
+          "display_name": "Reboot",
+          "kind": "system",
+          "action": "system:reboot",
+          "confirm": true
+        },
+        {
+          "id": "shutdown",
+          "display_name": "Shutdown",
+          "kind": "system",
+          "action": "system:shutdown",
+          "confirm": true
+        }
+      ]
+    }
+  ]
+}

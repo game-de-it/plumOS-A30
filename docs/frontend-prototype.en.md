@@ -22,6 +22,8 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
+dist/plumos-frontend/plumos/config/frontend/menus.json
+dist/plumos-frontend/plumos/config/frontend/apps.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -150,6 +152,26 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 reads `state/frontend/systems/<system>.json`. This is the first prototype of the
 future "re-read ROM list whenever entering a system" behavior.
 
+START menu view:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui menu start'
+```
+
+Apps submenu view:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui menu apps'
+```
+
+`menu start` reads `menus.json` and displays the path to
+settings/apps/favorites/network/reboot/shutdown. `Reboot` and `Shutdown` are
+defined with `confirm=yes`. This prototype only displays actions; it does not
+execute reboot/shutdown. `menu apps` displays `apps.json` entries where
+`menu=apps`.
+
 A30 device check on 2026-06-06:
 
 ```text
@@ -162,6 +184,16 @@ system: ports
 ready_ms: 10
   1. Start SSH                          PORTS/Start SSH.sh
   2. Stop SSH                           PORTS/Stop SSH.sh
+
+plumOS text UI - menu
+menu: start
+  1. Settings                 internal   internal:settings        no
+  2. Apps                     submenu    menu:apps                no
+  3. Favorites                internal   internal:favorites       no
+  4. Network                  internal   internal:network         no
+  5. Refresh Current System   scan       scan:current             no
+  6. Reboot                   system     system:reboot            yes
+  7. Shutdown                 system     system:shutdown          yes
 ```
 
 ## Current Inputs

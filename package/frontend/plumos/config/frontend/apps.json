@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "id": "start-ssh",
+      "display_name": "Start SSH",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/ssh/start-ssh.sh",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
+      "id": "stop-ssh",
+      "display_name": "Stop SSH",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/ssh/stop-ssh.sh",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
+      "id": "settings",
+      "display_name": "Settings",
+      "kind": "settings",
+      "launch_profile": "internal:settings",
+      "visible": false,
+      "menu": "start"
+    },
+    {
+      "id": "network",
+      "display_name": "Network",
+      "kind": "settings",
+      "launch_profile": "internal:network",
+      "visible": false,
+      "menu": "start"
+    }
+  ]
+}

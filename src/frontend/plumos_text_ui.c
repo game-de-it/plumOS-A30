@@ -13,6 +13,8 @@
 
 #define MAX_TOP_ENTRIES 128
 #define MAX_ROM_ENTRIES 4096
+#define MAX_MENU_ENTRIES 64
+#define MAX_APP_ENTRIES 128
 #define TEXT_PATH_MAX 1024
 
 struct top_entry {
@@ -31,6 +33,23 @@ struct rom_entry {
   char relative_path[TEXT_PATH_MAX];
   char path[TEXT_PATH_MAX];
   char thumbnail[TEXT_PATH_MAX];
+};
+
+struct menu_entry {
+  char id[64];
+  char display_name[128];
+  char kind[64];
+  char action[128];
+  int confirm;
+};
+
+struct app_entry {
+  char id[64];
+  char display_name[128];
+  char kind[64];
+  char launch_profile[256];
+  char menu[64];
+  int visible;
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -370,6 +389,20 @@ static long json_get_long(const char *json, const char *end, const char *key, lo
   return strtol(value, NULL, 10);
 }
 
+static int json_get_bool(const char *json, const char *end, const char *key, int default_value) {
+  const char *value;
+  if (!json_find_key_value(json, end, key, &value)) {
+    return default_value;
+  }
+  if ((size_t)(end - value) >= 4 && strncmp(value, "true", 4) == 0) {
+    return 1;
+  }
+  if ((size_t)(end - value) >= 5 && strncmp(value, "false", 5) == 0) {
+    return 0;
+  }
+  return default_value;
+}
+
 static int run_scanner(const char *plumos_root, const char *sdcard_root, const char *system_id,
                        int full_refresh) {
   char scanner[PATH_MAX];
@@ -579,6 +612,160 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
   return 1;
 }
 
+static int load_menu_entries(const char *path, const char *menu_id, struct menu_entry *entries,
+                             size_t max_entries, size_t *count_out) {
+  char *json;
+  size_t json_size;
+  const char *menus_start;
+  const char *menus_end;
+  const char *menu_cursor;
+  size_t count = 0;
+
+  *count_out = 0;
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "menus", &menus_start, &menus_end)) {
+    free(json);
+    return 0;
+  }
+
+  menu_cursor = menus_start;
+  while (1) {
+    const char *menu_start;
+    const char *menu_end;
+    const char *entries_start;
+    const char *entries_end;
+    const char *entry_cursor;
+    char *menu_obj;
+    char id[64];
+
+    if (!json_next_object(&menu_cursor, menus_end, &menu_start, &menu_end)) {
+      break;
+    }
+    menu_obj = range_dup(menu_start, menu_end);
+    if (!menu_obj) {
+      free(json);
+      return 0;
+    }
+    json_get_string(menu_obj, menu_obj + strlen(menu_obj), "id", id, sizeof(id));
+    if (strcmp(id, menu_id) != 0) {
+      free(menu_obj);
+      continue;
+    }
+
+    if (!json_find_array(menu_obj, menu_obj + strlen(menu_obj), "entries", &entries_start,
+                         &entries_end)) {
+      free(menu_obj);
+      free(json);
+      return 0;
+    }
+
+    entry_cursor = entries_start;
+    while (count < max_entries) {
+      const char *entry_start;
+      const char *entry_end;
+      char *entry_obj;
+      struct menu_entry entry;
+
+      if (!json_next_object(&entry_cursor, entries_end, &entry_start, &entry_end)) {
+        break;
+      }
+      entry_obj = range_dup(entry_start, entry_end);
+      if (!entry_obj) {
+        free(menu_obj);
+        free(json);
+        return 0;
+      }
+
+      memset(&entry, 0, sizeof(entry));
+      json_get_string(entry_obj, entry_obj + strlen(entry_obj), "id", entry.id,
+                      sizeof(entry.id));
+      json_get_string(entry_obj, entry_obj + strlen(entry_obj), "display_name",
+                      entry.display_name, sizeof(entry.display_name));
+      json_get_string(entry_obj, entry_obj + strlen(entry_obj), "kind", entry.kind,
+                      sizeof(entry.kind));
+      json_get_string(entry_obj, entry_obj + strlen(entry_obj), "action", entry.action,
+                      sizeof(entry.action));
+      entry.confirm = json_get_bool(entry_obj, entry_obj + strlen(entry_obj), "confirm", 0);
+      if (entry.id[0]) {
+        if (!entry.display_name[0]) {
+          copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
+        }
+        entries[count++] = entry;
+      }
+      free(entry_obj);
+    }
+
+    free(menu_obj);
+    break;
+  }
+
+  *count_out = count;
+  free(json);
+  return count > 0;
+}
+
+static int load_app_entries(const char *path, const char *menu_id, struct app_entry *entries,
+                            size_t max_entries, size_t *count_out) {
+  char *json;
+  size_t json_size;
+  const char *apps_start;
+  const char *apps_end;
+  const char *app_cursor;
+  size_t count = 0;
+
+  *count_out = 0;
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "apps", &apps_start, &apps_end)) {
+    free(json);
+    return 0;
+  }
+
+  app_cursor = apps_start;
+  while (count < max_entries) {
+    const char *app_start;
+    const char *app_end;
+    char *app_obj;
+    struct app_entry entry;
+
+    if (!json_next_object(&app_cursor, apps_end, &app_start, &app_end)) {
+      break;
+    }
+    app_obj = range_dup(app_start, app_end);
+    if (!app_obj) {
+      free(json);
+      return 0;
+    }
+
+    memset(&entry, 0, sizeof(entry));
+    entry.visible = json_get_bool(app_obj, app_obj + strlen(app_obj), "visible", 1);
+    json_get_string(app_obj, app_obj + strlen(app_obj), "id", entry.id, sizeof(entry.id));
+    json_get_string(app_obj, app_obj + strlen(app_obj), "display_name", entry.display_name,
+                    sizeof(entry.display_name));
+    json_get_string(app_obj, app_obj + strlen(app_obj), "kind", entry.kind, sizeof(entry.kind));
+    json_get_string(app_obj, app_obj + strlen(app_obj), "launch_profile", entry.launch_profile,
+                    sizeof(entry.launch_profile));
+    json_get_string(app_obj, app_obj + strlen(app_obj), "menu", entry.menu, sizeof(entry.menu));
+
+    if (entry.visible && entry.id[0] && strcmp(entry.menu, menu_id) == 0) {
+      if (!entry.display_name[0]) {
+        copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
+      }
+      entries[count++] = entry;
+    }
+    free(app_obj);
+  }
+
+  *count_out = count;
+  free(json);
+  return 1;
+}
+
 static void print_top(const struct top_entry *entries, size_t count, int show_all, size_t limit,
                       const char *cache_path, long ready_ms) {
   size_t i;
@@ -642,10 +829,66 @@ static void print_roms(const char *system_id, const struct rom_entry *entries, s
   }
 }
 
+static void print_menu(const char *menu_id, const struct menu_entry *entries, size_t count,
+                       size_t limit, const char *path) {
+  size_t i;
+  size_t shown = 0;
+
+  printf("plumOS text UI - menu\n");
+  printf("menu: %s\n", menu_id);
+  printf("source: %s\n", path);
+  printf("\n");
+  printf("%-4s %-24s %-10s %-24s %s\n", "No.", "Entry", "Kind", "Action", "Confirm");
+  printf("%-4s %-24s %-10s %-24s %s\n", "---", "-----", "----", "------", "-------");
+
+  for (i = 0; i < count; i++) {
+    if (limit > 0 && shown >= limit) {
+      continue;
+    }
+    shown++;
+    printf("%3zu. %-24s %-10s %-24s %s\n", shown, entries[i].display_name,
+           entries[i].kind[0] ? entries[i].kind : "-", entries[i].action,
+           entries[i].confirm ? "yes" : "no");
+  }
+  if (count == 0) {
+    printf("(menu entry はありません。)\n");
+  } else if (limit > 0 && count > shown) {
+    printf("... %zu more\n", count - shown);
+  }
+}
+
+static void print_apps_menu(const char *menu_id, const struct app_entry *entries, size_t count,
+                            size_t limit, const char *path) {
+  size_t i;
+  size_t shown = 0;
+
+  printf("plumOS text UI - apps menu\n");
+  printf("menu: %s\n", menu_id);
+  printf("source: %s\n", path);
+  printf("\n");
+  printf("%-4s %-24s %-10s %s\n", "No.", "App", "Kind", "Launch profile");
+  printf("%-4s %-24s %-10s %s\n", "---", "---", "----", "--------------");
+
+  for (i = 0; i < count; i++) {
+    if (limit > 0 && shown >= limit) {
+      continue;
+    }
+    shown++;
+    printf("%3zu. %-24s %-10s %s\n", shown, entries[i].display_name,
+           entries[i].kind[0] ? entries[i].kind : "-", entries[i].launch_profile);
+  }
+  if (count == 0) {
+    printf("(app/tool entry はありません。)\n");
+  } else if (limit > 0 && count > shown) {
+    printf("... %zu more\n", count - shown);
+  }
+}
+
 static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s top [--all] [--refresh] [--limit N]\n", argv0);
   printf("  %s roms SYSTEM [--no-scan] [--limit N]\n", argv0);
+  printf("  %s menu start|apps [--limit N]\n", argv0);
   printf("\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
@@ -659,6 +902,8 @@ int main(int argc, char **argv) {
   char plumos_root[PATH_MAX];
   char full_cache_path[PATH_MAX];
   char system_cache_path[PATH_MAX];
+  char menus_path[PATH_MAX];
+  char apps_path[PATH_MAX];
   const char *cmd;
   size_t limit = 0;
   int i;
@@ -677,6 +922,11 @@ int main(int argc, char **argv) {
   if (!join_path(full_cache_path, sizeof(full_cache_path), plumos_root,
                  "state/frontend/library-index.json")) {
     fprintf(stderr, "error: library-index path is too long\n");
+    return 1;
+  }
+  if (!join_path(menus_path, sizeof(menus_path), plumos_root, "config/frontend/menus.json") ||
+      !join_path(apps_path, sizeof(apps_path), plumos_root, "config/frontend/apps.json")) {
+    fprintf(stderr, "error: menu config path is too long\n");
     return 1;
   }
 
@@ -784,6 +1034,66 @@ int main(int argc, char **argv) {
     print_roms(system_id, entries, count, limit, system_cache_path, ready_ms);
     free(entries);
     return 0;
+  }
+
+  if (strcmp(cmd, "menu") == 0) {
+    const char *menu_id;
+
+    if (argc < 3) {
+      fprintf(stderr, "error: menu requires start or apps\n");
+      usage(argv[0]);
+      return 2;
+    }
+    menu_id = argv[2];
+    if (!valid_system_id(menu_id)) {
+      fprintf(stderr, "error: invalid menu id: %s\n", menu_id);
+      return 2;
+    }
+    for (i = 3; i < argc; i++) {
+      if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
+        limit = (size_t)strtoul(argv[++i], NULL, 10);
+      } else {
+        fprintf(stderr, "error: unknown menu option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+
+    if (strcmp(menu_id, "apps") == 0) {
+      struct app_entry *entries;
+      size_t count = 0;
+
+      entries = (struct app_entry *)calloc(MAX_APP_ENTRIES, sizeof(entries[0]));
+      if (!entries) {
+        fprintf(stderr, "error: out of memory\n");
+        return 1;
+      }
+      if (!load_app_entries(apps_path, menu_id, entries, MAX_APP_ENTRIES, &count)) {
+        fprintf(stderr, "error: cannot read apps menu: %s\n", apps_path);
+        free(entries);
+        return 1;
+      }
+      print_apps_menu(menu_id, entries, count, limit, apps_path);
+      free(entries);
+      return 0;
+    } else {
+      struct menu_entry *entries;
+      size_t count = 0;
+
+      entries = (struct menu_entry *)calloc(MAX_MENU_ENTRIES, sizeof(entries[0]));
+      if (!entries) {
+        fprintf(stderr, "error: out of memory\n");
+        return 1;
+      }
+      if (!load_menu_entries(menus_path, menu_id, entries, MAX_MENU_ENTRIES, &count)) {
+        fprintf(stderr, "error: cannot read menu: %s id=%s\n", menus_path, menu_id);
+        free(entries);
+        return 1;
+      }
+      print_menu(menu_id, entries, count, limit, menus_path);
+      free(entries);
+      return 0;
+    }
   }
 
   fprintf(stderr, "error: unknown command: %s\n", cmd);

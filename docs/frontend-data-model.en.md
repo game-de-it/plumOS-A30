@@ -354,10 +354,12 @@ settings, and non-emulator app flows should not clutter the TOP system list.
 
 ```json
 {
-  "id": "system-menu",
+  "id": "start",
+  "display_name": "START",
   "entries": [
     { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
-    { "id": "apps", "display_name": "Apps", "action": "internal:apps" },
+    { "id": "apps", "display_name": "Apps", "action": "menu:apps" },
+    { "id": "favorites", "display_name": "Favorites", "action": "internal:favorites" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
     { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
@@ -375,6 +377,7 @@ Rules:
 - `Refresh Current System` is a debug/safety action, not a normal requirement.
 - START menu entries live in `menus.json`; app/tool definitions live in
   `apps.json`.
+- The initial START menu id is `start`; the Apps submenu id is `apps`.
 
 ## Directory Discovery
 

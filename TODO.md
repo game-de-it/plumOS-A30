@@ -80,7 +80,7 @@
 - [x] 機種選択時に対象 system だけ ROM directory を再 scan する prototype を作る。
 - [x] 1000 dummy ROM files で text mode 初回表示時間を計測する。
 - [x] SSH から確認できる text mode system list / ROM list prototype を作る。
-- [ ] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
+- [x] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
 - [ ] TOP の system 選択中に SELECT で system default core を選ぶ UI を実装する。
 - [ ] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
 - [ ] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。

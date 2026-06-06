@@ -22,6 +22,8 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
+dist/plumos-frontend/plumos/config/frontend/menus.json
+dist/plumos-frontend/plumos/config/frontend/apps.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -142,6 +144,25 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `state/frontend/systems/<system>.json` を読んで一覧表示します。これは将来の
 「機種選択時に毎回ROM listを読み込む」動作の最小prototypeです。
 
+START menu 表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui menu start'
+```
+
+Apps submenu 表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui menu apps'
+```
+
+`menu start` は `menus.json` を読み、settings/apps/favorites/network/reboot/shutdown へ
+辿る menu model を表示します。`Reboot` と `Shutdown` は `confirm=yes` として定義します。
+この prototype は action を表示するだけで、reboot/shutdown は実行しません。
+`menu apps` は `apps.json` の `menu=apps` entry を表示します。
+
 2026-06-06 の A30 実機確認:
 
 ```text
@@ -154,6 +175,16 @@ system: ports
 ready_ms: 10
   1. Start SSH                          PORTS/Start SSH.sh
   2. Stop SSH                           PORTS/Stop SSH.sh
+
+plumOS text UI - menu
+menu: start
+  1. Settings                 internal   internal:settings        no
+  2. Apps                     submenu    menu:apps                no
+  3. Favorites                internal   internal:favorites       no
+  4. Network                  internal   internal:network         no
+  5. Refresh Current System   scan       scan:current             no
+  6. Reboot                   system     system:reboot            yes
+  7. Shutdown                 system     system:shutdown          yes
 ```
 
 ## 現在読む情報

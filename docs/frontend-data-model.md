@@ -353,10 +353,12 @@ settings など、emulator ではない機能は TOP に直接並べず、この
 
 ```json
 {
-  "id": "system-menu",
+  "id": "start",
+  "display_name": "START",
   "entries": [
     { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
-    { "id": "apps", "display_name": "Apps", "action": "internal:apps" },
+    { "id": "apps", "display_name": "Apps", "action": "menu:apps" },
+    { "id": "favorites", "display_name": "Favorites", "action": "internal:favorites" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
     { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
@@ -373,6 +375,7 @@ settings など、emulator ではない機能は TOP に直接並べず、この
 - emulator 以外の app/tool は `Apps` submenu に入れる
 - `Refresh Current System` は debug/保険用であり、通常操作で必須にしない
 - START menu の entry は `menus.json`、app/tool 定義は `apps.json` に置く
+- 初期実装の START menu id は `start`、Apps submenu id は `apps` とする
 
 ## Directory discovery
 
