@@ -409,6 +409,43 @@ PPSSPP direct launch と stock RetroArch probe の終了後、`plumos-joystickd`
 `plumOS A30 Gamepad` device、`/dev/uinput`/`event4`/`ttyS0` fd が残らないことも
 確認しました。
 
+### button forwarding 確認
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-buttons.sh
+```
+
+2026-06-06 に stock MainUI/keymon が動作中のまま、`plumos-joystickd --device-mode xbox`
+を短時間起動し、物理ボタンが `plumOS A30 Gamepad` に転送されることを確認しました。
+
+```text
+A      -> BTN_A
+B      -> BTN_B
+X      -> BTN_X
+Y      -> BTN_Y
+D-pad  -> ABS_HAT0X / ABS_HAT0Y
+L/R    -> BTN_TL / BTN_TR
+L2/R2  -> ABS_Z / ABS_RZ
+START  -> BTN_START
+SELECT -> BTN_SELECT
+FUNC   -> BTN_MODE
+```
+
+確認時の summary:
+
+```text
+js info path=/dev/input/js0 name="plumOS A30 Gamepad" axes=8 buttons=11
+evdev info path=/dev/input/event4 name="plumOS A30 Gamepad"
+summary frames=1538 emitted=1 button_events=30 last_x=0 last_y=0 duration_ms=23172
+result=button_forwarding_observed
+```
+
+Function button は個別に追加確認し、`EV_KEY code=316 key=BTN_MODE`、joystick API では
+`JS_BUTTON number=8` として出ました。probe 終了後、`plumos-joystickd` process と
+`plumOS A30 Gamepad` device は残りませんでした。
+
 ## options
 
 - `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`

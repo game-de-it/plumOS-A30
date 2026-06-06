@@ -282,6 +282,8 @@ Judgment:
   are visible through the Linux joystick API, but RetroArch logs do not confirm
   autoconfig/connection. Prefer SDL2/evdev plus the composite virtual pad in the
   plumOS RetroArch build.
+- `plumos-joystickd --device-mode xbox` forwards Function as `BTN_MODE`, so it
+  can be used as a candidate safe-menu input while an emulator is running.
 - Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
   but only make it the default service after checking duplicate input and stale
   fd behavior across the frontend, `keymon`, and emulators on hardware.

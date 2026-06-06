@@ -186,6 +186,9 @@ backend 候補:
   plumOS RetroArch の SDL2/evdev 対応を優先して検証する
 - stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に
   `plumos-joystickd --device-mode xbox` の process/device/fd は残らなかった
+- `plumos-joystickd --device-mode xbox` の button forwarding で A/B/X/Y、D-pad、
+  L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` 側の
+  button/hat/trigger event として出ることを確認した
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

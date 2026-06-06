@@ -201,6 +201,9 @@
 - [x] Confirm that short stock MainUI/keymon, PPSSPP direct-launch, and stock
   RetroArch probes leave no stale `plumos-joystickd --device-mode xbox`
   process/device/fd behind.
+- [x] Add `scripts/probe-a30-joystickd-buttons.sh` and confirm that A/B/X/Y,
+  D-pad, L/R, L2/R2, START/SELECT, and Function are forwarded as
+  `plumOS A30 Gamepad` button/hat/trigger events.
 - [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
   during plumOS causes duplicate input or stale fd issues in the frontend,
   `keymon`, or emulators.

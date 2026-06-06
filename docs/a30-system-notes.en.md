@@ -167,6 +167,9 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   the plumOS RetroArch build instead of relying on the stock SDL1 path.
 - Short stock MainUI/keymon, PPSSPP direct-launch, and stock RetroArch probes
   left no stale `plumos-joystickd --device-mode xbox` process/device/fd behind.
+- `plumos-joystickd --device-mode xbox` button forwarding was confirmed for
+  A/B/X/Y, D-pad, L/R, L2/R2, START/SELECT, and Function as
+  `plumOS A30 Gamepad` button/hat/trigger events.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

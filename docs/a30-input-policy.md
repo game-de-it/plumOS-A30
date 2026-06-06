@@ -266,6 +266,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 - stock RetroArch/SDL1 では axes-only と composite gamepad のどちらも Linux joystick
   API からは見えるが、RetroArch log では autoconfig/接続を確認できない。RetroArch は
   plumOS build の SDL2/evdev + composite virtual pad を優先する
+- `plumos-joystickd --device-mode xbox` の button forwarding では Function も
+  `BTN_MODE` として転送できるため、emulator 実行中の safe menu 入力候補にできる
 - `plumos-joystickd --device-mode xbox` は常駐候補にする。ただし default service 化は
   FE/`keymon`/emulator の二重入力と fd 残りを実機で確認してから行う
 

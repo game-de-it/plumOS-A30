@@ -139,6 +139,7 @@
 - [x] `scripts/probe-a30-ppsspp-plumos-gamepad.sh` を追加し、stock input daemon なしの PPSSPP + plumOS gamepad 確認を再実行可能にする。
 - [x] `plumos-joystickd --device-mode xbox` が PPSSPP/SDL2 GameController から認識され、GameController mapping が成功することを確認する。
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
+- [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
 - [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
