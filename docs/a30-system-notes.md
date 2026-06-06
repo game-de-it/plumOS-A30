@@ -178,6 +178,9 @@ backend 候補:
 - PPSSPP 本体は `libSDL2-2.0.so.0` と `SDL_GameController*` /
   `SDL_Joystick*` API で `MIYOO Pad1` を読んでおり、左スティック押し込みは
   PPSSPP の controller 設定でも反応しなかった
+- stock `miyoo282_xpad_inputd` を起動せずに PPSSPP を直接起動した場合でも、
+  `plumos-joystickd --device-mode xbox` の `plumOS A30 Gamepad` は
+  SDL2 GameController mapping 成功で pad 1 に割り当てられた
 - RetroArch/standalone emulator 向け analog 方針は、stock SDL1 依存ではなく
   `plumos-joystickd` の buttons+axes composite virtual pad mode と
   plumOS RetroArch の SDL2/evdev 対応を優先して検証する

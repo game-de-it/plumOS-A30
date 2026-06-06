@@ -275,6 +275,9 @@ Judgment:
   new evidence appears.
 - Prioritize a `plumos-joystickd` composite virtual pad mode for emulator-facing
   analog-stick support.
+- Stock PPSSPP was launched directly without `miyoo282_xpad_inputd`, and
+  `plumOS A30 Gamepad` was assigned to pad 1 after a successful SDL2
+  GameController mapping.
 - Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
   but only make it the default service after checking duplicate input and stale
   fd behavior across the frontend, `keymon`, and emulators on hardware.

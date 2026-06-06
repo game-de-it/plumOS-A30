@@ -192,8 +192,10 @@
   checks can be repeated.
 - [x] Verify that `plumos-joystickd --device-mode xbox` appears on the A30 as
   an 8-axis / 11-button `js*`/`event*` device.
-- [ ] Verify `plumos-joystickd --device-mode xbox` through SDL2
-  GameController/evdev.
+- [x] Add `scripts/probe-a30-ppsspp-plumos-gamepad.sh` so stock PPSSPP can be
+  tested with the plumOS gamepad and without the stock input daemon.
+- [x] Verify that `plumos-joystickd --device-mode xbox` is recognized by
+  PPSSPP/SDL2 GameController and loads a GameController mapping successfully.
 - [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
   during plumOS causes duplicate input or stale fd issues in the frontend,
   `keymon`, or emulators.

@@ -158,6 +158,9 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - PPSSPP itself reads `MIYOO Pad1` through `libSDL2-2.0.so.0` and
   `SDL_GameController*` / `SDL_Joystick*` APIs. The left-stick click also did
   not react in PPSSPP controller settings.
+- When PPSSPP was launched directly without stock `miyoo282_xpad_inputd`,
+  `plumos-joystickd --device-mode xbox` created `plumOS A30 Gamepad`, which was
+  assigned to pad 1 after a successful SDL2 GameController mapping.
 - For RetroArch and standalone emulator analog input, prioritize testing a
   `plumos-joystickd` buttons+axes composite virtual pad mode plus SDL2/evdev in
   the plumOS RetroArch build instead of relying on the stock SDL1 path.

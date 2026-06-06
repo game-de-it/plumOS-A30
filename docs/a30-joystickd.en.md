@@ -367,6 +367,41 @@ on A30 hardware with capabilities matching the family observed from PPSSPP's
 `MIYOO Pad1`. Next, verify SDL2 GameController recognition and
 RetroArch/standalone emulator behavior.
 
+### PPSSPP Direct Launch Check
+
+When PPSSPP is stopped, `plumOS A30 Gamepad` is created as `js0`/`event4`.
+With that device active, stock `PPSSPPSDL` was launched directly without
+starting stock `miyoo282_xpad_inputd`.
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-plumos-gamepad.sh
+```
+
+Observed result:
+
+```text
+N: Name="plumOS A30 Gamepad"
+H: Handlers=js0 event4
+B: EV=b
+B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
+B: ABS=3003f
+PPSSPPSDL -> /dev/input/event4
+```
+
+PPSSPP log:
+
+```text
+loading control pad mappings from gamecontrollerdb.txt: SUCCESS!
+found control pad: Atari Xbox 360 Game Controller, loading mapping: SUCCESS
+pad 1 has been assigned to control pad: Atari Xbox 360 Game Controller
+```
+
+This confirms that `plumos-joystickd --device-mode xbox` is recognized through
+stock PPSSPP's SDL2 GameController path and successfully loads a GameController
+mapping. Both process fds and PPSSPP logs show PPSSPP using the plumOS gamepad.
+
 ## Options
 
 - `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.

@@ -136,7 +136,8 @@
 - [x] `plumos-joystickd` に PPSSPP と同系統の buttons+axes composite virtual pad mode を実装する。
 - [x] `scripts/probe-a30-joystickd-xbox.sh` を追加し、`--device-mode xbox` の実機確認を再実行可能にする。
 - [x] `plumos-joystickd --device-mode xbox` が A30 実機で `js*`/`event*` に 8 axes / 11 buttons 相当として出るか確認する。
-- [ ] `plumos-joystickd --device-mode xbox` が SDL2 GameController/evdev で認識できるか検証する。
+- [x] `scripts/probe-a30-ppsspp-plumos-gamepad.sh` を追加し、stock input daemon なしの PPSSPP + plumOS gamepad 確認を再実行可能にする。
+- [x] `plumos-joystickd --device-mode xbox` が PPSSPP/SDL2 GameController から認識され、GameController mapping が成功することを確認する。
 - [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
