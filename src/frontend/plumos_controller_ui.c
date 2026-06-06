@@ -157,6 +157,21 @@ struct setting_entry {
   char value[128];
 };
 
+struct theme_state {
+  int loaded;
+  int fallback;
+  int force_no_icons;
+  long line_height;
+  char id[64];
+  char display_name[128];
+  char path[PATH_MAX];
+  char layout_preset[64];
+  char font_ui[UI_PATH_MAX];
+  char font_fallback[64];
+  char placeholder_thumbnail[UI_PATH_MAX];
+  char status[256];
+};
+
 struct frontend_settings {
   int show_empty_systems;
   int show_favorites_on_top;
@@ -219,6 +234,7 @@ struct ui_state {
   size_t menu_count;
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
+  struct theme_state theme;
   char current_system_id[64];
   char current_system_name[128];
   char status[256];
@@ -495,6 +511,15 @@ static int json_find_array(const char *json, const char *end, const char *key,
   return json_match_container(value, end, '[', ']', body_start, body_end, NULL);
 }
 
+static int json_find_object(const char *json, const char *end, const char *key,
+                            const char **body_start, const char **body_end) {
+  const char *value;
+  if (!json_find_key_value(json, end, key, &value)) {
+    return 0;
+  }
+  return json_match_container(value, end, '{', '}', body_start, body_end, NULL);
+}
+
 static int json_next_object(const char **cursor, const char *end,
                             const char **object_start, const char **object_end) {
   const char *p = *cursor;
@@ -661,6 +686,135 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
   return 1;
 }
 
+static int build_theme_path(char *out, size_t out_size, const char *plumos_root,
+                            const char *theme_id) {
+  char dir[PATH_MAX];
+  char theme_dir[PATH_MAX];
+
+  if (!valid_system_id(theme_id)) {
+    return 0;
+  }
+  if (!join_path(dir, sizeof(dir), plumos_root, "themes")) {
+    return 0;
+  }
+  if (!join_path(theme_dir, sizeof(theme_dir), dir, theme_id)) {
+    return 0;
+  }
+  return join_path(out, out_size, theme_dir, "theme.json");
+}
+
+static void init_theme_state(struct theme_state *theme, const char *theme_id,
+                             const char *theme_path) {
+  memset(theme, 0, sizeof(*theme));
+  theme->fallback = 1;
+  theme->line_height = 14;
+  theme->force_no_icons = 1;
+  copy_string(theme->id, sizeof(theme->id), theme_id && theme_id[0] ? theme_id : "default");
+  copy_string(theme->display_name, sizeof(theme->display_name), "Built-in Text");
+  copy_string(theme->layout_preset, sizeof(theme->layout_preset), "compact_text");
+  copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
+  copy_string(theme->status, sizeof(theme->status), "builtin text fallback");
+  if (theme_path) {
+    copy_string(theme->path, sizeof(theme->path), theme_path);
+  }
+}
+
+static int theme_behavior_is_blocked(const char *json, const char *end) {
+  const char *policy_start;
+  const char *policy_end;
+
+  if (!json_find_object(json, end, "behavior_policy", &policy_start, &policy_end)) {
+    return 0;
+  }
+  if (json_get_bool(policy_start, policy_end, "theme_may_change_input", 0) ||
+      json_get_bool(policy_start, policy_end, "theme_may_change_menu_actions", 0) ||
+      json_get_bool(policy_start, policy_end, "theme_may_change_launch_profiles", 0) ||
+      json_get_bool(policy_start, policy_end, "theme_may_change_rom_scan", 0) ||
+      json_get_bool(policy_start, policy_end, "theme_may_change_resume", 0)) {
+    return 1;
+  }
+  return 0;
+}
+
+static int load_theme_state(struct ui_state *ui, const char *theme_id) {
+  char theme_path[PATH_MAX];
+  char *json;
+  size_t json_size;
+  const char *assets_start;
+  const char *assets_end;
+  const char *text_start;
+  const char *text_end;
+  const char *json_end;
+
+  if (!theme_id || !theme_id[0]) {
+    theme_id = "default";
+  }
+  if (!build_theme_path(theme_path, sizeof(theme_path), ui->plumos_root, theme_id)) {
+    init_theme_state(&ui->theme, theme_id, "");
+    copy_string(ui->theme.status, sizeof(ui->theme.status), "invalid theme id; builtin fallback");
+    return 1;
+  }
+
+  init_theme_state(&ui->theme, theme_id, theme_path);
+  json = read_file(theme_path, &json_size);
+  if (!json) {
+    copy_string(ui->theme.status, sizeof(ui->theme.status), "theme missing; builtin fallback");
+    return 1;
+  }
+  json_end = json + json_size;
+  ui->theme.loaded = 1;
+  ui->theme.fallback = 0;
+
+  json_get_string(json, json_end, "id", ui->theme.id, sizeof(ui->theme.id));
+  json_get_string(json, json_end, "display_name", ui->theme.display_name,
+                  sizeof(ui->theme.display_name));
+  json_get_string(json, json_end, "layout_preset", ui->theme.layout_preset,
+                  sizeof(ui->theme.layout_preset));
+  if (!ui->theme.display_name[0]) {
+    copy_string(ui->theme.display_name, sizeof(ui->theme.display_name), ui->theme.id);
+  }
+  if (!ui->theme.layout_preset[0]) {
+    copy_string(ui->theme.layout_preset, sizeof(ui->theme.layout_preset), "compact_text");
+  }
+
+  if (json_find_object(json, json_end, "assets", &assets_start, &assets_end)) {
+    json_get_string(assets_start, assets_end, "font_ui", ui->theme.font_ui,
+                    sizeof(ui->theme.font_ui));
+    json_get_string(assets_start, assets_end, "font_fallback", ui->theme.font_fallback,
+                    sizeof(ui->theme.font_fallback));
+    json_get_string(assets_start, assets_end, "placeholder_thumbnail",
+                    ui->theme.placeholder_thumbnail,
+                    sizeof(ui->theme.placeholder_thumbnail));
+  }
+  if (!ui->theme.font_fallback[0]) {
+    copy_string(ui->theme.font_fallback, sizeof(ui->theme.font_fallback), "builtin");
+  }
+
+  if (json_find_object(json, json_end, "text_mode", &text_start, &text_end)) {
+    ui->theme.force_no_icons = json_get_bool(text_start, text_end, "force_no_icons", 1);
+    ui->theme.line_height = json_get_long(text_start, text_end, "line_height", 14);
+    if (ui->theme.line_height <= 0 || ui->theme.line_height > 96) {
+      ui->theme.line_height = 14;
+      ui->theme.fallback = 1;
+      copy_string(ui->theme.status, sizeof(ui->theme.status),
+                  "invalid line_height; builtin text fallback");
+    }
+  }
+
+  if (theme_behavior_is_blocked(json, json_end)) {
+    ui->theme.fallback = 1;
+    copy_string(ui->theme.status, sizeof(ui->theme.status),
+                "theme requested behavior control; blocked");
+  } else if (!ui->theme.status[0] || strcmp(ui->theme.status, "builtin text fallback") == 0) {
+    copy_string(ui->theme.status, sizeof(ui->theme.status),
+                ui->theme.font_ui[0] ? "theme loaded; text fallback available"
+                                     : "theme loaded; builtin font fallback");
+  }
+
+  free(json);
+  return 1;
+}
+
 static void add_setting_entry(struct ui_state *ui, const char *id, const char *name,
                               const char *value) {
   struct setting_entry *entry;
@@ -687,6 +841,7 @@ static int load_settings_entries(struct ui_state *ui) {
   if (!load_settings(ui->settings_path, &settings)) {
     return 0;
   }
+  load_theme_state(ui, settings.theme_id);
   add_setting_entry(ui, "ui_mode", "UI Mode", settings.ui_mode);
   add_setting_entry(ui, "top_mode", "TOP Mode", settings.top_mode);
   add_setting_entry(ui, "rom_mode", "ROM Mode", settings.rom_mode);
@@ -701,6 +856,13 @@ static int load_settings_entries(struct ui_state *ui) {
   add_setting_entry(ui, "rom_scan_policy", "ROM Scan Policy",
                     settings.rom_scan_policy);
   add_setting_entry(ui, "theme_id", "Theme", settings.theme_id);
+  add_setting_entry(ui, "theme_name", "Theme Name", ui->theme.display_name);
+  add_setting_entry(ui, "theme_status", "Theme Status", ui->theme.status);
+  add_setting_entry(ui, "theme_layout", "Theme Layout", ui->theme.layout_preset);
+  add_setting_entry(ui, "theme_font", "Theme Font",
+                    ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
+  add_bool_setting_entry(ui, "theme_force_no_icons", "Text Force No Icons",
+                         ui->theme.force_no_icons);
   return 1;
 }
 

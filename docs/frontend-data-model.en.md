@@ -222,31 +222,57 @@ Apps submenu, and `hidden` means an internal action that is not shown directly.
 
 ### `ThemeDefinition`
 
-Themes are UI configuration and are separate from system definitions.
+Themes are UI configuration and are separate from system definitions, layout
+presets, and frontend behavior. The full schema lives in
+[plumOS frontend theme model](frontend-theme-model.en.md). Stock theme formats
+are not the official plumOS theme specification.
 
 ```json
 {
+  "version": 1,
   "id": "default",
   "display_name": "Default",
-  "fonts": {
-    "ui": "/mnt/SDCARD/plumos/frontend/fonts/default.bdf"
+  "layout_preset": "compact_text",
+  "assets": {
+    "font_ui": "fonts/default.bdf",
+    "font_fallback": "builtin",
+    "background": null,
+    "system_icon_root": "icons/systems",
+    "placeholder_thumbnail": "images/placeholder.png",
+    "sound_effect_root": "sounds"
   },
-  "palette": "dark",
-  "icons": {
-    "system_icon_root": "/mnt/SDCARD/plumos/frontend/icons"
+  "colors": {
+    "background": "#101418",
+    "foreground": "#f1f5f9",
+    "accent": "#38bdf8",
+    "selection_background": "#1f2937",
+    "selection_foreground": "#ffffff"
   },
   "text_mode": {
-    "use_icons": false,
-    "line_height": 14
+    "force_no_icons": true,
+    "line_height": 14,
+    "show_thumbnail": false
   },
   "gallery_mode": {
     "transition": "slide",
-    "thumbnail_fit": "contain"
+    "thumbnail_fit": "contain",
+    "missing_thumbnail": "text_fallback"
+  },
+  "behavior_policy": {
+    "theme_may_change_input": false,
+    "theme_may_change_menu_actions": false,
+    "theme_may_change_launch_profiles": false,
+    "theme_may_change_rom_scan": false,
+    "theme_may_change_resume": false
   }
 }
 ```
 
-Text mode can force `use_icons=false`; icons may exist but are not required.
+Themes may control only colors, fonts, backgrounds, system icons, selection
+style, spacing, thumbnail frames, and sound effects. They may not change button
+behavior, START menu structure, SELECT core menu behavior, favorites, ROM
+scanning, resume, or launch profiles. Text mode remains usable through built-in
+font/color fallback even when theme assets or fonts are missing or broken.
 
 ### `FrontendSettings`
 

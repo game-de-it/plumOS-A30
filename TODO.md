@@ -93,15 +93,15 @@
 - [x] 起動時に pending resume session があれば同じ ROM/core/launch profile の launch plan を作り、`boot --execute` で自動起動する。
 - [x] controller-first の最小 frontend prototype を作る。
 - [x] controller UI に system list、ROM list、recent、favorites、settings 画面を実装する。
-- [ ] theme、font、artwork の読み込み方針を決める。
+- [x] theme、font、artwork の読み込み方針を決める。
 - [x] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
 - [x] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
-- [ ] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
-- [ ] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
-- [ ] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。
-- [ ] button 操作、START menu、SELECT core menu、favorite、ROM scan、resume などの behavior は theme から変更できないようにする。
-- [ ] text mode は theme asset/font が壊れていても default font/color で必ず操作できる fallback を実装する。
-- [ ] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
+- [x] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
+- [x] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
+- [x] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。
+- [x] button 操作、START menu、SELECT core menu、favorite、ROM scan、resume などの behavior は theme から変更できないようにする。
+- [x] text mode は theme asset/font が壊れていても default font/color で必ず操作できる fallback を実装する。
+- [x] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
 - [ ] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
 - [ ] SDL/input/audio/video の最小 test binary を A30 上で動かす。
 - [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。

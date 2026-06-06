@@ -216,32 +216,55 @@ TOP 画面とは別の app/tool menu に出す項目です。system と混ぜて
 
 ### `ThemeDefinition`
 
-theme は UI 表示の設定であり、system 定義とは分離します。
+theme は UI 表示の設定であり、system 定義、layout preset、frontend behavior とは分離します。
+詳細な schema は [plumOS frontend theme model](frontend-theme-model.md) に分けます。
+stock theme format は plumOS の正式仕様にしません。
 
 ```json
 {
+  "version": 1,
   "id": "default",
   "display_name": "Default",
-  "fonts": {
-    "ui": "/mnt/SDCARD/plumos/frontend/fonts/default.bdf"
+  "layout_preset": "compact_text",
+  "assets": {
+    "font_ui": "fonts/default.bdf",
+    "font_fallback": "builtin",
+    "background": null,
+    "system_icon_root": "icons/systems",
+    "placeholder_thumbnail": "images/placeholder.png",
+    "sound_effect_root": "sounds"
   },
-  "palette": "dark",
-  "icons": {
-    "system_icon_root": "/mnt/SDCARD/plumos/frontend/icons"
+  "colors": {
+    "background": "#101418",
+    "foreground": "#f1f5f9",
+    "accent": "#38bdf8",
+    "selection_background": "#1f2937",
+    "selection_foreground": "#ffffff"
   },
   "text_mode": {
-    "use_icons": false,
-    "line_height": 14
+    "force_no_icons": true,
+    "line_height": 14,
+    "show_thumbnail": false
   },
   "gallery_mode": {
     "transition": "slide",
-    "thumbnail_fit": "contain"
+    "thumbnail_fit": "contain",
+    "missing_thumbnail": "text_fallback"
+  },
+  "behavior_policy": {
+    "theme_may_change_input": false,
+    "theme_may_change_menu_actions": false,
+    "theme_may_change_launch_profiles": false,
+    "theme_may_change_rom_scan": false,
+    "theme_may_change_resume": false
   }
 }
 ```
 
-text mode では `use_icons=false` を強制できます。つまり theme に icon があっても、
-text mode では使いません。
+theme が扱えるのは color、font、background、system icon、selection 表現、spacing、
+thumbnail frame、sound effect だけです。button 操作、START menu、SELECT core menu、
+favorite、ROM scan、resume、launch profile は theme から変更できません。
+text mode は theme asset/font が壊れていても built-in font/color fallback で操作可能にします。
 
 ### `FrontendSettings`
 

@@ -27,6 +27,7 @@ Project notes:
 - [Frontend prototype](docs/frontend-prototype.en.md)
 - [Stock frontend inventory](docs/stock-frontend-inventory.en.md)
 - [plumOS frontend data model](docs/frontend-data-model.en.md)
+- [plumOS frontend theme model](docs/frontend-theme-model.en.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)

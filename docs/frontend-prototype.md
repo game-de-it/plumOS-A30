@@ -25,7 +25,9 @@ dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
+dist/plumos-frontend/plumos/config/frontend/themes.json
 dist/plumos-frontend/plumos/config/frontend/settings.json
+dist/plumos-frontend/plumos/themes/default/theme.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
