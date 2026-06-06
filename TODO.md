@@ -108,7 +108,8 @@
 - [ ] A30 settings の write-enabled controls は backend 検証、backup、atomic write、`sync` 方針を固めてから実装する。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
-- [ ] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証する。
+- [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。
+- [ ] SDL 実画面出力は direct framebuffer presenter、custom SDL video backend、または sunxi/mali/disp 経路として別途設計する。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。

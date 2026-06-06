@@ -6,6 +6,51 @@
 
 #define DEFAULT_TIMEOUT_MS 3000
 
+static void print_video_drivers(void) {
+  int count = SDL_GetNumVideoDrivers();
+
+  printf("video_drivers=%d\n", count);
+  for (int i = 0; i < count; i++) {
+    printf("video_driver index=%d name=\"%s\"\n", i, SDL_GetVideoDriver(i));
+  }
+}
+
+static void print_render_drivers(void) {
+  int count = SDL_GetNumRenderDrivers();
+
+  printf("render_drivers=%d\n", count);
+  for (int i = 0; i < count; i++) {
+    SDL_RendererInfo info;
+    if (SDL_GetRenderDriverInfo(i, &info) == 0) {
+      printf("render_driver index=%d name=\"%s\" flags=0x%x max_texture=%dx%d formats=%u",
+             i, info.name ? info.name : "-", info.flags, info.max_texture_width,
+             info.max_texture_height, info.num_texture_formats);
+      for (Uint32 j = 0; j < info.num_texture_formats; j++) {
+        printf(" %s", SDL_GetPixelFormatName(info.texture_formats[j]));
+      }
+      printf("\n");
+    } else {
+      printf("render_driver index=%d error=\"%s\"\n", i, SDL_GetError());
+    }
+  }
+}
+
+static void print_displays(void) {
+  int count = SDL_GetNumVideoDisplays();
+
+  printf("video_displays=%d\n", count);
+  for (int i = 0; i < count; i++) {
+    SDL_Rect bounds;
+    if (SDL_GetDisplayBounds(i, &bounds) == 0) {
+      printf("video_display index=%d name=\"%s\" bounds=%d,%d %dx%d\n", i,
+             SDL_GetDisplayName(i) ? SDL_GetDisplayName(i) : "-", bounds.x, bounds.y,
+             bounds.w, bounds.h);
+    } else {
+      printf("video_display index=%d error=\"%s\"\n", i, SDL_GetError());
+    }
+  }
+}
+
 static int parse_int_arg(const char *name, const char *value, int min_value, int max_value,
                          int *out) {
   char *end = NULL;
@@ -84,17 +129,22 @@ static void print_guid(SDL_JoystickGUID guid) {
 }
 
 static void usage(const char *argv0) {
-  printf("Usage: %s [--timeout-ms MS] [--no-video]\n", argv0);
+  printf("Usage: %s [--timeout-ms MS] [--no-video] [--graphics-only] [--render-test] [--window-visible]\n", argv0);
   printf("Probe SDL2 joystick and GameController visibility for plumOS.\n");
 }
 
 int main(int argc, char **argv) {
   int timeout_ms = DEFAULT_TIMEOUT_MS;
   int no_video = 0;
+  int graphics_only = 0;
+  int render_test = 0;
+  int window_visible = 0;
+  int render_ok = 0;
   Uint32 init_flags;
   SDL_version compiled;
   SDL_version linked;
   SDL_Window *window = NULL;
+  SDL_Renderer *renderer = NULL;
   int joystick_count;
   SDL_GameController *controllers[8];
   SDL_Joystick *joysticks[8];
@@ -114,6 +164,13 @@ int main(int argc, char **argv) {
       }
     } else if (strcmp(argv[i], "--no-video") == 0) {
       no_video = 1;
+    } else if (strcmp(argv[i], "--graphics-only") == 0) {
+      graphics_only = 1;
+      timeout_ms = 0;
+    } else if (strcmp(argv[i], "--render-test") == 0) {
+      render_test = 1;
+    } else if (strcmp(argv[i], "--window-visible") == 0) {
+      window_visible = 1;
     } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
       usage(argv[0]);
       return 0;
@@ -126,13 +183,15 @@ int main(int argc, char **argv) {
   SDL_VERSION(&compiled);
   SDL_GetVersion(&linked);
   printf("plumOS SDL2 probe\n");
-  printf("compiled_sdl=%u.%u.%u linked_sdl=%u.%u.%u timeout_ms=%d no_video=%s\n",
+  printf("compiled_sdl=%u.%u.%u linked_sdl=%u.%u.%u timeout_ms=%d no_video=%s graphics_only=%s render_test=%s window_visible=%s\n",
          compiled.major, compiled.minor, compiled.patch, linked.major, linked.minor,
-         linked.patch, timeout_ms, no_video ? "yes" : "no");
+         linked.patch, timeout_ms, no_video ? "yes" : "no", graphics_only ? "yes" : "no",
+         render_test ? "yes" : "no", window_visible ? "yes" : "no");
   printf("env SDL_VIDEODRIVER=%s SDL_AUDIODRIVER=%s SDL_JOYSTICK_DEVICE=%s\n",
          getenv("SDL_VIDEODRIVER") ? getenv("SDL_VIDEODRIVER") : "-",
          getenv("SDL_AUDIODRIVER") ? getenv("SDL_AUDIODRIVER") : "-",
          getenv("SDL_JOYSTICK_DEVICE") ? getenv("SDL_JOYSTICK_DEVICE") : "-");
+  print_video_drivers();
 
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
   SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
@@ -148,12 +207,57 @@ int main(int argc, char **argv) {
   printf("sdl init=yes current_video_driver=%s current_audio_driver=%s\n",
          SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "-",
          SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "-");
+  if (!no_video) {
+    print_displays();
+    print_render_drivers();
+  }
 
   if (!no_video) {
     window = SDL_CreateWindow("plumOS SDL2 probe", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, 32, 32, SDL_WINDOW_HIDDEN);
-    printf("window create=%s error=\"%s\"\n", window ? "yes" : "no",
-           window ? "" : SDL_GetError());
+                              SDL_WINDOWPOS_UNDEFINED, 64, 64,
+                              window_visible ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN);
+    printf("window create=%s visible=%s size=64x64 error=\"%s\"\n", window ? "yes" : "no",
+           window_visible ? "yes" : "no", window ? "" : SDL_GetError());
+  }
+
+  if (render_test && window) {
+    SDL_RendererInfo info;
+    SDL_Rect rect = { 8, 8, 48, 48 };
+    SDL_Rect pixel_rect = { 0, 0, 1, 1 };
+    Uint32 pixel = 0;
+    int read_ok;
+
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    if (!renderer) {
+      printf("render create=default no error=\"%s\"\n", SDL_GetError());
+      renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+      printf("render create=software %s error=\"%s\"\n", renderer ? "yes" : "no",
+             renderer ? "" : SDL_GetError());
+    } else {
+      printf("render create=default yes\n");
+    }
+    if (renderer) {
+      memset(&info, 0, sizeof(info));
+      if (SDL_GetRendererInfo(renderer, &info) == 0) {
+        printf("render info name=\"%s\" flags=0x%x max_texture=%dx%d formats=%u\n",
+               info.name ? info.name : "-", info.flags, info.max_texture_width,
+               info.max_texture_height, info.num_texture_formats);
+      } else {
+        printf("render info error=\"%s\"\n", SDL_GetError());
+      }
+      SDL_SetRenderDrawColor(renderer, 0x10, 0x20, 0x40, 0xff);
+      SDL_RenderClear(renderer);
+      SDL_SetRenderDrawColor(renderer, 0x40, 0xc0, 0x80, 0xff);
+      SDL_RenderFillRect(renderer, &rect);
+      SDL_RenderPresent(renderer);
+      read_ok = SDL_RenderReadPixels(renderer, &pixel_rect, SDL_PIXELFORMAT_ARGB8888,
+                                     &pixel, (int)sizeof(pixel)) == 0;
+      printf("render present=yes readpixels=%s pixel_argb8888=0x%08x error=\"%s\"\n",
+             read_ok ? "yes" : "no", pixel, read_ok ? "" : SDL_GetError());
+      render_ok = 1;
+    }
+  } else if (render_test) {
+    printf("render create=skipped reason=\"no window\"\n");
   }
 
   joystick_count = SDL_NumJoysticks();
@@ -258,6 +362,9 @@ int main(int argc, char **argv) {
   for (int i = 0; i < open_joystick_count; i++) {
     SDL_JoystickClose(joysticks[i]);
   }
+  if (renderer) {
+    SDL_DestroyRenderer(renderer);
+  }
   if (window) {
     SDL_DestroyWindow(window);
   }
@@ -266,5 +373,8 @@ int main(int argc, char **argv) {
   printf("summary joysticks=%d controllers_open=%d joysticks_open=%d controller_events=%d joystick_events=%d\n",
          joystick_count, controller_count, open_joystick_count, controller_events,
          joystick_events);
+  if (graphics_only) {
+    return render_test ? (render_ok ? 0 : 1) : 0;
+  }
   return joystick_count > 0 ? 0 : 1;
 }

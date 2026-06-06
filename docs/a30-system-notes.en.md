@@ -115,8 +115,11 @@ On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
   `/dev/snd/pcmC0D0p`.
 - SDL2: plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 plus bundled
   dynamic loader/shared libraries starts a linked/window/input probe and
-  automatically recognizes the composite virtual pad as a GameController. The
-  real framebuffer/render backend is still unvalidated.
+  automatically recognizes the composite virtual pad as a GameController.
+- SDL2 render: the A30 exposes `/dev/fb*`, `/dev/mali`, and `/dev/disp`, but no
+  `/dev/dri`. With upstream SDL3+sdl2-compat, rendering only works through the
+  `dummy`/`offscreen`/`evdev` software paths; no SDL framebuffer/render backend
+  that presents to the real display was found.
 
 Details live in [A30 runtime probe](a30-runtime-probe.en.md).
 

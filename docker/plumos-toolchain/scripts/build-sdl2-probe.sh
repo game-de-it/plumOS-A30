@@ -125,7 +125,9 @@ cat > "$OUT_WRAPPER" <<'EOF'
 #!/bin/sh
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 PLUMOS_LIB="${PLUMOS_ROOT}/lib"
-export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}"
+if [ "${PLUMOS_SDL2_DEFAULT_DUMMY:-1}" = "1" ]; then
+  export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}"
+fi
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}"
 if [ -n "${LD_LIBRARY_PATH:-}" ]; then
   export LD_LIBRARY_PATH="${PLUMOS_LIB}:${LD_LIBRARY_PATH}"

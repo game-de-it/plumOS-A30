@@ -113,6 +113,9 @@ dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
 
+The same probe binary is used for GameController checks and for enumerating SDL
+video/render backends and attempting a software-renderer draw.
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
@@ -165,6 +168,12 @@ Deploy and run the SDL2 probe together with
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+To check only the SDL2 render backends:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
 Collect logs.

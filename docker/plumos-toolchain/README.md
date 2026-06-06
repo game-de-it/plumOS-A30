@@ -187,6 +187,12 @@ dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
 ```
 
+SDL2 render backend 確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
+```
+
 ## shell
 
 ```sh

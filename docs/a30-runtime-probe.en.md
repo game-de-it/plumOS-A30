@@ -112,6 +112,16 @@ APIs. By default it does not set `SDL_JOYSTICK_DEVICE`, so SDL2 uses normal
 auto-detection. Use `--force-js-device` to pass the detected `/dev/input/js*`
 path through `SDL_JOYSTICK_DEVICE` for comparison.
 
+SDL2 render backend probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
+```
+
+This script tries auto-detection with no `SDL_VIDEODRIVER`, then `dummy`,
+`offscreen`, `evdev`, and `kmsdrm`, recording window creation, renderer
+creation, `SDL_RenderPresent`, and `SDL_RenderReadPixels`.
+
 ## Options
 
 - `--fb PATH`: framebuffer path. Default: `/dev/fb0`.
@@ -161,10 +171,16 @@ SDL2 linked/GameController probe:
 
 ```text
 plumOS SDL2 probe
-compiled_sdl=2.32.68 linked_sdl=2.32.68 timeout_ms=3000 no_video=no
+compiled_sdl=2.32.68 linked_sdl=2.32.68 timeout_ms=3000 no_video=no graphics_only=no render_test=no window_visible=no
 env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
+video_drivers=3
+video_driver index=0 name="offscreen"
+video_driver index=1 name="dummy"
+video_driver index=2 name="evdev"
 sdl init=yes current_video_driver=dummy current_audio_driver=-
-window create=yes error=""
+render_drivers=1
+render_driver index=0 name="software" flags=0xd
+window create=yes visible=no size=64x64 error=""
 joysticks=1
 device index=0 name="Xbox 360 Controller" guid=0300e4fb5e0400008e0200005e040000 is_controller=yes
 controller open index=0 yes
@@ -174,13 +190,64 @@ result=sdl2_gamecontroller_visible
 ```
 
 This confirms SDL initialization and window creation with
-`SDL_VIDEODRIVER=dummy`. The real framebuffer/render backend is still a separate
-next probe.
+`SDL_VIDEODRIVER=dummy`. The real framebuffer/render backend is checked
+separately in the SDL2 render backend probe below.
 
 With `--force-js-device` and `SDL_JOYSTICK_DEVICE=/dev/input/js0`, SDL2 listed
 the same virtual pad as two entries: `plumOS A30 Gamepad` and
 `Xbox 360 Controller`. For normal operation, prefer the auto-detected path
 without that environment variable.
+
+SDL2 render backend probe:
+
+```text
+== device inventory ==
+/dev/fb0 ... /dev/fb7
+/dev/disp
+/dev/ion
+/dev/mali
+== proc fb ==
+0
+1
+2
+3
+4
+5
+6
+7
+== case: auto ==
+sdl init=no error="No available video device"
+case_rc=1
+== case: dummy ==
+sdl init=yes current_video_driver=dummy current_audio_driver=-
+render_driver index=0 name="software" flags=0xd
+window create=yes visible=yes size=64x64 error=""
+render create=default yes
+render info name="software" flags=0x9 max_texture=0x0 formats=3
+render present=yes readpixels=yes pixel_argb8888=0xff102040 error=""
+case_rc=0
+== case: offscreen ==
+sdl init=yes current_video_driver=offscreen current_audio_driver=-
+render create=default yes
+render present=yes readpixels=yes pixel_argb8888=0xff102040 error=""
+case_rc=0
+== case: evdev ==
+sdl init=yes current_video_driver=evdev current_audio_driver=-
+render create=default yes
+render present=yes readpixels=yes pixel_argb8888=0xff102040 error=""
+case_rc=0
+== case: kmsdrm ==
+sdl init=no error="kmsdrm not available"
+case_rc=1
+== result ==
+result=sdl2_renderer_only_dummy_offscreen_or_evdev
+```
+
+The A30 exposes `/dev/fb*`, `/dev/mali`, and `/dev/disp`, but not `/dev/dri`.
+With the current upstream SDL3+sdl2-compat runtime, only software renderers
+under `offscreen`, `dummy`, and `evdev` work. No real framebuffer/render backend
+that presents to the A30 display was found. `evdev` is SDL3's dummy video driver
+with evdev input, not a real display backend.
 
 ## Decision
 
@@ -197,9 +264,12 @@ without that environment variable.
   bundled dynamic loader/shared libraries starts successfully and automatically
   recognizes the `plumos-joystickd --device-mode xbox` composite virtual pad as
   a GameController.
-- SDL2 render: dummy-video window creation succeeds; the real
-  framebuffer/render backend is still unvalidated.
+- SDL2 render: software renderers can be created with `dummy`, `offscreen`, and
+  `evdev`, but there is no upstream SDL backend that presents to the real A30
+  display. The A30 is fbdev + Mali/disp with no `/dev/dri`, so `kmsdrm` is not
+  available.
 
 The stock `keymon` comparison is split into
-[A30 input policy](a30-input-policy.en.md). Next steps are the real SDL2 render
-backend and the RetroArch SDL2/evdev build.
+[A30 input policy](a30-input-policy.en.md). Next steps are a direct framebuffer
+presenter / custom SDL video backend / sunxi-mali-disp path, plus the RetroArch
+SDL2/evdev build.

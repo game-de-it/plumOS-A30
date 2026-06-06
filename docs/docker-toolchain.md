@@ -112,6 +112,9 @@ dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
 
+同じ probe binary は GameController 確認に加えて、SDL video/render backend の列挙と
+software renderer の描画試行にも使います。
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -164,6 +167,12 @@ SDL2 probe は、`plumos-joystickd --device-mode xbox` と一緒に SD カード
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+SDL2 render backend だけを確認する場合:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
 log を回収します。

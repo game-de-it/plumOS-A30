@@ -137,7 +137,10 @@ backend 候補:
 - audio: `/dev/dsp` は存在するが、stock `MainUI` が `/dev/snd/pcmC0D0p` を保持している間は busy
 - SDL2: plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 と bundled
   dynamic loader/shared libraries で linked/window/input probe が起動し、composite
-  virtual pad を GameController として自動認識できる。実 framebuffer/render backend は未検証
+  virtual pad を GameController として自動認識できる
+- SDL2 render: A30 は `/dev/fb*`, `/dev/mali`, `/dev/disp` を持つが `/dev/dri` は無い。
+  upstream SDL3+sdl2-compat では `dummy`/`offscreen`/`evdev` の software renderer までで、
+  実画面に出る SDL framebuffer/render backend は確認できない
 
 詳細は [A30 runtime probe](a30-runtime-probe.md) にまとめています。
 
