@@ -20,6 +20,7 @@ stock SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.j
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
@@ -113,6 +114,47 @@ summary alias_dirs=1 files_seen=1000 matched=1000 roms=1000 thumbnails=0 elapsed
 
 `ready_ms=374` なので、text mode の初回表示については 500ms 基準を下回りました。
 このため、現時点では stock FE 方式の manual refresh へ戻さず、on-enter scan を維持します。
+
+## plumOS text UI
+
+`plumos-text-ui` は、画面描画/input 実装へ入る前に system list と ROM list の data flow を
+確認するための SSH 向け text UI prototype です。現時点では実機の MainUI replacement として
+自動起動しません。
+
+TOP 表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui top'
+```
+
+`top` は既存の `library-index.json` を読みます。cache がなければ full scan を実行します。
+明示的に更新したい場合は `top --refresh` を使います。
+
+ROM list 表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui roms ports --limit 10'
+```
+
+`roms <system>` は内部で `plumos-library-scan --on-enter <system>` を実行し、
+`state/frontend/systems/<system>.json` を読んで一覧表示します。これは将来の
+「機種選択時に毎回ROM listを読み込む」動作の最小prototypeです。
+
+2026-06-06 の A30 実機確認:
+
+```text
+plumOS text UI - TOP
+No.  System                 ROMs  Default profile
+  1. Ports                     2  external:port
+
+plumOS text UI - ROM list
+system: ports
+ready_ms: 10
+  1. Start SSH                          PORTS/Start SSH.sh
+  2. Stop SSH                           PORTS/Stop SSH.sh
+```
 
 ## 現在読む情報
 

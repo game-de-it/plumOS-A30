@@ -20,6 +20,7 @@ Outputs:
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
@@ -121,6 +122,47 @@ summary alias_dirs=1 files_seen=1000 matched=1000 roms=1000 thumbnails=0 elapsed
 `ready_ms=374` is below the 500 ms threshold for the first text-mode display, so
 plumOS keeps the on-enter scan policy instead of switching to stock-style manual
 refresh.
+
+## plumOS Text UI
+
+`plumos-text-ui` is an SSH-facing text UI prototype for validating the system
+list and ROM list data flow before real rendering/input work. It is not
+auto-launched as the MainUI replacement yet.
+
+TOP view:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui top'
+```
+
+`top` reads the existing `library-index.json`. If the cache is missing, it runs
+a full scan. Use `top --refresh` to refresh explicitly.
+
+ROM list view:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui roms ports --limit 10'
+```
+
+`roms <system>` runs `plumos-library-scan --on-enter <system>` internally, then
+reads `state/frontend/systems/<system>.json`. This is the first prototype of the
+future "re-read ROM list whenever entering a system" behavior.
+
+A30 device check on 2026-06-06:
+
+```text
+plumOS text UI - TOP
+No.  System                 ROMs  Default profile
+  1. Ports                     2  external:port
+
+plumOS text UI - ROM list
+system: ports
+ready_ms: 10
+  1. Start SSH                          PORTS/Start SSH.sh
+  2. Stop SSH                           PORTS/Stop SSH.sh
+```
 
 ## Current Inputs
 

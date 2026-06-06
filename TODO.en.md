@@ -86,6 +86,7 @@
 - [x] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
 - [x] Build an on-enter per-system ROM directory re-scan prototype.
 - [x] Measure first text-mode display time with 1000 dummy ROM files.
+- [x] Build an SSH-checkable text-mode system list / ROM list prototype.
 - [ ] Implement a START menu UI model for settings/apps/reboot/shutdown.
 - [ ] Implement system default core selection with SELECT on a highlighted TOP
   system.
