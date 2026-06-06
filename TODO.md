@@ -174,6 +174,7 @@
 
 ## Phase 7 - RetroArch and Core Runtime
 
+- [x] stockOS 側の `Emu`/`RApp`/installed core を参考に、plumOS でビルドする emulator/core/standalone target inventory を作る。
 - [ ] build 時点で最新 stable の RetroArch release を確認し、A30 の armv7 hard-float 環境向けに build/test する。
 - [ ] RetroArch を `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置する。
 - [ ] core を `/mnt/SDCARD/plumos/retroarch/cores` へ配置する。
