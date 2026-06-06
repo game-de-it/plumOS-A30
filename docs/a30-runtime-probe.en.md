@@ -18,6 +18,7 @@ Outputs:
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
 dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
+dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -54,6 +55,28 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `plumos-shm-watch` is a helper for investigating paths that do not appear as
 kernel input events, such as left stick calibration. It does not write to shared
 memory.
+
+Serial joystick raw-data check:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-serial-joy-probe --timeout-ms 5000 --stats-only'
+```
+
+The spruceOS A30 joystick reader uses `/dev/ttyS2`. On the stock A30 observed on
+2026-06-06, joystick frames were found on `/dev/ttyS0` instead. `/dev/ttyS2`
+does not exist initially, and although `/proc/tty/drivers` reports `ttyS` minors
+0-4, a temporary `c 250 2` node failed to open with `ENXIO`.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  'rm -f /tmp/plumos-ttyS2; mknod /tmp/plumos-ttyS2 c 250 2; /mnt/SDCARD/plumos/bin/plumos-serial-joy-probe --port /tmp/plumos-ttyS2 --timeout-ms 10000 --stats-only; rm -f /tmp/plumos-ttyS2'
+```
+
+`plumos-serial-joy-probe` prints 9600/8N1 raw serial data and candidate 6-byte
+frames in the likely spruceOS format: `ff axisYL axisXL axisYR axisXR fe`.
+With `--stats-only`, it suppresses per-frame output and prints min/max/avg for
+each axis.
 
 ## Options
 
@@ -107,6 +130,9 @@ a test tone through `/dev/dsp`.
 - Input: `gpio-keys-polled` opens and polls as `/dev/input/event3`.
 - Shared memory: `plumos-shm-watch` can attach to stock `keymon`/`MainUI` SysV
   shm read-only.
+- Serial joystick: the `ttyS` driver supports minors 0-4, but the initial
+  `/dev` only contains `/dev/ttyS0` and `/dev/ttyS1`. `/dev/ttyS0` emits
+  joystick frames at 9600/8N1.
 - Audio: OSS `/dev/dsp` exists, but is busy while stock MainUI holds PCM.
 - SDL2: stock libraries exist, but are not adopted as plumOS runtime
   dependencies. Build a linked probe after plumOS bundles its own SDL2 package.

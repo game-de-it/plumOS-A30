@@ -132,6 +132,11 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   SELECT=`KEY_RIGHTCTRL`, Function=`KEY_ESC`.
 - Left stick axes were not observed as `EV_ABS` under `/dev/input/event*`.
   MainUI calibration updates `/config/joypad.config`.
+- The spruceOS A30 implementation converts `/dev/ttyS2` raw serial data into
+  virtual input through `joystickinput`. On the observed stock A30, `/dev/ttyS2`
+  is not created initially, but the `ttyS` driver exposes minors 0-4.
+- On the device observed on 2026-06-06, `/dev/ttyS0` produced 9600/8N1 joystick
+  frames in the form `ff b1 b2 b3 b4 fe`.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

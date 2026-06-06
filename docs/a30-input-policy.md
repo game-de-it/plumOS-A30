@@ -126,6 +126,13 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
   `JoypadCalibration`, `JoypadTest`, `ADC INFO`, `/config/joypad.config` がある
 - stock `keymon` にも `/dev/mem`, `ABS_X`, `ABS_Y`, `BTN_THUMBL` などの文字列がある
 - MainUI の Settings から calibration を実行すると `/config/joypad.config` が更新された
+- spruceOS の A30 実装では、`joystickinput` が `/dev/ttyS2` から raw data を読み、
+  `/config/joypad.config` を適用して `/dev/input/event4` に analog event、
+  `/dev/input/event3` に keyboard/D-pad event を送る構成になっている
+- stock A30 の初期 `/dev` には `/dev/ttyS2` node が存在しないが、`/proc/tty/drivers`
+  では `ttyS` minor 0-4 が利用可能として表示される
+- stock A30 実機では `/dev/ttyS0` から `ff b1 b2 b3 b4 fe` 形式の6バイト frame を
+  9600/8N1 で観測できた
 
 `/config/joypad.config` の観測値:
 
@@ -147,13 +154,36 @@ x_zero=126
 y_zero=130
 ```
 
+`plumos-serial-joy-probe --port /dev/ttyS0 --stats-only` の観測値:
+
+```text
+center, 1s:
+frames=67
+axisYL min=116 max=117 avg=116.03
+axisXL min=103 max=107 avg=105.03
+axisYR min=121 max=121 avg=121.00
+axisXR min=124 max=124 avg=124.00
+
+left stick moved, 12s:
+frames=799
+axisYL min=27 max=201 avg=113.53
+axisXL min=45 max=157 avg=102.03
+axisYR min=14 max=245 avg=121.45
+axisXR min=15 max=232 avg=121.65
+```
+
 現時点の推定:
 
-- 左スティック軸は kernel input event ではなく、stock `MainUI`/`keymon` が `/dev/mem`
-  経由で ADC 値を読む実装の可能性が高い
-- calibration は raw ADC 値の min/max/center を `/config/joypad.config` に保存する
-- plumOS では stock library を流用せず、後続で `/dev/mem` mapping または同等の ADC 読み取り
-  方法を特定する必要がある
+- 左スティック軸は kernel input event ではなく、serial raw data を userland daemon が
+  virtual input に変換する構成の可能性が高い
+- A30 実機では spruceOS の `/dev/ttyS2` ではなく `/dev/ttyS0` が raw data 経路の
+  本命。`axisYR`/`axisXR` が `/config/joypad.config` の min/max に近く、実際の
+  左スティック X/Y に対応している可能性が高い
+- `/dev/mem` は stock `MainUI` の calibration/test 画面または別ハード制御で使われている
+  可能性があるため、stick の本命経路としては一段下げる
+- calibration は raw 値の min/max/center を `/config/joypad.config` に保存する
+- plumOS では stock/spruce の binary を流用せず、`/dev/ttyS0` の raw data を読む
+  `plumos-joystickd` を後続で設計する
 - 左スティック押し込みは今回まだ確定できていないため、別途短時間の button capture を行う
 
 ## 方針

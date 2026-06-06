@@ -111,7 +111,13 @@
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
 - [x] `plumos-input-compare` で `EV_ABS` を表示し、左スティックが kernel input に露出するか確認する。
 - [ ] 左スティック押し込み button code を短時間 capture で確定する。
-- [ ] `/config/joypad.config` と `/dev/mem` ADC 読み取り経路を解析し、plumOS 用 left stick reader を設計する。
+- [x] spruceOS の A30 実装を参照し、`joystickinput` が `/dev/ttyS2` raw serial と `/config/joypad.config` を使う構成を確認する。
+- [x] `/dev/ttyS*` raw data 確認用の `plumos-serial-joy-probe` を追加する。
+- [x] A30 実機では `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe` frame が出ることを確認する。
+- [x] 左スティック操作時の serial frame 範囲を capture し、`axisYR`/`axisXR` が `/config/joypad.config` の min/max に近いことを確認する。
+- [ ] 左スティックの上下左右を個別 capture し、`axisYR`/`axisXR` の X/Y と符号を確定する。
+- [ ] `/config/joypad.config` と `/dev/ttyS0` raw serial 経路を解析し、plumOS 用 `plumos-joystickd` を設計する。
+- [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。
 - [ ] Function button で safe shutdown/resume menu を出す代替仕様を RetroArch 実行中に検証する。

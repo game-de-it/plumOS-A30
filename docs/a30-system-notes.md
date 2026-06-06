@@ -152,6 +152,11 @@ backend 候補:
   Function=`KEY_ESC`
 - 左スティック軸は `/dev/input/event*` の `EV_ABS` としては観測できず、MainUI の
   calibration が `/config/joypad.config` を更新することを確認した
+- spruceOS の A30 実装は `/dev/ttyS2` raw serial を `joystickinput` で virtual input
+  に変換する構成で、stock A30 では `/dev/ttyS2` node は未作成だが `ttyS` minor 0-4
+  は driver 上利用可能
+- 2026-06-06 の実機では `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe`
+  joystick frame を確認した
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

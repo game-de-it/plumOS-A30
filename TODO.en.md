@@ -140,8 +140,19 @@
 - [x] Add `EV_ABS` output to `plumos-input-compare` and check whether the left
   stick is exposed as kernel input.
 - [ ] Confirm the left stick click button code with a short capture.
-- [ ] Analyze `/config/joypad.config` and the `/dev/mem` ADC read path, then
-  design a plumOS left stick reader.
+- [x] Inspect the spruceOS A30 implementation and confirm that `joystickinput`
+  uses `/dev/ttyS2` raw serial data plus `/config/joypad.config`.
+- [x] Add `plumos-serial-joy-probe` for checking raw `/dev/ttyS*` data.
+- [x] Confirm that the A30 emits 9600/8N1 `ff b1 b2 b3 b4 fe` frames from
+  `/dev/ttyS0`.
+- [x] Capture serial frame ranges while moving the left stick and confirm that
+  `axisYR`/`axisXR` are close to the `/config/joypad.config` min/max values.
+- [ ] Capture up/down/left/right separately and confirm the X/Y assignment and
+  sign for `axisYR`/`axisXR`.
+- [ ] Analyze `/config/joypad.config` and the `/dev/ttyS0` raw serial path, then
+  design plumOS `plumos-joystickd`.
+- [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
+  it is required beyond stock calibration/test screens.
 - [x] Implement a controller UI SAFE menu prototype opened by Function.
 - [ ] Safely confirm the short power-button event code and stock sleep/shutdown
   side effects.

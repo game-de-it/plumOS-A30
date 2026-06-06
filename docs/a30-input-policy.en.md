@@ -131,6 +131,13 @@ What was checked:
 - Stock `keymon` also contains strings for `/dev/mem`, `ABS_X`, `ABS_Y`, and
   `BTN_THUMBL`.
 - Running calibration from MainUI Settings updates `/config/joypad.config`.
+- In the spruceOS A30 implementation, `joystickinput` reads raw data from
+  `/dev/ttyS2`, applies `/config/joypad.config`, sends analog events to
+  `/dev/input/event4`, and sends keyboard/D-pad events to `/dev/input/event3`.
+- The stock A30 initially has no `/dev/ttyS2` node, but `/proc/tty/drivers`
+  reports `ttyS` minors 0-4 as available.
+- On the observed stock A30, `/dev/ttyS0` produced 9600/8N1 6-byte frames in the
+  form `ff b1 b2 b3 b4 fe`.
 
 Observed `/config/joypad.config` values:
 
@@ -152,13 +159,37 @@ x_zero=126
 y_zero=130
 ```
 
+Observed `plumos-serial-joy-probe --port /dev/ttyS0 --stats-only` values:
+
+```text
+center, 1s:
+frames=67
+axisYL min=116 max=117 avg=116.03
+axisXL min=103 max=107 avg=105.03
+axisYR min=121 max=121 avg=121.00
+axisXR min=124 max=124 avg=124.00
+
+left stick moved, 12s:
+frames=799
+axisYL min=27 max=201 avg=113.53
+axisXL min=45 max=157 avg=102.03
+axisYR min=14 max=245 avg=121.45
+axisXR min=15 max=232 avg=121.65
+```
+
 Current inference:
 
-- The left stick axes are probably read by stock `MainUI`/`keymon` through
-  `/dev/mem` ADC access rather than through kernel input events.
-- Calibration saves raw ADC min/max/center values to `/config/joypad.config`.
-- Because plumOS should not reuse stock libraries directly, a later step must
-  identify the `/dev/mem` mapping or equivalent ADC read path.
+- The left stick axes are probably not kernel input events. A userland daemon
+  likely converts serial raw data into virtual input events.
+- On the observed A30, `/dev/ttyS0` is the primary raw-data candidate rather
+  than spruceOS's `/dev/ttyS2`. `axisYR`/`axisXR` closely match
+  `/config/joypad.config` min/max values and are likely the actual left-stick
+  X/Y axes.
+- `/dev/mem` may still be used by stock `MainUI` for calibration/test screens or
+  other hardware control, but it is no longer the primary suspected stick path.
+- Calibration saves raw min/max/center values to `/config/joypad.config`.
+- Because plumOS should not reuse stock/spruce binaries directly, a later step
+  should design `plumos-joystickd` around the `/dev/ttyS0` raw-data path.
 - Left stick click remains unconfirmed and needs a separate short button
   capture.
 
