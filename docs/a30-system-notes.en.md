@@ -67,6 +67,11 @@ replacing the binary outright.
   `wpa_cli status > /tmp/wpa_status.txt`, and
   `wpa_cli signal_poll >> /tmp/wpa_status.txt`, so stock UI likely owns DHCP and
   runtime status updates.
+- On the June 7, 2026 poweroff -> power-on check, the wrapper auto-started
+  `plumos-network-rescue` at about boot uptime 8s. At start, `wpa_supplicant` was
+  already running, no IP was assigned, and `/proc/net/wireless` showed no
+  association yet. DHCP attempt 1 started at about uptime 9s and completed the
+  `192.168.10.165` lease plus Dropbear startup at about uptime 16s.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,

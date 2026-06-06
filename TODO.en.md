@@ -300,8 +300,10 @@
 - [ ] Compare `performance`, `ondemand`, and `interactive` governors.
 - [ ] Restore CPU state reliably after game exit.
 - [ ] Check whether the Wi-Fi power sequence can be safely reproduced from plumOS.
-- [ ] Trace boot-time `wpa_supplicant` association, DHCP retries, and IP
-  acquisition timing through `network-rescue.log`.
+- [x] Trace boot-time `wpa_supplicant`, DHCP, and IP acquisition timing through
+  `network-rescue.log` after poweroff -> power on.
+- [ ] Repeat poweroff -> power-on Wi-Fi auto-connect checks and tune DHCP retry
+  count/timing.
 - [ ] Decide whether to keep stock Wi-Fi userland or bundle it with plumOS.
 - [ ] Decide whether SSH stays a development package or becomes a plumOS service.
 

@@ -85,6 +85,10 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
 - stock `MainUI.stock` binary 文字列には `udhcpc -i wlan0 &`、
   `wpa_cli status > /tmp/wpa_status.txt`、`wpa_cli signal_poll >> /tmp/wpa_status.txt` が
   含まれる。stock UI は DHCP と runtime status 更新も担当している可能性が高い
+- 2026-06-07 の poweroff -> 電源ON確認では、wrapper が boot uptime 約8秒で
+  `plumos-network-rescue` を自動開始した。開始時は `wpa_supplicant` は起動済み、
+  IPなし、`/proc/net/wireless` は未関連付け状態だった。DHCP attempt 1 が uptime 約9秒で
+  始まり、約16秒で `192.168.10.165` の lease と Dropbear 起動まで完了した
 
 実装上の意味:
 

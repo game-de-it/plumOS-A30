@@ -191,7 +191,8 @@
 - [ ] `performance`, `ondemand`, `interactive` governor を比較する。
 - [ ] game 終了後に CPU 状態を確実に戻す仕組みを作る。
 - [ ] Wi-Fi の power sequence を plumOS 側で安全に再現できるか確認する。
-- [ ] 起動直後の `wpa_supplicant` 関連付け、DHCP retry、IP取得タイミングを `network-rescue.log` で追跡する。
+- [x] poweroff 後の電源ONで、起動直後の `wpa_supplicant`、DHCP、IP取得タイミングを `network-rescue.log` で追跡する。
+- [ ] Wi-Fi 自動接続を複数回 poweroff -> 電源ONで確認し、DHCP retry 回数/待ち時間を調整する。
 - [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
 - [ ] SSH を開発用 package のままにするか、plumOS service にするか決める。
 
