@@ -96,7 +96,7 @@
   recommended > auto detect.
 - [x] Store core selection as an extensible launch profile id, not only a core
   id.
-- [ ] Implement favorite toggle in the ROM list and open Favorites from the
+- [x] Implement favorite toggle in the ROM list and open Favorites from the
   START menu.
 - [ ] Add an optional setting to show Favorites as a virtual TOP system.
 - [ ] Manage auto-resume target ROM/core/launch profile/pending state in

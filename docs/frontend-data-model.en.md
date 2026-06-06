@@ -347,6 +347,48 @@ keeps `on_enter`.
 `library-index.json` is a scan cache, but the filesystem remains the source of
 truth for ROM lists.
 
+## Favorites Model
+
+Favorites are per-ROM user state. They are stored separately from the TOP system
+list and are opened from `Favorites` in the START menu.
+
+State path:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/favorites.json
+```
+
+Schema:
+
+```json
+{
+  "version": 1,
+  "favorites": [
+    {
+      "system_id": "nes",
+      "relative_path": "FC/example.nes",
+      "title": "example",
+      "file_name": "example.nes",
+      "path": "/mnt/SDCARD/Roms/FC/example.nes",
+      "thumbnail": "/mnt/SDCARD/images/nes/example.png"
+    }
+  ]
+}
+```
+
+Rules:
+
+- A favorite is keyed by `system_id` plus the ROM `relative_path` from the ROM
+  alias root.
+- ROM lists show a text marker for favorite entries. Text mode does not depend
+  on icons or thumbnails.
+- The Favorites list can be displayed from the title/path snapshot stored in
+  `favorites.json`.
+- Moving or renaming a ROM does not automatically move the favorite. Add stale
+  entry cleanup later as a settings/tool action.
+- Add an optional setting later to show Favorites as a virtual TOP system.
+- Do not adopt stock favorite formats directly. Add an importer only if needed.
+
 ## START Menu
 
 Pressing START on the TOP screen or ROM list opens the system menu. OS reboot,

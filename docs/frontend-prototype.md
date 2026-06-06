@@ -191,6 +191,25 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `ROM override > system override > default_launch_profile > auto detect` です。
 `--clear` を指定すると対象の override を削除して fallback へ戻します。
 
+Favorite toggle:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui favorite rom ports "PORTS/Start SSH.sh" --toggle'
+```
+
+Favorites 一覧:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui favorites'
+```
+
+`favorite rom` は ROM list で favorite toggle を押す操作に相当します。保存先は
+`state/frontend/favorites.json` です。ROM list 表示の `Fav` 列では favorite entry に
+`*` を表示します。START menu の `Favorites` entry は、この Favorites 一覧へ辿るための
+入口です。
+
 2026-06-06 の A30 実機確認:
 
 ```text
@@ -201,8 +220,8 @@ No.  System                 ROMs  Default profile
 plumOS text UI - ROM list
 system: ports
 ready_ms: 10
-  1. Start SSH                          PORTS/Start SSH.sh
-  2. Stop SSH                           PORTS/Stop SSH.sh
+  1.     Start SSH                          PORTS/Start SSH.sh
+  2.     Stop SSH                           PORTS/Stop SSH.sh
 
 plumOS text UI - menu
 menu: start
@@ -220,6 +239,9 @@ system: nes (NES)
 current: retroarch:fceumm (plumOS default)
   1. retroarch:fceumm               yes      no       -        *
   2. retroarch:nestopia             no       no       -
+
+plumOS text UI - Favorites
+count: 0
 ```
 
 ## 現在読む情報

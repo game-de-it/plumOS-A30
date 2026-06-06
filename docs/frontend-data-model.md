@@ -346,6 +346,47 @@ ROM list は機種を選択して ROM list screen に入るたびに、その機
 `library-index.json` は scan cache ですが、freshness より速さが必要な場面だけ使います。
 ROM list の正本は常に filesystem です。
 
+## Favorites model
+
+Favorites は ROM 単位の user state です。TOP の system list とは分離して保存し、START menu
+の `Favorites` から一覧を開けるようにします。
+
+保存先:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/favorites.json
+```
+
+schema:
+
+```json
+{
+  "version": 1,
+  "favorites": [
+    {
+      "system_id": "nes",
+      "relative_path": "FC/example.nes",
+      "title": "example",
+      "file_name": "example.nes",
+      "path": "/mnt/SDCARD/Roms/FC/example.nes",
+      "thumbnail": "/mnt/SDCARD/images/nes/example.png"
+    }
+  ]
+}
+```
+
+rules:
+
+- favorite の key は `system_id` と ROM alias root からの `relative_path` の組み合わせ
+  とする
+- ROM list では favorite entry に text marker を表示する。text mode では icon や
+  thumbnail に依存しない
+- Favorites 一覧は `favorites.json` に保存した title/path snapshot から表示できる
+- ROM を移動/rename した場合、favorite は自動追跡しない。後で stale entry cleanup を
+  settings/tool として用意する
+- Favorites は TOP に仮想 system として表示できる optional setting を後で追加する
+- stock favorite 形式を直接採用せず、必要な場合だけ importer を作る
+
 ## START menu model
 
 TOP 画面や ROM list 画面で START を押すと、system menu を開きます。OS reboot や

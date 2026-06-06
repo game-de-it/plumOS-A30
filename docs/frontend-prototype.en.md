@@ -200,6 +200,25 @@ is saved to `state/frontend/core-overrides.json`. The stored value is a
 `ROM override > system override > default_launch_profile > auto detect`.
 `--clear` removes the matching override and falls back to the next layer.
 
+Favorite toggle:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui favorite rom ports "PORTS/Start SSH.sh" --toggle'
+```
+
+Favorites list:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui favorites'
+```
+
+`favorite rom` corresponds to pressing the favorite toggle in the ROM list.
+State is saved to `state/frontend/favorites.json`. The ROM list `Fav` column
+shows `*` for favorite entries. The START menu `Favorites` entry is the path to
+this Favorites list.
+
 A30 device check on 2026-06-06:
 
 ```text
@@ -210,8 +229,8 @@ No.  System                 ROMs  Default profile
 plumOS text UI - ROM list
 system: ports
 ready_ms: 10
-  1. Start SSH                          PORTS/Start SSH.sh
-  2. Stop SSH                           PORTS/Stop SSH.sh
+  1.     Start SSH                          PORTS/Start SSH.sh
+  2.     Stop SSH                           PORTS/Stop SSH.sh
 
 plumOS text UI - menu
 menu: start
@@ -229,6 +248,9 @@ system: nes (NES)
 current: retroarch:fceumm (plumOS default)
   1. retroarch:fceumm               yes      no       -        *
   2. retroarch:nestopia             no       no       -
+
+plumOS text UI - Favorites
+count: 0
 ```
 
 ## Current Inputs

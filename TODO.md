@@ -85,7 +85,7 @@
 - [x] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
 - [x] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。
 - [x] core 選択は core id だけでなく launch profile id として保存できるようにする。
-- [ ] ROM list で favorite toggle を実装し、START menu から Favorites を開けるようにする。
+- [x] ROM list で favorite toggle を実装し、START menu から Favorites を開けるようにする。
 - [ ] Favorites を TOP に仮想 system として表示する optional setting を用意する。
 - [ ] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。
 - [ ] 起動時に pending resume session があれば同じ ROM/core/launch profile で自動起動する。

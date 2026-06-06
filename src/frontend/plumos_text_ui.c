@@ -18,6 +18,7 @@
 #define MAX_CORE_PROFILES 16
 #define MAX_SYSTEM_CORE_OVERRIDES 256
 #define MAX_ROM_CORE_OVERRIDES 1024
+#define MAX_FAVORITES 2048
 #define TEXT_PATH_MAX 1024
 
 struct top_entry {
@@ -79,6 +80,20 @@ struct core_override_state {
   size_t system_override_count;
   struct rom_core_override rom_overrides[MAX_ROM_CORE_OVERRIDES];
   size_t rom_override_count;
+};
+
+struct favorite_entry {
+  char system_id[64];
+  char relative_path[TEXT_PATH_MAX];
+  char title[256];
+  char file_name[256];
+  char path[TEXT_PATH_MAX];
+  char thumbnail[TEXT_PATH_MAX];
+};
+
+struct favorite_state {
+  struct favorite_entry entries[MAX_FAVORITES];
+  size_t count;
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -942,6 +957,172 @@ static int find_rom_by_relative_path(const struct rom_entry *entries, size_t cou
   return -1;
 }
 
+static void init_favorite_state(struct favorite_state *state) {
+  memset(state, 0, sizeof(*state));
+}
+
+static int find_favorite(const struct favorite_state *state, const char *system_id,
+                         const char *relative_path) {
+  size_t i;
+  for (i = 0; i < state->count; i++) {
+    if (strcmp(state->entries[i].system_id, system_id) == 0 &&
+        strcmp(state->entries[i].relative_path, relative_path) == 0) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static int load_favorites(const char *path, struct favorite_state *state) {
+  char *json;
+  size_t json_size;
+  const char *array_start;
+  const char *array_end;
+  const char *cursor;
+
+  init_favorite_state(state);
+  if (!file_exists(path)) {
+    return 1;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "favorites", &array_start, &array_end)) {
+    free(json);
+    return 0;
+  }
+
+  cursor = array_start;
+  while (state->count < MAX_FAVORITES) {
+    const char *obj_start;
+    const char *obj_end;
+    char *obj;
+    struct favorite_entry entry;
+
+    if (!json_next_object(&cursor, array_end, &obj_start, &obj_end)) {
+      break;
+    }
+    obj = range_dup(obj_start, obj_end);
+    if (!obj) {
+      free(json);
+      return 0;
+    }
+
+    memset(&entry, 0, sizeof(entry));
+    json_get_string(obj, obj + strlen(obj), "system_id", entry.system_id,
+                    sizeof(entry.system_id));
+    json_get_string(obj, obj + strlen(obj), "relative_path", entry.relative_path,
+                    sizeof(entry.relative_path));
+    json_get_string(obj, obj + strlen(obj), "title", entry.title, sizeof(entry.title));
+    json_get_string(obj, obj + strlen(obj), "file_name", entry.file_name,
+                    sizeof(entry.file_name));
+    json_get_string(obj, obj + strlen(obj), "path", entry.path, sizeof(entry.path));
+    json_get_string(obj, obj + strlen(obj), "thumbnail", entry.thumbnail,
+                    sizeof(entry.thumbnail));
+
+    if (valid_system_id(entry.system_id) && valid_relative_rom_path(entry.relative_path) &&
+        find_favorite(state, entry.system_id, entry.relative_path) < 0) {
+      if (!entry.title[0]) {
+        copy_string(entry.title, sizeof(entry.title),
+                    entry.file_name[0] ? entry.file_name : entry.relative_path);
+      }
+      state->entries[state->count++] = entry;
+    }
+    free(obj);
+  }
+
+  free(json);
+  return 1;
+}
+
+static int save_favorites(const char *path, const struct favorite_state *state) {
+  char tmp_path[PATH_MAX];
+  FILE *f;
+  size_t i;
+
+  if (!ensure_parent_dir(path)) {
+    return 0;
+  }
+  if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path) >= (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+
+  fprintf(f, "{\n");
+  fprintf(f, "  \"version\": 1,\n");
+  fprintf(f, "  \"favorites\": [\n");
+  for (i = 0; i < state->count; i++) {
+    fprintf(f, "    { \"system_id\": ");
+    json_write_escaped(f, state->entries[i].system_id);
+    fprintf(f, ", \"relative_path\": ");
+    json_write_escaped(f, state->entries[i].relative_path);
+    fprintf(f, ", \"title\": ");
+    json_write_escaped(f, state->entries[i].title);
+    fprintf(f, ", \"file_name\": ");
+    json_write_escaped(f, state->entries[i].file_name);
+    fprintf(f, ", \"path\": ");
+    json_write_escaped(f, state->entries[i].path);
+    fprintf(f, ", \"thumbnail\": ");
+    json_write_escaped(f, state->entries[i].thumbnail);
+    fprintf(f, " }%s\n", i + 1 < state->count ? "," : "");
+  }
+  fprintf(f, "  ]\n");
+  fprintf(f, "}\n");
+
+  if (fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  return 1;
+}
+
+static int set_favorite_from_rom(struct favorite_state *state, const char *system_id,
+                                 const struct rom_entry *rom) {
+  int idx = find_favorite(state, system_id, rom->relative_path);
+  struct favorite_entry *entry;
+
+  if (idx >= 0) {
+    entry = &state->entries[idx];
+  } else {
+    if (state->count >= MAX_FAVORITES) {
+      return 0;
+    }
+    entry = &state->entries[state->count++];
+    memset(entry, 0, sizeof(*entry));
+  }
+
+  copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+  copy_string(entry->relative_path, sizeof(entry->relative_path), rom->relative_path);
+  copy_string(entry->title, sizeof(entry->title),
+              rom->title[0] ? rom->title : rom->relative_path);
+  copy_string(entry->file_name, sizeof(entry->file_name), rom->file_name);
+  copy_string(entry->path, sizeof(entry->path), rom->path);
+  copy_string(entry->thumbnail, sizeof(entry->thumbnail), rom->thumbnail);
+  return 1;
+}
+
+static int clear_favorite(struct favorite_state *state, const char *system_id,
+                          const char *relative_path) {
+  int idx = find_favorite(state, system_id, relative_path);
+  if (idx < 0) {
+    return 1;
+  }
+  if ((size_t)idx + 1 < state->count) {
+    memmove(&state->entries[idx], &state->entries[idx + 1],
+            (state->count - (size_t)idx - 1) * sizeof(state->entries[0]));
+  }
+  state->count--;
+  return 1;
+}
+
 static int load_top_entries(const char *path, struct top_entry *entries, size_t max_entries,
                             size_t *count_out, long *ready_ms_out) {
   char *json;
@@ -1299,7 +1480,8 @@ static void print_top(const struct top_entry *entries, size_t count, int show_al
 }
 
 static void print_roms(const char *system_id, const struct rom_entry *entries, size_t count,
-                       size_t limit, const char *cache_path, long ready_ms) {
+                       const struct favorite_state *favorites, size_t limit,
+                       const char *cache_path, long ready_ms) {
   size_t i;
   size_t shown = 0;
 
@@ -1310,21 +1492,67 @@ static void print_roms(const char *system_id, const struct rom_entry *entries, s
     printf("ready_ms: %ld\n", ready_ms);
   }
   printf("\n");
-  printf("%-4s %-34s %s\n", "No.", "Title", "Path");
-  printf("%-4s %-34s %s\n", "---", "-----", "----");
+  printf("%-4s %-3s %-34s %s\n", "No.", "Fav", "Title", "Path");
+  printf("%-4s %-3s %-34s %s\n", "---", "---", "-----", "----");
 
   for (i = 0; i < count; i++) {
     if (limit > 0 && shown >= limit) {
       continue;
     }
     shown++;
-    printf("%3zu. %-34s %s\n", shown, entries[i].title, entries[i].relative_path);
+    printf("%3zu. %-3s %-34s %s\n", shown,
+           favorites && find_favorite(favorites, system_id, entries[i].relative_path) >= 0 ? "*"
+                                                                                          : "",
+           entries[i].title, entries[i].relative_path);
   }
   if (count == 0) {
     printf("(このsystemには表示できるROMがありません。)\n");
   } else if (limit > 0 && count > shown) {
     printf("... %zu more\n", count - shown);
   }
+}
+
+static void print_favorites(const struct favorite_state *favorites, size_t limit,
+                            const char *path) {
+  size_t i;
+  size_t shown = 0;
+
+  printf("plumOS text UI - Favorites\n");
+  printf("source: %s\n", path);
+  printf("count: %zu\n", favorites->count);
+  printf("\n");
+  printf("%-4s %-12s %-34s %s\n", "No.", "System", "Title", "Path");
+  printf("%-4s %-12s %-34s %s\n", "---", "------", "-----", "----");
+
+  for (i = 0; i < favorites->count; i++) {
+    if (limit > 0 && shown >= limit) {
+      continue;
+    }
+    shown++;
+    printf("%3zu. %-12s %-34s %s\n", shown, favorites->entries[i].system_id,
+           favorites->entries[i].title, favorites->entries[i].relative_path);
+  }
+  if (favorites->count == 0) {
+    printf("(favorite はまだありません。)\n");
+  } else if (limit > 0 && favorites->count > shown) {
+    printf("... %zu more\n", favorites->count - shown);
+  }
+}
+
+static void print_favorite_result(const char *action, const char *system_id,
+                                  const struct rom_entry *rom,
+                                  const struct favorite_state *favorites,
+                                  const char *path) {
+  int idx = find_favorite(favorites, system_id, rom->relative_path);
+
+  printf("plumOS text UI - favorite\n");
+  printf("action: %s\n", action);
+  printf("system: %s\n", system_id);
+  printf("rom: %s\n", rom->relative_path);
+  printf("title: %s\n", rom->title);
+  printf("source: %s\n", path);
+  printf("favorite: %s\n", idx >= 0 ? "yes" : "no");
+  printf("count: %zu\n", favorites->count);
 }
 
 static void print_menu(const char *menu_id, const struct menu_entry *entries, size_t count,
@@ -1453,6 +1681,9 @@ static void usage(const char *argv0) {
   printf("  %s menu start|apps [--limit N]\n", argv0);
   printf("  %s core system SYSTEM [--set PROFILE|--clear]\n", argv0);
   printf("  %s core rom SYSTEM RELATIVE_PATH [--set PROFILE|--clear] [--no-scan]\n", argv0);
+  printf("  %s favorites [--limit N]\n", argv0);
+  printf("  %s favorite rom SYSTEM RELATIVE_PATH [--toggle|--set|--clear] [--no-scan]\n",
+         argv0);
   printf("\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
@@ -1470,6 +1701,7 @@ int main(int argc, char **argv) {
   char menus_path[PATH_MAX];
   char apps_path[PATH_MAX];
   char core_overrides_path[PATH_MAX];
+  char favorites_path[PATH_MAX];
   const char *cmd;
   size_t limit = 0;
   int i;
@@ -1503,6 +1735,11 @@ int main(int argc, char **argv) {
   if (!join_path(core_overrides_path, sizeof(core_overrides_path), plumos_root,
                  "state/frontend/core-overrides.json")) {
     fprintf(stderr, "error: core-overrides path is too long\n");
+    return 1;
+  }
+  if (!join_path(favorites_path, sizeof(favorites_path), plumos_root,
+                 "state/frontend/favorites.json")) {
+    fprintf(stderr, "error: favorites path is too long\n");
     return 1;
   }
 
@@ -1555,6 +1792,7 @@ int main(int argc, char **argv) {
 
   if (strcmp(cmd, "roms") == 0) {
     struct rom_entry *entries;
+    struct favorite_state favorites;
     const char *system_id;
     size_t count = 0;
     long ready_ms = -1;
@@ -1607,8 +1845,163 @@ int main(int argc, char **argv) {
       free(entries);
       return 1;
     }
-    print_roms(system_id, entries, count, limit, system_cache_path, ready_ms);
+    if (!load_favorites(favorites_path, &favorites)) {
+      fprintf(stderr, "error: cannot read favorites: %s\n", favorites_path);
+      free(entries);
+      return 1;
+    }
+    print_roms(system_id, entries, count, &favorites, limit, system_cache_path, ready_ms);
     free(entries);
+    return 0;
+  }
+
+  if (strcmp(cmd, "favorites") == 0) {
+    struct favorite_state favorites;
+    const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
+
+    limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 50;
+    for (i = 2; i < argc; i++) {
+      if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
+        limit = (size_t)strtoul(argv[++i], NULL, 10);
+      } else {
+        fprintf(stderr, "error: unknown favorites option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+
+    if (!load_favorites(favorites_path, &favorites)) {
+      fprintf(stderr, "error: cannot read favorites: %s\n", favorites_path);
+      return 1;
+    }
+    print_favorites(&favorites, limit, favorites_path);
+    return 0;
+  }
+
+  if (strcmp(cmd, "favorite") == 0 || strcmp(cmd, "fav") == 0) {
+    const char *scope;
+    const char *system_id;
+    const char *rom_relative_path;
+    const char *action = "toggle";
+    struct favorite_state favorites;
+    struct rom_entry *entries;
+    struct rom_entry selected_rom;
+    size_t count = 0;
+    long ready_ms = -1;
+    int scan = 1;
+    int action_seen = 0;
+    int rom_idx;
+    int was_favorite;
+
+    if (argc < 5) {
+      fprintf(stderr, "error: favorite requires rom SYSTEM RELATIVE_PATH\n");
+      usage(argv[0]);
+      return 2;
+    }
+    scope = argv[2];
+    if (strcmp(scope, "rom") != 0) {
+      fprintf(stderr, "error: favorite currently supports only rom scope\n");
+      usage(argv[0]);
+      return 2;
+    }
+    system_id = argv[3];
+    rom_relative_path = argv[4];
+    if (!valid_system_id(system_id)) {
+      fprintf(stderr, "error: invalid system id: %s\n", system_id);
+      return 2;
+    }
+    if (!valid_relative_rom_path(rom_relative_path)) {
+      fprintf(stderr, "error: invalid ROM relative path: %s\n", rom_relative_path);
+      return 2;
+    }
+
+    for (i = 5; i < argc; i++) {
+      if (strcmp(argv[i], "--toggle") == 0) {
+        if (action_seen) {
+          fprintf(stderr, "error: use only one favorite action\n");
+          return 2;
+        }
+        action_seen = 1;
+        action = "toggle";
+      } else if (strcmp(argv[i], "--set") == 0) {
+        if (action_seen) {
+          fprintf(stderr, "error: use only one favorite action\n");
+          return 2;
+        }
+        action_seen = 1;
+        action = "set";
+      } else if (strcmp(argv[i], "--clear") == 0) {
+        if (action_seen) {
+          fprintf(stderr, "error: use only one favorite action\n");
+          return 2;
+        }
+        action_seen = 1;
+        action = "clear";
+      } else if (strcmp(argv[i], "--no-scan") == 0) {
+        scan = 0;
+      } else {
+        fprintf(stderr, "error: unknown favorite option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+
+    if (!build_system_cache_path(system_cache_path, sizeof(system_cache_path), plumos_root,
+                                 system_id)) {
+      fprintf(stderr, "error: system cache path is too long\n");
+      return 1;
+    }
+    if ((scan || !file_exists(system_cache_path)) &&
+        !run_scanner(plumos_root, sdcard_root, system_id, 0)) {
+      return 1;
+    }
+
+    entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
+    if (!entries) {
+      fprintf(stderr, "error: out of memory\n");
+      return 1;
+    }
+    if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
+                          &ready_ms)) {
+      fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
+      free(entries);
+      return 1;
+    }
+    (void)ready_ms;
+    rom_idx = find_rom_by_relative_path(entries, count, rom_relative_path);
+    if (rom_idx < 0) {
+      fprintf(stderr, "error: ROM is not in scan cache for %s: %s\n", system_id,
+              rom_relative_path);
+      free(entries);
+      return 2;
+    }
+    selected_rom = entries[rom_idx];
+    free(entries);
+
+    if (!load_favorites(favorites_path, &favorites)) {
+      fprintf(stderr, "error: cannot read favorites: %s\n", favorites_path);
+      return 1;
+    }
+    was_favorite = find_favorite(&favorites, system_id, rom_relative_path) >= 0;
+
+    if (strcmp(action, "set") == 0 || (strcmp(action, "toggle") == 0 && !was_favorite)) {
+      if (!set_favorite_from_rom(&favorites, system_id, &selected_rom)) {
+        fprintf(stderr, "error: cannot set favorite\n");
+        return 1;
+      }
+    } else if (strcmp(action, "clear") == 0 ||
+               (strcmp(action, "toggle") == 0 && was_favorite)) {
+      if (!clear_favorite(&favorites, system_id, rom_relative_path)) {
+        fprintf(stderr, "error: cannot clear favorite\n");
+        return 1;
+      }
+    }
+
+    if (!save_favorites(favorites_path, &favorites)) {
+      fprintf(stderr, "error: cannot write favorites: %s\n", favorites_path);
+      return 1;
+    }
+    print_favorite_result(action, system_id, &selected_rom, &favorites, favorites_path);
     return 0;
   }
 
