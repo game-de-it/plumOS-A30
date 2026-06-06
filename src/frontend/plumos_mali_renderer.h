@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <time.h>
 #include <unistd.h>
 
 typedef int EGLint;
@@ -803,6 +804,114 @@ static void plumos_mali_text(struct plumos_mali_renderer *renderer, const char *
   }
 }
 
+static int plumos_mali_text_width(const char *text, int scale) {
+  return text ? (int)strlen(text) * 6 * scale : 0;
+}
+
+static int plumos_mali_read_first_line(const char *path, char *out, size_t out_size) {
+  FILE *f;
+  size_t len;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  f = fopen(path, "r");
+  if (!f) {
+    return 0;
+  }
+  if (!fgets(out, (int)out_size, f)) {
+    fclose(f);
+    out[0] = '\0';
+    return 0;
+  }
+  fclose(f);
+  len = strlen(out);
+  while (len > 0 && (out[len - 1] == '\n' || out[len - 1] == '\r' || out[len - 1] == ' ')) {
+    out[--len] = '\0';
+  }
+  return out[0] != '\0';
+}
+
+static void plumos_mali_time_label(char *out, size_t out_size) {
+  time_t now;
+  struct tm tm_now;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  now = time(NULL);
+  if (now == (time_t)-1 || !localtime_r(&now, &tm_now) ||
+      strftime(out, out_size, "%H:%M", &tm_now) == 0) {
+    snprintf(out, out_size, "--:--");
+  }
+}
+
+static void plumos_mali_wifi_label(char *out, size_t out_size) {
+  FILE *f;
+  char line[256];
+  int linked = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  f = fopen("/proc/net/wireless", "r");
+  if (f) {
+    while (fgets(line, sizeof(line), f)) {
+      unsigned int status = 0;
+      float quality = 0.0f;
+      if (sscanf(line, " wlan0: %x %f", &status, &quality) == 2 && quality > 0.0f) {
+        linked = 1;
+        break;
+      }
+    }
+    fclose(f);
+  }
+  snprintf(out, out_size, "%s", linked ? "WIFI" : "NO WIFI");
+}
+
+static void plumos_mali_battery_label(char *out, size_t out_size) {
+  char capacity[32];
+  char status[32];
+  const char *prefix = "BAT";
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  if (!plumos_mali_read_first_line("/sys/class/power_supply/battery/capacity",
+                                   capacity, sizeof(capacity))) {
+    snprintf(out, out_size, "BAT --");
+    return;
+  }
+  if (plumos_mali_read_first_line("/sys/class/power_supply/battery/status",
+                                  status, sizeof(status)) &&
+      (strcmp(status, "Charging") == 0 || strcmp(status, "Full") == 0)) {
+    prefix = "CHG";
+  }
+  snprintf(out, out_size, "%s %.3s", prefix, capacity);
+}
+
+static void plumos_mali_draw_status_bar(struct plumos_mali_renderer *renderer) {
+  char time_label[16];
+  char wifi_label[16];
+  char battery_label[24];
+  float margin = 14.0f;
+  int scale = 2;
+  int battery_width;
+
+  plumos_mali_time_label(time_label, sizeof(time_label));
+  plumos_mali_wifi_label(wifi_label, sizeof(wifi_label));
+  plumos_mali_battery_label(battery_label, sizeof(battery_label));
+
+  plumos_mali_text(renderer, time_label, margin, 10.0f, scale, 0.76f, 0.92f, 0.92f, 1.0f);
+  plumos_mali_text(renderer, wifi_label, (float)(renderer->width / 2 - 36), 10.0f, scale,
+                   0.76f, 0.92f, 0.92f, 1.0f);
+  battery_width = plumos_mali_text_width(battery_label, scale);
+  plumos_mali_text(renderer, battery_label,
+                   (float)(renderer->width - 14 - battery_width), 10.0f, scale,
+                   0.76f, 0.92f, 0.92f, 1.0f);
+}
+
 static int plumos_mali_starts_with(const char *s, const char *prefix) {
   return s && prefix && strncmp(s, prefix, strlen(prefix)) == 0;
 }
@@ -889,7 +998,7 @@ static void plumos_mali_make_title(const char *line, char *out, size_t out_size)
   out[0] = '\0';
   screen = line ? strstr(line, " - ") : NULL;
   if (screen && screen[3]) {
-    snprintf(out, out_size, "plumOS %s", screen + 3);
+    snprintf(out, out_size, "%s", screen + 3);
   } else if (line && line[0]) {
     snprintf(out, out_size, "%.40s", line);
   } else {
@@ -1019,27 +1128,6 @@ static void plumos_mali_make_meta(const char *line, char *out, size_t out_size) 
   plumos_mali_truncate(out, 38);
 }
 
-static void plumos_mali_hints_for_title(const char *title, const char **hint_a,
-                                        const char **hint_b) {
-  if (strstr(title, "SAFE")) {
-    *hint_a = "A Preview  B Cancel  Fn Close";
-    *hint_b = "Up/Down Move        Q Quit";
-  } else if (strstr(title, "START")) {
-    *hint_a = "A Open    B Back    Up/Down";
-    *hint_b = "Right Open          Q Quit";
-  } else if (strstr(title, "SETTINGS")) {
-    *hint_a = "A Preview B Back    Up/Down";
-    *hint_b = "Start Menu          Q Quit";
-  } else if (strstr(title, "ROMS") || strstr(title, "FAVORITES") ||
-             strstr(title, "RECENT")) {
-    *hint_a = "A Preview B Back    Start Menu";
-    *hint_b = "Select Core Fn Safe Q Quit";
-  } else {
-    *hint_a = "A Open    B Back    Start Menu";
-    *hint_b = "Select Core Fn Safe Q Quit";
-  }
-}
-
 static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
                                     const char lines[][160], size_t line_count) {
   size_t i;
@@ -1048,8 +1136,6 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
   char status[160];
   char entries[18][160];
   size_t entry_count = 0;
-  const char *hint_a;
-  const char *hint_b;
   float margin = 14.0f;
   float y;
   float line_height = 28.0f;
@@ -1094,21 +1180,17 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
       entry_count++;
     }
   }
-  plumos_mali_hints_for_title(title, &hint_a, &hint_b);
 
-  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 68.0f,
+  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 36.0f,
                    0.020f, 0.055f, 0.060f, 1.0f);
-  plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
-                   0.95f, 0.55f, 0.12f, 1.0f);
-  plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 58.0f,
-                   (float)renderer->width, 58.0f, 0.020f, 0.038f, 0.042f, 1.0f);
+  plumos_mali_draw_status_bar(renderer);
 
-  plumos_mali_text(renderer, title, margin, 13.0f, 3, 0.78f, 0.98f, 0.94f, 1.0f);
+  plumos_mali_text(renderer, title, margin, 50.0f, 2, 0.78f, 0.98f, 0.94f, 1.0f);
   if (meta[0]) {
-    plumos_mali_text(renderer, meta, margin, 44.0f, 2, 0.58f, 0.76f, 0.78f, 1.0f);
+    plumos_mali_text(renderer, meta, margin, 74.0f, 2, 0.58f, 0.76f, 0.78f, 1.0f);
   }
 
-  y = 86.0f;
+  y = meta[0] ? 106.0f : 82.0f;
   for (i = 0; i < entry_count; i++) {
     const char *line = entries[i];
     float r = 0.82f;
@@ -1123,21 +1205,14 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
     }
     plumos_mali_text(renderer, line, margin, y, 2, r, g, b, 1.0f);
     y += line_height;
-    if (y > (float)renderer->height - 105.0f) {
+    if (y > (float)renderer->height - 18.0f) {
       break;
     }
   }
   if (entry_count == 0) {
     plumos_mali_text(renderer, "No entries", margin, y, 2, 0.72f, 0.78f, 0.76f, 1.0f);
   }
-  if (status[0]) {
-    plumos_mali_text(renderer, status, margin, (float)renderer->height - 84.0f, 2,
-                     0.56f, 0.80f, 0.96f, 1.0f);
-  }
-  plumos_mali_text(renderer, hint_a, margin, (float)renderer->height - 48.0f, 2,
-                   0.72f, 0.84f, 0.86f, 1.0f);
-  plumos_mali_text(renderer, hint_b, margin, (float)renderer->height - 26.0f, 2,
-                   0.72f, 0.84f, 0.86f, 1.0f);
+  (void)status;
   renderer->gl.Finish();
   return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
 }

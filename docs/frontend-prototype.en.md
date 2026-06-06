@@ -418,7 +418,9 @@ separate from plumOS frontend settings and theme state. It reads volume,
 brightness, display color, Wi-Fi enabled flag, keymap, language, stock theme,
 and CPU mode from `/config/system.json`, plus redacted Wi-Fi runtime status from
 `/tmp/wpa_status.txt`. It does not read SSID or PSK. Write-enabled controls are
-deferred until backend validation is complete.
+deferred until backend validation is complete. In the Mali renderer, the first
+Settings row is `HELP`, which opens the controls help screen. Normal screens do
+not keep persistent bottom control hints.
 
 Example check:
 

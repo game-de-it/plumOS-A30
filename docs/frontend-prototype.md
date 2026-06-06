@@ -398,7 +398,8 @@ read-only inventory も表示します。現在は `/config/system.json` から 
 brightness、display color、Wi-Fi enabled flag、keymap、language、stock theme、
 CPU mode を読み、`/tmp/wpa_status.txt` から redacted Wi-Fi runtime status だけを
 読みます。SSID/PSK は読みません。write-enabled controls は backend 検証後に別途
-実装します。
+実装します。Mali renderer では Settings 先頭の `HELP` から操作説明画面へ入ります。
+通常画面の下部には常時操作説明を出しません。
 
 確認例:
 

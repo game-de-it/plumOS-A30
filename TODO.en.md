@@ -172,6 +172,9 @@
   `MainUI.stock`, and `keymon` stopped.
 - [x] Review TOP/ROM/START/Settings/SAFE through `/dev/fb0` captures and shorten
   the Mali START menu rows to reduce right-edge truncation.
+- [x] Make the Mali renderer closer to stock MainUI: top status bar only shows
+  time/Wi-Fi/Battery, bottom control hints are removed, and Settings has a
+  `HELP` item.
 - [ ] Visually inspect `plumos-controller-ui-mali` on the device screen and tune
   text readability, spacing, colors, and selection display.
 - [ ] Have the user visually confirm the physical screen orientation for

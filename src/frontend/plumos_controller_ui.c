@@ -265,7 +265,8 @@ enum ui_screen {
   SCREEN_FAVORITES = 3,
   SCREEN_RECENT = 4,
   SCREEN_SETTINGS = 5,
-  SCREEN_SAFE_MENU = 6
+  SCREEN_SAFE_MENU = 6,
+  SCREEN_HELP = 7
 };
 
 enum ui_action {
@@ -1137,6 +1138,7 @@ static int load_settings_entries(struct ui_state *ui) {
     return 0;
   }
   load_theme_state(ui, settings.theme_id);
+  add_setting_entry(ui, "help", "HELP", "controls");
   add_setting_entry(ui, "ui_mode", "UI Mode", settings.ui_mode);
   add_setting_entry(ui, "top_mode", "TOP Mode", settings.top_mode);
   add_setting_entry(ui, "rom_mode", "ROM Mode", settings.rom_mode);
@@ -1710,6 +1712,25 @@ static void render_safe_menu(struct ui_state *ui) {
   }
 }
 
+static void render_help(struct ui_state *ui) {
+  ui_printf(ui, "plumOS controller UI - HELP\n");
+  ui_printf(ui, "B/LEFT: back  Q: quit\n");
+  ui_printf(ui, "entries=9 cursor=0\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, "1. Up / Down: Move cursor\n");
+  ui_printf(ui, "2. A / Right: Open or preview\n");
+  ui_printf(ui, "3. B / Left: Back\n");
+  ui_printf(ui, "4. START: Open START menu\n");
+  ui_printf(ui, "5. SELECT: Core menu\n");
+  ui_printf(ui, "6. Function: SAFE menu\n");
+  ui_printf(ui, "7. Settings HELP: This screen\n");
+  ui_printf(ui, "8. Network: Run Wi-Fi and SSH rescue\n");
+  ui_printf(ui, "9. Q: Quit from SSH text input only\n");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_network_rescue(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - NETWORK\n");
   ui_printf(ui, "A: start Wi-Fi and SSH  Q: quit\n");
@@ -1736,6 +1757,8 @@ static void render_ui(struct ui_state *ui) {
     render_settings(ui);
   } else if (ui->screen == SCREEN_SAFE_MENU) {
     render_safe_menu(ui);
+  } else if (ui->screen == SCREEN_HELP) {
+    render_help(ui);
   } else {
     render_top(ui);
   }
@@ -1828,6 +1851,11 @@ static void open_settings_screen(struct ui_state *ui) {
   }
 }
 
+static void open_help_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_HELP;
+  set_status(ui, "help ready");
+}
+
 static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) {
   copy_string(ui->current_system_id, sizeof(ui->current_system_id), entry->id);
   copy_string(ui->current_system_name, sizeof(ui->current_system_name), entry->display_name);
@@ -1888,6 +1916,10 @@ static int run_network_rescue(struct ui_state *ui) {
 static int is_network_setting_entry(const struct setting_entry *entry) {
   return entry && (strcmp(entry->id, "a30_wifi_config") == 0 ||
                    strcmp(entry->id, "a30_wifi_runtime") == 0);
+}
+
+static int is_help_setting_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "help") == 0;
 }
 
 static void handle_action(struct ui_state *ui, enum ui_action action) {
@@ -2055,8 +2087,25 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         run_network_rescue(ui);
         return;
       }
+      if (is_help_setting_entry(entry)) {
+        open_help_screen(ui);
+        return;
+      }
       snprintf(msg, sizeof(msg), "settings edit preview: %s=%s", entry->id, entry->value);
       set_status(ui, msg);
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
+      return;
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_HELP) {
+    if (action == ACTION_B || action == ACTION_LEFT) {
+      ui->screen = SCREEN_SETTINGS;
+      set_status(ui, "back to Settings");
       return;
     }
     if (action == ACTION_START) {
