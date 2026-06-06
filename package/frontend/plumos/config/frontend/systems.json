@@ -1,0 +1,965 @@
+{
+  "version": 1,
+  "systems": [
+    {
+      "id": "nes",
+      "display_name": "NES",
+      "short_name": "NES",
+      "sort_order": 10,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "FC", "source": "miyoo", "priority": 10, "shared": true },
+        { "name": "nes", "source": "rocknix", "priority": 20 },
+        { "name": "famicom", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["nes", "unf", "unif", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/nes" },
+          { "root": "sdcard", "path": "Imgs/FC" },
+          { "root": "sdcard", "path": "images/nes" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
+      "default_launch_profile": "retroarch:fceumm"
+    },
+    {
+      "id": "fds",
+      "display_name": "FDS",
+      "short_name": "FDS",
+      "sort_order": 20,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "FDS", "source": "miyoo", "priority": 10 },
+        { "name": "FC", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "fds", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["fds", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/fds" },
+          { "root": "sdcard", "path": "Imgs/FDS" },
+          { "root": "sdcard", "path": "Imgs/FC" },
+          { "root": "sdcard", "path": "images/fds" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
+      "default_launch_profile": "retroarch:fceumm"
+    },
+    {
+      "id": "sfc",
+      "display_name": "SFC",
+      "short_name": "SFC",
+      "sort_order": 30,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SFC", "source": "miyoo", "priority": 10 },
+        { "name": "sfc", "source": "rocknix", "priority": 20 },
+        { "name": "snes", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/sfc" },
+          { "root": "sdcard", "path": "Imgs/SFC" },
+          { "root": "sdcard", "path": "images/sfc" },
+          { "root": "sdcard", "path": "images/snes" }
+        ]
+      },
+      "launch_profiles": ["retroarch:snes9x2005_plus", "retroarch:snes9x"],
+      "default_launch_profile": "retroarch:snes9x2005_plus"
+    },
+    {
+      "id": "gb",
+      "display_name": "GB",
+      "short_name": "GB",
+      "sort_order": 40,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "GB", "source": "miyoo", "priority": 10, "shared": true },
+        { "name": "gb", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["gb", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/gb" },
+          { "root": "sdcard", "path": "Imgs/GB" },
+          { "root": "sdcard", "path": "images/gb" }
+        ]
+      },
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
+      "default_launch_profile": "retroarch:gambatte"
+    },
+    {
+      "id": "gbc",
+      "display_name": "GBC",
+      "short_name": "GBC",
+      "sort_order": 50,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "GBC", "source": "miyoo", "priority": 10 },
+        { "name": "GB", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "gbc", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["gbc", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/gbc" },
+          { "root": "sdcard", "path": "Imgs/GBC" },
+          { "root": "sdcard", "path": "Imgs/GB" },
+          { "root": "sdcard", "path": "images/gbc" }
+        ]
+      },
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
+      "default_launch_profile": "retroarch:gambatte"
+    },
+    {
+      "id": "gba",
+      "display_name": "GBA",
+      "short_name": "GBA",
+      "sort_order": 60,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "GBA", "source": "miyoo", "priority": 10 },
+        { "name": "gba", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["gba", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/gba" },
+          { "root": "sdcard", "path": "Imgs/GBA" },
+          { "root": "sdcard", "path": "images/gba" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
+      "default_launch_profile": "retroarch:mgba"
+    },
+    {
+      "id": "megadrive",
+      "display_name": "Mega Drive",
+      "short_name": "MD",
+      "sort_order": 70,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "MD", "source": "miyoo", "priority": 10, "shared": true },
+        { "name": "megadrive", "source": "rocknix", "priority": 20 },
+        { "name": "genesis", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["gen", "md", "smd", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/megadrive" },
+          { "root": "sdcard", "path": "Imgs/MD" },
+          { "root": "sdcard", "path": "images/megadrive" },
+          { "root": "sdcard", "path": "images/genesis" }
+        ]
+      },
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "default_launch_profile": "retroarch:genesis_plus_gx"
+    },
+    {
+      "id": "mastersystem",
+      "display_name": "Master System",
+      "short_name": "MS",
+      "sort_order": 80,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "MS", "source": "miyoo", "priority": 10 },
+        { "name": "MD", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "mastersystem", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["sms", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/mastersystem" },
+          { "root": "sdcard", "path": "Imgs/MS" },
+          { "root": "sdcard", "path": "images/mastersystem" }
+        ]
+      },
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "default_launch_profile": "retroarch:genesis_plus_gx"
+    },
+    {
+      "id": "gamegear",
+      "display_name": "Game Gear",
+      "short_name": "GG",
+      "sort_order": 90,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "GG", "source": "miyoo", "priority": 10 },
+        { "name": "GameGear", "source": "miyoo", "priority": 20 },
+        { "name": "MD", "source": "miyoo", "priority": 30, "shared": true },
+        { "name": "gamegear", "source": "rocknix", "priority": 40 }
+      ],
+      "extensions": ["gg", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/gamegear" },
+          { "root": "sdcard", "path": "Imgs/GG" },
+          { "root": "sdcard", "path": "Imgs/GameGear" },
+          { "root": "sdcard", "path": "images/gamegear" }
+        ]
+      },
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "default_launch_profile": "retroarch:genesis_plus_gx"
+    },
+    {
+      "id": "sega32x",
+      "display_name": "32X",
+      "short_name": "32X",
+      "sort_order": 100,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "THIRTYTWOX", "source": "miyoo", "priority": 10 },
+        { "name": "MD", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "sega32x", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["32x", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/sega32x" },
+          { "root": "sdcard", "path": "Imgs/THIRTYTWOX" },
+          { "root": "sdcard", "path": "images/sega32x" }
+        ]
+      },
+      "launch_profiles": ["retroarch:picodrive"],
+      "default_launch_profile": "retroarch:picodrive"
+    },
+    {
+      "id": "segacd",
+      "display_name": "Sega CD",
+      "short_name": "SCD",
+      "sort_order": 110,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SEGACD", "source": "miyoo", "priority": 10 },
+        { "name": "segacd", "source": "rocknix", "priority": 20 },
+        { "name": "megacd", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["cue", "chd", "iso", "m3u", "bin"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/segacd" },
+          { "root": "sdcard", "path": "Imgs/SEGACD" },
+          { "root": "sdcard", "path": "images/segacd" },
+          { "root": "sdcard", "path": "images/megacd" }
+        ]
+      },
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "default_launch_profile": "retroarch:genesis_plus_gx"
+    },
+    {
+      "id": "pcengine",
+      "display_name": "PC Engine",
+      "short_name": "PCE",
+      "sort_order": 120,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PCE", "source": "miyoo", "priority": 10 },
+        { "name": "pcengine", "source": "rocknix", "priority": 20 },
+        { "name": "tg16", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["pce", "sgx", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/pcengine" },
+          { "root": "sdcard", "path": "Imgs/PCE" },
+          { "root": "sdcard", "path": "images/pcengine" },
+          { "root": "sdcard", "path": "images/tg16" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
+      "default_launch_profile": "retroarch:mednafen_pce_fast"
+    },
+    {
+      "id": "pcenginecd",
+      "display_name": "PC Engine CD",
+      "short_name": "PCECD",
+      "sort_order": 130,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PCECD", "source": "miyoo", "priority": 10 },
+        { "name": "pcenginecd", "source": "rocknix", "priority": 20 },
+        { "name": "tg16cd", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["cue", "chd", "iso", "m3u"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/pcenginecd" },
+          { "root": "sdcard", "path": "Imgs/PCECD" },
+          { "root": "sdcard", "path": "images/pcenginecd" },
+          { "root": "sdcard", "path": "images/tg16cd" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
+      "default_launch_profile": "retroarch:mednafen_pce_fast"
+    },
+    {
+      "id": "psx",
+      "display_name": "PlayStation",
+      "short_name": "PSX",
+      "sort_order": 140,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PS", "source": "miyoo", "priority": 10 },
+        { "name": "PSX", "source": "miyoo", "priority": 20 },
+        { "name": "psx", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["cue", "chd", "pbp", "m3u", "iso", "img", "bin"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/psx" },
+          { "root": "sdcard", "path": "Imgs/PS" },
+          { "root": "sdcard", "path": "Imgs/PSX" },
+          { "root": "sdcard", "path": "images/psx" }
+        ]
+      },
+      "launch_profiles": ["retroarch:pcsx_rearmed"],
+      "default_launch_profile": "retroarch:pcsx_rearmed"
+    },
+    {
+      "id": "psp",
+      "display_name": "PSP",
+      "short_name": "PSP",
+      "sort_order": 150,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PSP", "source": "miyoo", "priority": 10 },
+        { "name": "PPSSPP", "source": "miyoo", "priority": 20 },
+        { "name": "psp", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["iso", "cso", "pbp"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/psp" },
+          { "root": "sdcard", "path": "Imgs/PSP" },
+          { "root": "sdcard", "path": "Imgs/PPSSPP" },
+          { "root": "sdcard", "path": "images/psp" }
+        ]
+      },
+      "launch_profiles": ["retroarch:ppsspp"],
+      "default_launch_profile": "retroarch:ppsspp"
+    },
+    {
+      "id": "n64",
+      "display_name": "N64",
+      "short_name": "N64",
+      "sort_order": 160,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "N64", "source": "miyoo", "priority": 10 },
+        { "name": "n64", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["z64", "n64", "v64", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/n64" },
+          { "root": "sdcard", "path": "Imgs/N64" },
+          { "root": "sdcard", "path": "images/n64" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mupen64plus_next", "retroarch:parallel_n64"],
+      "default_launch_profile": "retroarch:mupen64plus_next"
+    },
+    {
+      "id": "dreamcast",
+      "display_name": "Dreamcast",
+      "short_name": "DC",
+      "sort_order": 170,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "DC", "source": "miyoo", "priority": 10 },
+        { "name": "dreamcast", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["chd", "cdi", "gdi", "m3u"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/dreamcast" },
+          { "root": "sdcard", "path": "Imgs/DC" },
+          { "root": "sdcard", "path": "images/dreamcast" }
+        ]
+      },
+      "launch_profiles": ["retroarch:flycast"],
+      "default_launch_profile": "retroarch:flycast"
+    },
+    {
+      "id": "saturn",
+      "display_name": "Saturn",
+      "short_name": "SAT",
+      "sort_order": 180,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SATURN", "source": "miyoo", "priority": 10 },
+        { "name": "saturn", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["cue", "chd", "iso", "m3u", "bin"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/saturn" },
+          { "root": "sdcard", "path": "Imgs/SATURN" },
+          { "root": "sdcard", "path": "images/saturn" }
+        ]
+      },
+      "launch_profiles": ["retroarch:yabasanshiro", "retroarch:beetle_saturn"],
+      "default_launch_profile": "retroarch:yabasanshiro"
+    },
+    {
+      "id": "neogeo",
+      "display_name": "Neo Geo",
+      "short_name": "NEOGEO",
+      "sort_order": 190,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "NEOGEO", "source": "miyoo", "priority": 10 },
+        { "name": "neogeo", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/neogeo" },
+          { "root": "sdcard", "path": "Imgs/NEOGEO" },
+          { "root": "sdcard", "path": "images/neogeo" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus"],
+      "default_launch_profile": "retroarch:fbneo"
+    },
+    {
+      "id": "ngp",
+      "display_name": "NGP",
+      "short_name": "NGP",
+      "sort_order": 200,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "NGP", "source": "miyoo", "priority": 10 },
+        { "name": "ngp", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["ngp", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/ngp" },
+          { "root": "sdcard", "path": "Imgs/NGP" },
+          { "root": "sdcard", "path": "images/ngp" }
+        ]
+      },
+      "launch_profiles": ["retroarch:race"],
+      "default_launch_profile": "retroarch:race"
+    },
+    {
+      "id": "ngpc",
+      "display_name": "NGPC",
+      "short_name": "NGPC",
+      "sort_order": 210,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "NGPC", "source": "miyoo", "priority": 10 },
+        { "name": "NGP", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "ngpc", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["ngc", "ngpc", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/ngpc" },
+          { "root": "sdcard", "path": "Imgs/NGPC" },
+          { "root": "sdcard", "path": "Imgs/NGP" },
+          { "root": "sdcard", "path": "images/ngpc" }
+        ]
+      },
+      "launch_profiles": ["retroarch:race"],
+      "default_launch_profile": "retroarch:race"
+    },
+    {
+      "id": "wonderswan",
+      "display_name": "WonderSwan",
+      "short_name": "WS",
+      "sort_order": 220,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "WS", "source": "miyoo", "priority": 10 },
+        { "name": "WSC", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "wonderswan", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["ws", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/wonderswan" },
+          { "root": "sdcard", "path": "Imgs/WS" },
+          { "root": "sdcard", "path": "images/wonderswan" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_wswan"],
+      "default_launch_profile": "retroarch:mednafen_wswan"
+    },
+    {
+      "id": "wonderswancolor",
+      "display_name": "WonderSwan Color",
+      "short_name": "WSC",
+      "sort_order": 230,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "WSC", "source": "miyoo", "priority": 10 },
+        { "name": "wonderswancolor", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["wsc", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/wonderswancolor" },
+          { "root": "sdcard", "path": "Imgs/WSC" },
+          { "root": "sdcard", "path": "images/wonderswancolor" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_wswan"],
+      "default_launch_profile": "retroarch:mednafen_wswan"
+    },
+    {
+      "id": "arcade",
+      "display_name": "Arcade",
+      "short_name": "Arcade",
+      "sort_order": 240,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "ARCADE", "source": "miyoo", "priority": 10, "shared": true },
+        { "name": "arcade", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/arcade" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/arcade" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo"],
+      "default_launch_profile": "retroarch:mame2003_plus"
+    },
+    {
+      "id": "fbneo",
+      "display_name": "FBNeo",
+      "short_name": "FBNeo",
+      "sort_order": 250,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "FBNEO", "source": "miyoo", "priority": 10 },
+        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "fbneo", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/fbneo" },
+          { "root": "sdcard", "path": "Imgs/FBNEO" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/fbneo" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fbneo"],
+      "default_launch_profile": "retroarch:fbneo"
+    },
+    {
+      "id": "mame2003plus",
+      "display_name": "MAME 2003+",
+      "short_name": "MAME",
+      "sort_order": 260,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "MAME2003PLUS", "source": "miyoo", "priority": 10 },
+        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "mame", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/mame2003plus" },
+          { "root": "sdcard", "path": "Imgs/MAME2003PLUS" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/mame" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mame2003_plus"],
+      "default_launch_profile": "retroarch:mame2003_plus"
+    },
+    {
+      "id": "cps1",
+      "display_name": "CPS1",
+      "short_name": "CPS1",
+      "sort_order": 270,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "CPS1", "source": "miyoo", "priority": 10 },
+        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "cps1", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/cps1" },
+          { "root": "sdcard", "path": "Imgs/CPS1" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/cps1" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps1"],
+      "default_launch_profile": "retroarch:fbneo"
+    },
+    {
+      "id": "cps2",
+      "display_name": "CPS2",
+      "short_name": "CPS2",
+      "sort_order": 280,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "CPS2", "source": "miyoo", "priority": 10 },
+        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "cps2", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/cps2" },
+          { "root": "sdcard", "path": "Imgs/CPS2" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/cps2" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps2"],
+      "default_launch_profile": "retroarch:fbneo"
+    },
+    {
+      "id": "cps3",
+      "display_name": "CPS3",
+      "short_name": "CPS3",
+      "sort_order": 290,
+      "hardware": "arcade",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "CPS3", "source": "miyoo", "priority": 10 },
+        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "cps3", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/cps3" },
+          { "root": "sdcard", "path": "Imgs/CPS3" },
+          { "root": "sdcard", "path": "Imgs/ARCADE" },
+          { "root": "sdcard", "path": "images/cps3" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fbneo"],
+      "default_launch_profile": "retroarch:fbneo"
+    },
+    {
+      "id": "dos",
+      "display_name": "DOS",
+      "short_name": "DOS",
+      "sort_order": 300,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "DOS", "source": "miyoo", "priority": 10 },
+        { "name": "pc", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["dosz", "conf", "exe", "bat", "zip"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/dos" },
+          { "root": "sdcard", "path": "Imgs/DOS" },
+          { "root": "sdcard", "path": "images/pc" }
+        ]
+      },
+      "launch_profiles": ["retroarch:dosbox_pure"],
+      "default_launch_profile": "retroarch:dosbox_pure"
+    },
+    {
+      "id": "easyrpg",
+      "display_name": "EasyRPG",
+      "short_name": "EasyRPG",
+      "sort_order": 310,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "EASYRPG", "source": "miyoo", "priority": 10 },
+        { "name": "easyrpg", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["easyrpg", "ldb", "zip"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/easyrpg" },
+          { "root": "sdcard", "path": "Imgs/EASYRPG" },
+          { "root": "sdcard", "path": "images/easyrpg" }
+        ]
+      },
+      "launch_profiles": ["retroarch:easyrpg"],
+      "default_launch_profile": "retroarch:easyrpg"
+    },
+    {
+      "id": "pico8",
+      "display_name": "PICO-8",
+      "short_name": "PICO-8",
+      "sort_order": 320,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PICO8", "source": "miyoo", "priority": 10 },
+        { "name": "PICO", "source": "miyoo", "priority": 20 },
+        { "name": "pico-8", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["p8", "png"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/pico8" },
+          { "root": "sdcard", "path": "Imgs/PICO8" },
+          { "root": "sdcard", "path": "Imgs/PICO" },
+          { "root": "sdcard", "path": "images/pico-8" }
+        ]
+      },
+      "launch_profiles": ["retroarch:fake08"],
+      "default_launch_profile": "retroarch:fake08"
+    },
+    {
+      "id": "scummvm",
+      "display_name": "ScummVM",
+      "short_name": "ScummVM",
+      "sort_order": 330,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SCUMMVM", "source": "miyoo", "priority": 10 },
+        { "name": "scummvm", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["scummvm", "svm"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/scummvm" },
+          { "root": "sdcard", "path": "Imgs/SCUMMVM" },
+          { "root": "sdcard", "path": "images/scummvm" }
+        ]
+      },
+      "launch_profiles": ["retroarch:scummvm"],
+      "default_launch_profile": "retroarch:scummvm"
+    },
+    {
+      "id": "openbor",
+      "display_name": "OpenBOR",
+      "short_name": "OpenBOR",
+      "sort_order": 340,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "OPENBOR", "source": "miyoo", "priority": 10 },
+        { "name": "openbor", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["pak"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/openbor" },
+          { "root": "sdcard", "path": "Imgs/OPENBOR" },
+          { "root": "sdcard", "path": "images/openbor" }
+        ]
+      },
+      "launch_profiles": ["external:openbor"],
+      "default_launch_profile": "external:openbor"
+    },
+    {
+      "id": "ports",
+      "display_name": "Ports",
+      "short_name": "Ports",
+      "sort_order": 350,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PORTS", "source": "miyoo", "priority": 10 },
+        { "name": "A30PORTS", "source": "miyoo", "priority": 20 },
+        { "name": "ports", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["sh"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/ports" },
+          { "root": "sdcard", "path": "Imgs/PORTS" },
+          { "root": "sdcard", "path": "images/ports" }
+        ]
+      },
+      "launch_profiles": ["external:port"],
+      "default_launch_profile": "external:port"
+    },
+    {
+      "id": "msx",
+      "display_name": "MSX",
+      "short_name": "MSX",
+      "sort_order": 360,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "MSX", "source": "miyoo", "priority": 10 },
+        { "name": "msx", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["rom", "mx1", "mx2", "dsk", "cas", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/msx" },
+          { "root": "sdcard", "path": "Imgs/MSX" },
+          { "root": "sdcard", "path": "images/msx" }
+        ]
+      },
+      "launch_profiles": ["retroarch:bluemsx", "retroarch:fmsx"],
+      "default_launch_profile": "retroarch:bluemsx"
+    },
+    {
+      "id": "pc88",
+      "display_name": "PC-88",
+      "short_name": "PC88",
+      "sort_order": 370,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PC88", "source": "miyoo", "priority": 10 },
+        { "name": "pc-8800", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["d88", "u88", "m3u", "zip"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/pc88" },
+          { "root": "sdcard", "path": "Imgs/PC88" },
+          { "root": "sdcard", "path": "images/pc-8800" }
+        ]
+      },
+      "launch_profiles": ["retroarch:quasi88"],
+      "default_launch_profile": "retroarch:quasi88"
+    },
+    {
+      "id": "pc98",
+      "display_name": "PC-98",
+      "short_name": "PC98",
+      "sort_order": 380,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "PC98", "source": "miyoo", "priority": 10 },
+        { "name": "pc-9800", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["d88", "fdi", "hdi", "fdd", "nhd", "hdd", "m3u", "zip"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/pc98" },
+          { "root": "sdcard", "path": "Imgs/PC98" },
+          { "root": "sdcard", "path": "images/pc-9800" }
+        ]
+      },
+      "launch_profiles": ["retroarch:np2kai"],
+      "default_launch_profile": "retroarch:np2kai"
+    },
+    {
+      "id": "x68000",
+      "display_name": "X68000",
+      "short_name": "X68000",
+      "sort_order": 390,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "X68000", "source": "miyoo", "priority": 10 },
+        { "name": "x68000", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["dim", "hdf", "xdf", "m3u", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/x68000" },
+          { "root": "sdcard", "path": "Imgs/X68000" },
+          { "root": "sdcard", "path": "images/x68000" }
+        ]
+      },
+      "launch_profiles": ["retroarch:px68k"],
+      "default_launch_profile": "retroarch:px68k"
+    },
+    {
+      "id": "tic80",
+      "display_name": "TIC-80",
+      "short_name": "TIC-80",
+      "sort_order": 400,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "TIC", "source": "miyoo", "priority": 10 },
+        { "name": "tic-80", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["tic"],
+      "artwork": {
+        "lookup": [
+          { "root": "plumos", "path": "media/tic80" },
+          { "root": "sdcard", "path": "Imgs/TIC" },
+          { "root": "sdcard", "path": "images/tic-80" }
+        ]
+      },
+      "launch_profiles": ["retroarch:tic80"],
+      "default_launch_profile": "retroarch:tic80"
+    }
+  ]
+}

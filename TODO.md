@@ -75,8 +75,8 @@
 ## Phase 6 - Frontend Implementation
 
 - [x] plumOS frontend 独自の system/app/theme data model を設計する。
-- [ ] `systems.json` の初期 seed を作る。
-- [ ] Miyoo/ROCKNIX directory alias を使った ROM scan prototype を作る。
+- [x] `systems.json` の初期 seed を作る。
+- [x] Miyoo/ROCKNIX directory alias を使った ROM scan prototype を作る。
 - [ ] 機種選択時に対象 system だけ ROM directory を再 scan する prototype を作る。
 - [ ] 1000 dummy ROM files で text mode 初回表示時間を計測する。
 - [ ] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
@@ -91,8 +91,8 @@
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
-- [ ] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
-- [ ] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
+- [x] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
+- [x] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
 - [ ] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
 - [ ] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
 - [ ] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。

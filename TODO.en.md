@@ -82,8 +82,8 @@
 ## Phase 6 - Frontend Implementation
 
 - [x] Design a plumOS-native system/app/theme data model.
-- [ ] Create the initial `systems.json` seed.
-- [ ] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
+- [x] Create the initial `systems.json` seed.
+- [x] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
 - [ ] Build an on-enter per-system ROM directory re-scan prototype.
 - [ ] Measure first text-mode display time with 1000 dummy ROM files.
 - [ ] Implement a START menu UI model for settings/apps/reboot/shutdown.
@@ -105,9 +105,9 @@
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.
-- [ ] Implement thumbnail lookup that preserves paths relative to the ROM alias
+- [x] Implement thumbnail lookup that preserves paths relative to the ROM alias
   root.
-- [ ] Implement thumbnail lookup with subdirectory priority, flat fallback, and
+- [x] Implement thumbnail lookup with subdirectory priority, flat fallback, and
   placeholder fallback.
 - [ ] Design a plumOS theme model that separates theme, layout preset, and
   frontend behavior.

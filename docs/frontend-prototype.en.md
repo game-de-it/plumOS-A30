@@ -19,6 +19,8 @@ Outputs:
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -40,6 +42,49 @@ exits with `75` so the wrapper falls back to stock MainUI.
 Normal mode suppresses stdout and writes details to
 `/mnt/SDCARD/plumos/logs/plumos-frontend.log`. Set `PLUMOS_FRONTEND_STDOUT=1`
 to also print to stdout.
+
+## plumOS Library Scan
+
+`plumos-library-scan` is a prototype that reads the plumOS-native
+`systems.json`, scans ROMs through Miyoo/ROCKNIX directory aliases, and writes
+`library-index.json`.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-library-scan'
+```
+
+Default paths:
+
+```text
+systems: /mnt/SDCARD/plumos/config/frontend/systems.json
+output:  /mnt/SDCARD/plumos/state/frontend/library-index.json
+roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
+```
+
+Pass `--system nes` to scan only one system. The future on-enter per-system
+scan flow will use this behavior.
+
+Environment:
+
+- `PLUMOS_SDCARD_ROOT`: SD card root. Default: `/mnt/SDCARD`
+- `PLUMOS_ROOT`: plumOS root. Default: `$PLUMOS_SDCARD_ROOT/plumos`
+- `PLUMOS_SYSTEMS_JSON`: system definition file
+- `PLUMOS_LIBRARY_INDEX`: generated cache file
+
+Implemented:
+
+- Initial `systems.json` seed.
+- Miyoo uppercase aliases and ROCKNIX lowercase alias scanning.
+- Recursive ROM scan including subdirectories.
+- ROM extension filtering.
+- `RomEntry` generation.
+- Thumbnail lookup that preserves paths relative to the ROM alias root.
+- Subdirectory artwork priority, flat artwork fallback, and placeholder
+  fallback.
+- Case-insensitive lookup for `png`, `jpg`, `jpeg`, and `webp`.
+- Duplicate scan suppression for case variants such as `Roms`/`roms` and
+  `GBA`/`gba`.
 
 ## Current Inputs
 

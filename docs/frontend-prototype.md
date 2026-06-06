@@ -19,6 +19,8 @@ stock SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.j
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/bin/plumos-library-scan
+dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -39,6 +41,46 @@ manual mode は `0` で終了します。wrapper から起動される通常 mod
 stock MainUI へ fallback するために `75` で終了します。
 通常 mode は stdout を抑制し、詳細は `/mnt/SDCARD/plumos/logs/plumos-frontend.log`
 へ記録します。必要な場合は `PLUMOS_FRONTEND_STDOUT=1` で stdout へも出力します。
+
+## plumOS library scan
+
+`plumos-library-scan` は plumOS 独自の `systems.json` を読み、Miyoo/ROCKNIX directory
+alias を使って ROM を scan し、`library-index.json` を生成する prototype です。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-library-scan'
+```
+
+default path:
+
+```text
+systems: /mnt/SDCARD/plumos/config/frontend/systems.json
+output:  /mnt/SDCARD/plumos/state/frontend/library-index.json
+roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
+```
+
+`--system nes` のように指定すると、対象 system だけを scan できます。今後の
+「機種選択時に対象 system だけ再 scan」する実装はこの動作を使います。
+
+環境変数:
+
+- `PLUMOS_SDCARD_ROOT`: SD card root。default は `/mnt/SDCARD`
+- `PLUMOS_ROOT`: plumOS root。default は `$PLUMOS_SDCARD_ROOT/plumos`
+- `PLUMOS_SYSTEMS_JSON`: system 定義 file
+- `PLUMOS_LIBRARY_INDEX`: 出力先 cache file
+
+実装済み:
+
+- `systems.json` の初期 seed
+- Miyoo 大文字 alias と ROCKNIX lowercase alias の scan
+- subdirectory を含む recursive ROM scan
+- ROM extension filter
+- `RomEntry` 生成
+- ROM alias root からの相対 path を保持した thumbnail lookup
+- subdirectory artwork 優先、flat artwork fallback、placeholder fallback
+- `png`, `jpg`, `jpeg`, `webp` の case-insensitive lookup
+- `Roms` と `roms`、`GBA` と `gba` のような大文字小文字違いの重複 scan 抑制
 
 ## 現在読む情報
 
