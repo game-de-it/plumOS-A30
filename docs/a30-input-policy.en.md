@@ -103,7 +103,7 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 | Left stick axes | - | - | - | not exposed through kernel input yet |
-| Left stick click | - | - | - | unconfirmed |
+| Left stick click | - | - | - | not observed via kernel input/serial frame |
 
 Notes:
 
@@ -177,6 +177,35 @@ axisYR min=14 max=245 avg=121.45
 axisXR min=15 max=232 avg=121.65
 ```
 
+Left-stick click check:
+
+```text
+plumos-input-compare --all-events, 8s/12s while pressing:
+events=0 key_events=0 abs_events=0
+
+plumos-serial-joy-probe --timeout-ms 5000 --frames-only while pressing:
+frames=333
+axisYL min=116 max=119 avg=117.25
+axisXL min=102 max=107 avg=104.82
+axisYR min=124 max=124 avg=124.00
+axisXR min=127 max=127 avg=127.00
+```
+
+Click setting storage check:
+
+- StockOS `/config/joypad.config` only contains six fields: `x_min`, `x_max`,
+  `y_min`, `y_max`, `x_zero`, and `y_zero`.
+- StockOS `/config/system.json` has a normal-button `keymap`, but no observed
+  left-stick-click entry.
+- Stock `MainUI` strings include `JoypadCalibration`, `JoypadTest`,
+  `/config/joypad.config`, and the six X/Y calibration keys, but no observed
+  field for saving a stick click.
+- Stock `keymon` strings include `BTN_THUMBL`/`BTN_THUMBR`, but this is likely
+  from a generic Linux input key-name table and is weak evidence for actual
+  hardware events or saved settings.
+- spruceOS `run_analog_stick_calibration` also writes only X/Y min/max/center
+  values to `joypad.config`; it does not sample or save a click.
+
 Current inference:
 
 - The left stick axes are probably not kernel input events. A userland daemon
@@ -190,8 +219,10 @@ Current inference:
 - Calibration saves raw min/max/center values to `/config/joypad.config`.
 - Because plumOS should not reuse stock/spruce binaries directly, a later step
   should design `plumos-joystickd` around the `/dev/ttyS0` raw-data path.
-- Left stick click remains unconfirmed and needs a separate short button
-  capture.
+- The left-stick click does not appear in normal kernel input events or in the
+  `/dev/ttyS0` 6-byte serial frame. It also does not appear in observed
+  stockOS/spruceOS settings, so initial plumOS treats it as
+  unconnected/unsupported.
 
 ## Policy
 
@@ -204,6 +235,8 @@ Current inference:
   power key.
 - Revisit whether to keep or stop `keymon` when plumOS becomes the regular
   boot frontend.
+- Do not include the left-stick click in the initial mapping. Revisit only if
+  new evidence appears.
 
 Current recommendation: keep `keymon`, but let the plumOS frontend read input
 events directly.

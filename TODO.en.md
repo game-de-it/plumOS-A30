@@ -139,7 +139,11 @@
   `plumos-input-compare --all-events`.
 - [x] Add `EV_ABS` output to `plumos-input-compare` and check whether the left
   stick is exposed as kernel input.
-- [ ] Confirm the left stick click button code with a short capture.
+- [x] Check the left-stick click with `plumos-input-compare --all-events` and
+  `/dev/ttyS0` serial frames; record that it does not appear in normal kernel
+  input or the 6-byte serial frame.
+- [x] Based on stockOS/spruceOS calibration storage and hardware event results,
+  treat the left-stick click as unconnected/unsupported in initial plumOS.
 - [x] Inspect the spruceOS A30 implementation and confirm that `joystickinput`
   uses `/dev/ttyS2` raw serial data plus `/config/joypad.config`.
 - [x] Add `plumos-serial-joy-probe` for checking raw `/dev/ttyS*` data.
@@ -155,6 +159,12 @@
   raw frames into virtual `/dev/uinput` `ABS_X`/`ABS_Y` events.
 - [x] Validate that the `plumos-joystickd` virtual input device appears on the
   A30 as `js0`/`event4`.
+- [x] Add `plumos-joystick-reader` so the virtual input from
+  `plumos-joystickd` can be monitored through the Linux joystick API and evdev.
+- [x] Run `plumos-joystick-reader` on the A30 and confirm that `js0`/`event4`
+  can be read through the Linux joystick API and evdev.
+- [x] Remove the provisional `BTN_THUMBL` from the `plumos-joystickd` virtual
+  device because the left-stick click is treated as unsupported.
 - [ ] Check whether RetroArch/SDL can see the `plumos-joystickd` virtual input
   device.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows

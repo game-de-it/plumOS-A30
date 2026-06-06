@@ -110,7 +110,8 @@
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
 - [x] `plumos-input-compare` で `EV_ABS` を表示し、左スティックが kernel input に露出するか確認する。
-- [ ] 左スティック押し込み button code を短時間 capture で確定する。
+- [x] 左スティック押し込みを `plumos-input-compare --all-events` と `/dev/ttyS0` serial frame で確認し、通常 kernel input/6-byte serial frame には出ないことを記録する。
+- [x] stockOS/spruceOS の calibration 保存内容と実機 event 結果から、左スティック押し込みは初期 plumOS では未接続/未対応として扱う。
 - [x] spruceOS の A30 実装を参照し、`joystickinput` が `/dev/ttyS2` raw serial と `/config/joypad.config` を使う構成を確認する。
 - [x] `/dev/ttyS*` raw data 確認用の `plumos-serial-joy-probe` を追加する。
 - [x] A30 実機では `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe` frame が出ることを確認する。
@@ -119,6 +120,9 @@
 - [x] `/config/joypad.config` と `/dev/ttyS0` raw serial 経路を使う plumOS 用 `plumos-joystickd` の最小設計を記録する。
 - [x] `/dev/ttyS0` raw frame を `/dev/uinput` の virtual `ABS_X`/`ABS_Y` に変換する `plumos-joystickd` 最小実装を追加する。
 - [x] `plumos-joystickd` の virtual input device が A30 実機で `js0`/`event4` として作成されることを確認する。
+- [x] `plumos-joystick-reader` を追加し、Linux joystick API と evdev で `plumos-joystickd` の virtual input を監視できるようにする。
+- [x] `plumos-joystick-reader` を A30 実機で動かし、Linux joystick API と evdev から `js0`/`event4` を読めるか確認する。
+- [x] 左スティック押し込み未対応方針に合わせ、`plumos-joystickd` の virtual device から仮の `BTN_THUMBL` を外す。
 - [ ] `plumos-joystickd` の virtual input device が RetroArch/SDL から見えるか検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。

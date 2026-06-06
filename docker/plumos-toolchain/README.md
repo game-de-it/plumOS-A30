@@ -131,6 +131,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 ```text
 dist/plumos-joystickd/plumos/bin/plumos-joystickd
+dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 

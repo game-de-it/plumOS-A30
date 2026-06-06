@@ -100,7 +100,7 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 | 左スティック軸 | - | - | - | kernel input には未露出 |
-| 左スティック押し込み | - | - | - | 未確定 |
+| 左スティック押し込み | - | - | - | kernel input/serial frame では未観測 |
 
 注意:
 
@@ -172,6 +172,34 @@ axisYR min=14 max=245 avg=121.45
 axisXR min=15 max=232 avg=121.65
 ```
 
+左スティック押し込みの確認:
+
+```text
+plumos-input-compare --all-events, 8s/12s while pressing:
+events=0 key_events=0 abs_events=0
+
+plumos-serial-joy-probe --timeout-ms 5000 --frames-only while pressing:
+frames=333
+axisYL min=116 max=119 avg=117.25
+axisXL min=102 max=107 avg=104.82
+axisYR min=124 max=124 avg=124.00
+axisXR min=127 max=127 avg=127.00
+```
+
+押し込み設定保存の確認:
+
+- stockOS の `/config/joypad.config` は `x_min`, `x_max`, `y_min`, `y_max`,
+  `x_zero`, `y_zero` の6項目のみ
+- stockOS の `/config/system.json` は通常ボタン向けの `keymap` を持つが、
+  左スティック押し込み用の項目は見当たらない
+- stock `MainUI` の文字列には `JoypadCalibration`, `JoypadTest`,
+  `/config/joypad.config`, `x_min`/`x_max`/`y_min`/`y_max`/`x_zero`/`y_zero`
+  があるが、押し込みを保存する項目は見当たらない
+- stock `keymon` の文字列には `BTN_THUMBL`/`BTN_THUMBR` があるが、Linux input の
+  汎用 key name table 由来の可能性が高く、実機 event や保存項目の証拠としては弱い
+- spruceOS の `run_analog_stick_calibration` も X/Y 軸の min/max/center だけを
+  `joypad.config` へ書き、押し込みは sample/save していない
+
 現時点の推定:
 
 - 左スティック軸は kernel input event ではなく、serial raw data を userland daemon が
@@ -184,7 +212,9 @@ axisXR min=15 max=232 avg=121.65
 - calibration は raw 値の min/max/center を `/config/joypad.config` に保存する
 - plumOS では stock/spruce の binary を流用せず、`/dev/ttyS0` の raw data を読む
   `plumos-joystickd` を後続で設計する
-- 左スティック押し込みは今回まだ確定できていないため、別途短時間の button capture を行う
+- 左スティック押し込みは通常の kernel input event と `/dev/ttyS0` の6バイト serial frame
+  には出ていない。stockOS/spruceOS の設定保存にも押し込み項目が見当たらないため、
+  初期 plumOS では未接続/未対応として扱う
 
 ## 方針
 
@@ -194,5 +224,6 @@ axisXR min=15 max=232 avg=121.65
 - 電源ボタン以外の button code/action mapping は実機で確定済み
 - safe shutdown/resume menu は電源キーではなく Function button から開く案を第一候補にする
 - plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
+- 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
 
 現時点の推奨は「`keymon` は残すが、plumOS frontend は直接 input event を読む」です。

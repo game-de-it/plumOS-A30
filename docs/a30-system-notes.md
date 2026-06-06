@@ -159,6 +159,13 @@ backend 候補:
   joystick frame を確認した
 - `plumos-joystickd` の最小実装で `/dev/uinput` から `plumOS A30 Analog Stick`
   (`js0`/`event4`) を作成できることを確認した
+- `plumos-joystick-reader` で、`plumos-joystickd` が作る `js0`/`event4` を
+  Linux joystick API と evdev の両方から読めることを確認した
+- 左スティック押し込みは通常の kernel input event と `/dev/ttyS0` の6バイト
+  serial frame では観測できなかった
+- stockOS/spruceOS の analog stick calibration 保存内容は X/Y 軸の
+  min/max/center のみで、押し込み設定は見当たらない。初期 plumOS では
+  左スティック押し込みを未接続/未対応として扱う
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

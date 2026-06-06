@@ -139,6 +139,13 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   frames in the form `ff b1 b2 b3 b4 fe`.
 - The minimal `plumos-joystickd` implementation can create a
   `plumOS A30 Analog Stick` (`js0`/`event4`) device through `/dev/uinput`.
+- `plumos-joystick-reader` confirmed that the `js0`/`event4` device created by
+  `plumos-joystickd` can be read through both the Linux joystick API and evdev.
+- The left-stick click was not observed through normal kernel input events or
+  the `/dev/ttyS0` 6-byte serial frame.
+- Observed stockOS/spruceOS analog-stick calibration storage only contains X/Y
+  axis min/max/center values, with no stick-click setting. Initial plumOS treats
+  the left-stick click as unconnected/unsupported.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

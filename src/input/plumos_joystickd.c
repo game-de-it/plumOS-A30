@@ -28,12 +28,10 @@
 
 #ifndef PLUMOS_HAS_UINPUT
 #define EV_SYN 0x00
-#define EV_KEY 0x01
 #define EV_ABS 0x03
 #define SYN_REPORT 0
 #define ABS_X 0
 #define ABS_Y 1
-#define BTN_THUMBL 317
 struct input_event {
   struct timeval time;
   unsigned short type;
@@ -44,10 +42,6 @@ struct input_event {
 
 #ifndef BUS_USB
 #define BUS_USB 0x03
-#endif
-
-#ifndef BTN_THUMBL
-#define BTN_THUMBL 317
 #endif
 
 #define DEFAULT_SERIAL_PATH "/dev/ttyS0"
@@ -385,9 +379,7 @@ static int create_uinput_device(const char *path) {
     printf("uinput path=%s open=no errno=%d %s\n", path, errno, strerror(errno));
     return -1;
   }
-  if (ioctl(fd, UI_SET_EVBIT, EV_KEY) != 0 ||
-      ioctl(fd, UI_SET_KEYBIT, BTN_THUMBL) != 0 ||
-      ioctl(fd, UI_SET_EVBIT, EV_ABS) != 0 ||
+  if (ioctl(fd, UI_SET_EVBIT, EV_ABS) != 0 ||
       ioctl(fd, UI_SET_ABSBIT, ABS_X) != 0 ||
       ioctl(fd, UI_SET_ABSBIT, ABS_Y) != 0) {
     printf("uinput path=%s setup=no errno=%d %s\n", path, errno, strerror(errno));
@@ -421,7 +413,8 @@ static int create_uinput_device(const char *path) {
     return -1;
   }
   usleep(100000);
-  printf("uinput path=%s create=yes name=\"plumOS A30 Analog Stick\"\n", path);
+  printf("uinput path=%s create=yes name=\"plumOS A30 Analog Stick\" buttons=none axes=ABS_X,ABS_Y\n",
+         path);
   return fd;
 }
 
