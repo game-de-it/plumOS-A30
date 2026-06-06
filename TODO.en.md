@@ -282,7 +282,8 @@
 ## Phase 7 - RetroArch and Core Runtime
 
 - [x] Create an emulator/core/standalone build-target inventory for plumOS based
-  on stockOS `Emu`, `RApp`, and installed cores.
+  on stockOS `Emu`, `RApp`, and installed cores, then classify targets into
+  Class A/B/C by expected A30 playability.
 - [ ] Check the latest stable RetroArch release at build time and build/test it
   for the A30 armv7 hard-float environment.
 - [ ] Place RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.

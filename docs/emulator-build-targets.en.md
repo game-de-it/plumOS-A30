@@ -2,23 +2,29 @@
 
 This document inventories emulator, libretro core, and standalone runtime build
 targets for plumOS using Miyoo A30 stockOS `/mnt/SDCARD/Emu`,
-`/mnt/SDCARD/RApp`, and `/mnt/SDCARD/RetroArch/.retroarch/cores` as input.
+`/mnt/SDCARD/RApp`, and `/mnt/SDCARD/RetroArch/.retroarch/cores` as discovery
+input, then reclassifies them by expected A30 playability.
 
-This is not a table of stockOS versions to adopt. plumOS should start from the
-upstream latest stable release available at build time. Only compare against
-stockOS versions, patches, or build options when hardware testing shows a
-regression, incompatibility, or A30-specific problem.
+This is not a table of stockOS categories or versions to adopt. The plumOS FE
+should not use stock MainUI "categories" as its design axis. Instead, it should
+model systems/ROM sets and let SELECT choose a core/emulator launch profile.
+
+plumOS should start from the upstream latest stable release available at build
+time. Only compare against stockOS versions, patches, or build options when
+hardware testing shows a regression, incompatibility, or A30-specific problem.
 
 Inventory date: 2026-06-07
 
 ## Policy
 
-- Treat `Emu/*` as the stock MainUI primary categories.
-- Treat `RApp/*` as extra categories or alternate cores.
-- Treat `RApp/backups/*` and cores merely present under RetroArch as later
-  optional targets.
-- Prefer standalone PPSSPP for PSP; keep libretro PPSSPP as an alternate target.
-- Treat FFPlay as a media player, not part of the emulator core pack.
+- Use stock `Emu/*`, `RApp/*`, and installed cores only as discovery sources.
+- Classify plumOS support by system plus launch profile, not by stock category.
+- Exclude systems that are unlikely to be satisfying on the A30, even if stockOS
+  ships an entry for them.
+- Do not reject every CD-based system. PS1, PC Engine CD, Mega CD, and Neo Geo
+  CD remain realistic candidates.
+- Treat PSP as limited/experimental at first, not as full-system support.
+- Treat FFPlay as a media player, outside the emulator pack.
 - Use stock `launch.sh` files as inventory only. They should not become the
   official plumOS launch profile format.
 
@@ -28,98 +34,97 @@ Inventory date: 2026-06-07
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | Build for A30 armv7 hard-float. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. Validate the A30 Mali/fbdev real-display path separately. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. Prefer upstream latest stable. |
-| PPSSPP standalone | `/mnt/SDCARD/plumos/emulators/ppsspp/` | Primary PSP target. Needs duplicate-input/serial contention checks with resident `plumos-joystickd`. |
+| standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Use for PPSSPP and engines where standalone is better than libretro. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
 Note: the plumOS-bundled SDL3+sdl2-compat runtime does not provide an A30 real
 screen video backend. RetroArch display output cannot simply assume generic SDL2
 video; fbdev/Mali EGL or another A30-capable path must be validated.
 
-## Tier 1: stock `Emu` categories
+## Class A: initial build targets
 
-Use this table as the first plumOS emulator/core build baseline.
+These are expected to be satisfying on the A30 and should be included in the
+initial plumOS emulator/core build plan.
 
-| stock category | ROM dir | stock launch/core | plumOS build target | priority note |
-| --- | --- | --- | --- | --- |
-| ARCADE | `Roms/ARCADE` | `fbneo`, `fbalpha2012`, `mame2003_xtreme`, `mame` | `fbneo`, `fbalpha2012`, `mame2003-plus`, optional current `mame` | Start with `fbneo`. Current MAME is likely heavy and should wait. |
-| Shoot | `Roms/Shoot` | `fbalpha2012`, `fbneo`, `mame2003_xtreme` | `fbneo`, `fbalpha2012`, `mame2003-plus` | Same arcade group as ARCADE. |
-| MAME2003PLUS | `Roms/MAME2003Plus` | `mame2003_xtreme` | `mame2003-plus` | Treat the stock `xtreme` fork as a comparison point only when needed. |
-| NEOGEO | `Roms/NEOGEO` | `fbneo` | `fbneo` | Also validate BIOS and gamelist compatibility. |
-| DC | `Roms/DC` | `flycast` | `flycast` | High-load 3D target. Test after video/input/audio basics are stable. |
-| FC | `Roms/FC` | `fceumm`, `nestopia` | `fceumm`, `nestopia` | Good early smoke-test target. |
-| GB/GBC | `Roms/GB` | `gambatte`, `mgba` | `gambatte`, `mgba` | `gambatte` first; `mgba` as accuracy/shared fallback. |
-| GBA | `Roms/GBA` | `gpsp`, `mgba` | `gpsp`, `mgba` | `gpsp` for performance, `mgba` as accuracy fallback. Rumble profiles can wait. |
-| MD/SMS/GG/SG/32X | `Roms/MD`, `Roms/MS` | `genesis_plus_gx`, `picodrive` | `genesis_plus_gx`, `picodrive` | Cover Mega Drive, Master System, Game Gear, SG-1000, 32X, and Mega CD profiles. |
-| N64 | `Roms/N64` | `mupen64plus`, `parallel_n64` | `mupen64plus-next`, optional `parallel-n64` | High-load 3D target; be strict on performance. |
-| NGP | `Roms/NGP` | `mednafen_ngp` | `mednafen_ngp` | Low-load target. |
-| PCE | `Roms/PCE` | `mednafen_pce_fast` | `mednafen_pce_fast` | Check PCE CD / SuperGrafx as extra profiles. |
-| PSP | `Roms/PSP` | standalone `PPSSPPSDL`, `ppsspp_xtreme_libretro` | PPSSPP standalone, optional `ppsspp_libretro` | Standalone first. Input daemon contention needs testing. |
-| PS1 | `Roms/PS` | `pcsx_rearmed` | `pcsx_rearmed` | Decide BIOS/profile/save paths early. |
-| SFC/SNES | `Roms/SFC` | `mednafen_supafaust`, `snes9x` | `mednafen_supafaust`, `snes9x`, optional `snes9x2005-plus` | Stock default is supafaust. Choose default after performance testing. |
-| WSC | `Roms/WSC` | `mednafen_wswan` | `mednafen_wswan` | Low-load target. |
-| FFPlay | `Video` | `ffplay` | optional FFmpeg/FFPlay | Media player, not emulator pack. |
+| system / ROM family | launch profile candidates | stock discovery | note |
+| --- | --- | --- | --- |
+| FC / NES / FDS | `fceumm`, `nestopia`, optional `quicknes` | `Emu/FC`, `RApp/fceumm`, `RApp/nestopia`, backup `quicknes` | Good first smoke test. |
+| GB / GBC | `gambatte`, optional `mgba` | `Emu/GB`, `RApp/gambatte`, backup `gambatte_color` | Low load. |
+| GBA | `gpsp`, `mgba`, optional `vba_next` | `Emu/GBA`, `RApp/gpsp`, `RApp/mgba`, backup `vba_next` | `gpsp` for performance, `mgba` for accuracy fallback. |
+| Master System / Game Gear / SG-1000 | `genesis_plus_gx` | `Emu/MS`, `RApp/genesis_plus_gx_gg`, backup `genesis_plus_gx_ms/sg` | Can share Sega profiles. |
+| Mega Drive / Genesis | `genesis_plus_gx`, `picodrive` | `Emu/MD`, `RApp/genesis_plus_gx`, `RApp/picodrive` | Keep 32X/Mega CD as separate profiles. |
+| Mega CD / Sega CD | `genesis_plus_gx`, `picodrive` | `RApp/picodrive`, backup `picodrive_cd` | CD-based but realistic on A30. |
+| 32X | `picodrive` | `Emu/MD`, `RApp/picodrive` | Title-dependent, but worth keeping as a candidate. |
+| SFC / SNES | `snes9x`, `mednafen_supafaust`, optional `snes9x2005-plus` | `Emu/SFC`, `RApp/snes9x`, `RApp/snes9x2018` | Enhancement-chip games need per-title checks. |
+| PC Engine / TurboGrafx-16 | `mednafen_pce_fast` | `Emu/PCE`, `RApp/mednafen_pce_fast` | Low load. |
+| PC Engine CD | `mednafen_pce_fast` | backup `mednafen_pce_cd` | Strong non-PS1 CD candidate. Needs BIOS/CHD/CUE checks. |
+| SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Practical candidate. |
+| Neo Geo cartridge | `fbneo` | `Emu/NEOGEO`, `RApp/fbneo` | Needs BIOS and gamelist compatibility checks. |
+| Neo Geo CD | `neocd` | `RApp/neocd` | CD-based but 2D-focused. Check loading and CDDA. |
+| Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
+| PS1 | `pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Decide BIOS/save/state paths early. |
+| NGP / NGPC | `mednafen_ngp` | `Emu/NGP`, `RApp/mednafen_ngp` | Low load. |
+| WonderSwan / WonderSwan Color | `mednafen_wswan` | `Emu/WSC`, `RApp/mednafen_wswan` | Low load. |
+| Atari Lynx | `mednafen_lynx` or `handy` | backup `mednafen_lynx`, installed `handy` | Not stock top-level, but practical on A30. |
+| Atari 2600 / 7800 | `stella2014`, `prosystem` | installed cores | Low load. |
+| Vectrex / Watara Supervision / Odyssey2 | `vecx`, `potator`, `o2em` | installed cores | Low-load niche systems. |
+| Game & Watch | `gw` | backup `gw` | Low load. |
+| Pokemon Mini | `pokemini` | backup `pokemini` | Low load. |
+| Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
+| PICO-8 carts | `retro8`, optional standalone `fake08` | `RApp/retro8`, installed `fake08` | Active stock launch uses `retro8`; standalone `fake08` is a comparison target. |
+| TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
+| ScummVM | `scummvm` | installed core | Likely low load. Needs mouse/keyboard profiles. |
+| EasyRPG | `easyrpg`, optional standalone EasyRPG Player | `RApp/easyrpg` | Practical candidate. |
+| DOS classics | `dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Needs keyboard profiles. |
+| MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |
 
-## Tier 2: active `RApp` categories
+## Class B: promote after targeted checks
 
-These are active top-level stock `RApp` categories. Add them after Tier 1.
+These may work, but the satisfaction threshold depends on title, profile, or UX.
 
-| stock RApp | ROM dir | stock core | plumOS build target | note |
-| --- | --- | --- | --- | --- |
-| `dos` | `Roms/DOS` | `dosbox_pure` | `dosbox_pure` | DOS support; needs keyboard/input profile work. |
-| `easyrpg` | `Roms/EASYRPG` | `easyrpg` | `easyrpg` libretro or standalone EasyRPG Player | Start with libretro; compare standalone if needed. |
-| `fbahack` | `Roms/FBAHACK` | `fb_32b` | `fbneo`/FBA-family comparison | Stock-specific leaning; dig in only for ROM compatibility needs. |
-| `fbalpha2012_cps1/2/3` | `Roms/ARCADE/cps*` | `fbneo` or `fbalpha2012` | `fbneo`, `fbalpha2012` | Arcade profile split. |
-| `fbalpha2012_neogeo`, `fbneo` | `Roms/NEOGEO`, `Roms/ARCADE` | `fbneo` | `fbneo` | Same core as Tier 1. |
-| `fceumm`, `nestopia` | `Roms/FC` | `fceumm`, `nestopia` | `fceumm`, `nestopia` | FC alternate profiles. |
-| `gambatte` | `Roms/GB` | `gambatte` | `gambatte` | GB/GBC profile. |
-| `genesis_plus_gx`, `genesis_plus_gx_gg` | `Roms/MD`, `Roms/GameGear` | `genesis_plus_gx` | `genesis_plus_gx` | Sega profile split. |
-| `gpsp`, `mgba` | `Roms/GBA` | `gpsp`, `mgba` | `gpsp`, `mgba` | GBA profiles. |
-| `mame2003_plus` | `Roms/MAME2003Plus` | `mame2003_xtreme` | `mame2003-plus` | Compare stock fork only if needed. |
-| `mednafen_ngp` | `Roms/NGP` | `mednafen_ngp` | `mednafen_ngp` | NGP profile. |
-| `mednafen_pce_fast` | `Roms/PCE` | `mednafen_pce_fast` | `mednafen_pce_fast` | PCE profile. |
-| `mednafen_supergrafx` | `Roms/SFC` in stock config | `mednafen_supafaust` | `mednafen_supafaust` | Stock config name is misleading; treat as SFC. |
-| `mednafen_wswan` | `Roms/WSC` | `mednafen_wswan` | `mednafen_wswan` | WSC profile. |
-| `neocd` | `Roms/NEOCD` | `neocd` | `neocd` | Neo Geo CD; needs BIOS validation. |
-| `pcsx_rearmed` | `Roms/PS` | `pcsx_rearmed` | `pcsx_rearmed` | PS1 profile. |
-| `picodrive` | `Roms/MD` | `picodrive` | `picodrive` | 32X/Mega CD fallback. |
-| `prboom` | `Roms/PRBOOM` | `prboom` | `prboom` | Doom/WAD support. |
-| `retro8` | `Roms/PICO` | `retro8` | `retro8`, optional standalone `fake08` | Stock dir also has `FAKE08`, but active launch uses `retro8_libretro.so`. |
-| `snes9x`, `snes9x2018` | `Roms/SFC` | `snes9x`, `snes9x2005_plus` | `snes9x`, optional `snes9x2005-plus` | Performance fallback. |
+| system / ROM family | launch profile candidates | reason |
+| --- | --- | --- |
+| CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
+| SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
+| PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
+| Virtual Boy | `mednafen_vb` | Likely runnable, but screen/UX is special. |
+| lightweight PSP | PPSSPP standalone | Test 2D/light titles only; do not promise PSP as a whole. |
+| old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 
-## Tier 3: backup/installed optional targets
+## Class C: not initial build targets
 
-Stock SD also contains backup configs and installed cores that are not top-level
-active categories. Add these when matching ROM directories exist or when the
-user needs them.
+These are likely below a satisfying A30 experience. Even if stockOS contains an
+entry, do not spend initial plumOS build/test time here unless the user requests
+an experimental target or a known-light title.
 
-| family | candidate targets |
-| --- | --- |
-| MSX | `bluemsx` |
-| Atari / classic | `handy` or `mednafen_lynx`, `prosystem`, `stella2014`, `potator`, `vecx`, `freechaf`, `o2em` |
-| Nintendo extras | `gw`, `pokemini`, `quicknes`, `vba_next`, `mednafen_vb` |
-| NEC computer / console | `np2kai`, `quasi88`, `mednafen_pcfx` |
-| 3DO / Saturn | `opera`, `yabause`, `yabasanshiro`, optional `mednafen_saturn` |
-| Adventure / engines | `scummvm`, `tic80`, `gme` |
-| Other installed cores | `crocods`, `fake08`, `sameduck`, `pocketsnes`, `snes9x2002`, `snes9x2005`, `snes9x2010`, `mame2015`, `mame078plus`, `mame_libretro` |
+| system / ROM family | stock/core hint | reason |
+| --- | --- | --- |
+| Dreamcast | `flycast` | Expected to be too heavy for satisfying play on A30. |
+| Nintendo 64 | `mupen64plus`, `parallel_n64` | A few light titles may run, but broad support is unlikely to satisfy. |
+| Sega Saturn | `yabause`, `yabasanshiro`, `mednafen_saturn` | Too heavy for A30. |
+| 3DO | `opera` | Expected to be too heavy. |
+| PC-FX | `mednafen_pcfx` | Expected to be too heavy. |
+| current MAME / newer 3D arcade | `mame`, `mame2015` | Class A covers older 2D arcade; newer MAME should wait. |
+| heavy PSP | PPSSPP standalone/libretro | PSP as a whole is not a target. Light titles only stay in Class B. |
 
 ## Suggested build order
 
 1. RetroArch runtime skeleton and one low-risk core:
-   `fceumm`, then video/audio/input smoke test.
-2. Low-risk 2D core set:
+   `fceumm`, then A30 video/audio/input smoke test.
+2. Low-risk 2D set:
    `gambatte`, `genesis_plus_gx`, `mednafen_pce_fast`, `mednafen_wswan`,
-   `mednafen_ngp`, `snes9x` or `mednafen_supafaust`.
-3. Common user-facing systems:
-   `pcsx_rearmed`, `gpsp`, `mgba`, `fbneo`, `mame2003-plus`, `fbalpha2012`.
-4. Standalone PSP:
-   PPSSPP standalone with `plumos-joystickd --device-mode xbox`; check whether
-   PPSSPP's extra `/dev/input/event3` and `/dev/ttyS0` opens cause duplicate
-   input or serial contention.
-5. High-load 3D:
-   `flycast`, `mupen64plus-next`, optional `parallel-n64`.
-6. Extra `RApp` and backup targets:
-   `dosbox_pure`, `easyrpg`, `neocd`, `prboom`, `retro8`/`fake08`, then Tier 3
-   as needed.
+   `mednafen_ngp`, `snes9x`, `fbneo`.
+3. Common handheld/console set:
+   `gpsp`, `mgba`, `pcsx_rearmed`, `picodrive`, `mame2003-plus`, `fbalpha2012`.
+4. CD systems that are still realistic:
+   PS1 via `pcsx_rearmed`, PC Engine CD via `mednafen_pce_fast`,
+   Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `neocd`.
+5. Lightweight systems promoted from stock backup/installed cores:
+   `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
+   `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `easyrpg`, `prboom`,
+   `dosbox_pure`, `retro8`/`fake08`.
+6. Conditional checks:
+   CPS3, SNES enhancement-chip titles, PC-88/PC-98, lightweight PSP.
 
 ## Open checks before building everything
 
