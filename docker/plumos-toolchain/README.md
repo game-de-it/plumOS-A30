@@ -32,6 +32,36 @@ dist/docker-smoke/plumos-smoke-armhf.manifest.txt
 この smoke binary は `arm-linux-gnueabihf-gcc` で静的 link します。A30 の stock glibc
 `2.23` に直接依存しない小さな実機確認用 binary として使います。
 
+## plumOS userland build
+
+```sh
+./scripts/docker-build.sh userland
+```
+
+生成物:
+
+```text
+dist/plumos-userland/plumos/bin/busybox
+dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/share/doc/busybox/
+```
+
+BusyBox は公式 `1.38.0` tarball を SHA-256 検証してから build します。SD カードは
+vfat で symlink を扱いにくいため、各 applet は symlink ではなく小さな wrapper script
+として生成します。
+
+転送:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
+```
+
+実行:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
+```
+
 ## shell
 
 ```sh
@@ -59,3 +89,6 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
   追加していきます。
 - 動的 link する binary は A30 の glibc `2.23` より新しい glibc へ依存しないよう、
   別途 sysroot または同梱 runtime を使う必要があります。
+- BusyBox は便利な第一段階ですが、GNU/Linux らしい `ps` や `top` の互換性には限界が
+  あります。Debian に近い操作感は `procps-ng`, `coreutils`, `util-linux` などを
+  plumOS 側へ追加して実現します。

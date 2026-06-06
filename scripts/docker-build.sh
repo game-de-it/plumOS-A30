@@ -13,6 +13,7 @@ Usage: $0 COMMAND [ARGS...]
 Commands:
   image          Build the plumOS toolchain image.
   smoke          Build the armhf smoke binary into dist/docker-smoke.
+  userland       Build the plumOS BusyBox userland into dist/plumos-userland.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
 
@@ -66,6 +67,10 @@ case "$cmd" in
   smoke)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-smoke.sh
+    ;;
+  userland)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-busybox.sh
     ;;
   shell)
     ensure_image

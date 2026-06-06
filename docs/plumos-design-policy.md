@@ -23,6 +23,7 @@
   lib/                  plumOS bundled shared libraries
   libexec/              helper programs
   runtime/              dynamic linker/sysroot pieces if needed
+  gnu/bin/              GNU/procps/util-linux style command wrappers
   frontend/             frontend assets and modules
   retroarch/
     bin/                RetroArch executable
@@ -79,6 +80,7 @@ Docker 化する対象:
 
 - A30 向け sysroot/toolchain
 - SDL/input/audio/video の test binary
+- plumOS userland command package
 - plumOS frontend/helper
 - RetroArch
 - libretro core
@@ -119,6 +121,26 @@ build します。A30 の stock glibc は `2.23` なので、汎用 Linux armhf 
 
 runtime package は Docker build の成果物として作成し、SD カードへ展開したときに
 `/mnt/SDCARD/plumos` 配下だけで動くことを目標にします。
+
+## userland command 方針
+
+A30 stock の BusyBox は option や tar/ps/top まわりに癖があります。開発効率と
+移植性を上げるため、plumOS 側に独自の command set を同梱します。
+
+段階:
+
+1. 静的 link の BusyBox を `/mnt/SDCARD/plumos/bin/busybox` に置く
+2. vfat でも動くよう、applet は symlink ではなく wrapper script として生成する
+3. `plumos-env` で `/mnt/SDCARD/plumos/gnu/bin` と `/mnt/SDCARD/plumos/bin` を
+   stock PATH より前に置く
+4. BusyBox では互換性が足りない command を `procps-ng`, `coreutils`, `util-linux`
+   などの GNU/Linux userland へ置き換える
+
+特に `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`,
+`lsof`, `strace` は優先度の高い command として扱います。
+
+目標は、rootfs を変えずに SD カード上の plumOS だけで Debian に近い操作感を得る
+ことです。
 
 ## RetroArch 方針
 

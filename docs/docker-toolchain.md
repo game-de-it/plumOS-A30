@@ -25,6 +25,20 @@ dist/docker-smoke/plumos-smoke-armhf.sha256
 dist/docker-smoke/plumos-smoke-armhf.manifest.txt
 ```
 
+plumOS 用 userland を build します。
+
+```sh
+./scripts/docker-build.sh userland
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-userland/plumos/bin/busybox
+dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/share/doc/busybox/
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -39,6 +53,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/docker-smoke /mnt/SD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plumos-smoke-armhf
 ```
 
+userland package は SD カード root に展開します。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
+```
+
 log を回収します。
 
 ```sh
@@ -51,5 +72,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 - `build/`, `dist/`, `artifacts/` は生成物として git に入れない
 - 動的 link が必要なものは、A30 向け sysroot または plumOS 同梱 runtime で扱う
 - RetroArch と libretro core は、この build/deploy loop に載せて段階的に増やす
+- stock BusyBox の癖を避けるため、plumOS 側に静的 BusyBox を同梱する
+- Debian に近い操作感は、次段階で `procps-ng`, `coreutils`, `util-linux` などを
+  plumOS 側に追加して実現する
 
 詳細は [plumOS 設計方針](plumos-design-policy.md) も参照してください。

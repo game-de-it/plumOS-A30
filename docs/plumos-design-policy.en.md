@@ -26,6 +26,7 @@ This document records the design direction for plumOS on the Miyoo A30.
   lib/                  plumOS bundled shared libraries
   libexec/              helper programs
   runtime/              dynamic linker/sysroot pieces if needed
+  gnu/bin/              GNU/procps/util-linux style command wrappers
   frontend/             frontend assets and modules
   retroarch/
     bin/                RetroArch executable
@@ -84,6 +85,7 @@ Docker build targets:
 
 - A30 sysroot/toolchain.
 - SDL/input/audio/video test binaries.
+- plumOS userland command package.
 - plumOS frontend/helpers.
 - RetroArch.
 - libretro cores.
@@ -129,6 +131,27 @@ assume generic Linux armhf binaries will work.
 
 The runtime package should be produced by Docker builds and should run from
 `/mnt/SDCARD/plumos` after extraction to the SD card.
+
+## Userland Command Policy
+
+The stock A30 BusyBox has quirks around options and commands such as `tar`,
+`ps`, and `top`. To make development more predictable, plumOS should bundle its
+own command set.
+
+Stages:
+
+1. Put a statically linked BusyBox at `/mnt/SDCARD/plumos/bin/busybox`.
+2. Install applets as wrapper scripts instead of symlinks so they work on vfat.
+3. Use `plumos-env` to put `/mnt/SDCARD/plumos/gnu/bin` and
+   `/mnt/SDCARD/plumos/bin` before the stock PATH.
+4. Replace commands where BusyBox compatibility is not enough with
+   `procps-ng`, `coreutils`, `util-linux`, and similar GNU/Linux userland tools.
+
+High-priority commands include `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`,
+`sed`, `awk`, `ip`, `ss`, `lsof`, and `strace`.
+
+The goal is a Debian-like command experience from the SD-card plumOS runtime
+without changing the rootfs.
 
 ## RetroArch Policy
 

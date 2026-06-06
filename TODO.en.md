@@ -27,6 +27,12 @@
 - [ ] Define the roles of `bin/`, `lib/`, `runtime/`, `frontend/`, `retroarch/`,
   `config/`, `state/`, `cache/`, `logs/`, and `ssh/`.
 - [ ] Add `plumos-env` without depending on stock `/mnt/SDCARD/miyoo/lib`.
+- [x] Build/deploy a static BusyBox for plumOS to avoid stock BusyBox quirks.
+- [x] Install BusyBox applets as wrapper scripts instead of symlinks for vfat.
+- [ ] Add `procps-ng`, `coreutils`, `util-linux`, and similar tools under
+  `plumos/gnu/bin` for a more Debian-like workflow.
+- [ ] Validate compatibility for `ps`, `top`, `df`, `free`, `tar`, `find`,
+  `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, and `strace`.
 - [ ] Validate the bundled dynamic linker/shared library strategy when dynamic
   linking is required.
 - [ ] Run a smoke test on the device using only plumOS runtime paths.

@@ -33,6 +33,36 @@ The smoke binary is statically linked with `arm-linux-gnueabihf-gcc`, so it can
 be used as a small device validation binary without directly depending on the
 stock A30 glibc `2.23`.
 
+## plumOS Userland Build
+
+```sh
+./scripts/docker-build.sh userland
+```
+
+Outputs:
+
+```text
+dist/plumos-userland/plumos/bin/busybox
+dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/share/doc/busybox/
+```
+
+BusyBox is built from the official `1.38.0` tarball after SHA-256 verification.
+Since the SD card is vfat and does not handle symlinks well, applets are
+installed as small wrapper scripts instead of symlinks.
+
+Deploy:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
+```
+
+Run:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
+```
+
 ## Shell
 
 ```sh
@@ -61,3 +91,6 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 - Dynamically linked binaries must avoid depending on a glibc newer than the
   A30 stock glibc `2.23`, either through a dedicated sysroot or a bundled
   runtime.
+- BusyBox is a useful first stage, but it still has limits for GNU/Linux-like
+  `ps` and `top` compatibility. A more Debian-like workflow should add
+  `procps-ng`, `coreutils`, `util-linux`, and similar tools under plumOS.

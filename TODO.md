@@ -27,6 +27,12 @@
 - [ ] `bin/`, `lib/`, `runtime/`, `frontend/`, `retroarch/`, `config/`, `state/`,
   `cache/`, `logs/`, `ssh/` の役割を固定する。
 - [ ] stock `/mnt/SDCARD/miyoo/lib` に依存しない `plumos-env` を作る。
+- [x] stock BusyBox の癖を避けるため、plumOS 用の静的 BusyBox を build/deploy する。
+- [x] vfat で扱えるよう BusyBox applet を symlink ではなく wrapper script 化する。
+- [ ] Debian に近い操作感のため `procps-ng`, `coreutils`, `util-linux` などを
+  `plumos/gnu/bin` に追加する。
+- [ ] `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`,
+  `lsof`, `strace` の互換性を確認する。
 - [ ] 動的 link が必要な場合の dynamic linker/shared library 同梱方針を検証する。
 - [ ] 実機上で plumOS runtime path だけを使う smoke test を行う。
 
