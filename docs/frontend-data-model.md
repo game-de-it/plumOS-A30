@@ -496,6 +496,35 @@ rules:
 - RetroArch 実行中の safe shutdown/resume menu は、電源ボタンではなく Function button を
   第一候補にする。電源ボタンは kernel 側で処理される可能性があるため、必須経路にしない
 
+## SAFE menu model
+
+Function button で開く SAFE menu は、START menu と役割を分けます。START menu は OS 設定、
+Apps、Favorites、Recent など通常 frontend 操作用、SAFE menu はゲーム中の保存・再開・終了用です。
+
+初期 entry:
+
+```json
+{
+  "id": "safe",
+  "display_name": "SAFE",
+  "entries": [
+    { "id": "sleep", "display_name": "Sleep", "action": "safe:sleep" },
+    { "id": "shutdown", "display_name": "Shutdown", "action": "safe:shutdown" },
+    { "id": "cancel", "display_name": "Cancel", "action": "safe:cancel" }
+  ]
+}
+```
+
+rules:
+
+- 初期 cursor は `Cancel` に置き、Function の誤操作で即 sleep/shutdown しない
+- `Sleep` は save RAM flush と resume candidate 維持を行う。実 suspend が難しい場合は
+  疑似 sleep 方針へ fallback する
+- `Shutdown` は save state、save RAM flush、`resume-session.json` 更新、RetroArch 終了、
+  `sync`、poweroff の順に行う
+- `Cancel`、B、LEFT、Function は元の画面へ戻る
+- 初期 prototype では plan preview だけを表示し、実処理は launcher/RetroArch 実装後に接続する
+
 ## START menu model
 
 TOP 画面や ROM list 画面で START を押すと、system menu を開きます。OS reboot や

@@ -307,6 +307,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script function,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script a,function,up,a,q'
 ```
 
 Dump raw device button events:
@@ -326,9 +329,19 @@ Controls:
 - START menu: Settings/Favorites/Recent open real screens; other actions show
   previews.
 - SELECT: system/per-ROM core preview.
-- Function: safe shutdown/resume menu preview.
+- Function: open the SAFE menu. SAFE menu contains `Sleep`, `Shutdown`, and
+  `Cancel`.
 - Settings: show current values; A shows edit preview.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
+
+SAFE menu:
+
+- Function opens SAFE menu from any screen.
+- Initial cursor is `Cancel` to reduce accidental actions.
+- `Sleep` previews save flushing and keeping the resume candidate.
+- `Shutdown` previews save state, resume-session update, `sync`, and poweroff.
+- `Cancel`, B, LEFT, and Function return to the previous screen.
+- The current prototype does not execute sleep or shutdown.
 
 The Settings screen also shows a read-only inventory for A30-specific settings,
 separate from plumOS frontend settings and theme state. It reads volume,

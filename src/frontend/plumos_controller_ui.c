@@ -191,6 +191,12 @@ struct setting_entry {
   char value[256];
 };
 
+struct safe_entry {
+  const char *id;
+  const char *display_name;
+  const char *detail;
+};
+
 struct theme_state {
   int loaded;
   int fallback;
@@ -251,7 +257,8 @@ enum ui_screen {
   SCREEN_START_MENU = 2,
   SCREEN_FAVORITES = 3,
   SCREEN_RECENT = 4,
-  SCREEN_SETTINGS = 5
+  SCREEN_SETTINGS = 5,
+  SCREEN_SAFE_MENU = 6
 };
 
 enum ui_action {
@@ -285,10 +292,12 @@ struct ui_state {
   int timeout_sec;
   enum ui_screen screen;
   enum ui_screen back_screen;
+  enum ui_screen safe_back_screen;
   size_t top_cursor;
   size_t rom_cursor;
   size_t menu_cursor;
   size_t settings_cursor;
+  size_t safe_cursor;
   struct top_entry top_entries[UI_MAX_TOP];
   size_t top_count;
   struct rom_entry rom_entries[UI_MAX_ROMS];
@@ -302,8 +311,19 @@ struct ui_state {
   char input_event_path[PATH_MAX];
   char current_system_id[64];
   char current_system_name[128];
+  char safe_target_system_id[64];
+  char safe_target_relative_path[UI_PATH_MAX];
+  char safe_target_launch_profile[128];
   char status[256];
 };
+
+static const struct safe_entry SAFE_ENTRIES[] = {
+    {"sleep", "Sleep", "pause gameplay, flush saves, keep resume candidate"},
+    {"shutdown", "Shutdown", "save state, flush SRAM, sync, power off"},
+    {"cancel", "Cancel", "return without changing state"},
+};
+
+static const size_t SAFE_ENTRY_COUNT = sizeof(SAFE_ENTRIES) / sizeof(SAFE_ENTRIES[0]);
 
 static int copy_string(char *out, size_t out_size, const char *in) {
   size_t len;
@@ -1579,6 +1599,30 @@ static void render_settings(const struct ui_state *ui) {
   }
 }
 
+static void render_safe_menu(const struct ui_state *ui) {
+  size_t i;
+
+  printf("plumOS controller UI - SAFE\n");
+  printf("A/RIGHT: preview  B/LEFT/FUNCTION: cancel  UP/DOWN: move  Q: quit\n");
+  if (ui->safe_target_relative_path[0]) {
+    printf("target=%s / %s\n", ui->safe_target_system_id, ui->safe_target_relative_path);
+    printf("profile=%s\n", ui->safe_target_launch_profile[0] ? ui->safe_target_launch_profile : "-");
+  } else {
+    printf("target=(no active ROM target)\n");
+  }
+  printf("entries=%zu cursor=%zu\n", SAFE_ENTRY_COUNT,
+         SAFE_ENTRY_COUNT ? ui->safe_cursor + 1 : 0);
+  printf("\n");
+  for (i = 0; i < SAFE_ENTRY_COUNT; i++) {
+    const struct safe_entry *entry = &SAFE_ENTRIES[i];
+    printf("%c %3zu  %-12s %s\n",
+           i == ui->safe_cursor ? '>' : ' ', i + 1, entry->display_name, entry->detail);
+  }
+  if (ui->status[0]) {
+    printf("\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_ui(const struct ui_state *ui) {
   clear_screen(ui);
   if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
@@ -1588,6 +1632,8 @@ static void render_ui(const struct ui_state *ui) {
     render_start_menu(ui);
   } else if (ui->screen == SCREEN_SETTINGS) {
     render_settings(ui);
+  } else if (ui->screen == SCREEN_SAFE_MENU) {
+    render_safe_menu(ui);
   } else {
     render_top(ui);
   }
@@ -1606,6 +1652,37 @@ static void open_start_menu(struct ui_state *ui) {
   } else {
     set_status(ui, "START menu ready");
   }
+}
+
+static void capture_safe_target(struct ui_state *ui) {
+  ui->safe_target_system_id[0] = '\0';
+  ui->safe_target_relative_path[0] = '\0';
+  ui->safe_target_launch_profile[0] = '\0';
+
+  if ((ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+       ui->screen == SCREEN_RECENT) &&
+      ui->rom_count > 0) {
+    const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+    copy_string(ui->safe_target_system_id, sizeof(ui->safe_target_system_id),
+                entry->system_id[0] ? entry->system_id : ui->current_system_id);
+    copy_string(ui->safe_target_relative_path, sizeof(ui->safe_target_relative_path),
+                entry->relative_path);
+    copy_string(ui->safe_target_launch_profile, sizeof(ui->safe_target_launch_profile),
+                entry->launch_profile);
+  }
+}
+
+static void close_safe_menu(struct ui_state *ui, const char *status) {
+  ui->screen = ui->safe_back_screen;
+  set_status(ui, status);
+}
+
+static void open_safe_menu(struct ui_state *ui) {
+  ui->safe_back_screen = ui->screen;
+  ui->safe_cursor = SAFE_ENTRY_COUNT > 0 ? SAFE_ENTRY_COUNT - 1 : 0;
+  capture_safe_target(ui);
+  ui->screen = SCREEN_SAFE_MENU;
+  set_status(ui, "safe menu ready");
 }
 
 static void open_favorites_screen(struct ui_state *ui) {
@@ -1666,7 +1743,50 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
   if (action == ACTION_FUNCTION) {
-    set_status(ui, "safe shutdown/resume menu preview: sleep shutdown cancel");
+    if (ui->screen == SCREEN_SAFE_MENU) {
+      close_safe_menu(ui, "safe menu cancelled");
+    } else {
+      open_safe_menu(ui);
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_SAFE_MENU) {
+    if (action == ACTION_UP) {
+      if (ui->safe_cursor > 0) {
+        ui->safe_cursor--;
+      }
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->safe_cursor + 1 < SAFE_ENTRY_COUNT) {
+        ui->safe_cursor++;
+      }
+      return;
+    }
+    if (action == ACTION_B || action == ACTION_LEFT) {
+      close_safe_menu(ui, "safe menu cancelled");
+      return;
+    }
+    if ((action == ACTION_A || action == ACTION_RIGHT) && ui->safe_cursor < SAFE_ENTRY_COUNT) {
+      const struct safe_entry *entry = &SAFE_ENTRIES[ui->safe_cursor];
+      char msg[256];
+      if (strcmp(entry->id, "cancel") == 0) {
+        close_safe_menu(ui, "safe menu cancelled");
+        return;
+      }
+      if (strcmp(entry->id, "sleep") == 0) {
+        snprintf(msg, sizeof(msg), "safe sleep preview: flush saves, keep resume target=%.32s/%.120s",
+                 ui->safe_target_system_id[0] ? ui->safe_target_system_id : "-",
+                 ui->safe_target_relative_path[0] ? ui->safe_target_relative_path : "-");
+      } else {
+        snprintf(msg, sizeof(msg), "safe shutdown preview: save state, set resume=%.32s/%.120s, sync",
+                 ui->safe_target_system_id[0] ? ui->safe_target_system_id : "-",
+                 ui->safe_target_relative_path[0] ? ui->safe_target_relative_path : "-");
+      }
+      set_status(ui, msg);
+      return;
+    }
     return;
   }
 
@@ -2118,7 +2238,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
 static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
-  printf("  %s --script up,down,a,b,select,start,q [--no-clear]\n", argv0);
+  printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
   printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, f, q.\n");

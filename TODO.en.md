@@ -136,6 +136,7 @@
   directly.
 - [x] Confirm physical button code/action mapping except power with
   `plumos-input-compare --all-events`.
+- [x] Implement a controller UI SAFE menu prototype opened by Function.
 - [ ] Safely confirm the short power-button event code and stock sleep/shutdown
   side effects.
 - [ ] Validate a Function-button fallback for the safe shutdown/resume menu

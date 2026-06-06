@@ -509,6 +509,38 @@ Rules:
   trigger instead of the power button. The power button may be handled on the
   kernel side, so it must not be the only path.
 
+## SAFE Menu
+
+The SAFE menu opened by Function is separate from START menu. START is for
+normal frontend operations such as settings, apps, favorites, and recents. SAFE
+is for game-time save/resume/exit operations.
+
+Initial entries:
+
+```json
+{
+  "id": "safe",
+  "display_name": "SAFE",
+  "entries": [
+    { "id": "sleep", "display_name": "Sleep", "action": "safe:sleep" },
+    { "id": "shutdown", "display_name": "Shutdown", "action": "safe:shutdown" },
+    { "id": "cancel", "display_name": "Cancel", "action": "safe:cancel" }
+  ]
+}
+```
+
+Rules:
+
+- Initial cursor is `Cancel` so pressing Function cannot immediately sleep or
+  shut down by accident.
+- `Sleep` flushes save RAM and keeps the resume candidate. If true suspend is
+  not viable, fall back to pseudo-sleep.
+- `Shutdown` runs save state, save RAM flush, `resume-session.json` update,
+  RetroArch exit, `sync`, then poweroff.
+- `Cancel`, B, LEFT, and Function return to the previous screen.
+- The initial prototype only previews the plan. Real actions are connected
+  later in the launcher/RetroArch implementation.
+
 ## START Menu
 
 Pressing START on the TOP screen or ROM list opens the system menu. OS reboot,

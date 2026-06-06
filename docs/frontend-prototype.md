@@ -297,6 +297,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script function,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script a,function,up,a,q'
 ```
 
 実機ボタンの raw event を確認:
@@ -314,9 +317,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - START: START menu を開く
 - START menu: Settings/Favorites/Recent は実画面へ遷移し、その他は action preview を出す
 - SELECT: system/per-ROM core preview
-- Function: safe shutdown/resume menu preview
+- Function: SAFE menu を開く。SAFE menu は `Sleep`, `Shutdown`, `Cancel` を持つ
 - Settings: 現在値を一覧表示し、A は edit preview を出す
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `f`, `q`
+
+SAFE menu:
+
+- Function はどの画面からでも SAFE menu を開く
+- 初期 cursor は誤操作防止のため `Cancel`
+- `Sleep` は save flush と resume candidate 維持の plan preview を出す
+- `Shutdown` は save state、resume-session 更新、`sync`、poweroff の plan preview を出す
+- `Cancel`、B、LEFT、Function は元の画面へ戻る
+- 現時点では実際の sleep/shutdown は実行しない
 
 Settings 画面では plumOS frontend 設定と theme 状態に加えて、A30 固有設定の
 read-only inventory も表示します。現在は `/config/system.json` から volume、
