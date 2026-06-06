@@ -95,6 +95,14 @@ The rootfs GPU library layout is:
 `libMali.so` contains `__egl_platform_*_fbdev`, `/dev/fb0`, `/dev/mali`, and
 `MALI_FBDEV` strings, confirming that it includes an fbdev EGL platform.
 
+[weimingtom/miyoo_a30_playground](https://github.com/weimingtom/miyoo_a30_playground)
+is also useful external reference material for A30 SDL work. Its README mentions
+`--enable-video-a30`, `libEGL.so`/`libGLESv2.so`, and
+`src/video/a30/SDL_a30_video.c`. The `sdltest/sdl-main.tar.gz` archive contains
+an SDL1 A30 backend that uses `eglGetDisplay(EGL_DEFAULT_DISPLAY)` and
+`eglCreateWindowSurface(..., 0, ...)`, matching the clean-room probe's
+successful `NULL` native-window path below.
+
 ## Per-App Usage
 
 `MainUI.stock`:
@@ -130,7 +138,34 @@ The rootfs GPU library layout is:
 ## Implications For plumOS
 
 The upstream SDL3+sdl2-compat runtime does not include the stock SDL2 `mali`
-driver. Real SDL display output for plumOS therefore needs one of these paths:
+driver. As a first clean-room step, `plumos-mali-egl-probe` was implemented to
+validate a minimal fbdev + Mali EGL presenter without linking to stock SDL.
+
+```sh
+./scripts/docker-build.sh mali-egl-probe
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 500 --frames 30
+```
+
+Device result:
+
+```text
+egl initialize=yes version=1.4
+egl version="1.4 Linux-r8p1-00rel0"
+egl surface mode=null create=yes native=(nil) surface=0x20000001
+egl surface_size=480x640 mode_used=null
+egl context es2=yes context=0x40000001
+egl make_current=yes
+gl renderer="Mali-400 MP"
+draw frames=19 swap_ok=yes
+gl readpixels rgba=381f96ff
+result=mali_egl_present_ok
+```
+
+Both `NULL` native window and a `uint16_t width,height` fbdev window work;
+`uint32_t width,height` fails with `EGL_BAD_NATIVE_WINDOW`. The surface handle
+matches the stock SDL2 probe's `0x20000001`.
+
+Real display output for plumOS therefore needs one of these paths:
 
 - Build a clean-room fbdev + Mali EGL presenter based on the observed stock
   behavior.

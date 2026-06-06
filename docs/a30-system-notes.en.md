@@ -124,6 +124,10 @@ On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
   only exposes the custom `mali` video driver plus `offscreen`. The `mali` path
   creates an `opengles2` renderer through `/dev/fb0` and the
   `/usr/lib/libMali.so` fbdev EGL stack.
+- Mali EGL presenter: `plumos-mali-egl-probe` does not link to stock SDL. It
+  dlopens `/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, then successfully
+  reaches `eglCreateWindowSurface`, `eglMakeCurrent`, `eglSwapBuffers`, and
+  `glReadPixels` with a `NULL` native window.
 
 Details live in [A30 runtime probe](a30-runtime-probe.en.md) and
 [A30 stock SDL video path](a30-stock-sdl-video.en.md).

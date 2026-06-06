@@ -44,6 +44,25 @@ the required dynamic loader and shared libraries bundled under
 `/mnt/SDCARD/plumos/lib`. Because the A30 SD card cannot create symlinks,
 sonames are copied as regular files rather than symlinks.
 
+Mali EGL presenter probe:
+
+```sh
+./scripts/docker-build.sh mali-egl-probe
+```
+
+Outputs:
+
+```text
+dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe
+dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe.bin
+dist/plumos-mali-egl-probe/plumos/lib/
+dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
+```
+
+`plumos-mali-egl-probe` does not link to stock SDL. It dlopens the A30 rootfs
+`/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, while the probe binary itself
+runs with bundled dynamic loader/shared libraries.
+
 ## Deploy/Run
 
 ```sh
@@ -121,6 +140,16 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run
 This script tries auto-detection with no `SDL_VIDEODRIVER`, then `dummy`,
 `offscreen`, `evdev`, and `kmsdrm`, recording window creation, renderer
 creation, `SDL_RenderPresent`, and `SDL_RenderReadPixels`.
+
+Mali EGL presenter probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
+```
+
+This script records `/dev/fb0`, `/dev/mali`, `/usr/lib/libEGL.so`,
+`/usr/lib/libGLESv2.so`, `eglCreateWindowSurface`, `eglMakeCurrent`,
+`eglSwapBuffers`, and `glReadPixels`.
 
 ## Options
 
@@ -249,6 +278,30 @@ under `offscreen`, `dummy`, and `evdev` work. No real framebuffer/render backend
 that presents to the A30 display was found. `evdev` is SDL3's dummy video driver
 with evdev input, not a real display backend.
 
+Mali EGL presenter probe:
+
+```text
+plumOS Mali EGL probe
+fb=/dev/fb0 egl_lib=/usr/lib/libEGL.so gles_lib=/usr/lib/libGLESv2.so window_mode=auto run_ms=300 frames=20
+fb var=yes xres=480 yres=640 virtual=480x1280 offset=0,0 bpp=32 visual=2
+egl initialize=yes version=1.4
+egl version="1.4 Linux-r8p1-00rel0"
+egl surface mode=null create=yes native=(nil) surface=0x20000001
+egl surface_size=480x640 mode_used=null
+egl context es2=yes context=0x40000001
+egl make_current=yes
+gl renderer="Mali-400 MP"
+gl version="OpenGL ES 2.0 "mali450-r5p1-01rel0-lollipop-252-gcc9bf62""
+draw frames=19 swap_ok=yes elapsed_ms=314
+gl readpixels rgba=381f96ff
+result=mali_egl_present_ok
+```
+
+This confirms that a clean-room fbdev + Mali EGL presenter, without linking to
+stock SDL, can swap to the A30 display. `NULL` native window and a
+`uint16_t width,height` fbdev window work; `uint32_t width,height` fails with
+`EGL_BAD_NATIVE_WINDOW`.
+
 ## Decision
 
 - Video: `/dev/fb0` reports 480x640, 32bpp, line length 1920, and short
@@ -268,8 +321,12 @@ with evdev input, not a real display backend.
   `evdev`, but there is no upstream SDL backend that presents to the real A30
   display. The A30 is fbdev + Mali/disp with no `/dev/dri`, so `kmsdrm` is not
   available.
+- Mali EGL: `plumos-mali-egl-probe` dlopens `/usr/lib/libEGL.so` and
+  `libGLESv2.so` without linking to stock SDL, then successfully creates an
+  fbdev EGL surface, GLES2 context, `eglSwapBuffers`, and `glReadPixels`.
 
 The stock `keymon` comparison is split into
-[A30 input policy](a30-input-policy.en.md). Next steps are a direct framebuffer
-presenter / custom SDL video backend / sunxi-mali-disp path, plus the RetroArch
+[A30 input policy](a30-input-policy.en.md). Next steps are deciding whether the
+fbdev + Mali EGL presenter should be integrated directly into the frontend or
+promoted into an SDL3/sdl2-compat custom video backend, plus the RetroArch
 SDL2/evdev build.

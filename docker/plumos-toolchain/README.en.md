@@ -149,6 +149,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
+## Mali EGL Probe Build
+
+```sh
+./scripts/docker-build.sh mali-egl-probe
+```
+
+Outputs:
+
+```text
+dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe
+dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe.bin
+dist/plumos-mali-egl-probe/plumos/lib/
+dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
+```
+
+Device check:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
+```
+
 ## SDL2 Runtime Build
 
 ```sh

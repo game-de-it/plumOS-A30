@@ -95,6 +95,14 @@ rootfs 側の GPU library は以下の構造です。
 `libMali.so` には `__egl_platform_*_fbdev`, `/dev/fb0`, `/dev/mali`,
 `MALI_FBDEV` などの文字列があり、fbdev EGL platform を持っています。
 
+外部参考として、[weimingtom/miyoo_a30_playground](https://github.com/weimingtom/miyoo_a30_playground)
+も A30 SDL 調査に有用です。README には `--enable-video-a30`、
+`libEGL.so`/`libGLESv2.so`、`src/video/a30/SDL_a30_video.c` の記述があります。
+同 repo の `sdltest/sdl-main.tar.gz` には SDL1 A30 backend が含まれ、
+`eglGetDisplay(EGL_DEFAULT_DISPLAY)` と `eglCreateWindowSurface(..., 0, ...)` を
+使う構成を確認できます。これは下記の clean-room probe で `NULL` native window が
+成功した結果と一致します。
+
 ## stock app 別の使い方
 
 `MainUI.stock`:
@@ -128,7 +136,34 @@ rootfs 側の GPU library は以下の構造です。
 ## plumOS への示唆
 
 upstream SDL3+sdl2-compat に stock SDL2 の `mali` driver はありません。このため、
-plumOS の実画面 SDL 出力は次のいずれかで設計する必要があります。
+まず stock SDL にリンクしない `plumos-mali-egl-probe` を実装して、fbdev + Mali EGL
+の最小 presenter を確認しました。
+
+```sh
+./scripts/docker-build.sh mali-egl-probe
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 500 --frames 30
+```
+
+実機結果:
+
+```text
+egl initialize=yes version=1.4
+egl version="1.4 Linux-r8p1-00rel0"
+egl surface mode=null create=yes native=(nil) surface=0x20000001
+egl surface_size=480x640 mode_used=null
+egl context es2=yes context=0x40000001
+egl make_current=yes
+gl renderer="Mali-400 MP"
+draw frames=19 swap_ok=yes
+gl readpixels rgba=381f96ff
+result=mali_egl_present_ok
+```
+
+`NULL` native window と `uint16_t width,height` の `fbdev_window` はどちらも成功し、
+`uint32_t width,height` は `EGL_BAD_NATIVE_WINDOW` でした。surface handle は
+stock SDL2 probe と同じ `0x20000001` です。
+
+今後の実画面出力は次のいずれかで設計します。
 
 - stock SDL2 の挙動を参考に、clean-room で fbdev + Mali EGL の presenter を作る。
 - SDL3/SDL2 互換 runtime に A30 向け custom video backend を追加する。

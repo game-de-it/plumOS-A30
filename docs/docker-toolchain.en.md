@@ -163,6 +163,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
+Build, deploy, and run the Mali EGL presenter probe.
+
+```sh
+./scripts/docker-build.sh mali-egl-probe
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
+```
+
 Deploy and run the SDL2 probe together with
 `plumos-joystickd --device-mode xbox`.
 

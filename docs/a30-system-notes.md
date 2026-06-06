@@ -144,6 +144,10 @@ backend 候補:
 - stock SDL2 video: stock `libSDL2-2.0.so.0.2600.1` は SDL `2.26.1` で、
   custom `mali` video driver と `offscreen` の2 driver 構成。`mali` は
   `/dev/fb0` + `/usr/lib/libMali.so` の fbdev EGL 経路で `opengles2` renderer を作る
+- Mali EGL presenter: stock SDL にリンクしない `plumos-mali-egl-probe` で
+  `/usr/lib/libEGL.so` と `/usr/lib/libGLESv2.so` を `dlopen` し、
+  `eglCreateWindowSurface(..., NULL, ...)`, `eglMakeCurrent`,
+  `eglSwapBuffers`, `glReadPixels` まで成功した
 
 詳細は [A30 runtime probe](a30-runtime-probe.md) と
 [A30 stock SDL 画面出力経路](a30-stock-sdl-video.md) にまとめています。

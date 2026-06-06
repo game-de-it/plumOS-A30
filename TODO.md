@@ -110,7 +110,8 @@
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。
 - [x] stock SDL1/SDL2 の video backend を調査し、stock SDL2 は custom `mali` backend で `/dev/fb0` + Mali fbdev EGL 経路に出すことを確認する。
-- [ ] SDL 実画面出力は direct framebuffer presenter、stock SDL2 の `mali` 挙動を参考にした custom SDL video backend、または sunxi/mali/disp 経路として別途設計する。
+- [x] stock SDL2 の `mali` 挙動を参考に、stock SDL 非依存の fbdev + Mali EGL 最小 presenter probe を実装し、A30 上で `eglSwapBuffers` まで確認する。
+- [ ] SDL 実画面出力は fbdev + Mali EGL presenter を frontend に組み込むか、SDL3/sdl2-compat custom video backend へ昇格するか設計する。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
