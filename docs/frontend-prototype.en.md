@@ -24,6 +24,7 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
+dist/plumos-frontend/plumos/config/frontend/settings.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -140,6 +141,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `top` reads the existing `library-index.json`. If the cache is missing, it runs
 a full scan. Use `top --refresh` to refresh explicitly.
+When `show_favorites_on_top=true` in `settings.json`, `Favorites` appears as a
+virtual TOP system. The virtual entry opens `internal:favorites`.
 
 ROM list view:
 
@@ -214,10 +217,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui favorites'
 ```
 
+Open Favorites through the TOP virtual system flow:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui roms favorites'
+```
+
 `favorite rom` corresponds to pressing the favorite toggle in the ROM list.
 State is saved to `state/frontend/favorites.json`. The ROM list `Fav` column
 shows `*` for favorite entries. The START menu `Favorites` entry is the path to
-this Favorites list.
+this Favorites list. When `show_favorites_on_top=true`, Favorites can also be
+opened from the TOP screen.
 
 A30 device check on 2026-06-06:
 

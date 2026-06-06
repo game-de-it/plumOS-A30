@@ -24,6 +24,7 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
+dist/plumos-frontend/plumos/config/frontend/settings.json
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -132,6 +133,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `top` は既存の `library-index.json` を読みます。cache がなければ full scan を実行します。
 明示的に更新したい場合は `top --refresh` を使います。
+`settings.json` の `show_favorites_on_top=true` の場合、`Favorites` を仮想 system として
+TOP に表示します。仮想 entry は `internal:favorites` へ遷移します。
 
 ROM list 表示:
 
@@ -205,10 +208,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui favorites'
 ```
 
+TOP の仮想 system から Favorites 一覧へ入る動作:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui roms favorites'
+```
+
 `favorite rom` は ROM list で favorite toggle を押す操作に相当します。保存先は
 `state/frontend/favorites.json` です。ROM list 表示の `Fav` 列では favorite entry に
 `*` を表示します。START menu の `Favorites` entry は、この Favorites 一覧へ辿るための
-入口です。
+入口です。`show_favorites_on_top=true` の場合は、START menu だけでなく TOP からも
+Favorites へ入れます。
 
 2026-06-06 の A30 実機確認:
 

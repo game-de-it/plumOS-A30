@@ -256,6 +256,7 @@ Text mode can force `use_icons=false`; icons may exist but are not required.
   "top_mode": "text",
   "rom_mode": "text",
   "show_empty_systems": false,
+  "show_favorites_on_top": false,
   "sort_systems": "sort_order",
   "sort_roms": "name",
   "rom_scan_policy": "on_enter",
@@ -289,10 +290,13 @@ Rules:
 
 - Show systems with ROMs by default.
 - Show empty systems only when pinned.
+- When `show_favorites_on_top=true`, show `Favorites` as a virtual TOP system.
 - Use `display_name`.
 - Text mode shows only text and counts.
 - Gallery mode may use system icons.
 - Manufacturer names are not included in labels.
+- The Favorites virtual system target id is `favorites`; its action is
+  `internal:favorites`.
 
 ## ROM List
 
@@ -386,7 +390,8 @@ Rules:
   `favorites.json`.
 - Moving or renaming a ROM does not automatically move the favorite. Add stale
   entry cleanup later as a settings/tool action.
-- Add an optional setting later to show Favorites as a virtual TOP system.
+- When `show_favorites_on_top=true`, Favorites may appear as a virtual TOP
+  system.
 - Do not adopt stock favorite formats directly. Add an importer only if needed.
 
 ## START Menu

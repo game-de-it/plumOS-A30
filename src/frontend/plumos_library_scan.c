@@ -1309,6 +1309,7 @@ static int write_library_index(const struct scan_ctx *ctx, const char *output_pa
     fprintf(f, "      \"sort_order\": %d,\n", system->sort_order);
     fprintf(f, "      \"rom_count\": %zu,\n", rom_count);
     fprintf(f, "      \"thumbnail_count\": %zu,\n", thumb_count);
+    fprintf(f, "      \"pinned\": %s,\n", system->pinned ? "true" : "false");
     fprintf(f, "      \"default_launch_profile\": ");
     json_write_escaped(f, system->default_launch_profile);
     fprintf(f, ",\n");

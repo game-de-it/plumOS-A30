@@ -98,7 +98,7 @@
   id.
 - [x] Implement favorite toggle in the ROM list and open Favorites from the
   START menu.
-- [ ] Add an optional setting to show Favorites as a virtual TOP system.
+- [x] Add an optional setting to show Favorites as a virtual TOP system.
 - [ ] Manage auto-resume target ROM/core/launch profile/pending state in
   `resume-session.json`.
 - [ ] Auto-launch the same ROM/core/launch profile on boot when a pending resume

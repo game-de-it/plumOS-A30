@@ -28,6 +28,8 @@ struct top_entry {
   char default_launch_profile[128];
   long rom_count;
   long thumbnail_count;
+  int pinned;
+  int virtual_entry;
 };
 
 struct rom_entry {
@@ -94,6 +96,11 @@ struct favorite_entry {
 struct favorite_state {
   struct favorite_entry entries[MAX_FAVORITES];
   size_t count;
+};
+
+struct frontend_settings {
+  int show_favorites_on_top;
+  int show_empty_systems;
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -614,6 +621,29 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
   return 0;
 }
 
+static void init_frontend_settings(struct frontend_settings *settings) {
+  memset(settings, 0, sizeof(*settings));
+}
+
+static int load_frontend_settings(const char *path, struct frontend_settings *settings) {
+  char *json;
+  size_t json_size;
+
+  init_frontend_settings(settings);
+  if (!file_exists(path)) {
+    return 1;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  settings->show_favorites_on_top =
+      json_get_bool(json, json + json_size, "show_favorites_on_top", 0);
+  settings->show_empty_systems = json_get_bool(json, json + json_size, "show_empty_systems", 0);
+  free(json);
+  return 1;
+}
+
 static int core_profile_index(const struct core_system_def *system, const char *profile) {
   size_t i;
   for (i = 0; i < system->launch_profile_count; i++) {
@@ -1123,6 +1153,27 @@ static int clear_favorite(struct favorite_state *state, const char *system_id,
   return 1;
 }
 
+static int append_favorites_top_entry(struct top_entry *entries, size_t max_entries,
+                                      size_t *count, const struct favorite_state *favorites) {
+  struct top_entry entry;
+
+  if (*count >= max_entries) {
+    return 0;
+  }
+  memset(&entry, 0, sizeof(entry));
+  copy_string(entry.id, sizeof(entry.id), "favorites");
+  copy_string(entry.display_name, sizeof(entry.display_name), "Favorites");
+  copy_string(entry.short_name, sizeof(entry.short_name), "Fav");
+  copy_string(entry.default_launch_profile, sizeof(entry.default_launch_profile),
+              "internal:favorites");
+  entry.rom_count = (long)favorites->count;
+  entry.thumbnail_count = 0;
+  entry.pinned = 1;
+  entry.virtual_entry = 1;
+  entries[(*count)++] = entry;
+  return 1;
+}
+
 static int load_top_entries(const char *path, struct top_entry *entries, size_t max_entries,
                             size_t *count_out, long *ready_ms_out) {
   char *json;
@@ -1170,6 +1221,7 @@ static int load_top_entries(const char *path, struct top_entry *entries, size_t 
                     entry.default_launch_profile, sizeof(entry.default_launch_profile));
     entry.rom_count = json_get_long(obj, obj + strlen(obj), "rom_count", 0);
     entry.thumbnail_count = json_get_long(obj, obj + strlen(obj), "thumbnail_count", 0);
+    entry.pinned = json_get_bool(obj, obj + strlen(obj), "pinned", 0);
 
     if (entry.id[0]) {
       if (!entry.display_name[0]) {
@@ -1457,11 +1509,11 @@ static void print_top(const struct top_entry *entries, size_t count, int show_al
     printf("cache_ready_ms: %ld\n", ready_ms);
   }
   printf("\n");
-  printf("%-4s %-18s %8s  %s\n", "No.", "System", "ROMs", "Default profile");
-  printf("%-4s %-18s %8s  %s\n", "---", "------", "----", "---------------");
+  printf("%-4s %-3s %-18s %8s  %s\n", "No.", "V", "System", "ROMs", "Default profile");
+  printf("%-4s %-3s %-18s %8s  %s\n", "---", "-", "------", "----", "---------------");
 
   for (i = 0; i < count; i++) {
-    if (!show_all && entries[i].rom_count <= 0) {
+    if (!show_all && entries[i].rom_count <= 0 && !entries[i].pinned) {
       continue;
     }
     available++;
@@ -1469,8 +1521,8 @@ static void print_top(const struct top_entry *entries, size_t count, int show_al
       continue;
     }
     shown++;
-    printf("%3zu. %-18s %8ld  %s\n", shown, entries[i].display_name, entries[i].rom_count,
-           entries[i].default_launch_profile);
+    printf("%3zu. %-3s %-18s %8ld  %s\n", shown, entries[i].virtual_entry ? "*" : "",
+           entries[i].display_name, entries[i].rom_count, entries[i].default_launch_profile);
   }
   if (available == 0) {
     printf("(ROMがあるsystemはまだありません。full scan cacheを確認してください。)\n");
@@ -1698,6 +1750,7 @@ int main(int argc, char **argv) {
   char full_cache_path[PATH_MAX];
   char system_cache_path[PATH_MAX];
   char systems_path[PATH_MAX];
+  char settings_path[PATH_MAX];
   char menus_path[PATH_MAX];
   char apps_path[PATH_MAX];
   char core_overrides_path[PATH_MAX];
@@ -1727,6 +1780,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "error: systems config path is too long\n");
     return 1;
   }
+  if (!join_path(settings_path, sizeof(settings_path), plumos_root,
+                 "config/frontend/settings.json")) {
+    fprintf(stderr, "error: settings config path is too long\n");
+    return 1;
+  }
   if (!join_path(menus_path, sizeof(menus_path), plumos_root, "config/frontend/menus.json") ||
       !join_path(apps_path, sizeof(apps_path), plumos_root, "config/frontend/apps.json")) {
     fprintf(stderr, "error: menu config path is too long\n");
@@ -1751,10 +1809,18 @@ int main(int argc, char **argv) {
   cmd = argv[1];
   if (strcmp(cmd, "top") == 0) {
     struct top_entry *entries;
+    struct frontend_settings settings;
+    struct favorite_state favorites;
     size_t count = 0;
     long ready_ms = -1;
     int show_all = 0;
     int refresh = 0;
+
+    if (!load_frontend_settings(settings_path, &settings)) {
+      fprintf(stderr, "error: cannot read frontend settings: %s\n", settings_path);
+      return 1;
+    }
+    show_all = settings.show_empty_systems;
 
     for (i = 2; i < argc; i++) {
       if (strcmp(argv[i], "--all") == 0) {
@@ -1784,6 +1850,18 @@ int main(int argc, char **argv) {
       fprintf(stderr, "error: cannot read top cache: %s\n", full_cache_path);
       free(entries);
       return 1;
+    }
+    if (settings.show_favorites_on_top) {
+      if (!load_favorites(favorites_path, &favorites)) {
+        fprintf(stderr, "error: cannot read favorites: %s\n", favorites_path);
+        free(entries);
+        return 1;
+      }
+      if (!append_favorites_top_entry(entries, MAX_TOP_ENTRIES, &count, &favorites)) {
+        fprintf(stderr, "error: cannot append Favorites TOP entry\n");
+        free(entries);
+        return 1;
+      }
     }
     print_top(entries, count, show_all, limit, full_cache_path, ready_ms);
     free(entries);
@@ -1821,6 +1899,15 @@ int main(int argc, char **argv) {
         usage(argv[0]);
         return 2;
       }
+    }
+
+    if (strcmp(system_id, "favorites") == 0) {
+      if (!load_favorites(favorites_path, &favorites)) {
+        fprintf(stderr, "error: cannot read favorites: %s\n", favorites_path);
+        return 1;
+      }
+      print_favorites(&favorites, limit, favorites_path);
+      return 0;
     }
 
     entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
