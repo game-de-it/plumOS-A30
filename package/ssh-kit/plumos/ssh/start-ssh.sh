@@ -17,28 +17,7 @@ mkdir -p "$ETC_DIR" "$RUN_DIR" "$LOG_DIR"
 
 has_authorized_key() {
   [ -f "$AUTH_SOURCE" ] || return 1
-  grep -Eq '^(ssh-rsa|ssh-ed25519|ecdsa-sha2-|sk-ssh-ed25519|sk-ecdsa-sha2-)' "$AUTH_SOURCE"
-}
-
-find_auth_dir() {
-  root_home="$(awk -F: '$1 == "root" { print $6; exit }' /etc/passwd 2>/dev/null || true)"
-  [ -n "$root_home" ] || root_home="/root"
-
-  for home in "$root_home" /root /; do
-    [ -n "$home" ] || continue
-    if [ "$home" = "/" ]; then
-      dir="/.ssh"
-    else
-      dir="${home}/.ssh"
-    fi
-
-    if mkdir -p "$dir" 2>/dev/null; then
-      printf '%s\n' "$dir"
-      return 0
-    fi
-  done
-
-  return 1
+  grep -Eq '^[[:space:]]*(ssh-rsa|ssh-ed25519|ecdsa-sha2-|sk-ssh-ed25519|sk-ecdsa-sha2-)' "$AUTH_SOURCE"
 }
 
 write_network_snapshot() {
@@ -71,15 +50,6 @@ if ! has_authorized_key; then
   exit 1
 fi
 
-AUTH_DIR="$(find_auth_dir)" || {
-  echo "Could not create a root authorized_keys directory" | tee -a "$LOG_FILE"
-  exit 1
-}
-
-cp "$AUTH_SOURCE" "${AUTH_DIR}/authorized_keys"
-chmod 700 "$AUTH_DIR" 2>/dev/null || true
-chmod 600 "${AUTH_DIR}/authorized_keys" 2>/dev/null || true
-
 if [ ! -s "$HOST_KEY" ]; then
   echo "Generating Dropbear ed25519 host key at ${HOST_KEY}" | tee -a "$LOG_FILE"
   "$BIN_DIR/dropbearkey" -t ed25519 -f "$HOST_KEY" >> "$LOG_FILE" 2>&1
@@ -101,7 +71,7 @@ echo "Starting Dropbear on ${LISTEN}" | tee -a "$LOG_FILE"
   -p "$LISTEN" \
   -P "$PID_FILE" \
   -r "$HOST_KEY" \
-  -D "$AUTH_DIR" \
+  -D "$ETC_DIR" \
   -T 3 \
   >> "$LOG_FILE" 2>&1
 
@@ -113,4 +83,3 @@ else
 fi
 
 exit "$status"
-

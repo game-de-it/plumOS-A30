@@ -71,6 +71,13 @@ prepare_source() {
 #define DROPBEAR_SVR_LOCALSTREAMFWD 0
 #define DROPBEAR_SVR_REMOTESTREAMFWD 0
 EOF
+
+  # The A30 SD card is usually FAT/exFAT, and the stock rootfs may be
+  # read-only. For this development-only kit, allow authorized_keys to live on
+  # the SD card instead of enforcing OpenSSH-style ownership/mode checks.
+  perl -0pi -e 's/static int checkpubkeyperms\(\) \{\n\tchar \*path = authorized_keys_filepath\(\), \*sep = NULL;\n\tint ret = DROPBEAR_SUCCESS;\n\n\tTRACE\(\("enter checkpubkeyperms"\)\)\n\n\t\/\* Walk back up path checking permissions, stopping at either homedir,\n\t \* or root if the path is outside of the homedir\. \*\/\n\twhile \(\(sep = strrchr\(path, '"'"'\/'"'"'\)\) != NULL\) \{\n\t\tif \(sep == path\) \{\t\/\* root directory \*\/\n\t\t\tsep\+\+;\n\t\t\}\n\t\t\*sep = '"'"'\\0'"'"';\n\t\tif \(checkfileperm\(path\) != DROPBEAR_SUCCESS\) \{\n\t\t\tTRACE\(\("checkpubkeyperms: bad perm on %s", path\)\)\n\t\t\tret = DROPBEAR_FAILURE;\n\t\t\}\n\t\tif \(strcmp\(path, ses\.authstate\.pw_dir\) == 0 \|\| strcmp\(path, "\/"\) == 0\) \{\n\t\t\tbreak;\n\t\t\}\n\t\}\n\n\t\/\* all looks ok, return success \*\/\n\tm_free\(path\);\n\n\tTRACE\(\("leave checkpubkeyperms"\)\)\n\treturn ret;\n\}/static int checkpubkeyperms() {\n\treturn DROPBEAR_SUCCESS;\n}/s' "${SRC_DIR}/src/svr-authpubkey.c"
+  grep -A2 'static int checkpubkeyperms' "${SRC_DIR}/src/svr-authpubkey.c" | grep -q 'return DROPBEAR_SUCCESS' \
+    || die "failed to relax Dropbear authorized_keys permission checks"
 }
 
 configure_and_build() {

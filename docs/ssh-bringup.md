@@ -10,6 +10,10 @@ The current build uses Dropbear `2026.91`, published by the upstream project on
 defa924475abf6bc1e74abc00173e46bfdc804bd47caafa14f5a4ef0cc76da34
 ```
 
+This is a development access kit. The Dropbear build relaxes
+`authorized_keys` ownership/mode checks so the key file can live on the A30 SD
+card even when the stock rootfs is read-only and the SD card is FAT/exFAT.
+
 ## Build
 
 ```sh
@@ -56,6 +60,10 @@ If the IP address is not visible in the UI/router, remove the SD card and check
 `network.txt`; it dumps any available network commands and useful `/proc/net`
 files.
 
+If the log says no public key was found, replace
+`plumos/ssh/etc/authorized_keys` on the SD card with a real workstation public
+key. Commented example lines are ignored.
+
 ## Connect
 
 ```sh
@@ -77,4 +85,3 @@ After SSH works:
 ```
 
 The collector writes a timestamped directory under `artifacts/`.
-
