@@ -16,6 +16,7 @@ Outputs:
 
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -96,5 +97,6 @@ a test tone through `/dev/dsp`.
 - SDL2: stock libraries exist, but are not adopted as plumOS runtime
   dependencies. Build a linked probe after plumOS bundles its own SDL2 package.
 
-Next steps are comparing stock `keymon` with direct input events, or building a
-plumOS-bundled SDL2 runtime.
+The stock `keymon` comparison is split into
+[A30 input policy](a30-input-policy.en.md). Next steps are building a
+plumOS-bundled SDL2 runtime or confirming the physical button mapping.

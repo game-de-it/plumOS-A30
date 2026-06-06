@@ -228,9 +228,13 @@ Goals:
 ## Input Policy
 
 The stock system starts `keymon` as a companion process. Keep it initially while
-replacing the frontend, then investigate:
+replacing the frontend. On 2026-06-06, `plumos-input-compare` confirmed that
+plumOS can open and poll `/dev/input/event3` non-exclusively even while `keymon`
+and stock `MainUI` also have it open.
 
-- Reading button state directly from `/dev/input/event*`.
+- Read `/dev/input/event3` directly in the plumOS frontend.
+- Avoid exclusive grabs while coexisting with stock MainUI.
+- Confirm physical button code/action mapping on hardware.
 - Whether SDL2 game controller mapping is sufficient.
 - Separating RetroArch hotkeys from frontend controls.
 - Handling suspend/resume, brightness, and volume keys.

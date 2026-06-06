@@ -132,7 +132,12 @@
 - [ ] Run a minimal linked/render SDL2 test binary with plumOS-bundled SDL2 on
   the A30.
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
-- [ ] Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
+- [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
+  directly.
+- [ ] Confirm physical button code/action mapping with
+  `plumos-input-compare --timeout-ms 10000`.
+- [ ] Make the final keep/stop decision for stock `keymon` when plumOS becomes
+  the regular boot frontend.
 - [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key
   press while RetroArch is running.
 

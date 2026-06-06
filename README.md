@@ -24,6 +24,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [Docker toolchain](docs/docker-toolchain.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.md)
 - [A30 runtime probe](docs/a30-runtime-probe.md)
+- [A30 input policy](docs/a30-input-policy.md)
 - [Frontend prototype](docs/frontend-prototype.md)
 - [Stock frontend inventory](docs/stock-frontend-inventory.md)
 - [plumOS frontend data model](docs/frontend-data-model.md)

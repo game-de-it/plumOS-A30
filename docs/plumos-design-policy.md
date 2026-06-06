@@ -212,9 +212,13 @@ plumOS 側で安全に再現できるか確認します。
 ## Input 方針
 
 stock は `keymon` を companion process として起動します。まずは `keymon` を残して
-frontend の置き換えを進めます。その後、以下を調査します。
+frontend の置き換えを進めます。2026-06-06 の `plumos-input-compare` では、
+`keymon` と stock `MainUI` が `/dev/input/event3` を開いている状態でも、plumOS が
+同じ event を非排他で直接 open/poll できることを確認しました。
 
-- `/dev/input/event*` から直接 button state を読めるか
+- plumOS frontend は `/dev/input/event3` を直接読む
+- stock MainUI と共存中は排他取得をしない
+- 物理ボタンの code/action mapping を実機操作で確定する
 - SDL2 game controller mapping で十分か
 - RetroArch hotkey と frontend 操作をどう分離するか
 - suspend/resume や brightness/volume key の扱い

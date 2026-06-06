@@ -80,8 +80,10 @@ The stock frontend uses `keymap` in `/config/system.json` and `keymon`. The
 plumOS controller prototype can also read `/dev/input/event*` for
 `gpio-keys-polled` directly.
 
-Next, compare keeping stock `keymon` with direct SDL/input-event handling. If
-direct input is stable, the frontend should prefer plumOS-owned input mapping.
+`plumos-input-compare` confirmed that `/dev/input/event3` can be opened and
+polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
+The initial policy is to keep stock `keymon`, while the frontend prefers
+plumOS-owned input mapping.
 
 ## Conditions For Write-Enabled UI
 

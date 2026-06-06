@@ -107,7 +107,9 @@
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [ ] plumOS 同梱 SDL2 の最小 linked/render test binary を A30 上で動かす。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
-- [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
+- [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
+- [ ] `plumos-input-compare --timeout-ms 10000` で物理ボタンの code/action mapping を確定する。
+- [ ] plumOS frontend 常用起動時に stock `keymon` を残すか停止するか最終判断する。
 - [ ] RetroArch 実行中の電源キー短押しで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
 
 ## Phase 7 - RetroArch and Core Runtime

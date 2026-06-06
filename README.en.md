@@ -25,6 +25,7 @@ Project notes:
 - [Docker toolchain](docs/docker-toolchain.en.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.en.md)
 - [A30 runtime probe](docs/a30-runtime-probe.en.md)
+- [A30 input policy](docs/a30-input-policy.en.md)
 - [Frontend prototype](docs/frontend-prototype.en.md)
 - [Stock frontend inventory](docs/stock-frontend-inventory.en.md)
 - [plumOS frontend data model](docs/frontend-data-model.en.md)

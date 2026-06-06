@@ -118,6 +118,20 @@ On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
 
 Details live in [A30 runtime probe](a30-runtime-probe.en.md).
 
+## Input Policy
+
+On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
+
+- Stock `keymon` opens `event0`, `event1`, `event2`, and `event3`.
+- Stock `MainUI` also opens `event0`, `event1`, and `event3`.
+- `gpio-keys-polled` is `/dev/input/event3`.
+- Even while `keymon` and `MainUI` are running, plumOS can open and poll
+  `/dev/input/event3` directly.
+
+For now, keep stock `keymon` while the plumOS frontend reads
+`/dev/input/event3` directly. Details live in
+[A30 input policy](a30-input-policy.en.md).
+
 ## Frontend Data Model To Preserve
 
 The stock UI reads SD-card content from these families:

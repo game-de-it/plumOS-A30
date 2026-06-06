@@ -139,6 +139,18 @@ backend 候補:
 
 詳細は [A30 runtime probe](a30-runtime-probe.md) にまとめています。
 
+## Input policy
+
+2026-06-06 に `plumos-input-compare` を A30 上で実行し、以下を確認しました。
+
+- stock `keymon` は `event0`, `event1`, `event2`, `event3` を開いている
+- stock `MainUI` も `event0`, `event1`, `event3` を開いている
+- `gpio-keys-polled` は `/dev/input/event3`
+- `keymon` と `MainUI` が動作中でも plumOS は `/dev/input/event3` を直接 open/poll できる
+
+当面は stock `keymon` を残しつつ、plumOS frontend は `/dev/input/event3` を直接読む方針です。
+詳細は [A30 input policy](a30-input-policy.md) に分離しています。
+
 ## 継承すべきフロントエンド互換情報
 
 stock UI は SD カード上の以下を読みます。

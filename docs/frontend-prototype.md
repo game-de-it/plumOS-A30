@@ -273,6 +273,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 状態を描き、`/dev/input/event*` または stdin fallback から入力を受けます。A30 では
 `/proc/bus/input/devices` から `gpio-keys-polled` を探し、通常は `/dev/input/event3` を
 自動選択します。
+`plumos-input-compare` では、stock `keymon` と stock `MainUI` が動作中でも
+`/dev/input/event3` を非排他で直接 open/poll できることを確認しています。
 
 TOP を 1 回だけ表示:
 

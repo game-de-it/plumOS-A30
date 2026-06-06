@@ -283,6 +283,8 @@ to framebuffer/SDL yet. Instead, it renders TOP/ROM-list/START-menu/Favorites/
 Recent/Settings state to SSH stdout and reads input from `/dev/input/event*` or
 stdin fallback. On the A30 it looks for `gpio-keys-polled` in
 `/proc/bus/input/devices`, which normally resolves to `/dev/input/event3`.
+`plumos-input-compare` confirms that `/dev/input/event3` can be opened and
+polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
 
 Render TOP once:
 
