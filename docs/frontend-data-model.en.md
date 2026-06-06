@@ -379,6 +379,61 @@ Rules:
   `apps.json`.
 - The initial START menu id is `start`; the Apps submenu id is `apps`.
 
+## Core Selection Model
+
+When SELECT is pressed on a highlighted TOP system, the frontend opens a system
+default profile picker using that system's `launch_profiles`. When SELECT is
+pressed on a highlighted ROM entry, the frontend opens a per-ROM profile picker
+that applies only to that ROM.
+
+State path:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/core-overrides.json
+```
+
+Schema:
+
+```json
+{
+  "version": 1,
+  "system_overrides": [
+    { "system_id": "nes", "launch_profile": "retroarch:nestopia" }
+  ],
+  "rom_overrides": [
+    {
+      "system_id": "nes",
+      "relative_path": "FC/example.nes",
+      "launch_profile": "retroarch:fceumm"
+    }
+  ]
+}
+```
+
+Priority:
+
+```text
+1. ROM override
+2. system override
+3. SystemDefinition.default_launch_profile
+4. auto detect
+```
+
+Rules:
+
+- Store a `launch_profile` id, not a direct core path.
+- Profile ids such as `retroarch:fceumm` are resolved by the launcher into the
+  RetroArch binary, core `.so`, config overrides, and CPU policy.
+- A per-ROM override is keyed by `system_id` plus the ROM `relative_path` from
+  the ROM alias root.
+- Moving or renaming a ROM does not automatically move its per-ROM override.
+- Clearing a ROM override falls back to the system override. Clearing the system
+  override falls back to `default_launch_profile`.
+- `default_launch_profile` is the plumOS recommended initial value, not a user
+  override.
+- Do not adopt stock `launchlist` directly. Migrate only useful candidates into
+  plumOS launch profiles.
+
 ## Directory Discovery
 
 ```json

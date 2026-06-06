@@ -88,13 +88,13 @@
 - [x] Measure first text-mode display time with 1000 dummy ROM files.
 - [x] Build an SSH-checkable text-mode system list / ROM list prototype.
 - [x] Implement a START menu UI model for settings/apps/reboot/shutdown.
-- [ ] Implement system default core selection with SELECT on a highlighted TOP
+- [x] Implement system default core selection with SELECT on a highlighted TOP
   system.
-- [ ] Implement per-ROM core override selection with SELECT on a highlighted ROM
+- [x] Implement per-ROM core override selection with SELECT on a highlighted ROM
   entry.
-- [ ] Implement core priority as ROM override > system default > plumOS
+- [x] Implement core priority as ROM override > system default > plumOS
   recommended > auto detect.
-- [ ] Store core selection as an extensible launch profile id, not only a core
+- [x] Store core selection as an extensible launch profile id, not only a core
   id.
 - [ ] Implement favorite toggle in the ROM list and open Favorites from the
   START menu.

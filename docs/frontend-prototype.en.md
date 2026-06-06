@@ -172,6 +172,34 @@ defined with `confirm=yes`. This prototype only displays actions; it does not
 execute reboot/shutdown. `menu apps` displays `apps.json` entries where
 `menu=apps`.
 
+System core selection view:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes'
+```
+
+Set a system default core/profile:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes --set retroarch:nestopia'
+```
+
+Set a per-ROM core/profile override:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core rom nes FC/example.nes --set retroarch:fceumm'
+```
+
+`core system` corresponds to pressing SELECT on a highlighted TOP system.
+`core rom` corresponds to pressing SELECT on a highlighted ROM list entry. State
+is saved to `state/frontend/core-overrides.json`. The stored value is a
+`launch_profile` id, not a core `.so` path. Priority is
+`ROM override > system override > default_launch_profile > auto detect`.
+`--clear` removes the matching override and falls back to the next layer.
+
 A30 device check on 2026-06-06:
 
 ```text
@@ -194,6 +222,13 @@ menu: start
   5. Refresh Current System   scan       scan:current             no
   6. Reboot                   system     system:reboot            yes
   7. Shutdown                 system     system:shutdown          yes
+
+plumOS text UI - core selection
+scope: system
+system: nes (NES)
+current: retroarch:fceumm (plumOS default)
+  1. retroarch:fceumm               yes      no       -        *
+  2. retroarch:nestopia             no       no       -
 ```
 
 ## Current Inputs

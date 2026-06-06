@@ -377,6 +377,59 @@ settings など、emulator ではない機能は TOP に直接並べず、この
 - START menu の entry は `menus.json`、app/tool 定義は `apps.json` に置く
 - 初期実装の START menu id は `start`、Apps submenu id は `apps` とする
 
+## Core selection model
+
+TOP 画面で system に cursor が合っている状態で SELECT を押すと、その system の
+`launch_profiles` から system default profile を選びます。ROM list で ROM に cursor が
+合っている状態で SELECT を押すと、その ROM だけに適用する profile を選びます。
+
+保存先:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/core-overrides.json
+```
+
+schema:
+
+```json
+{
+  "version": 1,
+  "system_overrides": [
+    { "system_id": "nes", "launch_profile": "retroarch:nestopia" }
+  ],
+  "rom_overrides": [
+    {
+      "system_id": "nes",
+      "relative_path": "FC/example.nes",
+      "launch_profile": "retroarch:fceumm"
+    }
+  ]
+}
+```
+
+優先順位:
+
+```text
+1. ROM override
+2. system override
+3. SystemDefinition.default_launch_profile
+4. auto detect
+```
+
+rules:
+
+- 保存する値は core path ではなく `launch_profile` id とする
+- `retroarch:fceumm` のような profile id は launcher 側で RetroArch binary、core `.so`、
+  config override、CPU policy へ解決する
+- per-ROM override の key は `system_id` と、ROM alias root からの `relative_path`
+  の組み合わせとする
+- ROM file を移動/rename した場合、per-ROM override は自動追跡しない
+- ROM override を clear すると system override へ戻り、system override もなければ
+  `default_launch_profile` へ戻る
+- `default_launch_profile` は plumOS 推奨初期値であり、ユーザー設定ではない
+- stock `launchlist` をそのまま採用せず、必要な候補だけ plumOS launch profile へ
+  migration する
+
 ## Directory discovery
 
 scan root は複数持てます。

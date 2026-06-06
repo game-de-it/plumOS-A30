@@ -81,10 +81,10 @@
 - [x] 1000 dummy ROM files で text mode 初回表示時間を計測する。
 - [x] SSH から確認できる text mode system list / ROM list prototype を作る。
 - [x] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
-- [ ] TOP の system 選択中に SELECT で system default core を選ぶ UI を実装する。
-- [ ] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
-- [ ] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。
-- [ ] core 選択は core id だけでなく launch profile id として保存できるようにする。
+- [x] TOP の system 選択中に SELECT で system default core を選ぶ UI を実装する。
+- [x] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
+- [x] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。
+- [x] core 選択は core id だけでなく launch profile id として保存できるようにする。
 - [ ] ROM list で favorite toggle を実装し、START menu から Favorites を開けるようにする。
 - [ ] Favorites を TOP に仮想 system として表示する optional setting を用意する。
 - [ ] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。

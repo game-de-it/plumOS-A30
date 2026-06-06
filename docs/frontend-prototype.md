@@ -163,6 +163,34 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 この prototype は action を表示するだけで、reboot/shutdown は実行しません。
 `menu apps` は `apps.json` の `menu=apps` entry を表示します。
 
+System core 選択表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes'
+```
+
+System default core/profile を保存:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes --set retroarch:nestopia'
+```
+
+ROM 別 core/profile override を保存:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui core rom nes FC/example.nes --set retroarch:fceumm'
+```
+
+`core system` は TOP 画面で system に cursor が合っている状態の SELECT に相当します。
+`core rom` は ROM list で ROM に cursor が合っている状態の SELECT に相当します。
+保存先は `state/frontend/core-overrides.json` です。保存する値は core `.so` path ではなく
+`launch_profile` id です。優先順位は
+`ROM override > system override > default_launch_profile > auto detect` です。
+`--clear` を指定すると対象の override を削除して fallback へ戻します。
+
 2026-06-06 の A30 実機確認:
 
 ```text
@@ -185,6 +213,13 @@ menu: start
   5. Refresh Current System   scan       scan:current             no
   6. Reboot                   system     system:reboot            yes
   7. Shutdown                 system     system:shutdown          yes
+
+plumOS text UI - core selection
+scope: system
+system: nes (NES)
+current: retroarch:fceumm (plumOS default)
+  1. retroarch:fceumm               yes      no       -        *
+  2. retroarch:nestopia             no       no       -
 ```
 
 ## 現在読む情報
