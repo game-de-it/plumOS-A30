@@ -22,12 +22,15 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
 dist/plumos-frontend/plumos/config/frontend/themes.json
 dist/plumos-frontend/plumos/config/frontend/settings.json
 dist/plumos-frontend/plumos/themes/default/theme.json
+dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -268,8 +271,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 ## plumOS controller UI
 
-`plumos-controller-ui` は controller-first の最小 prototype です。まだ framebuffer/SDL の
-画面描画は行わず、SSH stdout に TOP/ROM list/START menu/Favorites/Recent/Settings の
+`plumos-controller-ui` は controller-first の最小 prototype です。既定の
+`plumos-controller-ui` は SSH stdout に TOP/ROM list/START menu/Favorites/Recent/Settings の
 状態を描き、`/dev/input/event*` または stdin fallback から入力を受けます。A30 では
 `/proc/bus/input/devices` から `gpio-keys-polled` を探し、通常は `/dev/input/event3` を
 自動選択します。
@@ -278,6 +281,23 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 実機 mapping では A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
 SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は START 代替ではなく、
 safe shutdown/resume menu の preview に割り当てています。
+
+`plumos-controller-ui-mali` は同じ controller UI の Mali EGL renderer 付き binary です。
+`/dev/fb0` と `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so` を使い、stock SDL にはリンクしません。
+wrapper は bundled dynamic loader/glibc で `plumos-controller-ui-mali.bin` を起動しますが、
+`LD_LIBRARY_PATH` は export しません。これは、UI 内の `plumos-library-scan` 呼び出しで
+stock `/bin/sh` が同梱 glibc を誤って読むのを防ぐためです。
+
+Mali renderer の実機確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
+```
+
+2026-06-07 の A30 実機確認では、full scan 後に TOP を表示し、
+`down,a,b,q` script で TOP から ROM list に入り TOP へ戻る流れまで
+`result=frontend_mali_renderer_rc_0` でした。
 
 TOP を 1 回だけ表示:
 

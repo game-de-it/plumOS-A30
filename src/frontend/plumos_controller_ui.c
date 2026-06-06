@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+#include "plumos_mali_renderer.h"
+#endif
 
 #if defined(__has_include)
 #if __has_include(<linux/input.h>)
@@ -157,6 +162,8 @@ struct input_event {
 #define UI_MAX_SETTINGS 64
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
+#define UI_RENDER_MAX_LINES 64
+#define UI_RENDER_LINE_MAX 160
 
 struct top_entry {
   char id[64];
@@ -289,6 +296,8 @@ struct ui_state {
   int refresh;
   int no_clear;
   int once;
+  int renderer_mali;
+  int render_failed;
   int timeout_sec;
   enum ui_screen screen;
   enum ui_screen back_screen;
@@ -309,6 +318,11 @@ struct ui_state {
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
+  char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
+  size_t render_line_count;
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+  struct plumos_mali_renderer mali_renderer;
+#endif
   char current_system_id[64];
   char current_system_name[128];
   char safe_target_system_id[64];
@@ -1461,13 +1475,62 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   return 1;
 }
 
-static void clear_screen(const struct ui_state *ui) {
+static void ui_append_render_line(struct ui_state *ui, const char *line, size_t len) {
+  if (ui->render_line_count >= UI_RENDER_MAX_LINES) {
+    return;
+  }
+  if (len >= UI_RENDER_LINE_MAX) {
+    len = UI_RENDER_LINE_MAX - 1;
+  }
+  memcpy(ui->render_lines[ui->render_line_count], line, len);
+  ui->render_lines[ui->render_line_count][len] = '\0';
+  ui->render_line_count++;
+}
+
+static void ui_vprintf(struct ui_state *ui, const char *fmt, va_list ap) {
+  char buf[512];
+  const char *start;
+  const char *p;
+
+  if (!ui->renderer_mali) {
+    vprintf(fmt, ap);
+    return;
+  }
+
+  vsnprintf(buf, sizeof(buf), fmt, ap);
+  start = buf;
+  for (p = buf; ; p++) {
+    if (*p == '\n' || *p == '\0') {
+      if (p > start || *p == '\n') {
+        ui_append_render_line(ui, start, (size_t)(p - start));
+      }
+      if (*p == '\0') {
+        break;
+      }
+      start = p + 1;
+    }
+  }
+}
+
+static void ui_printf(struct ui_state *ui, const char *fmt, ...) {
+  va_list ap;
+
+  va_start(ap, fmt);
+  ui_vprintf(ui, fmt, ap);
+  va_end(ap);
+}
+
+static void clear_screen(struct ui_state *ui) {
+  if (ui->renderer_mali) {
+    ui->render_line_count = 0;
+    return;
+  }
   if (!ui->no_clear) {
     printf("\033[2J\033[H");
   }
 }
 
-static void render_top(const struct ui_state *ui) {
+static void render_top(struct ui_state *ui) {
   size_t i;
   size_t window = 10;
   size_t start = 0;
@@ -1484,25 +1547,25 @@ static void render_top(const struct ui_state *ui) {
     end = ui->top_count;
   }
 
-  printf("plumOS controller UI - TOP\n");
-  printf("A: open  B: back  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit\n");
-  printf("entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
-  printf("\n");
+  ui_printf(ui, "plumOS controller UI - TOP\n");
+  ui_printf(ui, "A: open  B: back  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit\n");
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
+  ui_printf(ui, "\n");
   for (i = start; i < end; i++) {
     const struct top_entry *entry = &ui->top_entries[i];
-    printf("%c %3zu  %-18s ROMs=%-5ld profile=%s\n",
-           i == ui->top_cursor ? '>' : ' ', i + 1, entry->display_name, entry->rom_count,
-           entry->default_launch_profile[0] ? entry->default_launch_profile : "-");
+    ui_printf(ui, "%c %3zu  %-18s ROMs=%-5ld profile=%s\n",
+              i == ui->top_cursor ? '>' : ' ', i + 1, entry->display_name, entry->rom_count,
+              entry->default_launch_profile[0] ? entry->default_launch_profile : "-");
   }
   if (ui->top_count == 0) {
-    printf("(system entry is empty; run plumos-library-scan first)\n");
+    ui_printf(ui, "(system entry is empty; run plumos-library-scan first)\n");
   }
   if (ui->status[0]) {
-    printf("\nstatus: %s\n", ui->status);
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
 }
 
-static void render_roms(const struct ui_state *ui) {
+static void render_roms(struct ui_state *ui) {
   size_t i;
   size_t window = 10;
   size_t start = 0;
@@ -1532,98 +1595,102 @@ static void render_roms(const struct ui_state *ui) {
         "A: resume preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
   }
 
-  printf("plumOS controller UI - %s\n", title);
+  ui_printf(ui, "plumOS controller UI - %s\n", title);
   if (ui->screen == SCREEN_ROMS) {
-    printf("system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
+    ui_printf(ui, "system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
   }
-  printf("%s\n", subtitle);
-  printf("entries=%zu cursor=%zu\n", ui->rom_count, ui->rom_count ? ui->rom_cursor + 1 : 0);
-  printf("\n");
+  ui_printf(ui, "%s\n", subtitle);
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->rom_count,
+            ui->rom_count ? ui->rom_cursor + 1 : 0);
+  ui_printf(ui, "\n");
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
     const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
-    printf("%c %3zu  %-30s %s\n",
-           i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
+    ui_printf(ui, "%c %3zu  %-30s %s\n",
+              i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
   }
   if (ui->rom_count == 0) {
-    printf("(entry is empty)\n");
+    ui_printf(ui, "(entry is empty)\n");
   }
   if (ui->screen == SCREEN_FAVORITES) {
-    printf("\nsource: %s\n", ui->favorites_path);
+    ui_printf(ui, "\nsource: %s\n", ui->favorites_path);
   } else if (ui->screen == SCREEN_RECENT) {
-    printf("\nsource: %s\n", ui->recent_path);
+    ui_printf(ui, "\nsource: %s\n", ui->recent_path);
   }
   if (ui->status[0]) {
-    printf("\nstatus: %s\n", ui->status);
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
 }
 
-static void render_start_menu(const struct ui_state *ui) {
+static void render_start_menu(struct ui_state *ui) {
   size_t i;
 
-  printf("plumOS controller UI - START\n");
-  printf("A: open/preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
-  printf("entries=%zu cursor=%zu\n", ui->menu_count, ui->menu_count ? ui->menu_cursor + 1 : 0);
-  printf("\n");
+  ui_printf(ui, "plumOS controller UI - START\n");
+  ui_printf(ui, "A: open/preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->menu_count,
+            ui->menu_count ? ui->menu_cursor + 1 : 0);
+  ui_printf(ui, "\n");
   for (i = 0; i < ui->menu_count; i++) {
     const struct menu_entry *entry = &ui->menu_entries[i];
-    printf("%c %3zu  %-24s %-10s %-24s %s\n",
-           i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
-           entry->kind[0] ? entry->kind : "-", entry->action,
-           entry->confirm ? "confirm" : "");
+    ui_printf(ui, "%c %3zu  %-24s %-10s %-24s %s\n",
+              i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
+              entry->kind[0] ? entry->kind : "-", entry->action,
+              entry->confirm ? "confirm" : "");
   }
   if (ui->menu_count == 0) {
-    printf("(menu entry is empty)\n");
+    ui_printf(ui, "(menu entry is empty)\n");
   }
   if (ui->status[0]) {
-    printf("\nstatus: %s\n", ui->status);
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
 }
 
-static void render_settings(const struct ui_state *ui) {
+static void render_settings(struct ui_state *ui) {
   size_t i;
 
-  printf("plumOS controller UI - SETTINGS\n");
-  printf("A: edit preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
-  printf("entries=%zu cursor=%zu\n", ui->setting_count,
-         ui->setting_count ? ui->settings_cursor + 1 : 0);
-  printf("\n");
+  ui_printf(ui, "plumOS controller UI - SETTINGS\n");
+  ui_printf(ui, "A: edit preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
+            ui->setting_count ? ui->settings_cursor + 1 : 0);
+  ui_printf(ui, "\n");
   for (i = 0; i < ui->setting_count; i++) {
     const struct setting_entry *entry = &ui->setting_entries[i];
-    printf("%c %3zu  %-24s %s\n",
-           i == ui->settings_cursor ? '>' : ' ', i + 1, entry->display_name, entry->value);
+    ui_printf(ui, "%c %3zu  %-24s %s\n",
+              i == ui->settings_cursor ? '>' : ' ', i + 1, entry->display_name, entry->value);
   }
-  printf("\nsource: %s\n", ui->settings_path);
+  ui_printf(ui, "\nsource: %s\n", ui->settings_path);
   if (ui->status[0]) {
-    printf("\nstatus: %s\n", ui->status);
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
 }
 
-static void render_safe_menu(const struct ui_state *ui) {
+static void render_safe_menu(struct ui_state *ui) {
   size_t i;
 
-  printf("plumOS controller UI - SAFE\n");
-  printf("A/RIGHT: preview  B/LEFT/FUNCTION: cancel  UP/DOWN: move  Q: quit\n");
+  ui_printf(ui, "plumOS controller UI - SAFE\n");
+  ui_printf(ui, "A/RIGHT: preview  B/LEFT/FUNCTION: cancel  UP/DOWN: move  Q: quit\n");
   if (ui->safe_target_relative_path[0]) {
-    printf("target=%s / %s\n", ui->safe_target_system_id, ui->safe_target_relative_path);
-    printf("profile=%s\n", ui->safe_target_launch_profile[0] ? ui->safe_target_launch_profile : "-");
+    ui_printf(ui, "target=%s / %s\n", ui->safe_target_system_id,
+              ui->safe_target_relative_path);
+    ui_printf(ui, "profile=%s\n",
+              ui->safe_target_launch_profile[0] ? ui->safe_target_launch_profile : "-");
   } else {
-    printf("target=(no active ROM target)\n");
+    ui_printf(ui, "target=(no active ROM target)\n");
   }
-  printf("entries=%zu cursor=%zu\n", SAFE_ENTRY_COUNT,
-         SAFE_ENTRY_COUNT ? ui->safe_cursor + 1 : 0);
-  printf("\n");
+  ui_printf(ui, "entries=%zu cursor=%zu\n", SAFE_ENTRY_COUNT,
+            SAFE_ENTRY_COUNT ? ui->safe_cursor + 1 : 0);
+  ui_printf(ui, "\n");
   for (i = 0; i < SAFE_ENTRY_COUNT; i++) {
     const struct safe_entry *entry = &SAFE_ENTRIES[i];
-    printf("%c %3zu  %-12s %s\n",
-           i == ui->safe_cursor ? '>' : ' ', i + 1, entry->display_name, entry->detail);
+    ui_printf(ui, "%c %3zu  %-12s %s\n",
+              i == ui->safe_cursor ? '>' : ' ', i + 1, entry->display_name, entry->detail);
   }
   if (ui->status[0]) {
-    printf("\nstatus: %s\n", ui->status);
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
 }
 
-static void render_ui(const struct ui_state *ui) {
+static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
   if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
       ui->screen == SCREEN_RECENT) {
@@ -1637,7 +1704,17 @@ static void render_ui(const struct ui_state *ui) {
   } else {
     render_top(ui);
   }
-  fflush(stdout);
+  if (ui->renderer_mali) {
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+    if (!plumos_mali_render_lines(&ui->mali_renderer, ui->render_lines,
+                                  ui->render_line_count)) {
+      copy_string(ui->status, sizeof(ui->status), "Mali renderer swap failed");
+      ui->render_failed = 1;
+    }
+#endif
+  } else {
+    fflush(stdout);
+  }
 }
 
 static void set_status(struct ui_state *ui, const char *text) {
@@ -2142,7 +2219,7 @@ static int run_script(struct ui_state *ui, const char *script) {
     }
   }
   free(copy);
-  return 1;
+  return ui->render_failed ? 0 : 1;
 }
 
 static int run_event_loop(struct ui_state *ui, const char *event_path) {
@@ -2232,12 +2309,13 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   if (event_fd >= 0) {
     close(event_fd);
   }
-  return 0;
+  return ui->render_failed ? 1 : 0;
 }
 
 static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
+  printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
@@ -2246,6 +2324,10 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");
   printf("  PLUMOS_INPUT_EVENT  Default: auto-detect gpio-keys-polled\n");
+  printf("  PLUMOS_RENDERER     text or mali. Default: text\n");
+  printf("  PLUMOS_FB           Default for Mali renderer: /dev/fb0\n");
+  printf("  PLUMOS_EGL_LIB      Default for Mali renderer: /usr/lib/libEGL.so\n");
+  printf("  PLUMOS_GLES_LIB     Default for Mali renderer: /usr/lib/libGLESv2.so\n");
   printf("  PLUMOS_A30_SYSTEM_JSON  Default: /config/system.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
 }
@@ -2253,11 +2335,16 @@ static void usage(const char *argv0) {
 int main(int argc, char **argv) {
   static struct ui_state ui;
   const char *plumos_root_env;
+  const char *renderer_env;
   const char *system_config_env;
   const char *wpa_status_env;
+  const char *fb_path;
+  const char *egl_path;
+  const char *gles_path;
   const char *script = NULL;
   char event_path[PATH_MAX];
   int dump_events = 0;
+  int exit_code = 0;
   int i;
 
   memset(&ui, 0, sizeof(ui));
@@ -2273,6 +2360,11 @@ int main(int argc, char **argv) {
     return 1;
   }
   ui.timeout_sec = 0;
+  renderer_env = getenv("PLUMOS_RENDERER");
+  if (renderer_env && strcmp(renderer_env, "mali") == 0) {
+    ui.renderer_mali = 1;
+    ui.no_clear = 1;
+  }
   discover_input_event(event_path, sizeof(event_path));
   if (getenv("PLUMOS_INPUT_EVENT") && getenv("PLUMOS_INPUT_EVENT")[0]) {
     copy_string(event_path, sizeof(event_path), getenv("PLUMOS_INPUT_EVENT"));
@@ -2291,6 +2383,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "error: A30 WPA status path is too long\n");
     return 1;
   }
+  fb_path = getenv("PLUMOS_FB");
+  egl_path = getenv("PLUMOS_EGL_LIB");
+  gles_path = getenv("PLUMOS_GLES_LIB");
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--all") == 0) {
@@ -2301,10 +2396,30 @@ int main(int argc, char **argv) {
       ui.once = 1;
     } else if (strcmp(argv[i], "--no-clear") == 0) {
       ui.no_clear = 1;
+    } else if (strcmp(argv[i], "--mali") == 0) {
+      ui.renderer_mali = 1;
+      ui.no_clear = 1;
+    } else if (strcmp(argv[i], "--renderer") == 0 && i + 1 < argc) {
+      const char *renderer = argv[++i];
+      if (strcmp(renderer, "mali") == 0) {
+        ui.renderer_mali = 1;
+        ui.no_clear = 1;
+      } else if (strcmp(renderer, "text") == 0) {
+        ui.renderer_mali = 0;
+      } else {
+        fprintf(stderr, "error: unknown renderer: %s\n", renderer);
+        return 2;
+      }
     } else if (strcmp(argv[i], "--timeout") == 0 && i + 1 < argc) {
       ui.timeout_sec = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
       copy_string(event_path, sizeof(event_path), argv[++i]);
+    } else if (strcmp(argv[i], "--fb") == 0 && i + 1 < argc) {
+      fb_path = argv[++i];
+    } else if (strcmp(argv[i], "--egl-lib") == 0 && i + 1 < argc) {
+      egl_path = argv[++i];
+    } else if (strcmp(argv[i], "--gles-lib") == 0 && i + 1 < argc) {
+      gles_path = argv[++i];
     } else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
       script = argv[++i];
     } else if (strcmp(argv[i], "--dump-events") == 0) {
@@ -2343,12 +2458,48 @@ int main(int argc, char **argv) {
     fprintf(stderr, "error: cannot load TOP entries: %s\n", ui.top_cache_path);
     return 1;
   }
+
+#ifndef PLUMOS_ENABLE_MALI_RENDERER
+  (void)fb_path;
+  (void)egl_path;
+  (void)gles_path;
+#endif
+
+  if (ui.renderer_mali) {
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+    char render_error[256];
+    render_error[0] = '\0';
+    if (!plumos_mali_renderer_init(&ui.mali_renderer,
+                                   fb_path && fb_path[0] ? fb_path : "/dev/fb0",
+                                   egl_path && egl_path[0] ? egl_path : "/usr/lib/libEGL.so",
+                                   gles_path && gles_path[0] ? gles_path : "/usr/lib/libGLESv2.so",
+                                   render_error, sizeof(render_error))) {
+      fprintf(stderr, "error: Mali renderer init failed: %s\n",
+              render_error[0] ? render_error : "-");
+      return 1;
+    }
+    copy_string(ui.status, sizeof(ui.status), "Mali renderer ready");
+#else
+    fprintf(stderr, "error: this binary was built without Mali renderer support\n");
+    return 2;
+#endif
+  }
+
   if (script) {
-    return run_script(&ui, script) ? 0 : 1;
-  }
-  if (ui.once) {
+    exit_code = run_script(&ui, script) ? 0 : 1;
+  } else if (ui.once) {
     render_ui(&ui);
-    return 0;
+    if (ui.renderer_mali && ui.timeout_sec > 0) {
+      sleep((unsigned int)ui.timeout_sec);
+    }
+    exit_code = ui.render_failed ? 1 : 0;
+  } else {
+    exit_code = run_event_loop(&ui, event_path);
   }
-  return run_event_loop(&ui, event_path);
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+  if (ui.renderer_mali) {
+    plumos_mali_renderer_shutdown(&ui.mali_renderer);
+  }
+#endif
+  return exit_code;
 }

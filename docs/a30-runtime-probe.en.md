@@ -324,9 +324,12 @@ stock SDL, can swap to the A30 display. `NULL` native window and a
 - Mali EGL: `plumos-mali-egl-probe` dlopens `/usr/lib/libEGL.so` and
   `libGLESv2.so` without linking to stock SDL, then successfully creates an
   fbdev EGL surface, GLES2 context, `eglSwapBuffers`, and `glReadPixels`.
+- Frontend Mali: the recommended first path is now a frontend-integrated
+  presenter. `plumos-controller-ui-mali` displayed TOP, ran a full scan, and
+  navigated into/back from a ROM list with `down,a,b,q` on the A30.
 
 The stock `keymon` comparison is split into
-[A30 input policy](a30-input-policy.en.md). Next steps are deciding whether the
-fbdev + Mali EGL presenter should be integrated directly into the frontend or
-promoted into an SDL3/sdl2-compat custom video backend, plus the RetroArch
-SDL2/evdev build.
+[A30 input policy](a30-input-policy.en.md). Next steps are visual inspection and
+longer operation testing for `plumos-controller-ui-mali`, plus the RetroArch
+SDL2/evdev build. SDL3/sdl2-compat custom video backend work should be revisited
+after the frontend presenter behavior is stable.

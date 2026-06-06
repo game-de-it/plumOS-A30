@@ -52,6 +52,9 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -142,6 +145,16 @@ frontend prototype も SD カード root に展開します。
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+Mali EGL renderer 付き controller UI は、同じ frontend package に含まれます。
+wrapper は bundled dynamic loader/glibc を使いますが、子プロセスへ
+`LD_LIBRARY_PATH` は渡さず、UI 内の scanner 呼び出しが stock `/bin/sh` を壊さないように
+しています。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 ```
 
 runtime probe も SD カード root に展開します。

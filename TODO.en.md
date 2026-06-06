@@ -134,8 +134,20 @@
 - [x] Run a minimal framebuffer/input/audio runtime probe binary on the A30.
 - [x] Run a minimal linked/window/input probe binary with plumOS-bundled SDL2 on
   the A30.
-- [ ] Validate the framebuffer/render backend for plumOS-bundled SDL2 on the
-  A30.
+- [x] Validate the plumOS-bundled SDL2 framebuffer/render options on the A30 and
+  confirm that upstream SDL3+sdl2-compat only reaches dummy/offscreen/evdev
+  software rendering without a real display backend.
+- [x] Inspect stock SDL1/SDL2 video backends and confirm that stock SDL2 uses a
+  custom `mali` backend for `/dev/fb0` + Mali fbdev EGL.
+- [x] Implement a clean-room fbdev + Mali EGL presenter probe without linking to
+  stock SDL and confirm `eglSwapBuffers` on the A30.
+- [x] Choose the initial real-display path: integrate fbdev + Mali EGL directly
+  into the frontend first, and confirm TOP display plus ROM-list navigation with
+  `plumos-controller-ui-mali` on the A30.
+- [ ] Visually inspect `plumos-controller-ui-mali`, including text readability
+  and longer operation while stock MainUI/keymon are still present.
+- [ ] Revisit SDL3/sdl2-compat custom video backend work after the frontend
+  presenter behavior is stable.
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
 - [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
   directly.

@@ -316,8 +316,10 @@ A30 上で実画面へ swap できることを確認しました。`NULL` native
 - Mali EGL: stock SDL にリンクしない `plumos-mali-egl-probe` で
   `/usr/lib/libEGL.so`/`libGLESv2.so` を `dlopen` し、fbdev EGL surface、
   GLES2 context、`eglSwapBuffers`、`glReadPixels` まで成功した
+- frontend Mali: 推奨案として frontend 直結の `plumos-controller-ui-mali` を追加し、
+  TOP 表示、full scan、`down,a,b,q` による ROM list 遷移/復帰を A30 上で確認した
 
 stock `keymon` と直接 input event の比較は [A30 input policy](a30-input-policy.md) に
-分離しました。次は、fbdev + Mali EGL presenter を frontend に直接組み込むか、
-SDL3/sdl2-compat custom video backend へ昇格するかの設計と、
-RetroArch SDL2/evdev build に進みます。
+分離しました。次は、`plumos-controller-ui-mali` の実画面視認/長時間操作確認と、
+RetroArch SDL2/evdev build に進みます。SDL3/sdl2-compat custom video backend 化は
+frontend presenter の挙動が固まってから再判断します。

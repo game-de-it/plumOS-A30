@@ -75,6 +75,9 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -89,6 +92,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+Mali EGL renderer の実機確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 ```
 
 ## runtime probe build

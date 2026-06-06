@@ -22,12 +22,15 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
 dist/plumos-frontend/plumos/config/frontend/themes.json
 dist/plumos-frontend/plumos/config/frontend/settings.json
 dist/plumos-frontend/plumos/themes/default/theme.json
+dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -278,16 +281,34 @@ When `plumos-frontend` starts in boot mode, it calls
 
 ## plumOS Controller UI
 
-`plumos-controller-ui` is the first controller-first prototype. It does not draw
-to framebuffer/SDL yet. Instead, it renders TOP/ROM-list/START-menu/Favorites/
-Recent/Settings state to SSH stdout and reads input from `/dev/input/event*` or
-stdin fallback. On the A30 it looks for `gpio-keys-polled` in
+`plumos-controller-ui` is the first controller-first prototype. The default
+`plumos-controller-ui` renders TOP/ROM-list/START-menu/Favorites/Recent/
+Settings state to SSH stdout and reads input from `/dev/input/event*` or stdin
+fallback. On the A30 it looks for `gpio-keys-polled` in
 `/proc/bus/input/devices`, which normally resolves to `/dev/input/event3`.
 `plumos-input-compare` confirms that `/dev/input/event3` can be opened and
 polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
 The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
 SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is not an alternate START button; it
 opens the safe shutdown/resume menu preview.
+
+`plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
+It uses `/dev/fb0` and `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so`, without
+linking to stock SDL. Its wrapper starts `plumos-controller-ui-mali.bin` through
+the bundled dynamic loader/glibc, but does not export `LD_LIBRARY_PATH`. This
+prevents scanner calls inside the UI from making the stock `/bin/sh` load the
+bundled glibc by accident.
+
+Mali renderer device checks:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
+```
+
+On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
+`down,a,b,q` script from TOP into a ROM list and back with
+`result=frontend_mali_renderer_rc_0`.
 
 Render TOP once:
 

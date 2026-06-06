@@ -52,6 +52,9 @@ dist/plumos-frontend/plumos/bin/plumos-frontend
 dist/plumos-frontend/plumos/bin/plumos-library-scan
 dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
+dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
@@ -143,6 +146,16 @@ Deploy the frontend prototype to the SD card root.
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+The Mali EGL controller UI renderer is included in the same frontend package.
+The wrapper uses the bundled dynamic loader/glibc, but it does not export
+`LD_LIBRARY_PATH` to child processes, so scanner calls from inside the UI do not
+break the stock `/bin/sh`.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
 ```
 
 Deploy the runtime probe to the SD card root.
