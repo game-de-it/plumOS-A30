@@ -259,9 +259,10 @@ stock UI は SD カード上の以下を読みます。
 - `savefile_directory = "./.retroarch/saves"`
 - `savestate_directory = "./.retroarch/states"`
 
-2026-06-06 時点で公式 upstream の GitHub Releases では RetroArch `v1.22.2` が
-最新として表示されています。A30 は glibc `2.23` のため、汎用 buildbot binary に
-頼らず、A30 向け armv7 hard-float build を作る前提にします。
+RetroArch は build 時点で公式 upstream の latest stable release を再確認してから
+採用候補を決めます。A30 は glibc `2.23` のため、汎用 buildbot binary に頼らず、
+A30 向け armv7 hard-float build を作る前提にします。stockOS 側の RetroArch/core
+version は互換調査の参考に留め、最新版で実機異常が出た場合だけ比較対象にします。
 
 ## 既存 launch script の傾向
 
@@ -302,6 +303,6 @@ plumOS では、まず既存挙動を再現できる互換 layer を作り、そ
 - `/mnt/SDCARD/miyoo/app/MainUI` は復旧可能な wrapper として扱う
 - plumOS 本体は `/mnt/SDCARD/plumos` 配下へ置く
 - stock の `/mnt/SDCARD/miyoo/lib` には依存しない
-- RetroArch `v1.22.2` と必要 core を A30 向けに build する
+- build 時点で最新 stable の RetroArch と必要 core を確認し、A30 向けに build する
 - core は一括更新せず、system ごとに起動、performance、save/state、input を検証する
 - CPU policy、Wi-Fi、input、audio/video driver は「既存仕様を疑う」対象として扱う

@@ -17,6 +17,7 @@
 - [x] `docker/` 配下に toolchain Dockerfile と補助 script を置く。
 - [ ] A30 向け sysroot を Docker build で再現可能にする。
 - [ ] Docker 内で frontend、helper、RetroArch、libretro core を build できるようにする。
+- [ ] SDL2、RetroArch、libretro core、standalone emulator、補助 library は build 時点の latest stable upstream release を確認し、採用 version/tag/commit/build option を manifest 化する。
 - [x] Docker 内で frontend compatibility scanner を build できるようにする。
 - [x] Docker build output を `dist/` または staging directory へ集約する。
 - [x] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
@@ -153,12 +154,13 @@
 
 ## Phase 7 - RetroArch and Core Runtime
 
-- [ ] RetroArch `v1.22.2` を A30 の armv7 hard-float 環境向けに build/test する。
+- [ ] build 時点で最新 stable の RetroArch release を確認し、A30 の armv7 hard-float 環境向けに build/test する。
 - [ ] RetroArch を `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置する。
 - [ ] core を `/mnt/SDCARD/plumos/retroarch/cores` へ配置する。
 - [ ] `HOME=/mnt/SDCARD/RetroArch` に依存しない起動方法へ移行する。
 - [ ] `--config` と override config で system/core ごとの差分を管理する。
 - [ ] libretro core は system ごとに段階更新する。
+- [ ] libretro core と standalone emulator は stockOS version ではなく upstream latest stable を初期候補にし、実機異常がある場合だけ stockOS 側 version/patch/build option と比較する。
 - [ ] 起動、performance、save/state、input、audio/video を core ごとに検証する。
 - [ ] RetroArch の Auto Save State / Auto Load State を plumOS resume flow で検証する。
 - [ ] Network Control Interface または同等手段で `SAVE_STATE`、`CLOSE_CONTENT`、`QUIT` を安全に実行できるか確認する。

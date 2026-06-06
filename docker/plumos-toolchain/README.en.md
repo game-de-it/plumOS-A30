@@ -193,6 +193,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 ## Current Limits
 
 - This Dockerfile is the starting point for the build/deploy loop.
+- For libraries, RetroArch, libretro cores, and standalone emulators, check the
+  upstream latest stable release at build time and record the selected
+  version/tag/commit/build options in manifests.
 - Final RetroArch and libretro core builds still need the A30 sysroot and
   library policy.
 - Dynamically linked binaries must avoid depending on a glibc newer than the

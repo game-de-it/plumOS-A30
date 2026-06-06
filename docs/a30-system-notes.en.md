@@ -241,9 +241,12 @@ Compatibility requirements:
   - `savefile_directory = "./.retroarch/saves"`
   - `savestate_directory = "./.retroarch/states"`
 
-Official upstream currently lists RetroArch `v1.22.2` as the latest GitHub
-release. Because A30 uses old glibc `2.23`, we should assume we need our own
-armv7 hard-float build rather than relying on current generic buildbot binaries.
+Before building RetroArch, re-check the official upstream latest stable release
+and select the candidate at build time. Because A30 uses old glibc `2.23`, we
+should assume we need our own armv7 hard-float build rather than relying on
+current generic buildbot binaries. Treat stockOS RetroArch/core versions as
+compatibility references only, and compare against them only when newer builds
+show hardware problems.
 
 ## Launch Script Patterns
 
@@ -296,7 +299,8 @@ direction.
   working directory, `LD_LIBRARY_PATH`, `EMU_DIR`, ROM argument passing, and
   recent-list updates.
 - Keep stock `keymon` initially unless input behavior requires replacement.
-- Build RetroArch `v1.22.2` for `armv7-a hard-float`, targeting glibc 2.23 or
-  a compatible static/dynamic strategy.
+- Check the latest stable RetroArch and required core releases at build time,
+  then build them for `armv7-a hard-float`, targeting glibc 2.23 or a
+  compatible static/dynamic strategy.
 - Update cores in groups, validating ABI and performance per core rather than
   replacing all 908 MB at once.

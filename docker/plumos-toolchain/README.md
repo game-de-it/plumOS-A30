@@ -192,6 +192,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 ## 現時点の制約
 
 - この Dockerfile は最初の build/deploy loop を作るための土台です。
+- ライブラリ、RetroArch、libretro core、standalone emulator は build 時点の
+  upstream latest stable を確認し、選んだ version/tag/commit/build option を manifest
+  に残します。
 - RetroArch と libretro core の最終 build には、A30 向け sysroot と library 方針を
   追加していきます。
 - 動的 link する binary は A30 の glibc `2.23` より新しい glibc へ依存しないよう、

@@ -161,6 +161,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 ## 方針
 
 - Dockerfile、build script、patch、hash、recipe は git で管理する
+- ライブラリ、RetroArch、core、emulator は build 時点の upstream latest stable を確認し、
+  選んだ version/tag/commit/build option を manifest に残す
 - `build/`, `dist/`, `artifacts/` は生成物として git に入れない
 - 動的 link が必要なものは、A30 向け sysroot または plumOS 同梱 runtime で扱う
 - RetroArch と libretro core は、この build/deploy loop に載せて段階的に増やす

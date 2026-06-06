@@ -161,6 +161,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 ## Policy
 
 - Keep Dockerfiles, build scripts, patches, hashes, and recipes in git.
+- Check the upstream latest stable release for libraries, RetroArch, cores, and
+  emulators at build time, and record the selected version/tag/commit/build
+  options in manifests.
 - Keep `build/`, `dist/`, and `artifacts/` out of git as generated output.
 - Handle dynamically linked binaries through an A30 sysroot or a bundled plumOS
   runtime.

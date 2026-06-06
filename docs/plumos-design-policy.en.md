@@ -17,6 +17,13 @@ This document records the design direction for plumOS on the Miyoo A30.
   RetroArch startup behavior as plumOS specifications.
 - Before directly reusing a stock behavior, document the reason and
   alternatives, then ask the user for confirmation before implementation.
+- For plumOS libraries, emulators, RetroArch, and libretro cores, check the
+  upstream latest stable release at build time and treat that as the default
+  candidate.
+- Treat stockOS library/emulator versions as compatibility reference points, not
+  normal pinning targets. Only consider matching stockOS versions or patch
+  levels when hardware validation shows breakage, performance regressions, or
+  A30-specific issues.
 - Build primarily inside Docker, transfer artifacts to the device, and validate
   them on real hardware.
 - Include developer-facing Docker toolchain files as part of the final project
@@ -101,6 +108,24 @@ locks/hashes, patches, and build recipes. Large build caches and generated
 binary archives should be treated as release artifacts and split across GitHub
 Release assets when needed.
 
+## Upstream Version Policy
+
+The goal is not to reproduce the stockOS runtime stack. plumOS should use newer
+upstream components wherever they remain stable on the A30.
+
+- Before building SDL2, RetroArch, libretro cores, standalone emulators, or
+  helper libraries, check the latest stable upstream release available at that
+  time.
+- If a known regression exists, use a fixed commit or the nearest stable release
+  instead of blindly taking the latest tag.
+- If the A30 kernel, GPU/framebuffer, audio, input, or runtime stack exposes an
+  issue, compare against stockOS versions, patches, and build options as
+  debugging references.
+- Match a stockOS version only when hardware validation shows a real problem
+  with the newer build and version difference is a strong cause candidate.
+- Record the selected version, source URL, commit/tag, important build options,
+  and differences from stockOS in docs or manifests.
+
 ## Boundary With The Stock Boot Flow
 
 The stock A30 boot flow executes `/mnt/SDCARD/miyoo/app/MainUI` directly. Even
@@ -162,6 +187,8 @@ without changing the rootfs.
 
 - Put RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.
 - Put cores under `/mnt/SDCARD/plumos/retroarch/cores`.
+- Check the upstream latest stable RetroArch and core releases at build time;
+  do not match stockOS versions unless A30 hardware validation gives a reason.
 - Do not depend on the stock `HOME=/mnt/SDCARD/RetroArch` layout.
 - Use `--config` to point RetroArch at a plumOS-managed config.
 - Manage per-system differences through launch profiles or override configs.
@@ -267,5 +294,6 @@ Compatibility to preserve:
 6. Run a minimal framebuffer/input/audio runtime probe on the A30.
 7. Run a minimal linked/window/input probe with plumOS-bundled SDL2 on the A30.
 8. Validate the framebuffer/render backend for plumOS-bundled SDL2 on the A30.
-9. Build RetroArch `v1.22.2` for the A30 and validate one system first.
+9. Check the latest stable RetroArch release at build time, build it for the
+   A30, and validate one system first.
 10. Collect comparison logs for CPU policies.

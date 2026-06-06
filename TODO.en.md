@@ -17,6 +17,9 @@
 - [x] Put the toolchain Dockerfile and helper scripts under `docker/`.
 - [ ] Make the A30 sysroot reproducible through Docker builds.
 - [ ] Build the frontend, helpers, RetroArch, and libretro cores inside Docker.
+- [ ] For SDL2, RetroArch, libretro cores, standalone emulators, and helper
+  libraries, check the latest stable upstream release at build time and record
+  the selected version/tag/commit/build options in manifests.
 - [x] Build the frontend compatibility scanner inside Docker.
 - [x] Collect Docker build output under `dist/` or a staging directory.
 - [x] Keep build cache and large generated files out of git.
@@ -229,12 +232,16 @@
 
 ## Phase 7 - RetroArch and Core Runtime
 
-- [ ] Build/test RetroArch `v1.22.2` for the A30 armv7 hard-float environment.
+- [ ] Check the latest stable RetroArch release at build time and build/test it
+  for the A30 armv7 hard-float environment.
 - [ ] Place RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.
 - [ ] Place cores under `/mnt/SDCARD/plumos/retroarch/cores`.
 - [ ] Stop depending on `HOME=/mnt/SDCARD/RetroArch`.
 - [ ] Manage per-system/core differences through `--config` and override configs.
 - [ ] Update libretro cores per system in stages.
+- [ ] Treat upstream latest stable libretro cores and standalone emulators as
+  the initial candidates; compare against stockOS versions/patches/build
+  options only when hardware testing shows problems.
 - [ ] Validate boot, performance, save/state, input, and audio/video per core.
 - [ ] Validate RetroArch Auto Save State / Auto Load State for the plumOS resume
   flow.
