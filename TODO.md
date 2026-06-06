@@ -54,9 +54,10 @@
 - [x] wrapper 起動失敗時に stock MainUI へ戻れる fallback を作る。
 - [x] wrapper と plumOS frontend の log を `/mnt/SDCARD/plumos/logs` へ出す。
 - [x] stock MainUI を残したまま plumOS frontend prototype を手動起動して検証する。
-- [x] boot 時に stock `/etc/main` から起動される wrapper で stock `keymon` を止め、plumOS SSH helper を自動起動する。
+- [x] boot 時に stock `/etc/main` から起動される wrapper で stock `keymon` を止め、plumOS network rescue helper を自動実行する。
 - [x] reboot 復旧用に controller UI の `--rescue-network` を追加し、A ボタンで Wi-Fi 起動処理、DHCP、SSH start を再実行できるようにする。
-- [x] A30 再起動後も復旧可能な状態を保てることを確認する。
+- [x] A30 の電源再投入後に network rescue で復旧可能な状態を保てることを確認する。
+- [ ] `reboot` command が暗転/LED消灯後に Miyoo logo へ進まない問題を調査し、安全な OS 再起動手順を決める。
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -118,6 +119,8 @@
 - [x] `plumos-controller-ui-mali` に `--rotation auto|none|cw|ccw` を追加し、A30 の `480x640` framebuffer では `auto` で stock と同じ raw 向きへ横画面 UI を描く。
 - [x] Wi-Fi/SSH が stock `MainUI.stock`/`keymon` ではなく `wpa_supplicant`/`udhcpc`/`dropbear` で維持されることを確認する。
 - [x] OS boot 時の Wi-Fi は `/etc/rc.d/S96wpa_supplicant` -> `/etc/init.d/wpa_supplicant` で起動することを確認する。
+- [x] IP取得/DHCP は MainUI 側に依存していた可能性が高いため、FE 起動時に `plumos-network-rescue` を自動実行する方針にする。
+- [x] START menu の Network と Settings の `A30 Wi-Fi Config`/`A30 Wi-Fi Runtime` からも同じ network rescue を実行する。
 - [x] `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock` で stock `/etc/main`、`MainUI.stock`、`keymon` を止めた plumOS 想定状態で Mali UI を確認する。
 - [ ] `plumos-controller-ui-mali` を実機画面で目視し、文字可読性、余白、配色、選択表示を最終調整する。
 - [ ] `--rotation auto` の物理画面向きをユーザー目視で確認し、逆向きなら `cw`/`ccw` を切り替える。

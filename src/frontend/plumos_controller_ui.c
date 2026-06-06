@@ -1867,6 +1867,11 @@ static int run_network_rescue(struct ui_state *ui) {
   return 0;
 }
 
+static int is_network_setting_entry(const struct setting_entry *entry) {
+  return entry && (strcmp(entry->id, "a30_wifi_config") == 0 ||
+                   strcmp(entry->id, "a30_wifi_runtime") == 0);
+}
+
 static void handle_action(struct ui_state *ui, enum ui_action action) {
   if (action == ACTION_NONE) {
     return;
@@ -1994,6 +1999,8 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         open_favorites_screen(ui);
       } else if (strcmp(entry->action, "internal:recent") == 0) {
         open_recent_screen(ui);
+      } else if (strcmp(entry->action, "internal:network") == 0) {
+        run_network_rescue(ui);
       } else {
         char msg[256];
         snprintf(msg, sizeof(msg), "menu preview: %s action=%s", entry->display_name,
@@ -2026,6 +2033,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_A && ui->setting_count > 0) {
       const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
       char msg[256];
+      if (is_network_setting_entry(entry)) {
+        run_network_rescue(ui);
+        return;
+      }
       snprintf(msg, sizeof(msg), "settings edit preview: %s=%s", entry->id, entry->value);
       set_status(ui, msg);
       return;
@@ -2566,6 +2577,9 @@ int main(int argc, char **argv) {
       return 1;
     }
     copy_string(ui.status, sizeof(ui.status), "Mali renderer ready");
+    if (ui.rescue_network) {
+      copy_string(ui.status, sizeof(ui.status), "network rescue ready");
+    }
 #else
     fprintf(stderr, "error: this binary was built without Mali renderer support\n");
     return 2;

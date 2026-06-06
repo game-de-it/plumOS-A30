@@ -37,12 +37,12 @@ if command -v killall >/dev/null 2>&1; then
   killall keymon >/dev/null 2>&1 || true
 fi
 
-if [ -x "$SSH_START" ]; then
-  log "starting SSH helper: ${SSH_START}"
-  "$SSH_START" >> "$LOG_FILE" 2>&1 &
-elif [ -x "$NETWORK_RESCUE" ]; then
+if [ -x "$NETWORK_RESCUE" ]; then
   log "starting network rescue helper: ${NETWORK_RESCUE}"
   "$NETWORK_RESCUE" >> "$LOG_FILE" 2>&1 &
+elif [ -x "$SSH_START" ]; then
+  log "starting SSH helper: ${SSH_START}"
+  "$SSH_START" >> "$LOG_FILE" 2>&1 &
 else
   log "SSH/network helper missing"
 fi

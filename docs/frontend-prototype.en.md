@@ -317,8 +317,10 @@ where the stock side should be restored.
 
 `--rescue-network` is a temporary reboot-recovery UI. On that screen, pressing A
 runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue`, which retries the Wi-Fi init
-script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. For now, the boot
-wrapper shows this Mali rescue UI before `plumos-frontend`.
+script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. The boot wrapper runs
+this helper automatically at FE startup and, for now, shows the Mali rescue UI
+before `plumos-frontend`. START menu Network and the Settings `A30 Wi-Fi Config`
+/ `A30 Wi-Fi Runtime` rows call the same helper.
 
 Mali renderer device checks:
 
@@ -350,6 +352,11 @@ portrait when viewed raw, but, like the stock MainUI capture, it is readable as
 landscape after a 90-degree rotation.
 `--rescue-network --script a,q` also succeeded: the Mali UI invoked the network
 rescue helper via the A action and exited with code `0`.
+START menu Network and A on Settings `A30 Wi-Fi Config` were also confirmed to
+reach `udhcpc` lease acquisition and SSH start.
+However, the `reboot` command went dark/LED-off and did not reach the Miyoo logo.
+The user held power to force off, powered on again, and then restored SSH by
+pressing A on the network rescue UI.
 
 Render TOP once:
 
@@ -388,12 +395,13 @@ Controls:
 - B/left: return from ROM list, Favorites, Recent, or Settings to TOP. In START
   menu, return to the previous screen.
 - START: open START menu.
-- START menu: Settings/Favorites/Recent open real screens; other actions show
-  previews.
+- START menu: Settings/Favorites/Recent open real screens; Network runs network
+  rescue; other actions show previews.
 - SELECT: system/per-ROM core preview.
 - Function: open the SAFE menu. SAFE menu contains `Sleep`, `Shutdown`, and
   `Cancel`.
-- Settings: show current values; A shows edit preview.
+- Settings: show current values; A on Wi-Fi rows runs network rescue, while other
+  rows show edit preview.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 SAFE menu:

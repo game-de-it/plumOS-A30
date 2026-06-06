@@ -5,12 +5,19 @@ PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/network-rescue.log"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
+LOCK_DIR=/tmp/plumos-network-rescue.lock
 
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
 }
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  log "rescue already running"
+  exit 0
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
 process_running() {
   ps w 2>/dev/null | grep "$1" | grep -v grep >/dev/null 2>&1

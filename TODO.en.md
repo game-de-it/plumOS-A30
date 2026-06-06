@@ -57,10 +57,13 @@
 - [x] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
 - [x] Manually run a plumOS frontend prototype while keeping stock MainUI.
 - [x] Stop stock `keymon` from the wrapper launched by stock `/etc/main`, and
-  start the plumOS SSH helper automatically during boot.
+  automatically run the plumOS network rescue helper during boot.
 - [x] Add controller UI `--rescue-network` for reboot recovery, so A reruns the
   Wi-Fi start path, DHCP, and SSH start.
-- [x] Confirm the A30 remains recoverable after reboot.
+- [x] Confirm the A30 remains recoverable through network rescue after a power
+  cycle.
+- [ ] Investigate why the `reboot` command goes dark/LED-off without reaching
+  the Miyoo logo, and decide a safe OS reboot procedure.
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -158,6 +161,10 @@
   rather than stock `MainUI.stock`/`keymon`.
 - [x] Confirm that OS boot starts Wi-Fi through `/etc/rc.d/S96wpa_supplicant`
   -> `/etc/init.d/wpa_supplicant`.
+- [x] Treat IP acquisition/DHCP as likely MainUI-dependent and automatically run
+  `plumos-network-rescue` when the FE starts.
+- [x] Run the same network rescue path from START menu Network and from the
+  Settings `A30 Wi-Fi Config`/`A30 Wi-Fi Runtime` rows.
 - [x] Use
   `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock`
   to validate the Mali UI in the plumOS target state with stock `/etc/main`,

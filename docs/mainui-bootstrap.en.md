@@ -9,7 +9,8 @@ uses that path as a small wrapper and moves the actual frontend entry point to
 - Back up stock MainUI to `/mnt/SDCARD/miyoo/app/MainUI.stock`.
 - Replace `/mnt/SDCARD/miyoo/app/MainUI` with a shell wrapper.
 - Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
-- Start `/mnt/SDCARD/plumos/ssh/start-ssh.sh` automatically for boot recovery.
+- Run `/mnt/SDCARD/plumos/bin/plumos-network-rescue` automatically for boot
+  recovery.
 - Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
 - If `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` exists, launch it first
   with `--rescue-network`; pressing A reruns the Wi-Fi start path, DHCP, and SSH
@@ -49,10 +50,11 @@ The install script:
 The bootstrap package does not include the `plumos-frontend` binary. Build and
 deploy the frontend separately with `./scripts/docker-build.sh frontend`. If the
 frontend is missing or exits non-zero, the wrapper falls back to stock MainUI.
-At this stage, reboot recovery takes priority: when the Mali controller UI
-exists, the wrapper shows its network rescue screen before `plumos-frontend`.
-Pressing A runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue`, which retries
-Wi-Fi init, DHCP, and dropbear SSH start.
+At this stage, reboot recovery takes priority: the wrapper automatically runs
+`plumos-network-rescue` at startup. When the Mali controller UI exists, the
+wrapper also shows its network rescue screen before `plumos-frontend`. Pressing
+A runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue` again, which retries Wi-Fi
+init, DHCP, and dropbear SSH start.
 
 ## Disable
 
