@@ -42,13 +42,6 @@
           "action": "scan:current"
         },
         {
-          "id": "reboot",
-          "display_name": "Reboot",
-          "kind": "system",
-          "action": "system:reboot",
-          "confirm": true
-        },
-        {
           "id": "shutdown",
           "display_name": "Shutdown",
           "kind": "system",

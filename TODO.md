@@ -57,7 +57,7 @@
 - [x] boot 時に stock `/etc/main` から起動される wrapper で stock `keymon` を止め、plumOS network rescue helper を自動実行する。
 - [x] reboot 復旧用に controller UI の `--rescue-network` を追加し、A ボタンで Wi-Fi 起動処理、DHCP、SSH start を再実行できるようにする。
 - [x] A30 の電源再投入後に network rescue で復旧可能な状態を保てることを確認する。
-- [ ] `reboot` command が暗転/LED消灯後に Miyoo logo へ進まない問題を調査し、安全な OS 再起動手順を決める。
+- [ ] stock MainUI には reboot 項目がないため、`reboot` command が暗転/LED消灯後に Miyoo logo へ進まない問題を調査し、安全な OS 再起動可否を決める。
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -85,7 +85,7 @@
 - [x] 機種選択時に対象 system だけ ROM directory を再 scan する prototype を作る。
 - [x] 1000 dummy ROM files で text mode 初回表示時間を計測する。
 - [x] SSH から確認できる text mode system list / ROM list prototype を作る。
-- [x] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
+- [x] START menu から settings/apps/network/shutdown へ辿る UI model を実装する。
 - [x] TOP の system 選択中に SELECT で system default core を選ぶ UI を実装する。
 - [x] ROM list の ROM 選択中に SELECT で per-ROM core override を選ぶ UI を実装する。
 - [x] core 選択の優先順位を ROM override > system default > plumOS recommended > auto detect として実装する。
@@ -191,6 +191,7 @@
 - [ ] `performance`, `ondemand`, `interactive` governor を比較する。
 - [ ] game 終了後に CPU 状態を確実に戻す仕組みを作る。
 - [ ] Wi-Fi の power sequence を plumOS 側で安全に再現できるか確認する。
+- [ ] 起動直後の `wpa_supplicant` 関連付け、DHCP retry、IP取得タイミングを `network-rescue.log` で追跡する。
 - [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
 - [ ] SSH を開発用 package のままにするか、plumOS service にするか決める。
 

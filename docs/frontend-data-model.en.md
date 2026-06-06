@@ -16,8 +16,8 @@ official plumOS specification.
   screen and slides left/right.
 - Re-scan the ROM directory when entering a system so newly copied ROMs appear
   without a manual refresh.
-- OS reboot, settings, network, tools, and non-emulator apps are reached through
-  a START menu.
+- Settings, network, power, tools, and non-emulator apps are reached through a
+  START menu.
 - Existing ROMs/artwork should be readable without moving them.
 - RetroArch/core startup, CPU policy, and save/state layout are handled by
   separate profiles.
@@ -543,8 +543,10 @@ Rules:
 
 ## START Menu
 
-Pressing START on the TOP screen or ROM list opens the system menu. OS reboot,
-settings, and non-emulator app flows should not clutter the TOP system list.
+Pressing START on the TOP screen or ROM list opens the system menu. Settings,
+power, and non-emulator app flows should not clutter the TOP system list. On
+devices like the A30 where stock UI has no reboot item, `Reboot` is hidden until
+a safe reboot path is confirmed.
 
 ```json
 {
@@ -557,7 +559,6 @@ settings, and non-emulator app flows should not clutter the TOP system list.
     { "id": "recent", "display_name": "Recent", "action": "internal:recent" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
-    { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
     { "id": "shutdown", "display_name": "Shutdown", "action": "system:shutdown", "confirm": true }
   ]
 }
@@ -567,7 +568,8 @@ Rules:
 
 - START menu must work in text mode.
 - In gallery mode, START menu may appear as a text-list overlay.
-- `Reboot` and `Shutdown` require confirmation dialogs.
+- `Shutdown` requires a confirmation dialog. `Reboot` is shown only after a safe
+  device-specific reboot path is confirmed.
 - Non-emulator apps/tools live under an `Apps` submenu.
 - `Refresh Current System` is a debug/safety action, not a normal requirement.
 - START menu entries live in `menus.json`; app/tool definitions live in

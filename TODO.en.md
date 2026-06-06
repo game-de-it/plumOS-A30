@@ -62,8 +62,9 @@
   Wi-Fi start path, DHCP, and SSH start.
 - [x] Confirm the A30 remains recoverable through network rescue after a power
   cycle.
-- [ ] Investigate why the `reboot` command goes dark/LED-off without reaching
-  the Miyoo logo, and decide a safe OS reboot procedure.
+- [ ] Since stock MainUI has no reboot item, investigate why the `reboot` command
+  goes dark/LED-off without reaching the Miyoo logo, and decide whether safe OS
+  reboot is supported.
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -97,7 +98,7 @@
 - [x] Build an on-enter per-system ROM directory re-scan prototype.
 - [x] Measure first text-mode display time with 1000 dummy ROM files.
 - [x] Build an SSH-checkable text-mode system list / ROM list prototype.
-- [x] Implement a START menu UI model for settings/apps/reboot/shutdown.
+- [x] Implement a START menu UI model for settings/apps/network/shutdown.
 - [x] Implement system default core selection with SELECT on a highlighted TOP
   system.
 - [x] Implement per-ROM core override selection with SELECT on a highlighted ROM
@@ -299,6 +300,8 @@
 - [ ] Compare `performance`, `ondemand`, and `interactive` governors.
 - [ ] Restore CPU state reliably after game exit.
 - [ ] Check whether the Wi-Fi power sequence can be safely reproduced from plumOS.
+- [ ] Trace boot-time `wpa_supplicant` association, DHCP retries, and IP
+  acquisition timing through `network-rescue.log`.
 - [ ] Decide whether to keep stock Wi-Fi userland or bundle it with plumOS.
 - [ ] Decide whether SSH stays a development package or becomes a plumOS service.
 

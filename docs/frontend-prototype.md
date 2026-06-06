@@ -167,9 +167,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui menu apps'
 ```
 
-`menu start` は `menus.json` を読み、settings/apps/favorites/network/reboot/shutdown へ
-辿る menu model を表示します。`Reboot` と `Shutdown` は `confirm=yes` として定義します。
-この prototype は action を表示するだけで、reboot/shutdown は実行しません。
+`menu start` は `menus.json` を読み、settings/apps/favorites/network/shutdown へ
+辿る menu model を表示します。A30 の stock MainUI には reboot 項目がないため、
+安全な再起動手順が分かるまで `Reboot` は START menu に出しません。
+この prototype は action を表示するだけで、shutdown は実行しません。
 `menu apps` は `apps.json` の `menu=apps` entry を表示します。
 
 System core 選択表示:
@@ -427,8 +428,7 @@ menu: start
   4. Recent                   internal   internal:recent          no
   5. Network                  internal   internal:network         no
   6. Refresh Current System   scan       scan:current             no
-  7. Reboot                   system     system:reboot            yes
-  8. Shutdown                 system     system:shutdown          yes
+  7. Shutdown                 system     system:shutdown          yes
 
 plumOS text UI - core selection
 scope: system

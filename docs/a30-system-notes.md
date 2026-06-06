@@ -78,14 +78,19 @@
 wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
 ```
 
-- DHCP は `udhcpc -i wlan0`
-- 状態ログは `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, `/proc/net/wireless`
+- `/etc/init.d/wpa_supplicant` 自体は DHCP を開始しない。IP取得は stock MainUI などの後段処理が
+  `udhcpc -i wlan0` を実行している可能性が高い
+- 状態ログは `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, `/proc/net/wireless`。stock MainUI なしでは
+  `/tmp/wpa_status.txt` が存在しない場合がある
+- stock `MainUI.stock` binary 文字列には `udhcpc -i wlan0 &`、
+  `wpa_cli status > /tmp/wpa_status.txt`、`wpa_cli signal_poll >> /tmp/wpa_status.txt` が
+  含まれる。stock UI は DHCP と runtime status 更新も担当している可能性が高い
 
 実装上の意味:
 
 - Wi-Fi の kernel module や電源投入手順は stock 環境に依存している可能性があります。
-- まずは既存の電源投入手順を再現し、そのうえで plumOS 側に
-  `wpa_supplicant`/DHCP client を同梱できるか検証します。
+- まずは既存の電源投入手順を再現し、plumOS FE 起動時に DHCP retry を行います。そのうえで
+  `wpa_supplicant`/DHCP client を plumOS 側へ同梱できるか検証します。
 - `/config/wpa_supplicant.conf` は実機固有の機微情報を含むため、git には入れません。
 
 ## 現在のフロントエンド

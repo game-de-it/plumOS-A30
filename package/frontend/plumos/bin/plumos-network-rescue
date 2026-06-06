@@ -6,11 +6,34 @@ LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/network-rescue.log"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
 LOCK_DIR=/tmp/plumos-network-rescue.lock
+DHCP_ATTEMPTS="${PLUMOS_NETWORK_RESCUE_DHCP_ATTEMPTS:-6}"
+DHCP_RETRY_SLEEP="${PLUMOS_NETWORK_RESCUE_DHCP_RETRY_SLEEP:-3}"
+IP_WAIT_SECONDS="${PLUMOS_NETWORK_RESCUE_IP_WAIT_SECONDS:-5}"
 
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
+uptime_now() {
+  if [ -r /proc/uptime ]; then
+    read -r up _ < /proc/uptime || up=unknown
+    printf '%s' "$up"
+  else
+    printf '%s' "unknown"
+  fi
+}
+
 log() {
-  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+  printf '%s uptime=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+is_positive_int() {
+  case "$1" in
+    ""|*[!0-9]*|0)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -19,27 +42,121 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
+if ! is_positive_int "$DHCP_ATTEMPTS"; then
+  log "invalid DHCP_ATTEMPTS=${DHCP_ATTEMPTS}; using 6"
+  DHCP_ATTEMPTS=6
+fi
+if ! is_positive_int "$DHCP_RETRY_SLEEP"; then
+  log "invalid DHCP_RETRY_SLEEP=${DHCP_RETRY_SLEEP}; using 3"
+  DHCP_RETRY_SLEEP=3
+fi
+if ! is_positive_int "$IP_WAIT_SECONDS"; then
+  log "invalid IP_WAIT_SECONDS=${IP_WAIT_SECONDS}; using 5"
+  IP_WAIT_SECONDS=5
+fi
+
 process_running() {
   ps w 2>/dev/null | grep "$1" | grep -v grep >/dev/null 2>&1
 }
 
+get_wlan_ip() {
+  ifconfig wlan0 2>/dev/null | sed -n 's/.*inet addr:\([^ ]*\).*/\1/p' | sed -n '1p'
+}
+
+log_wpa_status() {
+  found=0
+  if [ -r /tmp/wpa_status.txt ]; then
+    while IFS='=' read -r key value; do
+      case "$key" in
+        wpa_state|ip_address|RSSI|LINKSPEED|FREQUENCY)
+          log "wpa_status ${key}=${value}"
+          found=1
+          ;;
+      esac
+    done < /tmp/wpa_status.txt
+    if [ "$found" -eq 0 ]; then
+      log "wpa_status present_no_safe_keys"
+    fi
+  else
+    log "wpa_status missing"
+  fi
+}
+
+log_wireless_status() {
+  if [ -r /proc/net/wireless ]; then
+    line="$(grep 'wlan0:' /proc/net/wireless 2>/dev/null | tr -s ' ' || true)"
+    if [ -n "$line" ]; then
+      log "wireless ${line}"
+    else
+      log "wireless wlan0_missing"
+    fi
+  else
+    log "wireless proc_missing"
+  fi
+}
+
+log_state() {
+  label="$1"
+  ip="$(get_wlan_ip || true)"
+  first_line="$(ifconfig wlan0 2>/dev/null | sed -n '1p' || true)"
+  if [ -n "$ip" ]; then
+    log "state ${label} ip=${ip} wlan=${first_line:-missing}"
+  else
+    log "state ${label} ip=none wlan=${first_line:-missing}"
+  fi
+  if process_running "wpa_supplicant"; then
+    log "state ${label} wpa_supplicant=running"
+  else
+    log "state ${label} wpa_supplicant=stopped"
+  fi
+  if process_running "udhcpc -i wlan0"; then
+    log "state ${label} udhcpc=running"
+  else
+    log "state ${label} udhcpc=stopped"
+  fi
+  log_wpa_status
+  log_wireless_status
+}
+
 wait_for_ip() {
+  label="$1"
+  limit="$2"
   n=0
-  while [ "$n" -lt 20 ]; do
-    if ifconfig wlan0 2>/dev/null | grep -q "inet addr:"; then
+  while [ "$n" -lt "$limit" ]; do
+    ip="$(get_wlan_ip || true)"
+    if [ -n "$ip" ]; then
+      log "wait_ip ${label} ready elapsed=${n}s ip=${ip}"
       return 0
     fi
     sleep 1
     n=$((n + 1))
   done
+  log "wait_ip ${label} timed_out elapsed=${limit}s"
   return 1
 }
 
-log "rescue begin"
+run_dhcp_attempt() {
+  attempt="$1"
+  if process_running "udhcpc -i wlan0"; then
+    log "udhcpc already running attempt=${attempt}"
+  else
+    log "udhcpc start attempt=${attempt}"
+    udhcpc -i wlan0 -n -q -t 5 >> "$LOG_FILE" 2>&1
+    rc="$?"
+    log "udhcpc exit attempt=${attempt} rc=${rc}"
+  fi
+  wait_for_ip "after_dhcp_attempt_${attempt}" "$IP_WAIT_SECONDS"
+}
+
+log "rescue begin dhcp_attempts=${DHCP_ATTEMPTS} retry_sleep=${DHCP_RETRY_SLEEP}s ip_wait=${IP_WAIT_SECONDS}s"
+log_state "begin"
 
 if [ -x /etc/init.d/network ]; then
   log "network start"
-  /etc/init.d/network start >> "$LOG_FILE" 2>&1 || true
+  /etc/init.d/network start >> "$LOG_FILE" 2>&1
+  log "network start rc=$?"
+else
+  log "network start missing"
 fi
 
 if [ -x /etc/init.d/wpa_supplicant ]; then
@@ -47,30 +164,48 @@ if [ -x /etc/init.d/wpa_supplicant ]; then
     log "wpa_supplicant already running"
   else
     log "wpa_supplicant start"
-    /etc/init.d/wpa_supplicant start >> "$LOG_FILE" 2>&1 || true
+    /etc/init.d/wpa_supplicant start >> "$LOG_FILE" 2>&1
+    log "wpa_supplicant start rc=$?"
   fi
-fi
-
-ifconfig wlan0 up >> "$LOG_FILE" 2>&1 || true
-
-if process_running "udhcpc -i wlan0"; then
-  log "udhcpc already running"
 else
-  log "udhcpc start"
-  udhcpc -i wlan0 -n -q -t 5 >> "$LOG_FILE" 2>&1 || true
+  log "wpa_supplicant init missing"
 fi
 
-if wait_for_ip; then
-  log "wlan0 has ip"
+if ifconfig wlan0 up >> "$LOG_FILE" 2>&1; then
+  log "ifconfig wlan0 up rc=0"
 else
-  log "wlan0 ip wait timed out"
+  log "ifconfig wlan0 up rc=$?"
 fi
+
+log_state "before_dhcp"
+
+attempt=1
+while [ "$attempt" -le "$DHCP_ATTEMPTS" ]; do
+  ip="$(get_wlan_ip || true)"
+  if [ -n "$ip" ]; then
+    log "dhcp skip ip_already_assigned attempt=${attempt} ip=${ip}"
+    break
+  fi
+  log_state "before_dhcp_attempt_${attempt}"
+  if run_dhcp_attempt "$attempt"; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  if [ "$attempt" -le "$DHCP_ATTEMPTS" ]; then
+    log "dhcp retry_sleep ${DHCP_RETRY_SLEEP}s next_attempt=${attempt}"
+    sleep "$DHCP_RETRY_SLEEP"
+  fi
+done
+
+log_state "after_dhcp"
 
 if [ -x "$SSH_START" ]; then
   log "ssh start"
-  "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  "$SSH_START" >> "$LOG_FILE" 2>&1
+  log "ssh start rc=$?"
 else
   log "ssh start missing: $SSH_START"
 fi
 
+log_state "end"
 log "rescue end"

@@ -14,7 +14,7 @@
 - gallery mode では画像を使う。ROM list は 1 画面に 1 ROM と thumbnail を表示し、
   左右でスライドする
 - 機種を選択したタイミングで ROM directory を読み直し、追加した ROM がすぐ表示される
-- OS reboot、settings、network、tools、emulator 以外の app は START menu から辿れる
+- settings、network、power、tools、emulator 以外の app は START menu から辿れる
 - 既存 SD カードの ROM/artwork は移動せずに読めるようにする
 - RetroArch/core 起動、CPU policy、save/state 配置は別 profile で管理する
 
@@ -527,8 +527,10 @@ rules:
 
 ## START menu model
 
-TOP 画面や ROM list 画面で START を押すと、system menu を開きます。OS reboot や
-settings など、emulator ではない機能は TOP に直接並べず、この menu から辿ります。
+TOP 画面や ROM list 画面で START を押すと、system menu を開きます。settings や
+power など、emulator ではない機能は TOP に直接並べず、この menu から辿ります。
+A30 のように stock UI が reboot を持たない機種では、安全な再起動手順を確認するまで
+`Reboot` entry は出しません。
 
 ```json
 {
@@ -541,7 +543,6 @@ settings など、emulator ではない機能は TOP に直接並べず、この
     { "id": "recent", "display_name": "Recent", "action": "internal:recent" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
-    { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
     { "id": "shutdown", "display_name": "Shutdown", "action": "system:shutdown", "confirm": true }
   ]
 }
@@ -551,7 +552,7 @@ settings など、emulator ではない機能は TOP に直接並べず、この
 
 - START menu は text mode でも必ず使える
 - gallery mode 中でも START menu は text list として overlay 表示してよい
-- `Reboot` と `Shutdown` は confirm dialog を必須にする
+- `Shutdown` は confirm dialog を必須にする。`Reboot` は機種ごとの安全な手順が確認できた場合のみ出す
 - emulator 以外の app/tool は `Apps` submenu に入れる
 - `Refresh Current System` は debug/保険用であり、通常操作で必須にしない
 - START menu の entry は `menus.json`、app/tool 定義は `apps.json` に置く

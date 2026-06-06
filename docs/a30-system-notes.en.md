@@ -57,13 +57,21 @@ replacing the binary outright.
 - Service: `/etc/init.d/wpa_supplicant`, started as `S96wpa_supplicant`.
 - The init script toggles Wi-Fi power via `devmem`, brings up `wlan0`, then runs:
   `wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf`.
-- DHCP is handled by `udhcpc -i wlan0`.
-- Runtime state lands in `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, and
-  `/proc/net/wireless`.
+- `/etc/init.d/wpa_supplicant` itself does not start DHCP. IP acquisition is
+  likely handled later by stock MainUI or a similar process running
+  `udhcpc -i wlan0`.
+- Runtime state can appear in `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, and
+  `/proc/net/wireless`. Without stock MainUI, `/tmp/wpa_status.txt` may be
+  missing.
+- Stock `MainUI.stock` binary strings include `udhcpc -i wlan0 &`,
+  `wpa_cli status > /tmp/wpa_status.txt`, and
+  `wpa_cli signal_poll >> /tmp/wpa_status.txt`, so stock UI likely owns DHCP and
+  runtime status updates.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,
-but should preserve the stock power-up sequence.
+but should preserve the stock power-up sequence and run DHCP retries from the
+plumOS FE startup path.
 
 ## Current Frontend
 

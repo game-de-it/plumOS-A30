@@ -176,10 +176,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 ```
 
 `menu start` reads `menus.json` and displays the path to
-settings/apps/favorites/network/reboot/shutdown. `Reboot` and `Shutdown` are
-defined with `confirm=yes`. This prototype only displays actions; it does not
-execute reboot/shutdown. `menu apps` displays `apps.json` entries where
-`menu=apps`.
+settings/apps/favorites/network/shutdown. Since the A30 stock MainUI has no
+reboot item, `Reboot` is not shown in START menu until a safe reboot path is
+known. This prototype only displays actions; it does not execute shutdown.
+`menu apps` displays `apps.json` entries where `menu=apps`.
 
 System core selection view:
 
@@ -448,8 +448,7 @@ menu: start
   4. Recent                   internal   internal:recent          no
   5. Network                  internal   internal:network         no
   6. Refresh Current System   scan       scan:current             no
-  7. Reboot                   system     system:reboot            yes
-  8. Shutdown                 system     system:shutdown          yes
+  7. Shutdown                 system     system:shutdown          yes
 
 plumOS text UI - core selection
 scope: system
