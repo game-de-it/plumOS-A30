@@ -1,8 +1,13 @@
 # Frontend Prototype
 
-The first plumOS frontend is a compatibility scanner before any real rendering
+The first plumOS frontend is a stock inventory scanner before any real rendering
 work. It runs on the A30, reads stock SD-card configuration from `Emu`, `RApp`,
 `App`, and `Themes`, and checks the referenced ROM/artwork/metadata paths.
+
+This scanner does not mean stock behavior will become the new plumOS frontend
+specification. It gathers evidence for migration, compatibility, or replacement
+decisions. The role of `config.json` is documented in
+[Stock frontend inventory](stock-frontend-inventory.en.md).
 
 ## Build
 

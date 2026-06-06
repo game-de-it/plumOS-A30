@@ -1,8 +1,13 @@
 # Frontend prototype
 
-最初の plumOS frontend は、画面描画を始める前の互換性スキャナです。A30 上で stock
-SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.json` と、そこから
+最初の plumOS frontend は、画面描画を始める前の stock inventory scanner です。A30 上で
+stock SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.json` と、そこから
 参照される ROM/artwork/metadata の存在を確認します。
+
+この scanner は stock 仕様を plumOS frontend の新仕様として採用するためのものでは
+ありません。既存仕様を観察し、移行/互換/破棄の判断材料を集めるためのものです。
+`config.json` の位置づけは [Stock frontend inventory](stock-frontend-inventory.md) に
+まとめます。
 
 ## build
 

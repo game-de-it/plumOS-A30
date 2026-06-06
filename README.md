@@ -24,6 +24,8 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [Docker toolchain](docs/docker-toolchain.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.md)
 - [Frontend prototype](docs/frontend-prototype.md)
+- [Stock frontend inventory](docs/stock-frontend-inventory.md)
+- [Stock reuse decision template](docs/decisions/stock-reuse-template.md)
 - [SSH 導入手順](docs/ssh-bringup.md)
 - [TODO](TODO.md)
 

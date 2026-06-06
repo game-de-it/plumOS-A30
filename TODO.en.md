@@ -58,6 +58,8 @@
 ## Phase 5 - Frontend Compatibility Layer
 
 - [x] Read stock `config.json` files from `Emu`, `RApp`, `App`, and `Themes`.
+- [x] Document that stock `config.json` is inventory/migration input, not the
+  new plumOS specification.
 - [x] Resolve `rompath`, `imgpath`, `gamelist`, and `launchlist` and check
   existence/counts.
 - [ ] Confirm ROM filename to artwork filename matching rules.
@@ -74,9 +76,12 @@
   `$1`.
 - [ ] Eventually move away from shell launch scripts toward plumOS launch
   profiles.
+- [x] Add a decision record template for any proposed direct reuse of stock
+  behavior.
 
 ## Phase 6 - Frontend Implementation
 
+- [ ] Design a plumOS-native system/app/theme data model.
 - [ ] Build a minimal controller-first frontend prototype.
 - [ ] Implement system list, ROM list, recents, favorites, and settings.
 - [ ] Decide how to load themes, fonts, and artwork.

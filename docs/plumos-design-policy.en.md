@@ -13,6 +13,10 @@ This document records the design direction for plumOS on the Miyoo A30.
   dependencies.
 - Do not assume the stock behavior is optimal; measure and replace it when a
   better approach is proven.
+- Do not automatically adopt stock `config.json`, `launch.sh`, CPU policy, or
+  RetroArch startup behavior as plumOS specifications.
+- Before directly reusing a stock behavior, document the reason and
+  alternatives, then ask the user for confirmation before implementation.
 - Build primarily inside Docker, transfer artifacts to the device, and validate
   them on real hardware.
 - Include developer-facing Docker toolchain files as part of the final project
@@ -166,6 +170,27 @@ without changing the rootfs.
 During the compatibility phase, a launcher can still read stock `launch` and
 `launchlist` entries. Long term, prefer plumOS launch profiles over scattered
 shell scripts.
+
+## Frontend Policy
+
+Stock `config.json` files are stock MainUI menu/ROM/artwork/launch definitions;
+they are not the official plumOS frontend specification. Details live in
+[Stock frontend inventory](stock-frontend-inventory.en.md).
+
+plumOS should design these pieces independently:
+
+- System/app/theme data model.
+- ROM list and artwork lookup.
+- Recent/favorite state format.
+- Connection to RetroArch/core launch profiles.
+- Boundaries with CPU/input/audio/video policy.
+
+Existing SD-card data still needs to be readable, but only as input for
+migration, inventory, or compatibility shims. Promoting stock behavior into the
+new UI or launcher specification requires an explicit decision.
+
+Use the [Stock reuse decision template](decisions/stock-reuse-template.en.md)
+for decision records.
 
 ## CPU Policy
 

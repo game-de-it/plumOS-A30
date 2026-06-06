@@ -57,6 +57,7 @@
 ## Phase 5 - Frontend Compatibility Layer
 
 - [x] `Emu`, `RApp`, `App`, `Themes` の stock `config.json` を読む。
+- [x] stock `config.json` は plumOS 新仕様ではなく inventory/migration 入力だと明文化する。
 - [x] `rompath`, `imgpath`, `gamelist`, `launchlist` を解決して存在と件数を確認する。
 - [ ] ROM file と artwork file の名前対応 rule を確認する。
 - [ ] `gamelist` XML の stock data schema を読む。
@@ -69,9 +70,11 @@
 - [ ] `Roms/recentlist.json` 互換の recent list を parse/update できるようにする。
 - [ ] `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path `$1` の launch 互換を再現する。
 - [ ] 最終的には shell launch script 依存を plumOS launch profile へ移す。
+- [x] stock 仕様を流用したくなった場合の decision record template を作る。
 
 ## Phase 6 - Frontend Implementation
 
+- [ ] plumOS frontend 独自の system/app/theme data model を設計する。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
