@@ -14,6 +14,10 @@ official plumOS specification.
 - Text mode must operate TOP/ROM/settings screens without icons or images.
 - Gallery mode uses images. The ROM list shows one ROM plus one thumbnail per
   screen and slides left/right.
+- Re-scan the ROM directory when entering a system so newly copied ROMs appear
+  without a manual refresh.
+- OS reboot, settings, network, tools, and non-emulator apps are reached through
+  a START menu.
 - Existing ROMs/artwork should be readable without moving them.
 - RetroArch/core startup, CPU policy, and save/state layout are handled by
   separate profiles.
@@ -38,6 +42,7 @@ official plumOS specification.
   config/frontend/
     systems.json
     apps.json
+    menus.json
     themes.json
     settings.json
   state/frontend/
@@ -47,6 +52,7 @@ official plumOS specification.
     play-history.json
     core-overrides.json
     cursor-state.json
+    scan-stats.json
   cache/frontend/
     thumbnails/
     text-index/
@@ -162,9 +168,13 @@ Apps/tools are separate from systems even if they appear near the TOP flow.
   "display_name": "Settings",
   "kind": "settings",
   "launch_profile": "internal:settings",
-  "visible": true
+  "visible": true,
+  "menu": "start"
 }
 ```
+
+`menu` controls placement. `start` means direct START menu, `apps` means the
+Apps submenu, and `hidden` means an internal action that is not shown directly.
 
 ### `ThemeDefinition`
 
@@ -205,12 +215,17 @@ Text mode can force `use_icons=false`; icons may exist but are not required.
   "show_empty_systems": false,
   "sort_systems": "sort_order",
   "sort_roms": "name",
+  "rom_scan_policy": "on_enter",
+  "rom_scan_slow_threshold_ms": 500,
+  "rom_scan_test_file_count": 1000,
   "theme_id": "default",
   "last_system_id": "gba"
 }
 ```
 
 `ui_mode` is the global default. `top_mode` and `rom_mode` may diverge.
+The default `rom_scan_policy` is `on_enter`; stock-style manual refresh is not
+the default. Use `cached` or `manual_refresh` only when performance requires it.
 
 ## TOP Screen
 
@@ -256,6 +271,63 @@ Gallery mode:
 The PFE prototype under `~/pfe/ui/file_list.py` implements a one-ROM horizontal
 slide gallery. plumOS can use that interaction idea without adopting PFE's
 config format or Python implementation as the specification.
+
+### Refresh Policy
+
+The ROM list re-scans the selected system's ROM directories whenever the user
+enters that ROM list screen. Newly copied ROMs should appear without a manual
+`Refresh ROM` action.
+
+Initial policy:
+
+- Avoid heavy full scans on the TOP screen.
+- TOP counts may use the previous scan cache.
+- Scan only the selected system when entering it.
+- Show a text fallback such as `Scanning...` while scanning.
+- Thumbnail loading/generation may be deferred until after the ROM list appears.
+- If a 1000-file dummy ROM directory is too slow to browse comfortably, consider
+  `cached` or `manual_refresh`.
+
+Performance gate:
+
+- Keep `on_enter` when first text-mode display for 1000 files is below 500 ms.
+- If it exceeds 500 ms, prefer lightweight delta checks using directory mtime or
+  entry count.
+- Only consider stock-like manual refresh if that is still too slow.
+- Record measurements and rationale in a decision record before switching to
+  manual refresh.
+
+`library-index.json` is a scan cache, but the filesystem remains the source of
+truth for ROM lists.
+
+## START Menu
+
+Pressing START on the TOP screen or ROM list opens the system menu. OS reboot,
+settings, and non-emulator app flows should not clutter the TOP system list.
+
+```json
+{
+  "id": "system-menu",
+  "entries": [
+    { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
+    { "id": "apps", "display_name": "Apps", "action": "internal:apps" },
+    { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
+    { "id": "network", "display_name": "Network", "action": "internal:network" },
+    { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
+    { "id": "shutdown", "display_name": "Shutdown", "action": "system:shutdown", "confirm": true }
+  ]
+}
+```
+
+Rules:
+
+- START menu must work in text mode.
+- In gallery mode, START menu may appear as a text-list overlay.
+- `Reboot` and `Shutdown` require confirmation dialogs.
+- Non-emulator apps/tools live under an `Apps` submenu.
+- `Refresh Current System` is a debug/safety action, not a normal requirement.
+- START menu entries live in `menus.json`; app/tool definitions live in
+  `apps.json`.
 
 ## Directory Discovery
 

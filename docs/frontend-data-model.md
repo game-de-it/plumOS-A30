@@ -13,6 +13,8 @@
 - text mode では TOP/ROM/settings などを text だけで操作できる
 - gallery mode では画像を使う。ROM list は 1 画面に 1 ROM と thumbnail を表示し、
   左右でスライドする
+- 機種を選択したタイミングで ROM directory を読み直し、追加した ROM がすぐ表示される
+- OS reboot、settings、network、tools、emulator 以外の app は START menu から辿れる
 - 既存 SD カードの ROM/artwork は移動せずに読めるようにする
 - RetroArch/core 起動、CPU policy、save/state 配置は別 profile で管理する
 
@@ -36,6 +38,7 @@
   config/frontend/
     systems.json              human-maintained system definitions
     apps.json                 app/tool menu definitions
+    menus.json                START menu and submenu definitions
     themes.json               available theme definitions
     settings.json             frontend settings
   state/frontend/
@@ -45,6 +48,7 @@
     play-history.json         play count and last played timestamps
     core-overrides.json       per-ROM/per-system launch profile overrides
     cursor-state.json         last selected system/ROM/view position
+    scan-stats.json           scan timing and fallback policy state
   cache/frontend/
     thumbnails/               generated/cached thumbnail images
     text-index/               optional search/sort cache
@@ -162,9 +166,13 @@ TOP 画面とは別の app/tool menu に出す項目です。system と混ぜて
   "display_name": "Settings",
   "kind": "settings",
   "launch_profile": "internal:settings",
-  "visible": true
+  "visible": true,
+  "menu": "start"
 }
 ```
+
+`menu` は表示先です。`start` は START menu 直下、`apps` は Apps submenu、`hidden` は
+直接表示しない内部 action を示します。
 
 ### `ThemeDefinition`
 
@@ -208,6 +216,9 @@ text mode では使いません。
   "show_empty_systems": false,
   "sort_systems": "sort_order",
   "sort_roms": "name",
+  "rom_scan_policy": "on_enter",
+  "rom_scan_slow_threshold_ms": 500,
+  "rom_scan_test_file_count": 1000,
   "theme_id": "default",
   "last_system_id": "gba"
 }
@@ -215,6 +226,10 @@ text mode では使いません。
 
 `ui_mode` は全体 default です。`top_mode` と `rom_mode` を分けて保存することで、
 TOP は text、ROM list は gallery のような構成も可能にします。
+
+`rom_scan_policy` の default は `on_enter` です。stock FE のような「手動 refresh しないと
+ROM が出ない」方式は default にしません。性能上必要な場合だけ `cached` または
+`manual_refresh` へ切り替えます。
 
 ## TOP screen model
 
@@ -262,6 +277,60 @@ gallery mode:
 PFE の `~/pfe/ui/file_list.py` では、gallery mode が 1 ROM/1 screenshot の横 slide
 として実装されています。plumOS でもこの操作感は参考にしますが、PFE の config format
 や Python 実装をそのまま仕様にはしません。
+
+### Refresh policy
+
+ROM list は機種を選択して ROM list screen に入るたびに、その機種の ROM directory を
+再 scan します。これにより、SD カードへ ROM を追加した直後でも、手動の「Refresh ROM」
+操作なしで一覧に反映されます。
+
+初期方針:
+
+- TOP 画面では重い full scan をしない
+- TOP 画面の count は前回 scan cache の値を使ってよい
+- 機種選択時に対象 system だけを scan する
+- scan 中は `Scanning...` のような text fallback を出す
+- 画像 thumbnail の生成/読み込みは ROM list 表示後に遅延してよい
+- 1000 file の dummy ROM directory で操作不能になるほど遅い場合は、`cached` または
+  `manual_refresh` 方式を検討する
+
+性能判定:
+
+- 1000 file の text mode 初回表示が 500ms 未満なら `on_enter` を維持
+- 500ms 以上なら、directory mtime/entry count を使った軽量差分 check を優先
+- それでも遅い場合だけ、stock FE に近い manual refresh 方式を候補にする
+- manual refresh 方式へ変更する場合は、理由と計測結果を decision record に残す
+
+`library-index.json` は scan cache ですが、freshness より速さが必要な場面だけ使います。
+ROM list の正本は常に filesystem です。
+
+## START menu model
+
+TOP 画面や ROM list 画面で START を押すと、system menu を開きます。OS reboot や
+settings など、emulator ではない機能は TOP に直接並べず、この menu から辿ります。
+
+```json
+{
+  "id": "system-menu",
+  "entries": [
+    { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
+    { "id": "apps", "display_name": "Apps", "action": "internal:apps" },
+    { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
+    { "id": "network", "display_name": "Network", "action": "internal:network" },
+    { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },
+    { "id": "shutdown", "display_name": "Shutdown", "action": "system:shutdown", "confirm": true }
+  ]
+}
+```
+
+表示 rules:
+
+- START menu は text mode でも必ず使える
+- gallery mode 中でも START menu は text list として overlay 表示してよい
+- `Reboot` と `Shutdown` は confirm dialog を必須にする
+- emulator 以外の app/tool は `Apps` submenu に入れる
+- `Refresh Current System` は debug/保険用であり、通常操作で必須にしない
+- START menu の entry は `menus.json`、app/tool 定義は `apps.json` に置く
 
 ## Directory discovery
 

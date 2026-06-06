@@ -77,6 +77,9 @@
 - [x] plumOS frontend 独自の system/app/theme data model を設計する。
 - [ ] `systems.json` の初期 seed を作る。
 - [ ] Miyoo/ROCKNIX directory alias を使った ROM scan prototype を作る。
+- [ ] 機種選択時に対象 system だけ ROM directory を再 scan する prototype を作る。
+- [ ] 1000 dummy ROM files で text mode 初回表示時間を計測する。
+- [ ] START menu から settings/apps/reboot/shutdown へ辿る UI model を実装する。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
