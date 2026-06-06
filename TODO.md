@@ -17,6 +17,7 @@
 - [x] `docker/` 配下に toolchain Dockerfile と補助 script を置く。
 - [ ] A30 向け sysroot を Docker build で再現可能にする。
 - [ ] Docker 内で frontend、helper、RetroArch、libretro core を build できるようにする。
+- [x] Docker 内で frontend compatibility scanner を build できるようにする。
 - [x] Docker build output を `dist/` または staging directory へ集約する。
 - [x] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
 - [x] Docker image の作り方と使い方を日本語/英語で文書化する。
@@ -50,12 +51,13 @@
 - [x] wrapper から `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動できるようにする。
 - [x] wrapper 起動失敗時に stock MainUI へ戻れる fallback を作る。
 - [x] wrapper と plumOS frontend の log を `/mnt/SDCARD/plumos/logs` へ出す。
-- [ ] stock MainUI を残したまま plumOS frontend prototype を手動起動して検証する。
+- [x] stock MainUI を残したまま plumOS frontend prototype を手動起動して検証する。
 - [ ] A30 再起動後も復旧可能な状態を保てることを確認する。
 
 ## Phase 5 - Frontend Compatibility Layer
 
-- [ ] `Emu`, `RApp`, `App`, `Themes`, `Roms`, `Imgs` の stock JSON schema を読む。
+- [x] `Emu`, `RApp`, `App`, `Themes` の stock `config.json` を読む。
+- [ ] `Roms`, `Imgs`, `gamelist`, artwork の stock data schema を読む。
 - [ ] 既存 ROM、artwork、save、state を移動せずに認識できるようにする。
 - [ ] `extlist` による ROM filter を実装する。
 - [ ] `launchlist` の代替 launcher/core を扱えるようにする。

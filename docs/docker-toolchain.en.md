@@ -39,6 +39,19 @@ dist/plumos-userland/plumos/bin/plumos-env
 dist/plumos-userland/plumos/share/doc/busybox/
 ```
 
+Build the frontend prototype.
+
+```sh
+./scripts/docker-build.sh frontend
+```
+
+Outputs:
+
+```text
+dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/share/doc/plumos-frontend/
+```
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
@@ -58,6 +71,14 @@ Deploy the userland package to the SD card root.
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
+```
+
+Deploy the frontend prototype to the SD card root.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
 ```
 
 Collect logs.

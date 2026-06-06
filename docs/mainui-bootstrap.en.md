@@ -41,8 +41,9 @@ The install script:
 - Creates `/mnt/SDCARD/miyoo/app/MainUI.stock` if it does not exist.
 - Replaces `/mnt/SDCARD/miyoo/app/MainUI` with the wrapper.
 
-The current `plumos-frontend` is only a placeholder. It logs the boot path and
-then intentionally exits non-zero so the wrapper falls back to stock MainUI.
+The bootstrap package does not include the `plumos-frontend` binary. Build and
+deploy the frontend separately with `./scripts/docker-build.sh frontend`. If the
+frontend is missing or exits non-zero, the wrapper falls back to stock MainUI.
 
 ## Disable
 

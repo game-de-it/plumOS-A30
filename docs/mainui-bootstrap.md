@@ -40,8 +40,9 @@ install script は以下を行います。
 - `/mnt/SDCARD/miyoo/app/MainUI.stock` がなければ作成する
 - `/mnt/SDCARD/miyoo/app/MainUI` を wrapper に置き換える
 
-現時点の `plumos-frontend` は placeholder です。起動経路を log に残したあと、意図的に
-非ゼロ終了して stock MainUI へ戻ります。
+bootstrap package は `plumos-frontend` 本体を含みません。frontend は
+`./scripts/docker-build.sh frontend` で別 package として build/deploy します。
+frontend が存在しない場合や非ゼロ終了した場合、wrapper は stock MainUI へ戻ります。
 
 ## disable
 

@@ -62,6 +62,32 @@ A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
 ```
 
+## frontend prototype build
+
+```sh
+./scripts/docker-build.sh frontend
+```
+
+生成物:
+
+```text
+dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/share/doc/plumos-frontend/
+```
+
+転送:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
+```
+
+手動実行:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
 ## shell
 
 ```sh

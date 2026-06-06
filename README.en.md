@@ -24,6 +24,7 @@ Project notes:
 - [plumOS design policy](docs/plumos-design-policy.en.md)
 - [Docker toolchain](docs/docker-toolchain.en.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.en.md)
+- [Frontend prototype](docs/frontend-prototype.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)
 

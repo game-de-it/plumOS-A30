@@ -17,6 +17,7 @@
 - [x] Put the toolchain Dockerfile and helper scripts under `docker/`.
 - [ ] Make the A30 sysroot reproducible through Docker builds.
 - [ ] Build the frontend, helpers, RetroArch, and libretro cores inside Docker.
+- [x] Build the frontend compatibility scanner inside Docker.
 - [x] Collect Docker build output under `dist/` or a staging directory.
 - [x] Keep build cache and large generated files out of git.
 - [x] Document how to build and use the Docker image in Japanese and English.
@@ -51,13 +52,13 @@
 - [x] Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
 - [x] Fall back to stock MainUI if wrapper startup fails.
 - [x] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
-- [ ] Manually run a plumOS frontend prototype while keeping stock MainUI.
+- [x] Manually run a plumOS frontend prototype while keeping stock MainUI.
 - [ ] Confirm the A30 remains recoverable after reboot.
 
 ## Phase 5 - Frontend Compatibility Layer
 
-- [ ] Read the stock JSON schema from `Emu`, `RApp`, `App`, `Themes`, `Roms`,
-  and `Imgs`.
+- [x] Read stock `config.json` files from `Emu`, `RApp`, `App`, and `Themes`.
+- [ ] Read stock data schema from `Roms`, `Imgs`, `gamelist`, and artwork.
 - [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
 - [ ] Implement ROM filtering through `extlist`.
 - [ ] Support alternate launchers/cores through `launchlist`.

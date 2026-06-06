@@ -15,9 +15,7 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR" "${ROOT_DIR}/dist"
 cp -R "${PKG_SRC}/." "$DIST_DIR/"
 
-chmod 0755 \
-  "${DIST_DIR}/plumos/bootstrap/MainUI.wrapper" \
-  "${DIST_DIR}/plumos/bin/plumos-frontend"
+chmod 0755 "${DIST_DIR}/plumos/bootstrap/MainUI.wrapper"
 
 rm -f "$ARCHIVE"
 tar -C "${ROOT_DIR}/dist" -czf "$ARCHIVE" "$(basename "$DIST_DIR")"

@@ -39,6 +39,19 @@ dist/plumos-userland/plumos/bin/plumos-env
 dist/plumos-userland/plumos/share/doc/busybox/
 ```
 
+frontend prototype を build します。
+
+```sh
+./scripts/docker-build.sh frontend
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-frontend/plumos/bin/plumos-frontend
+dist/plumos-frontend/plumos/share/doc/plumos-frontend/
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -58,6 +71,14 @@ userland package は SD カード root に展開します。
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
+```
+
+frontend prototype も SD カード root に展開します。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
 ```
 
 log を回収します。

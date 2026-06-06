@@ -23,6 +23,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [plumOS 設計方針](docs/plumos-design-policy.md)
 - [Docker toolchain](docs/docker-toolchain.md)
 - [MainUI bootstrap](docs/mainui-bootstrap.md)
+- [Frontend prototype](docs/frontend-prototype.md)
 - [SSH 導入手順](docs/ssh-bringup.md)
 - [TODO](TODO.md)
 
