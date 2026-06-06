@@ -435,4 +435,4 @@ summary metadata gamelists=0 launchers=22
 - ROM file と artwork file の名前対応 rule
 - `gamelist` XML の parse
 - `recentlist.json` の parse/update
-- plumOS 同梱 SDL2 を使った linked/render test と最小 UI
+- plumOS 同梱 SDL2 を使った render test と最小 UI

@@ -148,6 +148,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
+## SDL2 probe build
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+生成物:
+
+```text
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe.bin
+dist/plumos-sdl2-probe/plumos/lib/
+dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
+```
+
+実機確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
 ## shell
 
 ```sh

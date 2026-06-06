@@ -249,6 +249,7 @@ frontend の置き換えを進めます。2026-06-06 の `plumos-input-compare` 
 4. `/mnt/SDCARD/plumos/bin/plumos-env` で runtime path を固定する
 5. stock MainUI を残したまま、plumOS frontend prototype を手動起動する
 6. framebuffer/input/audio の最小 runtime probe を A30 上で動かす
-7. plumOS 同梱 SDL2 の最小 linked/render test binary を A30 上で動かす
-8. RetroArch `v1.22.2` を A30 向けに build し、1 system だけで検証する
-9. CPU policy の比較 log を取る
+7. plumOS 同梱 SDL2 の最小 linked/window/input probe を A30 上で動かす
+8. plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証する
+9. RetroArch `v1.22.2` を A30 向けに build し、1 system だけで検証する
+10. CPU policy の比較 log を取る

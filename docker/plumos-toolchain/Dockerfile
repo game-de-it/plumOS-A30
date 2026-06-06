@@ -28,6 +28,7 @@ RUN dpkg --add-architecture armhf \
     file \
     gettext \
     git \
+    libsdl2-dev:armhf \
     libtool \
     make \
     meson \

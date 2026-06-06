@@ -463,6 +463,46 @@ Function was also checked separately and appeared as
 `JS_BUTTON number=8`. After the probe finished, no `plumos-joystickd` process or
 `plumOS A30 Gamepad` device remained.
 
+### plumOS-Bundled SDL2 GameController Check
+
+SDL2 2.26.5, the dynamic loader, and required shared libraries were bundled on
+the plumOS side to check whether the `plumos-joystickd --device-mode xbox`
+composite virtual pad is auto-detected by SDL2.
+
+Build:
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+Hardware result on 2026-06-06:
+
+```text
+detected js=/dev/input/js0 event=/dev/input/event4
+N: Name="plumOS A30 Gamepad"
+H: Handlers=js0 event4
+plumOS SDL2 probe
+compiled_sdl=2.26.5 linked_sdl=2.26.5 timeout_ms=3000 no_video=no
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
+window create=yes error=""
+joysticks=1
+device index=0 name="Xbox 360 Controller" guid=030003f05e0400008e0200005e040000 is_controller=yes
+controller info index=0 name="Atari Xbox 360 Game Controller" attached=yes axes=6 buttons=11 hats=1
+summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joystick_events=1
+result=sdl2_gamecontroller_visible
+```
+
+This confirms that `xbox` mode lands on the SDL2 GameController mapping not only
+in stock PPSSPP, but also with the plumOS-bundled SDL2 runtime. For RetroArch,
+continue prioritizing the plumOS SDL2/evdev build plus this composite pad rather
+than tuning for the stock SDL1 path.
+
 ## Options
 
 - `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.

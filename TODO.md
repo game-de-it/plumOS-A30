@@ -34,7 +34,7 @@
   `plumos/gnu/bin` に追加する。
 - [ ] `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`,
   `lsof`, `strace` の互換性を確認する。
-- [ ] 動的 link が必要な場合の dynamic linker/shared library 同梱方針を検証する。
+- [x] 動的 link が必要な場合の dynamic linker/shared library 同梱方針を SDL2 probe で検証する。
 - [ ] 実機上で plumOS runtime path だけを使う smoke test を行う。
 
 ## Phase 3 - Device Deployment Loop
@@ -105,7 +105,8 @@
 - [x] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
 - [ ] A30 settings の write-enabled controls は backend 検証、backup、atomic write、`sync` 方針を固めてから実装する。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
-- [ ] plumOS 同梱 SDL2 の最小 linked/render test binary を A30 上で動かす。
+- [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
+- [ ] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証する。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
@@ -140,6 +141,7 @@
 - [x] `plumos-joystickd --device-mode xbox` が PPSSPP/SDL2 GameController から認識され、GameController mapping が成功することを確認する。
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
 - [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
+- [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 SDL2 2.26.5 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
 - [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。

@@ -265,6 +265,7 @@ Compatibility to preserve:
 4. Add `/mnt/SDCARD/plumos/bin/plumos-env` to set runtime paths.
 5. Manually run a plumOS frontend prototype while keeping stock MainUI.
 6. Run a minimal framebuffer/input/audio runtime probe on the A30.
-7. Run a minimal linked/render test binary with plumOS-bundled SDL2 on the A30.
-8. Build RetroArch `v1.22.2` for the A30 and validate one system first.
-9. Collect comparison logs for CPU policies.
+7. Run a minimal linked/window/input probe with plumOS-bundled SDL2 on the A30.
+8. Validate the framebuffer/render backend for plumOS-bundled SDL2 on the A30.
+9. Build RetroArch `v1.22.2` for the A30 and validate one system first.
+10. Collect comparison logs for CPU policies.

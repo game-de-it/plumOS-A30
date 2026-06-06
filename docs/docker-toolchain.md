@@ -83,6 +83,21 @@ dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 
+SDL2 probe を build します。
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe.bin
+dist/plumos-sdl2-probe/plumos/lib/
+dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -128,6 +143,13 @@ joystickd も SD カード root に展開します。
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-joystickd /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
+```
+
+SDL2 probe は、`plumos-joystickd --device-mode xbox` と一緒に SD カード root へ展開して
+実行します。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
 ```
 
 log を回収します。

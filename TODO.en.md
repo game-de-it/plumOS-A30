@@ -34,8 +34,8 @@
   `plumos/gnu/bin` for a more Debian-like workflow.
 - [ ] Validate compatibility for `ps`, `top`, `df`, `free`, `tar`, `find`,
   `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, and `strace`.
-- [ ] Validate the bundled dynamic linker/shared library strategy when dynamic
-  linking is required.
+- [x] Validate the bundled dynamic linker/shared library strategy with the SDL2
+  probe when dynamic linking is required.
 - [ ] Run a smoke test on the device using only plumOS runtime paths.
 
 ## Phase 3 - Device Deployment Loop
@@ -129,8 +129,10 @@
 - [ ] Implement write-enabled A30 settings controls only after backend
   validation, backup, atomic write, and `sync` policy are settled.
 - [x] Run a minimal framebuffer/input/audio runtime probe binary on the A30.
-- [ ] Run a minimal linked/render SDL2 test binary with plumOS-bundled SDL2 on
+- [x] Run a minimal linked/window/input probe binary with plumOS-bundled SDL2 on
   the A30.
+- [ ] Validate the framebuffer/render backend for plumOS-bundled SDL2 on the
+  A30.
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.
 - [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
   directly.
@@ -204,6 +206,10 @@
 - [x] Add `scripts/probe-a30-joystickd-buttons.sh` and confirm that A/B/X/Y,
   D-pad, L/R, L2/R2, START/SELECT, and Function are forwarded as
   `plumOS A30 Gamepad` button/hat/trigger events.
+- [x] Add `scripts/probe-a30-sdl2-gamepad.sh` and confirm that plumOS-bundled
+  SDL2 2.26.5 automatically recognizes the
+  `plumos-joystickd --device-mode xbox` composite virtual pad as a
+  GameController.
 - [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
   during plumOS causes duplicate input or stale fd issues in the frontend,
   `keymon`, or emulators.

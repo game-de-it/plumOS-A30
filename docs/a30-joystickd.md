@@ -446,6 +446,45 @@ Function button は個別に追加確認し、`EV_KEY code=316 key=BTN_MODE`、j
 `JS_BUTTON number=8` として出ました。probe 終了後、`plumos-joystickd` process と
 `plumOS A30 Gamepad` device は残りませんでした。
 
+### plumOS 同梱 SDL2 GameController 確認
+
+plumOS 側で SDL2 2.26.5 と dynamic loader/shared libraries を同梱し、
+`plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2 から
+自動認識されるか確認しました。
+
+build:
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+2026-06-06 実機結果:
+
+```text
+detected js=/dev/input/js0 event=/dev/input/event4
+N: Name="plumOS A30 Gamepad"
+H: Handlers=js0 event4
+plumOS SDL2 probe
+compiled_sdl=2.26.5 linked_sdl=2.26.5 timeout_ms=3000 no_video=no
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
+window create=yes error=""
+joysticks=1
+device index=0 name="Xbox 360 Controller" guid=030003f05e0400008e0200005e040000 is_controller=yes
+controller info index=0 name="Atari Xbox 360 Game Controller" attached=yes axes=6 buttons=11 hats=1
+summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joystick_events=1
+result=sdl2_gamecontroller_visible
+```
+
+この結果から、stock PPSSPP だけでなく plumOS 同梱 SDL2 でも `xbox` mode の
+virtual pad は GameController mapping に乗ると判断します。RetroArch 向けには引き続き、
+stock SDL1 ではなく plumOS build の SDL2/evdev とこの composite pad を優先して検証します。
+
 ## options
 
 - `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`

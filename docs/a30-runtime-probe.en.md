@@ -3,8 +3,9 @@
 `plumos-runtime-probe` is a statically linked diagnostic binary for checking the
 minimal video/input/audio interfaces before replacing the A30 frontend/runtime.
 
-It does not link against the stock SDL libraries. Until SDL2 is bundled under
-plumOS, this probe checks the Linux interfaces directly.
+`plumos-runtime-probe` does not link against the stock SDL libraries; it checks
+the Linux interfaces directly. The dynamic-link/runtime strategy for SDL2 is
+validated separately with `plumos-sdl2-probe`.
 
 ## Build
 
@@ -21,6 +22,26 @@ dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
 dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
+
+SDL2 linked/GameController probe:
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+Outputs:
+
+```text
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe.bin
+dist/plumos-sdl2-probe/plumos/lib/
+dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
+```
+
+`plumos-sdl2-probe` runs with the Debian armhf SDL2 package plus the required
+dynamic loader and shared libraries bundled under `/mnt/SDCARD/plumos/lib`.
+Because the A30 SD card cannot create symlinks, sonames are copied as regular
+files rather than symlinks.
 
 ## Deploy/Run
 
@@ -78,6 +99,18 @@ frames in the likely spruceOS format: `ff axisYL axisXL axisYR axisXR fe`.
 With `--stats-only`, it suppresses per-frame output and prints min/max/avg for
 each axis.
 
+SDL2 linked/GameController probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+This script starts `plumos-joystickd --device-mode xbox` briefly and checks
+whether `plumOS A30 Gamepad` is visible through SDL2 Joystick/GameController
+APIs. By default it does not set `SDL_JOYSTICK_DEVICE`, so SDL2 uses normal
+auto-detection. Use `--force-js-device` to pass the detected `/dev/input/js*`
+path through `SDL_JOYSTICK_DEVICE` for comparison.
+
 ## Options
 
 - `--fb PATH`: framebuffer path. Default: `/dev/fb0`.
@@ -123,6 +156,31 @@ Additional inspection showed that the stock `MainUI` holds
 `/dev/snd/pcmC0D0p`. While the stock frontend is running, the probe cannot write
 a test tone through `/dev/dsp`.
 
+SDL2 linked/GameController probe:
+
+```text
+plumOS SDL2 probe
+compiled_sdl=2.26.5 linked_sdl=2.26.5 timeout_ms=3000 no_video=no
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
+sdl init=yes current_video_driver=dummy current_audio_driver=-
+window create=yes error=""
+joysticks=1
+device index=0 name="Xbox 360 Controller" guid=030003f05e0400008e0200005e040000 is_controller=yes
+controller open index=0 yes
+controller info index=0 name="Atari Xbox 360 Game Controller" attached=yes axes=6 buttons=11 hats=1
+summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joystick_events=1
+result=sdl2_gamecontroller_visible
+```
+
+This confirms SDL initialization and window creation with
+`SDL_VIDEODRIVER=dummy`. The real framebuffer/render backend is still a separate
+next probe.
+
+With `--force-js-device` and `SDL_JOYSTICK_DEVICE=/dev/input/js0`, SDL2 listed
+the same virtual pad as two entries: `plumOS A30 Gamepad` and
+`Xbox 360 Controller`. For normal operation, prefer the auto-detected path
+without that environment variable.
+
 ## Decision
 
 - Video: `/dev/fb0` reports 480x640, 32bpp, line length 1920, and short
@@ -134,9 +192,13 @@ a test tone through `/dev/dsp`.
   `/dev` only contains `/dev/ttyS0` and `/dev/ttyS1`. `/dev/ttyS0` emits
   joystick frames at 9600/8N1.
 - Audio: OSS `/dev/dsp` exists, but is busy while stock MainUI holds PCM.
-- SDL2: stock libraries exist, but are not adopted as plumOS runtime
-  dependencies. Build a linked probe after plumOS bundles its own SDL2 package.
+- SDL2: the plumOS-bundled SDL2 2.26.5 plus bundled dynamic loader/shared
+  libraries starts successfully and automatically recognizes the
+  `plumos-joystickd --device-mode xbox` composite virtual pad as a
+  GameController.
+- SDL2 render: dummy-video window creation succeeds; the real
+  framebuffer/render backend is still unvalidated.
 
 The stock `keymon` comparison is split into
-[A30 input policy](a30-input-policy.en.md). Next steps are building a
-plumOS-bundled SDL2 runtime or confirming the physical button mapping.
+[A30 input policy](a30-input-policy.en.md). Next steps are the real SDL2 render
+backend and the RetroArch SDL2/evdev build.

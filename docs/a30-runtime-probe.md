@@ -3,8 +3,9 @@
 `plumos-runtime-probe` は、A30 の frontend/runtime 置き換え前に、最小限の
 video/input/audio interface を確認するための静的リンク診断 binary です。
 
-stock SDL library にはリンクしません。SDL2 を plumOS 配下へ同梱するまでは、
-まず Linux interface を直接確認します。
+`plumos-runtime-probe` は stock SDL library にはリンクせず、まず Linux interface を
+直接確認します。SDL2 の動的 link/runtime 方針は、別の `plumos-sdl2-probe` で
+検証します。
 
 ## build
 
@@ -21,6 +22,25 @@ dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
 dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
+
+SDL2 linked/GameController probe:
+
+```sh
+./scripts/docker-build.sh sdl2-probe
+```
+
+生成物:
+
+```text
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
+dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe.bin
+dist/plumos-sdl2-probe/plumos/lib/
+dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
+```
+
+`plumos-sdl2-probe` は Debian armhf の SDL2 と、その実行に必要な dynamic loader /
+shared library を `/mnt/SDCARD/plumos/lib` へ同梱して実行します。A30 の SD カードは
+symlink を作れないため、soname は symlink ではなく通常ファイルとして複製します。
 
 ## deploy/run
 
@@ -76,6 +96,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 可能性が高い `ff axisYL axisXL axisYR axisXR fe` 形式の6バイト frame を表示します。
 `--stats-only` では frame ごとの出力を抑制し、各 axis の min/max/avg だけを表示します。
 
+SDL2 linked/GameController probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
+```
+
+この script は `plumos-joystickd --device-mode xbox` を短時間起動し、
+`plumOS A30 Gamepad` が SDL2 の Joystick/GameController として見えるか確認します。
+既定では `SDL_JOYSTICK_DEVICE` を指定せず、SDL2 の通常の自動検出を使います。
+`--force-js-device` を付けると、検出した `/dev/input/js*` を
+`SDL_JOYSTICK_DEVICE` に渡す比較確認ができます。
+
 ## options
 
 - `--fb PATH`: framebuffer path。既定値は `/dev/fb0`
@@ -119,6 +151,29 @@ result=ok
 追加確認では、stock `MainUI` が `/dev/snd/pcmC0D0p` を保持していました。そのため、
 stock frontend を動かしたままでは `/dev/dsp` への test tone 書き込みはできません。
 
+SDL2 linked/GameController probe:
+
+```text
+plumOS SDL2 probe
+compiled_sdl=2.26.5 linked_sdl=2.26.5 timeout_ms=3000 no_video=no
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_JOYSTICK_DEVICE=-
+sdl init=yes current_video_driver=dummy current_audio_driver=-
+window create=yes error=""
+joysticks=1
+device index=0 name="Xbox 360 Controller" guid=030003f05e0400008e0200005e040000 is_controller=yes
+controller open index=0 yes
+controller info index=0 name="Atari Xbox 360 Game Controller" attached=yes axes=6 buttons=11 hats=1
+summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joystick_events=1
+result=sdl2_gamecontroller_visible
+```
+
+`SDL_VIDEODRIVER=dummy` で window 作成まで確認しました。実 framebuffer/render backend は
+未検証なので、次の SDL2 graphics probe として分けて扱います。
+
+`--force-js-device` で `SDL_JOYSTICK_DEVICE=/dev/input/js0` を渡すと、
+SDL2 は同じ virtual pad を `plumOS A30 Gamepad` と `Xbox 360 Controller` の2 entry として
+列挙しました。通常運用に近い条件では、環境変数なしの自動検出を優先します。
+
 ## 判断
 
 - video: `/dev/fb0` は 480x640、32bpp、line length 1920 として取得でき、短時間の
@@ -130,8 +185,11 @@ stock frontend を動かしたままでは `/dev/dsp` への test tone 書き込
   `/dev/ttyS0` と `/dev/ttyS1` のみ存在する。`/dev/ttyS0` は 9600/8N1 で
   joystick frame を出力する
 - audio: OSS `/dev/dsp` は存在するが、stock MainUI が PCM を保持している間は busy
-- SDL2: stock library は存在するが、plumOS runtime としては未採用。自前 SDL2 package
-  を用意してから linked probe を作る
+- SDL2: plumOS 同梱 SDL2 2.26.5 と bundled dynamic loader/shared libraries で
+  linked probe が起動し、`plumos-joystickd --device-mode xbox` の composite virtual pad を
+  GameController として自動認識した
+- SDL2 render: dummy video の window 作成は成功。実 framebuffer/render backend は未検証
 
 stock `keymon` と直接 input event の比較は [A30 input policy](a30-input-policy.md) に
-分離しました。次は、plumOS 同梱 SDL2 の build または物理ボタン mapping の確定に進みます。
+分離しました。次は、plumOS SDL2 の実 render backend と RetroArch SDL2/evdev build に
+進みます。
