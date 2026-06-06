@@ -309,6 +309,20 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - Settings: 現在値を一覧表示し、A は edit preview を出す
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `q`
 
+Settings 画面では plumOS frontend 設定と theme 状態に加えて、A30 固有設定の
+read-only inventory も表示します。現在は `/config/system.json` から volume、
+brightness、display color、Wi-Fi enabled flag、keymap、language、stock theme、
+CPU mode を読み、`/tmp/wpa_status.txt` から redacted Wi-Fi runtime status だけを
+読みます。SSID/PSK は読みません。write-enabled controls は backend 検証後に別途
+実装します。
+
+確認例:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,q | grep -E "A30|Wi-Fi|Volume|Brightness|Keymap|Input"'
+```
+
 2026-06-06 の A30 実機確認:
 
 ```text

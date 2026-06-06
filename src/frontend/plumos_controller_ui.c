@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -120,7 +121,7 @@ struct input_event {
 #define UI_MAX_TOP 128
 #define UI_MAX_ROMS 256
 #define UI_MAX_MENU 64
-#define UI_MAX_SETTINGS 32
+#define UI_MAX_SETTINGS 64
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
 
@@ -154,7 +155,7 @@ struct menu_entry {
 struct setting_entry {
   char id[64];
   char display_name[128];
-  char value[128];
+  char value[256];
 };
 
 struct theme_state {
@@ -169,6 +170,32 @@ struct theme_state {
   char font_ui[UI_PATH_MAX];
   char font_fallback[64];
   char placeholder_thumbnail[UI_PATH_MAX];
+  char status[256];
+};
+
+struct device_settings {
+  int loaded;
+  int wpa_loaded;
+  long volume;
+  long mute;
+  long bgm_volume;
+  long brightness;
+  long lumination;
+  long contrast;
+  long hue;
+  long saturation;
+  long wifi_enabled;
+  long cpu_freq_mode;
+  char keymap[128];
+  char language[64];
+  char stock_theme[UI_PATH_MAX];
+  char brightness_backend[128];
+  char volume_backend[128];
+  char wifi_state[64];
+  char wifi_ip[64];
+  char wifi_rssi[64];
+  char wifi_linkspeed[64];
+  char wifi_frequency[64];
   char status[256];
 };
 
@@ -212,6 +239,8 @@ struct ui_state {
   char plumos_root[PATH_MAX];
   char top_cache_path[PATH_MAX];
   char settings_path[PATH_MAX];
+  char system_config_path[PATH_MAX];
+  char wpa_status_path[PATH_MAX];
   char menus_path[PATH_MAX];
   char favorites_path[PATH_MAX];
   char recent_path[PATH_MAX];
@@ -235,6 +264,8 @@ struct ui_state {
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
   struct theme_state theme;
+  struct device_settings device;
+  char input_event_path[PATH_MAX];
   char current_system_id[64];
   char current_system_name[128];
   char status[256];
@@ -328,6 +359,24 @@ static int file_exists(const char *path) {
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+static int dir_has_entries(const char *path) {
+  DIR *dir;
+  struct dirent *entry;
+
+  dir = opendir(path);
+  if (!dir) {
+    return 0;
+  }
+  while ((entry = readdir(dir)) != NULL) {
+    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+      closedir(dir);
+      return 1;
+    }
+  }
+  closedir(dir);
+  return 0;
+}
+
 static int valid_system_id(const char *s) {
   if (!s || !s[0]) {
     return 0;
@@ -376,6 +425,43 @@ static char *read_file(const char *path, size_t *size_out) {
     *size_out = (size_t)size;
   }
   return buf;
+}
+
+static int read_key_value_file(const char *path, const char *key, char *out, size_t out_size) {
+  char *text;
+  char *p;
+  size_t key_len;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (!path || !key || !key[0]) {
+    return 0;
+  }
+  text = read_file(path, NULL);
+  if (!text) {
+    return 0;
+  }
+  key_len = strlen(key);
+  p = text;
+  while (p && *p) {
+    char *line = p;
+    char *next = strchr(p, '\n');
+    if (next) {
+      *next = '\0';
+      p = next + 1;
+    } else {
+      p += strlen(p);
+    }
+    if (strncmp(line, key, key_len) == 0 && line[key_len] == '=') {
+      int ok = copy_string(out, out_size, line + key_len + 1);
+      free(text);
+      return ok;
+    }
+  }
+  free(text);
+  return 0;
 }
 
 static const char *skip_ws_range(const char *p, const char *end) {
@@ -686,6 +772,98 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
   return 1;
 }
 
+static void init_device_settings(struct device_settings *device) {
+  memset(device, 0, sizeof(*device));
+  device->volume = -1;
+  device->mute = -1;
+  device->bgm_volume = -1;
+  device->brightness = -1;
+  device->lumination = -1;
+  device->contrast = -1;
+  device->hue = -1;
+  device->saturation = -1;
+  device->wifi_enabled = -1;
+  device->cpu_freq_mode = -1;
+  copy_string(device->brightness_backend, sizeof(device->brightness_backend), "unresolved");
+  copy_string(device->volume_backend, sizeof(device->volume_backend), "unresolved");
+  copy_string(device->status, sizeof(device->status), "read-only inventory");
+}
+
+static void load_device_runtime_status(struct ui_state *ui) {
+  struct device_settings *device = &ui->device;
+
+  if (read_key_value_file(ui->wpa_status_path, "wpa_state", device->wifi_state,
+                          sizeof(device->wifi_state))) {
+    device->wpa_loaded = 1;
+  }
+  if (read_key_value_file(ui->wpa_status_path, "ip_address", device->wifi_ip,
+                          sizeof(device->wifi_ip))) {
+    device->wpa_loaded = 1;
+  }
+  read_key_value_file(ui->wpa_status_path, "RSSI", device->wifi_rssi,
+                      sizeof(device->wifi_rssi));
+  read_key_value_file(ui->wpa_status_path, "LINKSPEED", device->wifi_linkspeed,
+                      sizeof(device->wifi_linkspeed));
+  read_key_value_file(ui->wpa_status_path, "FREQUENCY", device->wifi_frequency,
+                      sizeof(device->wifi_frequency));
+}
+
+static int load_device_settings(struct ui_state *ui) {
+  char *json;
+  size_t json_size;
+  const char *json_end;
+
+  init_device_settings(&ui->device);
+
+  if (file_exists("/usr/bin/amixer") || file_exists("/bin/amixer")) {
+    copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
+                "system.json + amixer candidate");
+  } else {
+    copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
+                "system.json only");
+  }
+
+  if (dir_has_entries("/sys/class/backlight")) {
+    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
+                "sysfs backlight candidate");
+  } else if (dir_has_entries("/sys/class/lcd")) {
+    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
+                "system.json + lcd sysfs candidate");
+  } else {
+    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
+                "system.json only");
+  }
+
+  load_device_runtime_status(ui);
+
+  json = read_file(ui->system_config_path, &json_size);
+  if (!json) {
+    copy_string(ui->device.status, sizeof(ui->device.status), "system config missing");
+    return 1;
+  }
+
+  json_end = json + json_size;
+  ui->device.loaded = 1;
+  ui->device.volume = json_get_long(json, json_end, "vol", -1);
+  ui->device.mute = json_get_long(json, json_end, "mute", -1);
+  ui->device.bgm_volume = json_get_long(json, json_end, "bgmvol", -1);
+  ui->device.brightness = json_get_long(json, json_end, "brightness", -1);
+  ui->device.lumination = json_get_long(json, json_end, "lumination", -1);
+  ui->device.contrast = json_get_long(json, json_end, "contrast", -1);
+  ui->device.hue = json_get_long(json, json_end, "hue", -1);
+  ui->device.saturation = json_get_long(json, json_end, "saturation", -1);
+  ui->device.wifi_enabled = json_get_long(json, json_end, "wifi", -1);
+  ui->device.cpu_freq_mode = json_get_long(json, json_end, "cpufreq", -1);
+  json_get_string(json, json_end, "keymap", ui->device.keymap,
+                  sizeof(ui->device.keymap));
+  json_get_string(json, json_end, "language", ui->device.language,
+                  sizeof(ui->device.language));
+  json_get_string(json, json_end, "theme", ui->device.stock_theme,
+                  sizeof(ui->device.stock_theme));
+  free(json);
+  return 1;
+}
+
 static int build_theme_path(char *out, size_t out_size, const char *plumos_root,
                             const char *theme_id) {
   char dir[PATH_MAX];
@@ -833,6 +1011,53 @@ static void add_bool_setting_entry(struct ui_state *ui, const char *id, const ch
   add_setting_entry(ui, id, name, value ? "true" : "false");
 }
 
+static void add_device_settings_entries(struct ui_state *ui) {
+  char value[256];
+  const struct device_settings *device = &ui->device;
+
+  add_setting_entry(ui, "a30_policy", "A30 Policy", "read-only inventory");
+  add_setting_entry(ui, "a30_write_policy", "A30 Write Policy",
+                    "defer writes until backend validation");
+  add_setting_entry(ui, "a30_config", "A30 Config",
+                    device->loaded ? ui->system_config_path : device->status);
+
+  snprintf(value, sizeof(value), "vol=%ld mute=%ld bgm=%ld",
+           device->volume, device->mute, device->bgm_volume);
+  add_setting_entry(ui, "a30_volume", "A30 Volume", value);
+  add_setting_entry(ui, "a30_volume_backend", "A30 Volume Backend",
+                    device->volume_backend);
+
+  snprintf(value, sizeof(value), "brightness=%ld lumination=%ld",
+           device->brightness, device->lumination);
+  add_setting_entry(ui, "a30_brightness", "A30 Brightness", value);
+  snprintf(value, sizeof(value), "contrast=%ld hue=%ld saturation=%ld",
+           device->contrast, device->hue, device->saturation);
+  add_setting_entry(ui, "a30_display_color", "A30 Display Color", value);
+  add_setting_entry(ui, "a30_brightness_backend", "A30 Brightness Backend",
+                    device->brightness_backend);
+
+  snprintf(value, sizeof(value), "enabled=%ld", device->wifi_enabled);
+  add_setting_entry(ui, "a30_wifi_config", "A30 Wi-Fi Config", value);
+  if (device->wpa_loaded) {
+    snprintf(value, sizeof(value), "%.32s ip=%.48s rssi=%.16s speed=%.16s freq=%.16s",
+             device->wifi_state[0] ? device->wifi_state : "-",
+             device->wifi_ip[0] ? device->wifi_ip : "-",
+             device->wifi_rssi[0] ? device->wifi_rssi : "-",
+             device->wifi_linkspeed[0] ? device->wifi_linkspeed : "-",
+             device->wifi_frequency[0] ? device->wifi_frequency : "-");
+  } else {
+    copy_string(value, sizeof(value), "no redacted runtime status");
+  }
+  add_setting_entry(ui, "a30_wifi_runtime", "A30 Wi-Fi Runtime", value);
+
+  add_setting_entry(ui, "a30_keymap", "A30 Keymap", device->keymap);
+  add_setting_entry(ui, "a30_input_event", "A30 Input Event", ui->input_event_path);
+  add_setting_entry(ui, "a30_language", "A30 Language", device->language);
+  add_setting_entry(ui, "a30_stock_theme", "A30 Stock Theme", device->stock_theme);
+  snprintf(value, sizeof(value), "cpufreq=%ld", device->cpu_freq_mode);
+  add_setting_entry(ui, "a30_cpu_mode", "A30 CPU Mode", value);
+}
+
 static int load_settings_entries(struct ui_state *ui) {
   struct frontend_settings settings;
 
@@ -863,6 +1088,8 @@ static int load_settings_entries(struct ui_state *ui) {
                     ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
   add_bool_setting_entry(ui, "theme_force_no_icons", "Text Force No Icons",
                          ui->theme.force_no_icons);
+  load_device_settings(ui);
+  add_device_settings_entries(ui);
   return 1;
 }
 
@@ -1852,11 +2079,15 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");
   printf("  PLUMOS_INPUT_EVENT  Default: auto-detect gpio-keys-polled\n");
+  printf("  PLUMOS_A30_SYSTEM_JSON  Default: /config/system.json\n");
+  printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
 }
 
 int main(int argc, char **argv) {
   static struct ui_state ui;
   const char *plumos_root_env;
+  const char *system_config_env;
+  const char *wpa_status_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
   int dump_events = 0;
@@ -1878,6 +2109,20 @@ int main(int argc, char **argv) {
   discover_input_event(event_path, sizeof(event_path));
   if (getenv("PLUMOS_INPUT_EVENT") && getenv("PLUMOS_INPUT_EVENT")[0]) {
     copy_string(event_path, sizeof(event_path), getenv("PLUMOS_INPUT_EVENT"));
+  }
+  system_config_env = getenv("PLUMOS_A30_SYSTEM_JSON");
+  if (!copy_string(ui.system_config_path, sizeof(ui.system_config_path),
+                   system_config_env && system_config_env[0] ? system_config_env
+                                                             : "/config/system.json")) {
+    fprintf(stderr, "error: A30 system config path is too long\n");
+    return 1;
+  }
+  wpa_status_env = getenv("PLUMOS_A30_WPA_STATUS");
+  if (!copy_string(ui.wpa_status_path, sizeof(ui.wpa_status_path),
+                   wpa_status_env && wpa_status_env[0] ? wpa_status_env
+                                                       : "/tmp/wpa_status.txt")) {
+    fprintf(stderr, "error: A30 WPA status path is too long\n");
+    return 1;
   }
 
   for (i = 1; i < argc; i++) {
@@ -1906,6 +2151,7 @@ int main(int argc, char **argv) {
       return 2;
     }
   }
+  copy_string(ui.input_event_path, sizeof(ui.input_event_path), event_path);
 
   if (dump_events) {
     dump_input_events(event_path, ui.timeout_sec > 0 ? ui.timeout_sec : 10);

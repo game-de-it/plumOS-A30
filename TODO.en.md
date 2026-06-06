@@ -124,8 +124,10 @@
   even when theme assets or fonts are missing/broken.
 - [x] Keep stock theme compatibility out of the initial spec; consider it later
   only as an importer if needed.
-- [ ] Decide how to handle A30 settings such as brightness, volume, Wi-Fi, and
+- [x] Decide how to handle A30 settings such as brightness, volume, Wi-Fi, and
   keymap.
+- [ ] Implement write-enabled A30 settings controls only after backend
+  validation, backup, atomic write, and `sync` policy are settled.
 - [ ] Run minimal SDL/input/audio/video test binaries on the A30.
 - [ ] Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
 - [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key

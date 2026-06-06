@@ -109,6 +109,24 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
 - Wi-Fi enabled flag
 - CPU frequency mode flag
 
+2026-06-06 に確認した現在値:
+
+- `vol=14`, `mute=1`, `bgmvol=13`
+- `brightness=10`, `lumination=5`
+- `contrast=10`, `hue=10`, `saturation=10`
+- `wifi=1`, `cpufreq=0`
+- `keymap=L,L2,R,R2,X,A,B,Y`
+- `language=en.lang`
+
+backend 候補:
+
+- volume: `amixer` は存在するが mixer control mapping は未検証
+- brightness: `/sys/class/backlight` には利用できる brightness file が見当たらない
+- Wi-Fi runtime: `/tmp/wpa_status.txt` から redacted status は読める
+- input: `gpio-keys-polled` は通常 `/dev/input/event3`
+
+詳細な UI 方針は [A30 設定 UI 方針](a30-settings-policy.md) に分離しています。
+
 ## 継承すべきフロントエンド互換情報
 
 stock UI は SD カード上の以下を読みます。

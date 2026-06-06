@@ -321,6 +321,20 @@ Controls:
 - Settings: show current values; A shows edit preview.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `q`.
 
+The Settings screen also shows a read-only inventory for A30-specific settings,
+separate from plumOS frontend settings and theme state. It reads volume,
+brightness, display color, Wi-Fi enabled flag, keymap, language, stock theme,
+and CPU mode from `/config/system.json`, plus redacted Wi-Fi runtime status from
+`/tmp/wpa_status.txt`. It does not read SSID or PSK. Write-enabled controls are
+deferred until backend validation is complete.
+
+Example check:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,q | grep -E "A30|Wi-Fi|Volume|Brightness|Keymap|Input"'
+```
+
 A30 device check on 2026-06-06:
 
 ```text

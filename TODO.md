@@ -102,7 +102,8 @@
 - [x] button 操作、START menu、SELECT core menu、favorite、ROM scan、resume などの behavior は theme から変更できないようにする。
 - [x] text mode は theme asset/font が壊れていても default font/color で必ず操作できる fallback を実装する。
 - [x] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
-- [ ] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
+- [x] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
+- [ ] A30 settings の write-enabled controls は backend 検証、backup、atomic write、`sync` 方針を固めてから実装する。
 - [ ] SDL/input/audio/video の最小 test binary を A30 上で動かす。
 - [ ] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [ ] RetroArch 実行中の電源キー短押しで Sleep/Shutdown/Cancel menu を表示する方法を調査する。

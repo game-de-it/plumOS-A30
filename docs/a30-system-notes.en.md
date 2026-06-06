@@ -86,6 +86,24 @@ Important settings observed in `/config/system.json`:
 - Wi-Fi enabled flag
 - CPU frequency mode flag
 
+Current values confirmed on 2026-06-06:
+
+- `vol=14`, `mute=1`, `bgmvol=13`
+- `brightness=10`, `lumination=5`
+- `contrast=10`, `hue=10`, `saturation=10`
+- `wifi=1`, `cpufreq=0`
+- `keymap=L,L2,R,R2,X,A,B,Y`
+- `language=en.lang`
+
+Backend candidates:
+
+- Volume: `amixer` exists, but mixer control mapping is not validated.
+- Brightness: `/sys/class/backlight` does not expose usable brightness files.
+- Wi-Fi runtime: redacted status is readable from `/tmp/wpa_status.txt`.
+- Input: `gpio-keys-polled` normally resolves to `/dev/input/event3`.
+
+Detailed UI policy lives in [A30 settings UI policy](a30-settings-policy.en.md).
+
 ## Frontend Data Model To Preserve
 
 The stock UI reads SD-card content from these families:
