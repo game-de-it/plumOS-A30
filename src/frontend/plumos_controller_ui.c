@@ -119,6 +119,8 @@ struct input_event {
 
 #define UI_MAX_TOP 128
 #define UI_MAX_ROMS 256
+#define UI_MAX_MENU 64
+#define UI_MAX_SETTINGS 32
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
 
@@ -132,19 +134,49 @@ struct top_entry {
 };
 
 struct rom_entry {
+  char system_id[64];
   char title[256];
   char relative_path[UI_PATH_MAX];
   char path[UI_PATH_MAX];
+  char launch_profile[128];
+  char detail[256];
+  int resume_available;
+};
+
+struct menu_entry {
+  char id[64];
+  char display_name[128];
+  char kind[64];
+  char action[128];
+  int confirm;
+};
+
+struct setting_entry {
+  char id[64];
+  char display_name[128];
+  char value[128];
 };
 
 struct frontend_settings {
   int show_empty_systems;
   int show_favorites_on_top;
+  char boot_resume_mode[32];
+  char ui_mode[32];
+  char top_mode[32];
+  char rom_mode[32];
+  char theme_id[64];
+  char sort_systems[64];
+  char sort_roms[64];
+  char rom_scan_policy[64];
 };
 
 enum ui_screen {
   SCREEN_TOP = 0,
-  SCREEN_ROMS = 1
+  SCREEN_ROMS = 1,
+  SCREEN_START_MENU = 2,
+  SCREEN_FAVORITES = 3,
+  SCREEN_RECENT = 4,
+  SCREEN_SETTINGS = 5
 };
 
 enum ui_action {
@@ -165,19 +197,28 @@ struct ui_state {
   char plumos_root[PATH_MAX];
   char top_cache_path[PATH_MAX];
   char settings_path[PATH_MAX];
+  char menus_path[PATH_MAX];
   char favorites_path[PATH_MAX];
+  char recent_path[PATH_MAX];
   int show_all;
   int refresh;
   int no_clear;
   int once;
   int timeout_sec;
   enum ui_screen screen;
+  enum ui_screen back_screen;
   size_t top_cursor;
   size_t rom_cursor;
+  size_t menu_cursor;
+  size_t settings_cursor;
   struct top_entry top_entries[UI_MAX_TOP];
   size_t top_count;
   struct rom_entry rom_entries[UI_MAX_ROMS];
   size_t rom_count;
+  struct menu_entry menu_entries[UI_MAX_MENU];
+  size_t menu_count;
+  struct setting_entry setting_entries[UI_MAX_SETTINGS];
+  size_t setting_count;
   char current_system_id[64];
   char current_system_name[128];
   char status[256];
@@ -589,6 +630,7 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
   size_t json_size;
 
   memset(settings, 0, sizeof(*settings));
+  copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
   if (!file_exists(path)) {
     return 1;
   }
@@ -599,7 +641,66 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
   settings->show_empty_systems = json_get_bool(json, json + json_size, "show_empty_systems", 0);
   settings->show_favorites_on_top =
       json_get_bool(json, json + json_size, "show_favorites_on_top", 0);
+  json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
+                  sizeof(settings->boot_resume_mode));
+  json_get_string(json, json + json_size, "ui_mode", settings->ui_mode,
+                  sizeof(settings->ui_mode));
+  json_get_string(json, json + json_size, "top_mode", settings->top_mode,
+                  sizeof(settings->top_mode));
+  json_get_string(json, json + json_size, "rom_mode", settings->rom_mode,
+                  sizeof(settings->rom_mode));
+  json_get_string(json, json + json_size, "theme_id", settings->theme_id,
+                  sizeof(settings->theme_id));
+  json_get_string(json, json + json_size, "sort_systems", settings->sort_systems,
+                  sizeof(settings->sort_systems));
+  json_get_string(json, json + json_size, "sort_roms", settings->sort_roms,
+                  sizeof(settings->sort_roms));
+  json_get_string(json, json + json_size, "rom_scan_policy", settings->rom_scan_policy,
+                  sizeof(settings->rom_scan_policy));
   free(json);
+  return 1;
+}
+
+static void add_setting_entry(struct ui_state *ui, const char *id, const char *name,
+                              const char *value) {
+  struct setting_entry *entry;
+  if (ui->setting_count >= UI_MAX_SETTINGS) {
+    return;
+  }
+  entry = &ui->setting_entries[ui->setting_count++];
+  memset(entry, 0, sizeof(*entry));
+  copy_string(entry->id, sizeof(entry->id), id);
+  copy_string(entry->display_name, sizeof(entry->display_name), name);
+  copy_string(entry->value, sizeof(entry->value), value && value[0] ? value : "-");
+}
+
+static void add_bool_setting_entry(struct ui_state *ui, const char *id, const char *name,
+                                   int value) {
+  add_setting_entry(ui, id, name, value ? "true" : "false");
+}
+
+static int load_settings_entries(struct ui_state *ui) {
+  struct frontend_settings settings;
+
+  ui->setting_count = 0;
+  ui->settings_cursor = 0;
+  if (!load_settings(ui->settings_path, &settings)) {
+    return 0;
+  }
+  add_setting_entry(ui, "ui_mode", "UI Mode", settings.ui_mode);
+  add_setting_entry(ui, "top_mode", "TOP Mode", settings.top_mode);
+  add_setting_entry(ui, "rom_mode", "ROM Mode", settings.rom_mode);
+  add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
+                         settings.show_empty_systems);
+  add_bool_setting_entry(ui, "show_favorites_on_top", "Favorites On TOP",
+                         settings.show_favorites_on_top);
+  add_setting_entry(ui, "boot_resume_mode", "Boot Resume Mode",
+                    settings.boot_resume_mode);
+  add_setting_entry(ui, "sort_systems", "Sort Systems", settings.sort_systems);
+  add_setting_entry(ui, "sort_roms", "Sort ROMs", settings.sort_roms);
+  add_setting_entry(ui, "rom_scan_policy", "ROM Scan Policy",
+                    settings.rom_scan_policy);
+  add_setting_entry(ui, "theme_id", "Theme", settings.theme_id);
   return 1;
 }
 
@@ -662,7 +763,7 @@ static int load_top_entries(struct ui_state *ui) {
     copy_string(fav.display_name, sizeof(fav.display_name), "Favorites");
     copy_string(fav.default_launch_profile, sizeof(fav.default_launch_profile),
                 "internal:favorites");
-    fav.rom_count = count_json_array_objects(ui->favorites_path, "entries");
+    fav.rom_count = count_json_array_objects(ui->favorites_path, "favorites");
     fav.pinned = 1;
     fav.virtual_entry = 1;
     ui->top_entries[ui->top_count++] = fav;
@@ -670,6 +771,181 @@ static int load_top_entries(struct ui_state *ui) {
   if (ui->top_cursor >= ui->top_count) {
     ui->top_cursor = ui->top_count ? ui->top_count - 1 : 0;
   }
+  return 1;
+}
+
+static int load_start_menu_entries(struct ui_state *ui) {
+  char *json;
+  size_t json_size;
+  const char *menus_start;
+  const char *menus_end;
+  const char *menu_cursor;
+
+  ui->menu_count = 0;
+  ui->menu_cursor = 0;
+  json = read_file(ui->menus_path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "menus", &menus_start, &menus_end)) {
+    free(json);
+    return 0;
+  }
+
+  menu_cursor = menus_start;
+  while (ui->menu_count < UI_MAX_MENU) {
+    const char *menu_start;
+    const char *menu_end;
+    const char *entries_start;
+    const char *entries_end;
+    const char *entry_cursor;
+    char menu_id[64] = "";
+
+    if (!json_next_object(&menu_cursor, menus_end, &menu_start, &menu_end)) {
+      break;
+    }
+    json_get_string(menu_start, menu_end, "id", menu_id, sizeof(menu_id));
+    if (strcmp(menu_id, "start") != 0) {
+      continue;
+    }
+    if (!json_find_array(menu_start, menu_end, "entries", &entries_start, &entries_end)) {
+      break;
+    }
+    entry_cursor = entries_start;
+    while (ui->menu_count < UI_MAX_MENU) {
+      const char *obj_start;
+      const char *obj_end;
+      struct menu_entry entry;
+
+      if (!json_next_object(&entry_cursor, entries_end, &obj_start, &obj_end)) {
+        break;
+      }
+      memset(&entry, 0, sizeof(entry));
+      json_get_string(obj_start, obj_end, "id", entry.id, sizeof(entry.id));
+      json_get_string(obj_start, obj_end, "display_name", entry.display_name,
+                      sizeof(entry.display_name));
+      json_get_string(obj_start, obj_end, "kind", entry.kind, sizeof(entry.kind));
+      json_get_string(obj_start, obj_end, "action", entry.action, sizeof(entry.action));
+      entry.confirm = json_get_bool(obj_start, obj_end, "confirm", 0);
+      if (!entry.display_name[0]) {
+        copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
+      }
+      ui->menu_entries[ui->menu_count++] = entry;
+    }
+    break;
+  }
+  free(json);
+  return 1;
+}
+
+static int load_favorite_entries(struct ui_state *ui) {
+  char *json;
+  size_t json_size;
+  const char *start;
+  const char *end;
+  const char *cursor;
+
+  ui->rom_count = 0;
+  ui->rom_cursor = 0;
+  json = read_file(ui->favorites_path, &json_size);
+  if (!json) {
+    return file_exists(ui->favorites_path) ? 0 : 1;
+  }
+  if (!json_find_array(json, json + json_size, "favorites", &start, &end)) {
+    free(json);
+    return 0;
+  }
+  cursor = start;
+  while (ui->rom_count < UI_MAX_ROMS) {
+    const char *obj_start;
+    const char *obj_end;
+    struct rom_entry entry;
+
+    if (!json_next_object(&cursor, end, &obj_start, &obj_end)) {
+      break;
+    }
+    memset(&entry, 0, sizeof(entry));
+    json_get_string(obj_start, obj_end, "system_id", entry.system_id,
+                    sizeof(entry.system_id));
+    json_get_string(obj_start, obj_end, "title", entry.title, sizeof(entry.title));
+    json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
+                    sizeof(entry.relative_path));
+    json_get_string(obj_start, obj_end, "path", entry.path, sizeof(entry.path));
+    if (!entry.title[0]) {
+      copy_string(entry.title, sizeof(entry.title), entry.relative_path);
+    }
+    {
+      size_t pos = 0;
+      append_string(entry.detail, sizeof(entry.detail), &pos, entry.system_id);
+      append_string(entry.detail, sizeof(entry.detail), &pos, " / ");
+      append_string(entry.detail, sizeof(entry.detail), &pos, entry.relative_path);
+    }
+    ui->rom_entries[ui->rom_count++] = entry;
+  }
+  free(json);
+  return 1;
+}
+
+static int load_recent_entries(struct ui_state *ui) {
+  char *json;
+  size_t json_size;
+  const char *start;
+  const char *end;
+  const char *cursor;
+
+  ui->rom_count = 0;
+  ui->rom_cursor = 0;
+  json = read_file(ui->recent_path, &json_size);
+  if (!json) {
+    return file_exists(ui->recent_path) ? 0 : 1;
+  }
+  if (!json_find_array(json, json + json_size, "recents", &start, &end)) {
+    free(json);
+    return 0;
+  }
+  cursor = start;
+  while (ui->rom_count < UI_MAX_ROMS) {
+    const char *obj_start;
+    const char *obj_end;
+    struct rom_entry entry;
+    char last_played_at[64] = "";
+
+    if (!json_next_object(&cursor, end, &obj_start, &obj_end)) {
+      break;
+    }
+    memset(&entry, 0, sizeof(entry));
+    json_get_string(obj_start, obj_end, "system_id", entry.system_id,
+                    sizeof(entry.system_id));
+    json_get_string(obj_start, obj_end, "title", entry.title, sizeof(entry.title));
+    json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
+                    sizeof(entry.relative_path));
+    json_get_string(obj_start, obj_end, "path", entry.path, sizeof(entry.path));
+    json_get_string(obj_start, obj_end, "launch_profile", entry.launch_profile,
+                    sizeof(entry.launch_profile));
+    json_get_string(obj_start, obj_end, "last_played_at", last_played_at,
+                    sizeof(last_played_at));
+    entry.resume_available = json_get_bool(obj_start, obj_end, "resume_available", 0);
+    if (!entry.title[0]) {
+      copy_string(entry.title, sizeof(entry.title), entry.relative_path);
+    }
+    {
+      size_t pos = strlen(entry.detail);
+      append_string(entry.detail, sizeof(entry.detail), &pos, entry.system_id);
+      append_string(entry.detail, sizeof(entry.detail), &pos, " / resume=");
+      append_string(entry.detail, sizeof(entry.detail), &pos,
+                    entry.resume_available ? "yes" : "no");
+      append_string(entry.detail, sizeof(entry.detail), &pos, " / ");
+      append_string(entry.detail, sizeof(entry.detail), &pos,
+                    entry.launch_profile[0] ? entry.launch_profile : "-");
+    }
+    if (last_played_at[0]) {
+      size_t pos = strlen(entry.detail);
+      append_string(entry.detail, sizeof(entry.detail), &pos, " / ");
+      append_string(entry.detail, sizeof(entry.detail), &pos, last_played_at);
+    }
+    ui->rom_entries[ui->rom_count++] = entry;
+  }
+  free(json);
   return 1;
 }
 
@@ -701,8 +977,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   ui->rom_count = 0;
   ui->rom_cursor = 0;
   if (strcmp(system_id, "favorites") == 0) {
-    copy_string(ui->status, sizeof(ui->status), "Favorites ROM view is not wired yet");
-    return 1;
+    return load_favorite_entries(ui);
   }
   if (!build_system_cache_path(path, sizeof(path), ui->plumos_root, system_id)) {
     return 0;
@@ -729,6 +1004,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
       break;
     }
     memset(&entry, 0, sizeof(entry));
+    copy_string(entry.system_id, sizeof(entry.system_id), system_id);
     json_get_string(obj_start, obj_end, "title", entry.title, sizeof(entry.title));
     json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
                     sizeof(entry.relative_path));
@@ -766,7 +1042,7 @@ static void render_top(const struct ui_state *ui) {
   }
 
   printf("plumOS controller UI - TOP\n");
-  printf("A: open  B: back  START: menu preview  SELECT: core preview  Q: quit\n");
+  printf("A: open  B: back  START: menu  SELECT: core preview  Q: quit\n");
   printf("entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
   printf("\n");
   for (i = start; i < end; i++) {
@@ -788,6 +1064,8 @@ static void render_roms(const struct ui_state *ui) {
   size_t window = 10;
   size_t start = 0;
   size_t end;
+  const char *title = "ROMS";
+  const char *subtitle = "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
 
   if (ui->rom_cursor >= window / 2) {
     start = ui->rom_cursor - window / 2;
@@ -800,19 +1078,76 @@ static void render_roms(const struct ui_state *ui) {
     end = ui->rom_count;
   }
 
-  printf("plumOS controller UI - ROMS\n");
-  printf("system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
-  printf("A: launch preview  B/LEFT: TOP  START: menu preview  SELECT: core preview  Q: quit\n");
+  if (ui->screen == SCREEN_FAVORITES) {
+    title = "FAVORITES";
+    subtitle = "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
+  } else if (ui->screen == SCREEN_RECENT) {
+    title = "RECENT";
+    subtitle = "A: resume preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
+  }
+
+  printf("plumOS controller UI - %s\n", title);
+  if (ui->screen == SCREEN_ROMS) {
+    printf("system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
+  }
+  printf("%s\n", subtitle);
   printf("entries=%zu cursor=%zu\n", ui->rom_count, ui->rom_count ? ui->rom_cursor + 1 : 0);
   printf("\n");
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
-    printf("%c %3zu  %-34s %s\n",
-           i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, entry->relative_path);
+    const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
+    printf("%c %3zu  %-30s %s\n",
+           i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
   }
   if (ui->rom_count == 0) {
-    printf("(ROM entry is empty)\n");
+    printf("(entry is empty)\n");
   }
+  if (ui->screen == SCREEN_FAVORITES) {
+    printf("\nsource: %s\n", ui->favorites_path);
+  } else if (ui->screen == SCREEN_RECENT) {
+    printf("\nsource: %s\n", ui->recent_path);
+  }
+  if (ui->status[0]) {
+    printf("\nstatus: %s\n", ui->status);
+  }
+}
+
+static void render_start_menu(const struct ui_state *ui) {
+  size_t i;
+
+  printf("plumOS controller UI - START\n");
+  printf("A: open/preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  printf("entries=%zu cursor=%zu\n", ui->menu_count, ui->menu_count ? ui->menu_cursor + 1 : 0);
+  printf("\n");
+  for (i = 0; i < ui->menu_count; i++) {
+    const struct menu_entry *entry = &ui->menu_entries[i];
+    printf("%c %3zu  %-24s %-10s %-24s %s\n",
+           i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
+           entry->kind[0] ? entry->kind : "-", entry->action,
+           entry->confirm ? "confirm" : "");
+  }
+  if (ui->menu_count == 0) {
+    printf("(menu entry is empty)\n");
+  }
+  if (ui->status[0]) {
+    printf("\nstatus: %s\n", ui->status);
+  }
+}
+
+static void render_settings(const struct ui_state *ui) {
+  size_t i;
+
+  printf("plumOS controller UI - SETTINGS\n");
+  printf("A: edit preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  printf("entries=%zu cursor=%zu\n", ui->setting_count,
+         ui->setting_count ? ui->settings_cursor + 1 : 0);
+  printf("\n");
+  for (i = 0; i < ui->setting_count; i++) {
+    const struct setting_entry *entry = &ui->setting_entries[i];
+    printf("%c %3zu  %-24s %s\n",
+           i == ui->settings_cursor ? '>' : ' ', i + 1, entry->display_name, entry->value);
+  }
+  printf("\nsource: %s\n", ui->settings_path);
   if (ui->status[0]) {
     printf("\nstatus: %s\n", ui->status);
   }
@@ -820,8 +1155,13 @@ static void render_roms(const struct ui_state *ui) {
 
 static void render_ui(const struct ui_state *ui) {
   clear_screen(ui);
-  if (ui->screen == SCREEN_ROMS) {
+  if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+      ui->screen == SCREEN_RECENT) {
     render_roms(ui);
+  } else if (ui->screen == SCREEN_START_MENU) {
+    render_start_menu(ui);
+  } else if (ui->screen == SCREEN_SETTINGS) {
+    render_settings(ui);
   } else {
     render_top(ui);
   }
@@ -830,6 +1170,65 @@ static void render_ui(const struct ui_state *ui) {
 
 static void set_status(struct ui_state *ui, const char *text) {
   copy_string(ui->status, sizeof(ui->status), text);
+}
+
+static void open_start_menu(struct ui_state *ui) {
+  ui->back_screen = ui->screen;
+  ui->screen = SCREEN_START_MENU;
+  if (!load_start_menu_entries(ui)) {
+    set_status(ui, "cannot load START menu");
+  } else {
+    set_status(ui, "START menu ready");
+  }
+}
+
+static void open_favorites_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_FAVORITES;
+  copy_string(ui->current_system_id, sizeof(ui->current_system_id), "favorites");
+  copy_string(ui->current_system_name, sizeof(ui->current_system_name), "Favorites");
+  if (!load_favorite_entries(ui)) {
+    set_status(ui, "cannot load Favorites");
+  } else {
+    set_status(ui, "Favorites ready");
+  }
+}
+
+static void open_recent_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_RECENT;
+  copy_string(ui->current_system_id, sizeof(ui->current_system_id), "recent");
+  copy_string(ui->current_system_name, sizeof(ui->current_system_name), "Recent");
+  if (!load_recent_entries(ui)) {
+    set_status(ui, "cannot load Recent");
+  } else {
+    set_status(ui, "Recent ready");
+  }
+}
+
+static void open_settings_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_SETTINGS;
+  if (!load_settings_entries(ui)) {
+    set_status(ui, "cannot load Settings");
+  } else {
+    set_status(ui, "Settings ready");
+  }
+}
+
+static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) {
+  copy_string(ui->current_system_id, sizeof(ui->current_system_id), entry->id);
+  copy_string(ui->current_system_name, sizeof(ui->current_system_name), entry->display_name);
+  if (strcmp(entry->id, "favorites") == 0) {
+    open_favorites_screen(ui);
+    return;
+  }
+  ui->screen = SCREEN_ROMS;
+  set_status(ui, "on-enter ROM scan");
+  if (!load_rom_entries(ui, entry->id)) {
+    set_status(ui, "cannot load ROM list");
+  } else if (ui->rom_count == UI_MAX_ROMS) {
+    set_status(ui, "ROM list truncated at prototype limit");
+  } else {
+    set_status(ui, "ROM list ready");
+  }
 }
 
 static void handle_action(struct ui_state *ui, enum ui_action action) {
@@ -856,21 +1255,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     if ((action == ACTION_A || action == ACTION_RIGHT) && ui->top_count > 0) {
       const struct top_entry *entry = &ui->top_entries[ui->top_cursor];
-      copy_string(ui->current_system_id, sizeof(ui->current_system_id), entry->id);
-      copy_string(ui->current_system_name, sizeof(ui->current_system_name), entry->display_name);
-      ui->screen = SCREEN_ROMS;
-      set_status(ui, "on-enter ROM scan");
-      if (!load_rom_entries(ui, entry->id)) {
-        set_status(ui, "cannot load ROM list");
-      } else if (ui->rom_count == UI_MAX_ROMS) {
-        set_status(ui, "ROM list truncated at prototype limit");
-      } else {
-        set_status(ui, "ROM list ready");
-      }
+      open_rom_screen(ui, entry);
       return;
     }
     if (action == ACTION_START) {
-      set_status(ui, "START menu preview: settings/apps/favorites/recent/network");
+      open_start_menu(ui);
       return;
     }
     if (action == ACTION_SELECT && ui->top_count > 0) {
@@ -879,6 +1268,79 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       snprintf(msg, sizeof(msg), "system core preview: %s profile=%s", entry->id,
                entry->default_launch_profile[0] ? entry->default_launch_profile : "-");
       set_status(ui, msg);
+      return;
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_START_MENU) {
+    if (action == ACTION_UP) {
+      if (ui->menu_cursor > 0) {
+        ui->menu_cursor--;
+      }
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->menu_cursor + 1 < ui->menu_count) {
+        ui->menu_cursor++;
+      }
+      return;
+    }
+    if (action == ACTION_B || action == ACTION_LEFT) {
+      ui->screen = ui->back_screen;
+      set_status(ui, "close START menu");
+      return;
+    }
+    if (action == ACTION_A || action == ACTION_RIGHT) {
+      const struct menu_entry *entry;
+      if (ui->menu_count == 0) {
+        return;
+      }
+      entry = &ui->menu_entries[ui->menu_cursor];
+      if (strcmp(entry->action, "internal:settings") == 0) {
+        open_settings_screen(ui);
+      } else if (strcmp(entry->action, "internal:favorites") == 0) {
+        open_favorites_screen(ui);
+      } else if (strcmp(entry->action, "internal:recent") == 0) {
+        open_recent_screen(ui);
+      } else {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "menu preview: %s action=%s", entry->display_name,
+                 entry->action);
+        set_status(ui, msg);
+      }
+      return;
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_SETTINGS) {
+    if (action == ACTION_UP) {
+      if (ui->settings_cursor > 0) {
+        ui->settings_cursor--;
+      }
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->settings_cursor + 1 < ui->setting_count) {
+        ui->settings_cursor++;
+      }
+      return;
+    }
+    if (action == ACTION_B || action == ACTION_LEFT) {
+      ui->screen = SCREEN_TOP;
+      set_status(ui, "back to TOP");
+      return;
+    }
+    if (action == ACTION_A && ui->setting_count > 0) {
+      const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
+      char msg[256];
+      snprintf(msg, sizeof(msg), "settings edit preview: %s=%s", entry->id, entry->value);
+      set_status(ui, msg);
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
       return;
     }
     return;
@@ -904,19 +1366,23 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   if (action == ACTION_A && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
     char msg[256];
-    snprintf(msg, sizeof(msg), "launch preview: %s / %s", ui->current_system_id,
+    snprintf(msg, sizeof(msg), "%s preview: %s / %s",
+             ui->screen == SCREEN_RECENT ? "resume" : "launch",
+             entry->system_id[0] ? entry->system_id : ui->current_system_id,
              entry->relative_path);
     set_status(ui, msg);
     return;
   }
   if (action == ACTION_START) {
-    set_status(ui, "START menu preview from ROM list");
+    open_start_menu(ui);
     return;
   }
   if (action == ACTION_SELECT && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
     char msg[256];
-    snprintf(msg, sizeof(msg), "per-ROM core preview: %s", entry->relative_path);
+    snprintf(msg, sizeof(msg), "per-ROM core preview: %s / %s",
+             entry->system_id[0] ? entry->system_id : ui->current_system_id,
+             entry->relative_path);
     set_status(ui, msg);
     return;
   }
@@ -1227,7 +1693,7 @@ static void usage(const char *argv0) {
 }
 
 int main(int argc, char **argv) {
-  struct ui_state ui;
+  static struct ui_state ui;
   const char *plumos_root_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
@@ -1288,8 +1754,12 @@ int main(int argc, char **argv) {
                  "state/frontend/library-index.json") ||
       !join_path(ui.settings_path, sizeof(ui.settings_path), ui.plumos_root,
                  "config/frontend/settings.json") ||
+      !join_path(ui.menus_path, sizeof(ui.menus_path), ui.plumos_root,
+                 "config/frontend/menus.json") ||
       !join_path(ui.favorites_path, sizeof(ui.favorites_path), ui.plumos_root,
-                 "state/frontend/favorites.json")) {
+                 "state/frontend/favorites.json") ||
+      !join_path(ui.recent_path, sizeof(ui.recent_path), ui.plumos_root,
+                 "state/frontend/recent.json")) {
     fprintf(stderr, "error: frontend path is too long\n");
     return 1;
   }

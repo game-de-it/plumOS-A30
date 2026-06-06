@@ -106,7 +106,8 @@
 - [x] Build a launch plan for the same ROM/core/launch profile on boot, and
   auto-launch it with `boot --execute` when a pending resume session exists.
 - [x] Build a minimal controller-first frontend prototype.
-- [ ] Implement system list, ROM list, recents, favorites, and settings.
+- [x] Implement system list, ROM list, recents, favorites, and settings screens
+  in the controller UI.
 - [ ] Decide how to load themes, fonts, and artwork.
 - [x] Implement thumbnail lookup that preserves paths relative to the ROM alias
   root.

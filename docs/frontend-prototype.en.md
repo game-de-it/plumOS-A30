@@ -277,10 +277,10 @@ When `plumos-frontend` starts in boot mode, it calls
 ## plumOS Controller UI
 
 `plumos-controller-ui` is the first controller-first prototype. It does not draw
-to framebuffer/SDL yet. Instead, it renders TOP/ROM-list state to SSH stdout and
-reads input from `/dev/input/event*` or stdin fallback. On the A30 it looks for
-`gpio-keys-polled` in `/proc/bus/input/devices`, which normally resolves to
-`/dev/input/event3`.
+to framebuffer/SDL yet. Instead, it renders TOP/ROM-list/START-menu/Favorites/
+Recent/Settings state to SSH stdout and reads input from `/dev/input/event*` or
+stdin fallback. On the A30 it looks for `gpio-keys-polled` in
+`/proc/bus/input/devices`, which normally resolves to `/dev/input/event3`.
 
 Render TOP once:
 
@@ -294,6 +294,9 @@ Check state transitions with scripted input:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script down,a,b,select,start,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,b,start,down,down,a,b,start,down,down,down,a,b,q'
 ```
 
 Dump raw device button events:
@@ -307,9 +310,13 @@ Controls:
 
 - D-pad: move cursor.
 - A/right: enter ROM list on TOP; show launch preview on ROM list.
-- B/left: return from ROM list to TOP.
-- START: START menu preview.
+- B/left: return from ROM list, Favorites, Recent, or Settings to TOP. In START
+  menu, return to the previous screen.
+- START: open START menu.
+- START menu: Settings/Favorites/Recent open real screens; other actions show
+  previews.
 - SELECT: system/per-ROM core preview.
+- Settings: show current values; A shows edit preview.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `q`.
 
 A30 device check on 2026-06-06:

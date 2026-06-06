@@ -267,9 +267,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 ## plumOS controller UI
 
 `plumos-controller-ui` は controller-first の最小 prototype です。まだ framebuffer/SDL の
-画面描画は行わず、SSH stdout に TOP/ROM list の状態を描き、`/dev/input/event*` または
-stdin fallback から入力を受けます。A30 では `/proc/bus/input/devices` から
-`gpio-keys-polled` を探し、通常は `/dev/input/event3` を自動選択します。
+画面描画は行わず、SSH stdout に TOP/ROM list/START menu/Favorites/Recent/Settings の
+状態を描き、`/dev/input/event*` または stdin fallback から入力を受けます。A30 では
+`/proc/bus/input/devices` から `gpio-keys-polled` を探し、通常は `/dev/input/event3` を
+自動選択します。
 
 TOP を 1 回だけ表示:
 
@@ -283,6 +284,9 @@ script 入力で状態遷移を確認:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script down,a,b,select,start,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,b,start,down,down,a,b,start,down,down,down,a,b,q'
 ```
 
 実機ボタンの raw event を確認:
@@ -296,9 +300,11 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 - D-pad: cursor 移動
 - A/right: TOP では ROM list へ入る。ROM list では launch preview を出す
-- B/left: ROM list から TOP へ戻る
-- START: START menu preview
+- B/left: ROM list、Favorites、Recent、Settings から TOP へ戻る。START menu では元の画面へ戻る
+- START: START menu を開く
+- START menu: Settings/Favorites/Recent は実画面へ遷移し、その他は action preview を出す
 - SELECT: system/per-ROM core preview
+- Settings: 現在値を一覧表示し、A は edit preview を出す
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `q`
 
 2026-06-06 の A30 実機確認:

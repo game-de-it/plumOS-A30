@@ -92,7 +92,7 @@
 - [x] `boot_resume_mode=off|last|picker` の text UI prototype を実装する。
 - [x] 起動時に pending resume session があれば同じ ROM/core/launch profile の launch plan を作り、`boot --execute` で自動起動する。
 - [x] controller-first の最小 frontend prototype を作る。
-- [ ] system list、ROM list、recent、favorites、settings を実装する。
+- [x] controller UI に system list、ROM list、recent、favorites、settings 画面を実装する。
 - [ ] theme、font、artwork の読み込み方針を決める。
 - [x] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
 - [x] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
