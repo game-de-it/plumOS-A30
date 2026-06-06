@@ -1,0 +1,23 @@
+#!/bin/sh
+# Placeholder frontend used to validate the plumOS boot path.
+
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
+LOG_FILE="${PLUMOS_FRONTEND_LOG:-${LOG_DIR}/plumos-frontend.log}"
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+{
+  echo "===== plumOS frontend placeholder ====="
+  date 2>/dev/null || true
+  echo "pid=$$"
+  echo "pwd=$(pwd)"
+  echo "PATH=$PATH"
+  uname -a 2>/dev/null || true
+  echo "This placeholder intentionally exits non-zero so MainUI.wrapper falls back to stock MainUI."
+  echo
+} >> "$LOG_FILE" 2>&1
+
+exit 75

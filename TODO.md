@@ -46,10 +46,10 @@
 
 ## Phase 4 - Boot Bootstrap
 
-- [ ] rollback 可能な `MainUI` wrapper を作る。
-- [ ] wrapper から `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動できるようにする。
-- [ ] wrapper 起動失敗時に stock MainUI へ戻れる fallback を作る。
-- [ ] wrapper と plumOS frontend の log を `/mnt/SDCARD/plumos/logs` へ出す。
+- [x] rollback 可能な `MainUI` wrapper を作る。
+- [x] wrapper から `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動できるようにする。
+- [x] wrapper 起動失敗時に stock MainUI へ戻れる fallback を作る。
+- [x] wrapper と plumOS frontend の log を `/mnt/SDCARD/plumos/logs` へ出す。
 - [ ] stock MainUI を残したまま plumOS frontend prototype を手動起動して検証する。
 - [ ] A30 再起動後も復旧可能な状態を保てることを確認する。
 

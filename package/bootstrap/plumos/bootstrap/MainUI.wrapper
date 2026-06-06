@@ -1,0 +1,59 @@
+#!/bin/sh
+# plumOS MainUI wrapper. Keep this script POSIX-sh compatible.
+
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
+LOG_FILE="${PLUMOS_MAINUI_LOG:-${LOG_DIR}/mainui-wrapper.log}"
+FRONTEND="${PLUMOS_FRONTEND:-${PLUMOS_ROOT}/bin/plumos-frontend}"
+ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
+STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
+DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
+
+mkdir -p "$LOG_DIR" "${PLUMOS_ROOT}/config" 2>/dev/null || true
+
+log() {
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+run_stock() {
+  if [ -x "$STOCK_MAINUI" ]; then
+    log "starting stock MainUI fallback: ${STOCK_MAINUI}"
+    cd "$(dirname "$STOCK_MAINUI")" 2>/dev/null || true
+    exec "$STOCK_MAINUI"
+  fi
+
+  log "stock MainUI fallback is missing or not executable: ${STOCK_MAINUI}"
+  exit 127
+}
+
+log "wrapper start pid=$$ pwd=$(pwd)"
+
+if [ -e "$DISABLE_FILE" ]; then
+  log "disable file exists: ${DISABLE_FILE}"
+  run_stock
+fi
+
+if [ ! -x "$FRONTEND" ]; then
+  log "plumOS frontend is missing or not executable: ${FRONTEND}"
+  run_stock
+fi
+
+if [ -x "$ENV_WRAPPER" ]; then
+  log "starting plumOS frontend through plumos-env: ${FRONTEND}"
+  "$ENV_WRAPPER" "$FRONTEND"
+else
+  log "starting plumOS frontend directly: ${FRONTEND}"
+  "$FRONTEND"
+fi
+
+status="$?"
+log "plumOS frontend exited with status ${status}"
+
+if [ "$status" -eq 0 ]; then
+  log "wrapper exit after clean plumOS frontend shutdown"
+  exit 0
+fi
+
+run_stock

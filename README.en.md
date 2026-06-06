@@ -23,6 +23,7 @@ Project notes:
 - [A30 system notes](docs/a30-system-notes.en.md)
 - [plumOS design policy](docs/plumos-design-policy.en.md)
 - [Docker toolchain](docs/docker-toolchain.en.md)
+- [MainUI bootstrap](docs/mainui-bootstrap.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)
 

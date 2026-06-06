@@ -47,10 +47,10 @@
 
 ## Phase 4 - Boot Bootstrap
 
-- [ ] Build a rollback-safe `MainUI` wrapper.
-- [ ] Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
-- [ ] Fall back to stock MainUI if wrapper startup fails.
-- [ ] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
+- [x] Build a rollback-safe `MainUI` wrapper.
+- [x] Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
+- [x] Fall back to stock MainUI if wrapper startup fails.
+- [x] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
 - [ ] Manually run a plumOS frontend prototype while keeping stock MainUI.
 - [ ] Confirm the A30 remains recoverable after reboot.
 
