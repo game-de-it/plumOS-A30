@@ -186,8 +186,17 @@
   device.
 - [ ] Choose the RetroArch analog strategy: axes-only device, composite virtual
   pad with buttons+axes, or SDL2/evdev support in the plumOS RetroArch build.
-- [ ] Add a PPSSPP-like buttons+axes composite virtual pad mode to
-  `plumos-joystickd` and verify it through SDL2 GameController/evdev.
+- [x] Add a PPSSPP-like buttons+axes composite virtual pad mode to
+  `plumos-joystickd`.
+- [x] Add `scripts/probe-a30-joystickd-xbox.sh` so `--device-mode xbox` hardware
+  checks can be repeated.
+- [x] Verify that `plumos-joystickd --device-mode xbox` appears on the A30 as
+  an 8-axis / 11-button `js*`/`event*` device.
+- [ ] Verify `plumos-joystickd --device-mode xbox` through SDL2
+  GameController/evdev.
+- [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
+  during plumOS causes duplicate input or stale fd issues in the frontend,
+  `keymon`, or emulators.
 - [ ] For the plumOS RetroArch build, prioritize testing SDL2/evdev plus a
   composite virtual pad instead of relying on the stock SDL1 path.
 - [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows

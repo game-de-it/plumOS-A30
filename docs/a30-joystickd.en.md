@@ -47,6 +47,24 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --timeout-ms 2000 --print-every 50'
 ```
 
+Create a PPSSPP-style composite gamepad briefly:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-joystickd --device-mode xbox --timeout-ms 5000'
+```
+
+Repeatable script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-xbox.sh --deploy
+```
+
+This mode combines the `/dev/ttyS0` left-stick axes and physical buttons from
+`/dev/input/event3` into one virtual gamepad. It is the leading candidate for an
+always-running plumOS input service, but duplicate input across the frontend,
+`keymon`, and emulators must be checked before making it the default.
+
 Read the daemon-created `js0`/`event4` device through the Linux joystick API and
 evdev:
 
@@ -283,11 +301,81 @@ Current judgment:
 - The plumOS RetroArch path should prioritize SDL2/evdev plus a composite
   virtual pad instead of relying on the stock SDL1 path.
 
+## Composite Gamepad Mode
+
+As of 2026-06-06, `plumos-joystickd` has a `--device-mode xbox` mode. This does
+not reuse stock `miyoo282_xpad_inputd`; it implements the same principle on the
+plumOS side based on the PPSSPP observations.
+
+Created device:
+
+```text
+name="plumOS A30 Gamepad"
+id=045e:028e
+axes=ABS_X,ABS_Y,ABS_Z,ABS_RX,ABS_RY,ABS_RZ,ABS_HAT0X,ABS_HAT0Y
+buttons=BTN_A,BTN_B,BTN_X,BTN_Y,BTN_TL,BTN_TR,BTN_SELECT,BTN_START,BTN_MODE,BTN_THUMBL,BTN_THUMBR
+```
+
+Mapping:
+
+| source | virtual output |
+| --- | --- |
+| `/dev/ttyS0` X/Y | `ABS_X` / `ABS_Y` |
+| D-pad | `ABS_HAT0X` / `ABS_HAT0Y` |
+| A/B/X/Y | `BTN_A` / `BTN_B` / `BTN_X` / `BTN_Y` |
+| L/R | `BTN_TL` / `BTN_TR` |
+| L2/R2 | `ABS_Z` / `ABS_RZ` digital trigger value |
+| START/SELECT | `BTN_START` / `BTN_SELECT` |
+| Function | `BTN_MODE` |
+| left-stick click | unsupported; capability exists, but no event is emitted |
+
+`--button-event PATH` selects the physical button input event source. The
+default is `/dev/input/event3`. Use `--no-buttons` to forward only the left-stick
+axes into the composite gamepad.
+
+Always-running policy:
+
+- Treat `--device-mode xbox` as the leading candidate for normal plumOS runtime.
+- During stock MainUI/PPSSPP investigation, run it with `--timeout-ms` because it
+  adds another input device.
+- Let the plumOS frontend continue reading `/dev/input/event3` directly for its
+  own UI, and prefer passing the composite gamepad to emulators.
+- Before making it the default service, check duplicate input and stale fd
+  behavior in the frontend, `keymon`, RetroArch, and standalone emulators.
+
+Hardware result on 2026-06-06:
+
+This was run while stock PPSSPP was active, so stock `MIYOO Pad1` occupied
+`js0`/`event4`. Running
+`plumos-joystickd --device-mode xbox --timeout-ms 5000` created the plumOS
+device as `js1`/`event5`.
+
+```text
+detected js=/dev/input/js1 event=/dev/input/event5
+N: Name="plumOS A30 Gamepad"
+H: Handlers=js1 event5
+B: EV=b
+B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
+B: ABS=3003f
+js info path=/dev/input/js1 name="plumOS A30 Gamepad" axes=8 buttons=11
+evdev info path=/dev/input/event5 name="plumOS A30 Gamepad"
+summary frames=196 emitted=1 button_events=0 last_x=0 last_y=0 duration_ms=5133
+```
+
+This confirms that `xbox` mode can create an 8-axis / 11-button virtual device
+on A30 hardware with capabilities matching the family observed from PPSSPP's
+`MIYOO Pad1`. Next, verify SDL2 GameController recognition and
+RetroArch/standalone emulator behavior.
+
 ## Options
 
 - `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.
 - `--calibration PATH`: calibration file. Default: `/config/joypad.config`.
 - `--uinput PATH`: uinput path. Default: `/dev/uinput`.
+- `--device-mode MODE`: `analog` or `xbox`. Default: `analog`.
+- `--button-event PATH`: physical button event source for `xbox` mode. Default:
+  `/dev/input/event3`.
+- `--no-buttons`: do not forward physical buttons in `xbox` mode.
 - `--timeout-ms MS`: stop after this long. Default `0` runs until signaled.
 - `--no-uinput`: read and normalize without creating a virtual input device.
 - `--x-source NAME`: `axisYL`, `axisXL`, `axisYR`, or `axisXR`.

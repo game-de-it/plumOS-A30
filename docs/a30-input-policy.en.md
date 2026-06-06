@@ -275,6 +275,9 @@ Judgment:
   new evidence appears.
 - Prioritize a `plumos-joystickd` composite virtual pad mode for emulator-facing
   analog-stick support.
+- Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
+  but only make it the default service after checking duplicate input and stale
+  fd behavior across the frontend, `keymon`, and emulators on hardware.
 
 Current recommendation: keep `keymon`, but let the plumOS frontend read input
 events directly.

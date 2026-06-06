@@ -133,7 +133,11 @@
 - [x] stock PPSSPP は SDL2 GameController/Joystick 経路で Xbox 360 互換風の `MIYOO Pad1` (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) を読んでいることを記録する。
 - [ ] `plumos-joystickd` の virtual input device が RetroArch/SDL から見えるか検証する。
 - [ ] RetroArch 向け analog strategy を、axes-only device、buttons+axes の composite virtual pad、または plumOS build の SDL2/evdev 対応から選ぶ。
-- [ ] `plumos-joystickd` に PPSSPP と同系統の buttons+axes composite virtual pad mode を実装し、SDL2 GameController/evdev で認識できるか検証する。
+- [x] `plumos-joystickd` に PPSSPP と同系統の buttons+axes composite virtual pad mode を実装する。
+- [x] `scripts/probe-a30-joystickd-xbox.sh` を追加し、`--device-mode xbox` の実機確認を再実行可能にする。
+- [x] `plumos-joystickd --device-mode xbox` が A30 実機で `js*`/`event*` に 8 axes / 11 buttons 相当として出るか確認する。
+- [ ] `plumos-joystickd --device-mode xbox` が SDL2 GameController/evdev で認識できるか検証する。
+- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。

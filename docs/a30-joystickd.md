@@ -46,6 +46,23 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --timeout-ms 2000 --print-every 50'
 ```
 
+PPSSPP 型の composite gamepad を短時間だけ作る:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-joystickd --device-mode xbox --timeout-ms 5000'
+```
+
+再現用 script:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-xbox.sh --deploy
+```
+
+この mode は `/dev/ttyS0` の左スティック軸と `/dev/input/event3` の物理ボタンを
+1つの virtual gamepad へ合成します。常駐候補ですが、FE/`keymon`/emulator での
+二重入力がないことを確認してから default service 化します。
+
 daemon が作った `js0`/`event4` を Linux joystick API と evdev で読む:
 
 ```sh
@@ -273,11 +290,79 @@ MIYOO Pad1
 - plumOS RetroArch は stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad
   を優先して検証する
 
+## composite gamepad mode
+
+`plumos-joystickd` には 2026-06-06 時点で `--device-mode xbox` を追加しました。
+この mode は stock `miyoo282_xpad_inputd` を流用せず、PPSSPP の観測結果から
+plumOS 側で同じ原理を実装するものです。
+
+作る device:
+
+```text
+name="plumOS A30 Gamepad"
+id=045e:028e
+axes=ABS_X,ABS_Y,ABS_Z,ABS_RX,ABS_RY,ABS_RZ,ABS_HAT0X,ABS_HAT0Y
+buttons=BTN_A,BTN_B,BTN_X,BTN_Y,BTN_TL,BTN_TR,BTN_SELECT,BTN_START,BTN_MODE,BTN_THUMBL,BTN_THUMBR
+```
+
+mapping:
+
+| source | virtual output |
+| --- | --- |
+| `/dev/ttyS0` X/Y | `ABS_X` / `ABS_Y` |
+| D-pad | `ABS_HAT0X` / `ABS_HAT0Y` |
+| A/B/X/Y | `BTN_A` / `BTN_B` / `BTN_X` / `BTN_Y` |
+| L/R | `BTN_TL` / `BTN_TR` |
+| L2/R2 | `ABS_Z` / `ABS_RZ` digital trigger value |
+| START/SELECT | `BTN_START` / `BTN_SELECT` |
+| Function | `BTN_MODE` |
+| left-stick click | 未対応。button capability はあるが event は出さない |
+
+`--button-event PATH` で物理ボタンの input event を指定できます。既定値は
+`/dev/input/event3` です。`--no-buttons` を付けると、左スティック軸だけを
+composite gamepad に流します。
+
+常駐方針:
+
+- plumOS 常用時は `--device-mode xbox` の常駐を第一候補にする
+- stock MainUI/PPSSPP と同時に動かすと input device が複数増えるため、調査時は
+  `--timeout-ms` 付きで短時間確認する
+- plumOS frontend は自分の操作用には引き続き `/dev/input/event3` を直接読み、
+  emulator には composite gamepad を渡す構成を優先する
+- 常駐を default にする前に、FE/`keymon`/RetroArch/standalone emulator で二重入力や
+  stale fd が残らないか確認する
+
+2026-06-06 実機結果:
+
+stock PPSSPP が起動しており、stock 側の `MIYOO Pad1` が `js0`/`event4` にいる状態で
+`plumos-joystickd --device-mode xbox --timeout-ms 5000` を実行しました。
+
+```text
+detected js=/dev/input/js1 event=/dev/input/event5
+N: Name="plumOS A30 Gamepad"
+H: Handlers=js1 event5
+B: EV=b
+B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
+B: ABS=3003f
+js info path=/dev/input/js1 name="plumOS A30 Gamepad" axes=8 buttons=11
+evdev info path=/dev/input/event5 name="plumOS A30 Gamepad"
+summary frames=196 emitted=1 button_events=0 last_x=0 last_y=0 duration_ms=5133
+```
+
+これにより、`xbox` mode の virtual device capability は PPSSPP で観測した
+`MIYOO Pad1` と同系統の 8 axes / 11 buttons として A30 実機に作成できることを
+確認しました。次は SDL2 GameController と RetroArch/standalone emulator からの
+認識確認を行います。
+
 ## options
 
 - `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`
 - `--calibration PATH`: calibration file。既定値は `/config/joypad.config`
 - `--uinput PATH`: uinput path。既定値は `/dev/uinput`
+- `--device-mode MODE`: `analog` または `xbox`。既定値は `analog`
+- `--button-event PATH`: `xbox` mode で合成する物理ボタン event。既定値は
+  `/dev/input/event3`
+- `--no-buttons`: `xbox` mode で物理ボタンを合成しない
 - `--timeout-ms MS`: 指定時間後に終了。既定値 `0` は signal まで常駐
 - `--no-uinput`: virtual input を作らず、読み取り/正規化だけ確認
 - `--x-source NAME`: `axisYL`, `axisXL`, `axisYR`, `axisXR`

@@ -28,6 +28,7 @@
 
 #ifndef PLUMOS_HAS_UINPUT
 #define EV_SYN 0x00
+#define EV_KEY 0x01
 #define EV_ABS 0x03
 #define SYN_REPORT 0
 #define ABS_X 0
@@ -40,6 +41,102 @@ struct input_event {
 };
 #endif
 
+#ifndef KEY_ESC
+#define KEY_ESC 1
+#endif
+#ifndef KEY_BACKSPACE
+#define KEY_BACKSPACE 14
+#endif
+#ifndef KEY_TAB
+#define KEY_TAB 15
+#endif
+#ifndef KEY_E
+#define KEY_E 18
+#endif
+#ifndef KEY_T
+#define KEY_T 20
+#endif
+#ifndef KEY_LEFTCTRL
+#define KEY_LEFTCTRL 29
+#endif
+#ifndef KEY_LEFTSHIFT
+#define KEY_LEFTSHIFT 42
+#endif
+#ifndef KEY_LEFTALT
+#define KEY_LEFTALT 56
+#endif
+#ifndef KEY_SPACE
+#define KEY_SPACE 57
+#endif
+#ifndef KEY_UP
+#define KEY_UP 103
+#endif
+#ifndef KEY_LEFT
+#define KEY_LEFT 105
+#endif
+#ifndef KEY_RIGHT
+#define KEY_RIGHT 106
+#endif
+#ifndef KEY_DOWN
+#define KEY_DOWN 108
+#endif
+#ifndef KEY_RIGHTCTRL
+#define KEY_RIGHTCTRL 97
+#endif
+#ifndef KEY_ENTER
+#define KEY_ENTER 28
+#endif
+#ifndef ABS_Z
+#define ABS_Z 2
+#endif
+#ifndef ABS_RX
+#define ABS_RX 3
+#endif
+#ifndef ABS_RY
+#define ABS_RY 4
+#endif
+#ifndef ABS_RZ
+#define ABS_RZ 5
+#endif
+#ifndef ABS_HAT0X
+#define ABS_HAT0X 16
+#endif
+#ifndef ABS_HAT0Y
+#define ABS_HAT0Y 17
+#endif
+#ifndef BTN_A
+#define BTN_A 304
+#endif
+#ifndef BTN_B
+#define BTN_B 305
+#endif
+#ifndef BTN_X
+#define BTN_X 307
+#endif
+#ifndef BTN_Y
+#define BTN_Y 308
+#endif
+#ifndef BTN_TL
+#define BTN_TL 310
+#endif
+#ifndef BTN_TR
+#define BTN_TR 311
+#endif
+#ifndef BTN_SELECT
+#define BTN_SELECT 314
+#endif
+#ifndef BTN_START
+#define BTN_START 315
+#endif
+#ifndef BTN_MODE
+#define BTN_MODE 316
+#endif
+#ifndef BTN_THUMBL
+#define BTN_THUMBL 317
+#endif
+#ifndef BTN_THUMBR
+#define BTN_THUMBR 318
+#endif
 #ifndef BUS_USB
 #define BUS_USB 0x03
 #endif
@@ -47,17 +144,25 @@ struct input_event {
 #define DEFAULT_SERIAL_PATH "/dev/ttyS0"
 #define DEFAULT_CALIBRATION_PATH "/config/joypad.config"
 #define DEFAULT_UINPUT_PATH "/dev/uinput"
+#define DEFAULT_BUTTON_EVENT_PATH "/dev/input/event3"
 #define DEFAULT_BAUD 9600
 #define DEFAULT_DEADZONE_RAW 8
 #define NORMALIZED_MIN (-32768)
 #define NORMALIZED_MAX 32767
 #define MAX_CHUNK 128
+#define TRIGGER_RELEASED (-32767)
+#define TRIGGER_PRESSED 32767
 
 enum axis_source {
   AXIS_YL = 0,
   AXIS_XL = 1,
   AXIS_YR = 2,
   AXIS_XR = 3
+};
+
+enum device_mode {
+  DEVICE_MODE_ANALOG = 0,
+  DEVICE_MODE_XBOX = 1
 };
 
 struct calibration {
@@ -73,9 +178,12 @@ struct config {
   const char *serial_path;
   const char *calibration_path;
   const char *uinput_path;
+  const char *button_event_path;
+  enum device_mode device_mode;
   int baud;
   int timeout_ms;
   int no_uinput;
+  int no_buttons;
   int verbose;
   int print_every;
   int deadzone_raw;
@@ -87,6 +195,17 @@ struct config {
 
 struct joy_frame {
   int axis[4];
+};
+
+struct button_state {
+  int up;
+  int down;
+  int left;
+  int right;
+  int hat_x;
+  int hat_y;
+  int lt;
+  int rt;
 };
 
 static volatile sig_atomic_t g_stop = 0;
@@ -159,6 +278,31 @@ static const char *axis_source_name(enum axis_source source) {
   default:
     return "-";
   }
+}
+
+static const char *device_mode_name(enum device_mode mode) {
+  switch (mode) {
+  case DEVICE_MODE_ANALOG:
+    return "analog";
+  case DEVICE_MODE_XBOX:
+    return "xbox";
+  default:
+    return "-";
+  }
+}
+
+static int parse_device_mode(const char *value, enum device_mode *out) {
+  if (strcmp(value, "analog") == 0 || strcmp(value, "axes") == 0) {
+    *out = DEVICE_MODE_ANALOG;
+    return 1;
+  }
+  if (strcmp(value, "xbox") == 0 || strcmp(value, "gamepad") == 0 ||
+      strcmp(value, "composite") == 0) {
+    *out = DEVICE_MODE_XBOX;
+    return 1;
+  }
+  fprintf(stderr, "error: invalid device mode: %s\n", value);
+  return 0;
 }
 
 static int parse_axis_source(const char *value, enum axis_source *out) {
@@ -370,7 +514,29 @@ static int write_input_event(int fd, unsigned short type, unsigned short code, i
   return 1;
 }
 
-static int create_uinput_device(const char *path) {
+static int set_abs_bit(int fd, int code) {
+  if (ioctl(fd, UI_SET_ABSBIT, code) != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+static int set_key_bit(int fd, int code) {
+  if (ioctl(fd, UI_SET_KEYBIT, code) != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+static void configure_abs_axis(struct uinput_user_dev *dev, int code, int min_value,
+                               int max_value, int flat, int fuzz) {
+  dev->absmin[code] = min_value;
+  dev->absmax[code] = max_value;
+  dev->absflat[code] = flat;
+  dev->absfuzz[code] = fuzz;
+}
+
+static int create_analog_uinput_device(const char *path) {
   int fd;
   struct uinput_user_dev dev;
 
@@ -393,14 +559,8 @@ static int create_uinput_device(const char *path) {
   dev.id.vendor = 0x706c;
   dev.id.product = 0x4130;
   dev.id.version = 1;
-  dev.absmin[ABS_X] = NORMALIZED_MIN;
-  dev.absmax[ABS_X] = NORMALIZED_MAX;
-  dev.absflat[ABS_X] = 2048;
-  dev.absfuzz[ABS_X] = 256;
-  dev.absmin[ABS_Y] = NORMALIZED_MIN;
-  dev.absmax[ABS_Y] = NORMALIZED_MAX;
-  dev.absflat[ABS_Y] = 2048;
-  dev.absfuzz[ABS_Y] = 256;
+  configure_abs_axis(&dev, ABS_X, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
+  configure_abs_axis(&dev, ABS_Y, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
 
   if (write(fd, &dev, sizeof(dev)) != (ssize_t)sizeof(dev)) {
     printf("uinput path=%s write_device=no errno=%d %s\n", path, errno, strerror(errno));
@@ -418,6 +578,82 @@ static int create_uinput_device(const char *path) {
   return fd;
 }
 
+static int create_xbox_uinput_device(const char *path) {
+  static const int key_bits[] = {
+      BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR,
+      BTN_SELECT, BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR,
+  };
+  static const int abs_bits[] = {
+      ABS_X, ABS_Y, ABS_Z, ABS_RX, ABS_RY, ABS_RZ, ABS_HAT0X, ABS_HAT0Y,
+  };
+  int fd;
+  struct uinput_user_dev dev;
+
+  fd = open(path, O_WRONLY | O_NONBLOCK);
+  if (fd < 0) {
+    printf("uinput path=%s open=no errno=%d %s\n", path, errno, strerror(errno));
+    return -1;
+  }
+  if (ioctl(fd, UI_SET_EVBIT, EV_KEY) != 0 || ioctl(fd, UI_SET_EVBIT, EV_ABS) != 0) {
+    printf("uinput path=%s setup=no errno=%d %s\n", path, errno, strerror(errno));
+    close(fd);
+    return -1;
+  }
+  for (size_t i = 0; i < sizeof(key_bits) / sizeof(key_bits[0]); i++) {
+    if (!set_key_bit(fd, key_bits[i])) {
+      printf("uinput path=%s keybit=%d setup=no errno=%d %s\n", path, key_bits[i], errno,
+             strerror(errno));
+      close(fd);
+      return -1;
+    }
+  }
+  for (size_t i = 0; i < sizeof(abs_bits) / sizeof(abs_bits[0]); i++) {
+    if (!set_abs_bit(fd, abs_bits[i])) {
+      printf("uinput path=%s absbit=%d setup=no errno=%d %s\n", path, abs_bits[i], errno,
+             strerror(errno));
+      close(fd);
+      return -1;
+    }
+  }
+
+  memset(&dev, 0, sizeof(dev));
+  snprintf(dev.name, sizeof(dev.name), "plumOS A30 Gamepad");
+  dev.id.bustype = BUS_USB;
+  dev.id.vendor = 0x045e;
+  dev.id.product = 0x028e;
+  dev.id.version = 0x045e;
+  configure_abs_axis(&dev, ABS_X, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
+  configure_abs_axis(&dev, ABS_Y, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
+  configure_abs_axis(&dev, ABS_Z, NORMALIZED_MIN, NORMALIZED_MAX, 0, 0);
+  configure_abs_axis(&dev, ABS_RX, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
+  configure_abs_axis(&dev, ABS_RY, NORMALIZED_MIN, NORMALIZED_MAX, 2048, 256);
+  configure_abs_axis(&dev, ABS_RZ, NORMALIZED_MIN, NORMALIZED_MAX, 0, 0);
+  configure_abs_axis(&dev, ABS_HAT0X, -1, 1, 0, 0);
+  configure_abs_axis(&dev, ABS_HAT0Y, -1, 1, 0, 0);
+
+  if (write(fd, &dev, sizeof(dev)) != (ssize_t)sizeof(dev)) {
+    printf("uinput path=%s write_device=no errno=%d %s\n", path, errno, strerror(errno));
+    close(fd);
+    return -1;
+  }
+  if (ioctl(fd, UI_DEV_CREATE) != 0) {
+    printf("uinput path=%s create=no errno=%d %s\n", path, errno, strerror(errno));
+    close(fd);
+    return -1;
+  }
+  usleep(100000);
+  printf("uinput path=%s create=yes name=\"plumOS A30 Gamepad\" id=045e:028e axes=ABS_X,ABS_Y,ABS_Z,ABS_RX,ABS_RY,ABS_RZ,ABS_HAT0X,ABS_HAT0Y buttons=11\n",
+         path);
+  return fd;
+}
+
+static int create_uinput_device(const struct config *cfg) {
+  if (cfg->device_mode == DEVICE_MODE_XBOX) {
+    return create_xbox_uinput_device(cfg->uinput_path);
+  }
+  return create_analog_uinput_device(cfg->uinput_path);
+}
+
 static void destroy_uinput_device(int fd) {
   if (fd >= 0) {
     ioctl(fd, UI_DEV_DESTROY);
@@ -430,9 +666,30 @@ static int emit_axes(int fd, int x, int y) {
          write_input_event(fd, EV_ABS, ABS_Y, y) &&
          write_input_event(fd, EV_SYN, SYN_REPORT, 0);
 }
+
+static int emit_xbox_idle_state(int fd) {
+  return write_input_event(fd, EV_ABS, ABS_X, 0) &&
+         write_input_event(fd, EV_ABS, ABS_Y, 0) &&
+         write_input_event(fd, EV_ABS, ABS_Z, TRIGGER_RELEASED) &&
+         write_input_event(fd, EV_ABS, ABS_RX, 0) &&
+         write_input_event(fd, EV_ABS, ABS_RY, 0) &&
+         write_input_event(fd, EV_ABS, ABS_RZ, TRIGGER_RELEASED) &&
+         write_input_event(fd, EV_ABS, ABS_HAT0X, 0) &&
+         write_input_event(fd, EV_ABS, ABS_HAT0Y, 0) &&
+         write_input_event(fd, EV_SYN, SYN_REPORT, 0);
+}
 #else
-static int create_uinput_device(const char *path) {
-  printf("uinput path=%s create=no reason=linux_uinput_headers_unavailable\n", path);
+static int write_input_event(int fd, unsigned short type, unsigned short code, int value) {
+  (void)fd;
+  (void)type;
+  (void)code;
+  (void)value;
+  return 0;
+}
+
+static int create_uinput_device(const struct config *cfg) {
+  printf("uinput path=%s create=no reason=linux_uinput_headers_unavailable\n",
+         cfg->uinput_path);
   return -1;
 }
 
@@ -446,7 +703,141 @@ static int emit_axes(int fd, int x, int y) {
   (void)y;
   return 0;
 }
+
+static int emit_xbox_idle_state(int fd) {
+  (void)fd;
+  return 0;
+}
 #endif
+
+static int open_button_event(const char *path) {
+  int fd = open(path, O_RDONLY | O_NONBLOCK);
+  if (fd < 0) {
+    printf("button_event path=%s open=no errno=%d %s\n", path, errno, strerror(errno));
+    return -1;
+  }
+  printf("button_event path=%s open=yes\n", path);
+  return fd;
+}
+
+static int button_hat_value(int negative, int positive) {
+  if (negative && !positive) {
+    return -1;
+  }
+  if (positive && !negative) {
+    return 1;
+  }
+  return 0;
+}
+
+static int emit_button_state(int uinput_fd, int code, int pressed) {
+  return write_input_event(uinput_fd, EV_KEY, (unsigned short)code, pressed ? 1 : 0) &&
+         write_input_event(uinput_fd, EV_SYN, SYN_REPORT, 0);
+}
+
+static int emit_abs_state(int uinput_fd, int code, int value) {
+  return write_input_event(uinput_fd, EV_ABS, (unsigned short)code, value) &&
+         write_input_event(uinput_fd, EV_SYN, SYN_REPORT, 0);
+}
+
+static int map_key_to_button(int key_code) {
+  switch (key_code) {
+  case KEY_SPACE:
+    return BTN_A;
+  case KEY_LEFTCTRL:
+    return BTN_B;
+  case KEY_LEFTSHIFT:
+    return BTN_X;
+  case KEY_LEFTALT:
+    return BTN_Y;
+  case KEY_TAB:
+    return BTN_TL;
+  case KEY_BACKSPACE:
+    return BTN_TR;
+  case KEY_ENTER:
+    return BTN_START;
+  case KEY_RIGHTCTRL:
+    return BTN_SELECT;
+  case KEY_ESC:
+    return BTN_MODE;
+  default:
+    return -1;
+  }
+}
+
+static int handle_button_key(int uinput_fd, struct button_state *state, int key_code,
+                             int pressed) {
+  int mapped = map_key_to_button(key_code);
+  int old_value;
+  int new_value;
+
+  if (mapped >= 0) {
+    return emit_button_state(uinput_fd, mapped, pressed);
+  }
+
+  switch (key_code) {
+  case KEY_UP:
+    state->up = pressed;
+    old_value = state->hat_y;
+    new_value = button_hat_value(state->up, state->down);
+    state->hat_y = new_value;
+    return old_value == new_value || emit_abs_state(uinput_fd, ABS_HAT0Y, new_value);
+  case KEY_DOWN:
+    state->down = pressed;
+    old_value = state->hat_y;
+    new_value = button_hat_value(state->up, state->down);
+    state->hat_y = new_value;
+    return old_value == new_value || emit_abs_state(uinput_fd, ABS_HAT0Y, new_value);
+  case KEY_LEFT:
+    state->left = pressed;
+    old_value = state->hat_x;
+    new_value = button_hat_value(state->left, state->right);
+    state->hat_x = new_value;
+    return old_value == new_value || emit_abs_state(uinput_fd, ABS_HAT0X, new_value);
+  case KEY_RIGHT:
+    state->right = pressed;
+    old_value = state->hat_x;
+    new_value = button_hat_value(state->left, state->right);
+    state->hat_x = new_value;
+    return old_value == new_value || emit_abs_state(uinput_fd, ABS_HAT0X, new_value);
+  case KEY_E:
+    old_value = state->lt;
+    state->lt = pressed ? TRIGGER_PRESSED : TRIGGER_RELEASED;
+    return old_value == state->lt || emit_abs_state(uinput_fd, ABS_Z, state->lt);
+  case KEY_T:
+    old_value = state->rt;
+    state->rt = pressed ? TRIGGER_PRESSED : TRIGGER_RELEASED;
+    return old_value == state->rt || emit_abs_state(uinput_fd, ABS_RZ, state->rt);
+  default:
+    return 1;
+  }
+}
+
+static int read_button_events(int button_fd, int uinput_fd, struct button_state *state,
+                              int *button_events_out) {
+  int handled = 0;
+
+  for (;;) {
+    struct input_event ev;
+    ssize_t n = read(button_fd, &ev, sizeof(ev));
+    if (n == (ssize_t)sizeof(ev)) {
+      if (ev.type == EV_KEY && (ev.value == 0 || ev.value == 1)) {
+        int pressed = ev.value != 0;
+        if (handle_button_key(uinput_fd, state, ev.code, pressed)) {
+          handled++;
+          (*button_events_out)++;
+        }
+      }
+    } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      break;
+    } else if (n < 0 && errno == EINTR) {
+      continue;
+    } else {
+      break;
+    }
+  }
+  return handled;
+}
 
 static void usage(const char *argv0) {
   printf("Usage: %s [options]\n", argv0);
@@ -454,6 +845,10 @@ static void usage(const char *argv0) {
   printf("  --serial PATH          Serial raw stick path. Default: %s\n", DEFAULT_SERIAL_PATH);
   printf("  --calibration PATH     Calibration path. Default: %s\n", DEFAULT_CALIBRATION_PATH);
   printf("  --uinput PATH          uinput path. Default: %s\n", DEFAULT_UINPUT_PATH);
+  printf("  --device-mode MODE     analog or xbox. Default: analog.\n");
+  printf("  --button-event PATH    Button event source for xbox mode. Default: %s.\n",
+         DEFAULT_BUTTON_EVENT_PATH);
+  printf("  --no-buttons           Do not forward physical buttons in xbox mode.\n");
   printf("  --timeout-ms MS        Stop after MS. Default: 0, run until signal.\n");
   printf("  --no-uinput            Do not create a virtual input device.\n");
   printf("  --x-source NAME        axisYL, axisXL, axisYR, or axisXR. Default: axisXR.\n");
@@ -471,6 +866,7 @@ int main(int argc, char **argv) {
   struct termios old_tio;
   int have_old_tio = 0;
   int serial_fd;
+  int button_fd = -1;
   int uinput_fd = -1;
   long long start_ms;
   long long deadline = 0;
@@ -478,15 +874,20 @@ int main(int argc, char **argv) {
   int window_count = 0;
   int frames = 0;
   int emitted = 0;
+  int button_events = 0;
   int last_x = 999999;
   int last_y = 999999;
+  struct button_state button_state;
 
   cfg.serial_path = DEFAULT_SERIAL_PATH;
   cfg.calibration_path = DEFAULT_CALIBRATION_PATH;
   cfg.uinput_path = DEFAULT_UINPUT_PATH;
+  cfg.button_event_path = DEFAULT_BUTTON_EVENT_PATH;
+  cfg.device_mode = DEVICE_MODE_ANALOG;
   cfg.baud = DEFAULT_BAUD;
   cfg.timeout_ms = 0;
   cfg.no_uinput = 0;
+  cfg.no_buttons = 0;
   cfg.verbose = 0;
   cfg.print_every = 0;
   cfg.deadzone_raw = DEFAULT_DEADZONE_RAW;
@@ -502,6 +903,12 @@ int main(int argc, char **argv) {
       cfg.calibration_path = argv[++i];
     } else if (strcmp(argv[i], "--uinput") == 0 && i + 1 < argc) {
       cfg.uinput_path = argv[++i];
+    } else if (strcmp(argv[i], "--device-mode") == 0 && i + 1 < argc) {
+      if (!parse_device_mode(argv[++i], &cfg.device_mode)) {
+        return 2;
+      }
+    } else if (strcmp(argv[i], "--button-event") == 0 && i + 1 < argc) {
+      cfg.button_event_path = argv[++i];
     } else if (strcmp(argv[i], "--timeout-ms") == 0 && i + 1 < argc) {
       if (!parse_int_arg("--timeout-ms", argv[++i], 0, 86400000, &cfg.timeout_ms)) {
         return 2;
@@ -532,6 +939,8 @@ int main(int argc, char **argv) {
       cfg.invert_y = 1;
     } else if (strcmp(argv[i], "--no-uinput") == 0) {
       cfg.no_uinput = 1;
+    } else if (strcmp(argv[i], "--no-buttons") == 0) {
+      cfg.no_buttons = 1;
     } else if (strcmp(argv[i], "--verbose") == 0) {
       cfg.verbose = 1;
     } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -547,9 +956,11 @@ int main(int argc, char **argv) {
   signal(SIGTERM, handle_signal);
 
   printf("plumOS joystickd\n");
-  printf("serial=%s baud=%d calibration=%s uinput=%s no_uinput=%s x_source=%s y_source=%s invert_x=%s invert_y=%s deadzone_raw=%d timeout_ms=%d\n",
+  printf("serial=%s baud=%d calibration=%s uinput=%s device_mode=%s button_event=%s no_uinput=%s no_buttons=%s x_source=%s y_source=%s invert_x=%s invert_y=%s deadzone_raw=%d timeout_ms=%d\n",
          cfg.serial_path, cfg.baud, cfg.calibration_path, cfg.uinput_path,
-         cfg.no_uinput ? "yes" : "no", axis_source_name(cfg.x_source),
+         device_mode_name(cfg.device_mode), cfg.button_event_path,
+         cfg.no_uinput ? "yes" : "no", cfg.no_buttons ? "yes" : "no",
+         axis_source_name(cfg.x_source),
          axis_source_name(cfg.y_source), cfg.invert_x ? "yes" : "no",
          cfg.invert_y ? "yes" : "no", cfg.deadzone_raw, cfg.timeout_ms);
 
@@ -560,13 +971,22 @@ int main(int argc, char **argv) {
   }
 
   if (!cfg.no_uinput) {
-    uinput_fd = create_uinput_device(cfg.uinput_path);
+    uinput_fd = create_uinput_device(&cfg);
     if (uinput_fd < 0) {
       if (have_old_tio) {
         tcsetattr(serial_fd, TCSANOW, &old_tio);
       }
       close(serial_fd);
       return 1;
+    }
+    if (cfg.device_mode == DEVICE_MODE_XBOX) {
+      memset(&button_state, 0, sizeof(button_state));
+      button_state.lt = TRIGGER_RELEASED;
+      button_state.rt = TRIGGER_RELEASED;
+      emit_xbox_idle_state(uinput_fd);
+      if (!cfg.no_buttons) {
+        button_fd = open_button_event(cfg.button_event_path);
+      }
     }
   }
 
@@ -577,7 +997,8 @@ int main(int argc, char **argv) {
   }
 
   while (!g_stop) {
-    struct pollfd pfd;
+    struct pollfd pfds[2];
+    nfds_t nfds = 0;
     int pr;
     struct joy_frame frame;
 
@@ -585,10 +1006,18 @@ int main(int argc, char **argv) {
       break;
     }
 
-    pfd.fd = serial_fd;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
-    pr = poll(&pfd, 1, 100);
+    pfds[nfds].fd = serial_fd;
+    pfds[nfds].events = POLLIN;
+    pfds[nfds].revents = 0;
+    nfds++;
+    if (button_fd >= 0) {
+      pfds[nfds].fd = button_fd;
+      pfds[nfds].events = POLLIN;
+      pfds[nfds].revents = 0;
+      nfds++;
+    }
+
+    pr = poll(pfds, nfds, 100);
     if (pr < 0) {
       if (errno == EINTR) {
         continue;
@@ -597,12 +1026,13 @@ int main(int argc, char **argv) {
              strerror(errno));
       break;
     }
-    if (pr == 0 || !(pfd.revents & POLLIN)) {
+    if (pr == 0) {
       continue;
     }
 
     memset(&frame, 0, sizeof(frame));
-    if (read_frames(serial_fd, window, &window_count, &frame, &frames)) {
+    if ((pfds[0].revents & POLLIN) &&
+        read_frames(serial_fd, window, &window_count, &frame, &frames)) {
       int raw_x = frame.axis[cfg.x_source];
       int raw_y = frame.axis[cfg.y_source];
       int x = normalize_axis(raw_x, cal.x_min, cal.x_max, cal.x_zero, cfg.deadzone_raw,
@@ -622,15 +1052,21 @@ int main(int argc, char **argv) {
                frame.axis[AXIS_XR], x, y, emitted);
       }
     }
+    if (button_fd >= 0 && nfds > 1 && (pfds[1].revents & POLLIN)) {
+      read_button_events(button_fd, uinput_fd, &button_state, &button_events);
+    }
   }
 
   if (have_old_tio) {
     tcsetattr(serial_fd, TCSANOW, &old_tio);
   }
+  if (button_fd >= 0) {
+    close(button_fd);
+  }
   close(serial_fd);
   destroy_uinput_device(uinput_fd);
-  printf("summary frames=%d emitted=%d last_x=%d last_y=%d duration_ms=%lld\n", frames,
-         emitted, last_x == 999999 ? 0 : last_x, last_y == 999999 ? 0 : last_y,
-         now_ms() - start_ms);
+  printf("summary frames=%d emitted=%d button_events=%d last_x=%d last_y=%d duration_ms=%lld\n",
+         frames, emitted, button_events, last_x == 999999 ? 0 : last_x,
+         last_y == 999999 ? 0 : last_y, now_ms() - start_ms);
   return 0;
 }

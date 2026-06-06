@@ -261,5 +261,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 - 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
 - emulator 向け analog stick は `plumos-joystickd` の composite virtual pad mode を
   優先して検証する
+- `plumos-joystickd --device-mode xbox` は常駐候補にする。ただし default service 化は
+  FE/`keymon`/emulator の二重入力と fd 残りを実機で確認してから行う
 
 現時点の推奨は「`keymon` は残すが、plumOS frontend は直接 input event を読む」です。
