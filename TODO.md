@@ -103,6 +103,9 @@
 - [x] theme、font、artwork の読み込み方針を決める。
 - [x] ROM alias root からの相対 path を保持した thumbnail lookup を実装する。
 - [x] thumbnail lookup で subdirectory 優先、flat 配置 fallback、placeholder fallback を実装する。
+- [ ] ROM thumbnail scraping 方針を決める。推奨案は RetroArch の downloader を直接使わず、libretro-database 由来の CRC/serial -> canonical ROM name index と libretro-thumbnails 互換 path/index を plumOS 側で持つ。
+- [ ] `plumos-artwork-scraper` を設計する。ROM scan cache の size/mtime/CRC を再利用し、system別DB index、thumbnail server index、negative cache、並列download、resume/retry を持たせる。
+- [ ] Gallery mode 用に original thumbnail と A30表示用 resized/cache image を分け、初回表示は text/placeholder、画像取得は background queue で進める。
 - [x] theme、layout preset、frontend behavior を分離した plumOS theme model を設計する。
 - [x] `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json` の schema を定義する。
 - [x] theme は色、font、背景、system icon、selection 表現、spacing、thumbnail frame、sound effect だけを扱うようにする。
