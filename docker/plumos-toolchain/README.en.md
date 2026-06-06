@@ -1,0 +1,63 @@
+# plumOS Toolchain Docker
+
+This is the A30 build environment for plumOS. The first goal is to build armhf
+artifacts inside Docker and write them to `dist/`.
+
+## Image Build
+
+```sh
+./scripts/docker-build.sh image
+```
+
+The default image tag is `plumos-a30-toolchain:dev`. To override it:
+
+```sh
+PLUMOS_DOCKER_IMAGE=plumos-a30-toolchain:local ./scripts/docker-build.sh image
+```
+
+## Smoke Build
+
+```sh
+./scripts/docker-build.sh smoke
+```
+
+Outputs:
+
+```text
+dist/docker-smoke/plumos-smoke-armhf
+dist/docker-smoke/plumos-smoke-armhf.sha256
+dist/docker-smoke/plumos-smoke-armhf.manifest.txt
+```
+
+The smoke binary is statically linked with `arm-linux-gnueabihf-gcc`, so it can
+be used as a small device validation binary without directly depending on the
+stock A30 glibc `2.23`.
+
+## Shell
+
+```sh
+./scripts/docker-build.sh shell
+```
+
+The repository root is mounted at `/workspace` inside the container.
+
+## Deploy To A30
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/docker-smoke /mnt/SDCARD/plumos/smoke
+```
+
+Run example:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plumos-smoke-armhf
+```
+
+## Current Limits
+
+- This Dockerfile is the starting point for the build/deploy loop.
+- Final RetroArch and libretro core builds still need the A30 sysroot and
+  library policy.
+- Dynamically linked binaries must avoid depending on a glibc newer than the
+  A30 stock glibc `2.23`, either through a dedicated sysroot or a bundled
+  runtime.

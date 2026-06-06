@@ -13,13 +13,13 @@
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
-- [ ] Design a plumOS-specific Docker build environment.
-- [ ] Put the toolchain Dockerfile and helper scripts under `docker/`.
+- [x] Design a plumOS-specific Docker build environment.
+- [x] Put the toolchain Dockerfile and helper scripts under `docker/`.
 - [ ] Make the A30 sysroot reproducible through Docker builds.
 - [ ] Build the frontend, helpers, RetroArch, and libretro cores inside Docker.
-- [ ] Collect Docker build output under `dist/` or a staging directory.
-- [ ] Keep build cache and large generated files out of git.
-- [ ] Document how to build and use the Docker image in Japanese and English.
+- [x] Collect Docker build output under `dist/` or a staging directory.
+- [x] Keep build cache and large generated files out of git.
+- [x] Document how to build and use the Docker image in Japanese and English.
 
 ## Phase 2 - plumOS Runtime Layout
 
@@ -33,9 +33,9 @@
 
 ## Phase 3 - Device Deployment Loop
 
-- [ ] Add a deploy script that transfers Docker-built artifacts to the A30.
-- [ ] Choose the SSH/SCP/rsync-equivalent transfer method.
-- [ ] Add helpers to run commands on the device and collect logs afterward.
+- [x] Add a deploy script that transfers Docker-built artifacts to the A30.
+- [x] Choose the SSH/SCP/rsync-equivalent transfer method.
+- [x] Add helpers to run commands on the device and collect logs afterward.
 - [ ] Make build -> deploy -> run -> collect logs work through one command.
 - [ ] Document a rollback path that only requires SD-card changes.
 

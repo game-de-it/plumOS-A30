@@ -13,13 +13,13 @@
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
-- [ ] plumOS 専用の Docker build environment を設計する。
-- [ ] `docker/` 配下に toolchain Dockerfile と補助 script を置く。
+- [x] plumOS 専用の Docker build environment を設計する。
+- [x] `docker/` 配下に toolchain Dockerfile と補助 script を置く。
 - [ ] A30 向け sysroot を Docker build で再現可能にする。
 - [ ] Docker 内で frontend、helper、RetroArch、libretro core を build できるようにする。
-- [ ] Docker build output を `dist/` または staging directory へ集約する。
-- [ ] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
-- [ ] Docker image の作り方と使い方を日本語/英語で文書化する。
+- [x] Docker build output を `dist/` または staging directory へ集約する。
+- [x] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
+- [x] Docker image の作り方と使い方を日本語/英語で文書化する。
 
 ## Phase 2 - plumOS Runtime Layout
 
@@ -32,9 +32,9 @@
 
 ## Phase 3 - Device Deployment Loop
 
-- [ ] Docker 内で build した成果物を A30 へ転送する deploy script を作る。
-- [ ] SSH/SCP/rsync 相当の転送方法を決める。
-- [ ] 転送後に実機で command を実行し、log を回収する helper を作る。
+- [x] Docker 内で build した成果物を A30 へ転送する deploy script を作る。
+- [x] SSH/SCP/rsync 相当の転送方法を決める。
+- [x] 転送後に実機で command を実行し、log を回収する helper を作る。
 - [ ] build -> deploy -> run -> collect logs の一連の流れを 1 command にまとめる。
 - [ ] SD カードだけで復旧できる rollback 手順を文書化する。
 
