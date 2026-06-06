@@ -137,6 +137,25 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
+libretro core の初期 smoke 用として `fceumm` と `gambatte` を build します。core は
+build 時点の upstream HEAD を使い、選んだ commit、build flags、NEEDED を manifest に
+残します。
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -232,6 +251,26 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy
 
 この probe は `/tmp/plumos-retroarch-minimal.log` を
 `/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log` に保存します。
+
+NES/GB core smoke は、SD カード root へ core package を展開してから実行します。
+probe は framebuffer を RetroArch に渡すため `plumos-controller-ui-mali` を一時停止し、
+終了後に再起動します。2026-06-07 時点で `fceumm` + NES と `gambatte` + GB は
+`result=libretro_core_smoke_ok` になり、ユーザー目視でも両方のゲーム画面表示を確認済みです。
+現在の `retroarch-minimal.cfg` は audio disabled なので、音声は full runtime build の
+検証対象です。
+
+```sh
+./scripts/docker-build.sh libretro-cores
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+probe log は以下に残ります。
+
+```text
+/mnt/SDCARD/plumos/retroarch/logs/libretro-fceumm-last.log
+/mnt/SDCARD/plumos/retroarch/logs/libretro-gambatte-last.log
+```
 
 log を回収します。
 

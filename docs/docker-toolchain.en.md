@@ -138,6 +138,25 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
+Build the initial libretro smoke cores, `fceumm` and `gambatte`. The build uses
+upstream HEAD at build time and records the selected commits, flags, and NEEDED
+entries in the manifest.
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+Outputs:
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
@@ -235,6 +254,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy
 
 The probe saves `/tmp/plumos-retroarch-minimal.log` to
 `/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log`.
+
+For the NES/GB core smoke, deploy the core package to the SD card root and run
+the probe. The script stops `plumos-controller-ui-mali` while RetroArch owns the
+framebuffer, then restarts it afterward. As of 2026-06-07, `fceumm` + NES and
+`gambatte` + GB both return `result=libretro_core_smoke_ok`, and both game
+screens were visually confirmed on the A30. The current
+`retroarch-minimal.cfg` disables audio, so sound remains part of the full
+runtime validation.
+
+```sh
+./scripts/docker-build.sh libretro-cores
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+Probe logs are saved to:
+
+```text
+/mnt/SDCARD/plumos/retroarch/logs/libretro-fceumm-last.log
+/mnt/SDCARD/plumos/retroarch/logs/libretro-gambatte-last.log
+```
 
 Collect logs.
 

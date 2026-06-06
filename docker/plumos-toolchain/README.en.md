@@ -260,6 +260,39 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy
 
 `--rotation ccw` displays the RGUI horizontally on the physical A30 screen.
 
+## libretro Core Smoke Build
+
+Build `fceumm` and `gambatte` for the A30 armv7 hard-float target. Sources use
+upstream HEAD at build time, with commits and dependencies recorded in the
+manifest.
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+Outputs:
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+Device check:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+On 2026-06-07, `fceumm` + NES and `gambatte` + GB returned
+`result=libretro_core_smoke_ok`, and both game screens were visually confirmed
+on the A30. The current minimal config disables audio, so sound is validated in
+the full runtime build.
+
 ## Shell
 
 ```sh

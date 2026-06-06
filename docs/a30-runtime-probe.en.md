@@ -84,6 +84,22 @@ This is the minimal RGUI display check for RetroArch 1.22.2. It uses
 `video_driver = "gl"` and `video_context_driver = "mali_fbdev"`. Audio, input,
 and core loading are not treated as the final runtime yet.
 
+libretro core smoke package:
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+Outputs:
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
 ## Deploy/Run
 
 ```sh
@@ -106,6 +122,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `--allow-busy-audio` treats the stock MainUI holding the PCM device as an
 observed state rather than a probe failure.
+
+Check core-loaded video with `fceumm` and `gambatte` on RetroArch minimal:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+On the 2026-06-07 device check, `fceumm` loaded
+`/mnt/SDCARD/Roms/FC/Legend of Zelda, The (USA) (Rev 1).nes`, `gambatte` loaded
+`/mnt/SDCARD/Roms/GB/Dracula Densetsu.gb`, and the probe returned
+`result=libretro_core_smoke_ok`. Both game screens were visually confirmed on
+the A30. Sound does not play at this stage because the current
+`retroarch-minimal.cfg` disables audio.
+
+Probe logs:
+
+```text
+/mnt/SDCARD/plumos/retroarch/logs/libretro-fceumm-last.log
+/mnt/SDCARD/plumos/retroarch/logs/libretro-gambatte-last.log
+```
 
 Read-only SysV shared memory watch for stock `keymon`/`MainUI`:
 

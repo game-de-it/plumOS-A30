@@ -32,8 +32,8 @@ Inventory date: 2026-06-07
 
 | package | plumOS target | note |
 | --- | --- | --- |
-| RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. Full runtime still needs input/audio/content-loading validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
-| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. Prefer upstream latest stable. |
+| RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
+| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. `fceumm` and `gambatte` are built/deployed from upstream HEAD. Continue preferring upstream latest stable/HEAD. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Use for PPSSPP and engines where standalone is better than libretro. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -41,7 +41,9 @@ Note: the plumOS-bundled SDL3+sdl2-compat runtime does not provide an A30 real
 screen video backend. The RetroArch minimal display probe does not use SDL; it
 uses RetroArch's `mali_fbdev` context with the A30 rootfs
 `/usr/lib/libEGL.so`/`libGLESv2.so`. RGUI display is confirmed, but real
-core-loaded game video, audio, and input still need the next validation step.
+core-loaded game video is confirmed with `fceumm`/`gambatte`. The current
+`retroarch-minimal.cfg` disables audio, so sound and emulator-facing input still
+need the next validation step.
 
 ## Class A: initial build targets
 
@@ -111,29 +113,32 @@ an experimental target or a known-light title.
 
 ## Suggested build order
 
-1. RetroArch runtime skeleton and one low-risk core:
-   `fceumm`, then A30 video/audio/input smoke test.
-2. Low-risk 2D set:
-   `gambatte`, `genesis_plus_gx`, `mednafen_pce_fast`, `mednafen_wswan`,
+1. RetroArch runtime skeleton and first low-risk cores:
+   `fceumm` and `gambatte` are build/deploy/screen-smoke confirmed.
+2. Audio/input smoke for the practical RetroArch runtime:
+   OSS/ALSA selection, SDL2/evdev or linuxraw input, and `plumos-joystickd --device-mode xbox`.
+3. Low-risk 2D set:
+   `genesis_plus_gx`, `mednafen_pce_fast`, `mednafen_wswan`,
    `mednafen_ngp`, `snes9x`, `fbneo`.
-3. Common handheld/console set:
+4. Common handheld/console set:
    `gpsp`, `mgba`, `pcsx_rearmed`, `picodrive`, `mame2003-plus`, `fbalpha2012`.
-4. CD systems that are still realistic:
+5. CD systems that are still realistic:
    PS1 via `pcsx_rearmed`, PC Engine CD via `mednafen_pce_fast`,
    Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `neocd`.
-5. Lightweight systems promoted from stock backup/installed cores:
+6. Lightweight systems promoted from stock backup/installed cores:
    `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
    `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `easyrpg`, `prboom`,
    `dosbox_pure`, `retro8`/`fake08`.
-6. Conditional checks:
+7. Conditional checks:
    CPS3, SNES enhancement-chip titles, PC-88/PC-98, lightweight PSP.
 
 ## Open checks before building everything
 
-- RetroArch full content smoke: minimal RGUI display is confirmed through
-  `fbdev_mali`, but core-loaded video/audio/input/save-state behavior still
-  needs device validation.
-- Core build recipes need tag/URL/SHA-256/build options recorded in a manifest.
+- RetroArch audio/input smoke: minimal RGUI and `fceumm`/`gambatte`
+  core-loaded video are confirmed through `fbdev_mali`, but audio and
+  emulator-facing input still need device validation.
+- Core build recipes need tag/URL/SHA-256 or commit/build options recorded in a
+  manifest.
 - Save/state/system/BIOS directories must move away from stock
   `HOME=/mnt/SDCARD/RetroArch`.
 - `plumos-joystickd --device-mode xbox` should be part of emulator launch

@@ -22,6 +22,7 @@ Commands:
   sdl2-probe     Build the SDL2 joystick/GameController probe into dist/plumos-sdl2-probe.
   retroarch-minimal
                  Build a minimal RetroArch display probe into dist/plumos-retroarch-minimal.
+  libretro-cores Build fceumm/gambatte into dist/plumos-libretro-cores.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
 
@@ -107,6 +108,10 @@ case "$cmd" in
   retroarch-minimal|retroarch)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-retroarch-minimal.sh
+    ;;
+  libretro-cores|cores)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-libretro-cores.sh
     ;;
   shell)
     ensure_image

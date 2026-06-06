@@ -84,6 +84,22 @@ dist/plumos-retroarch-minimal/docs/manifest.txt
 `video_context_driver = "mali_fbdev"` を使い、audio/input/core loading はまだ最終 runtime
 として扱いません。
 
+libretro core smoke package:
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+生成物:
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
 ## deploy/run
 
 ```sh
@@ -106,6 +122,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `--allow-busy-audio` は、stock MainUI が PCM device を掴んでいる状態を失敗ではなく
 観測結果として扱うための option です。
+
+RetroArch minimal 上で `fceumm` と `gambatte` の core-loaded video を確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+2026-06-07 の実機確認では、`fceumm` は
+`/mnt/SDCARD/Roms/FC/Legend of Zelda, The (USA) (Rev 1).nes`、`gambatte` は
+`/mnt/SDCARD/Roms/GB/Dracula Densetsu.gb` を読み込み、
+`result=libretro_core_smoke_ok` になりました。ユーザー目視でも両方のゲーム画面表示を
+確認済みです。音声は現在の `retroarch-minimal.cfg` で無効化しているため、この段階では
+出ません。
+
+probe log:
+
+```text
+/mnt/SDCARD/plumos/retroarch/logs/libretro-fceumm-last.log
+/mnt/SDCARD/plumos/retroarch/logs/libretro-gambatte-last.log
+```
 
 stock `keymon`/`MainUI` の SysV shared memory を read-only で監視:
 

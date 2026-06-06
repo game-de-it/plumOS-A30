@@ -258,6 +258,37 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy
 
 `--rotation ccw` では A30 の物理画面で横向き RGUI を表示します。
 
+## libretro core smoke build
+
+`fceumm` と `gambatte` を A30 armv7 hard-float 向けに build します。source は
+build 時点の upstream HEAD で、commit と依存関係は manifest に残します。
+
+```sh
+./scripts/docker-build.sh libretro-cores
+```
+
+生成物:
+
+```text
+dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/lib/
+dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+実機確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
+```
+
+2026-06-07 に `fceumm` + NES と `gambatte` + GB は `result=libretro_core_smoke_ok` で、
+ユーザー目視でも両方のゲーム画面表示を確認済みです。現在の minimal config は
+audio disabled のため、音声は full runtime build で検証します。
+
 ## shell
 
 ```sh
