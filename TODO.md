@@ -110,8 +110,9 @@
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源以外の物理ボタンの code/action mapping を確定する。
 - [ ] 電源ボタン短押しの event code と stock 側の sleep/shutdown 介入を安全に確認する。
+- [ ] Function button で safe shutdown/resume menu を出す代替仕様を RetroArch 実行中に検証する。
 - [ ] plumOS frontend 常用起動時に stock `keymon` を残すか停止するか最終判断する。
-- [ ] RetroArch 実行中の電源キー短押しで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
+- [ ] RetroArch 実行中に Function button または利用可能なら電源キーで Sleep/Shutdown/Cancel menu を表示する方法を調査する。
 
 ## Phase 7 - RetroArch and Core Runtime
 

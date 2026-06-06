@@ -264,6 +264,7 @@ enum ui_action {
   ACTION_B,
   ACTION_START,
   ACTION_SELECT,
+  ACTION_FUNCTION,
   ACTION_QUIT
 };
 
@@ -1464,7 +1465,7 @@ static void render_top(const struct ui_state *ui) {
   }
 
   printf("plumOS controller UI - TOP\n");
-  printf("A: open  B: back  START: menu  SELECT: core preview  Q: quit\n");
+  printf("A: open  B: back  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit\n");
   printf("entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
   printf("\n");
   for (i = start; i < end; i++) {
@@ -1487,7 +1488,8 @@ static void render_roms(const struct ui_state *ui) {
   size_t start = 0;
   size_t end;
   const char *title = "ROMS";
-  const char *subtitle = "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
+  const char *subtitle =
+      "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
 
   if (ui->rom_cursor >= window / 2) {
     start = ui->rom_cursor - window / 2;
@@ -1502,10 +1504,12 @@ static void render_roms(const struct ui_state *ui) {
 
   if (ui->screen == SCREEN_FAVORITES) {
     title = "FAVORITES";
-    subtitle = "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
+    subtitle =
+        "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
   } else if (ui->screen == SCREEN_RECENT) {
     title = "RECENT";
-    subtitle = "A: resume preview  B/LEFT: TOP  START: menu  SELECT: core preview  Q: quit";
+    subtitle =
+        "A: resume preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
   }
 
   printf("plumOS controller UI - %s\n", title);
@@ -1659,6 +1663,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (action == ACTION_QUIT) {
     set_status(ui, "quit");
+    return;
+  }
+  if (action == ACTION_FUNCTION) {
+    set_status(ui, "safe shutdown/resume menu preview: sleep shutdown cancel");
     return;
   }
 
@@ -1841,6 +1849,8 @@ static enum ui_action action_from_key_code(unsigned int code) {
   case KEY_SELECT:
   case BTN_SELECT:
     return ACTION_SELECT;
+  case KEY_ESC:
+    return ACTION_FUNCTION;
   case KEY_Q:
     return ACTION_QUIT;
   default:
@@ -1876,6 +1886,9 @@ static enum ui_action action_from_stdin_char(int ch) {
   case 'c':
   case 'C':
     return ACTION_SELECT;
+  case 'f':
+  case 'F':
+    return ACTION_FUNCTION;
   case 'q':
   case 'Q':
     return ACTION_QUIT;
@@ -1908,6 +1921,9 @@ static enum ui_action action_from_script_token(const char *token) {
   }
   if (strcmp(token, "select") == 0) {
     return ACTION_SELECT;
+  }
+  if (strcmp(token, "function") == 0 || strcmp(token, "safe") == 0) {
+    return ACTION_FUNCTION;
   }
   if (strcmp(token, "q") == 0 || strcmp(token, "quit") == 0) {
     return ACTION_QUIT;
@@ -2105,7 +2121,7 @@ static void usage(const char *argv0) {
   printf("  %s --script up,down,a,b,select,start,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
-  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, q.\n");
+  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, f, q.\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");

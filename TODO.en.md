@@ -138,10 +138,12 @@
   `plumos-input-compare --all-events`.
 - [ ] Safely confirm the short power-button event code and stock sleep/shutdown
   side effects.
+- [ ] Validate a Function-button fallback for the safe shutdown/resume menu
+  while RetroArch is running.
 - [ ] Make the final keep/stop decision for stock `keymon` when plumOS becomes
   the regular boot frontend.
-- [ ] Investigate how to show a Sleep/Shutdown/Cancel menu on short power-key
-  press while RetroArch is running.
+- [ ] Investigate how to show a Sleep/Shutdown/Cancel menu from Function, or
+  from power if available, while RetroArch is running.
 
 ## Phase 7 - RetroArch and Core Runtime
 

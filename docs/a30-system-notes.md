@@ -150,6 +150,8 @@ backend 候補:
 - 電源ボタン以外の物理ボタン mapping を確認済み:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, SELECT=`KEY_RIGHTCTRL`,
   Function=`KEY_ESC`
+- 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
+  Function button を第一候補にする
 
 当面は stock `keymon` を残しつつ、plumOS frontend は `/dev/input/event3` を直接読む方針です。
 詳細は [A30 input policy](a30-input-policy.md) に分離しています。

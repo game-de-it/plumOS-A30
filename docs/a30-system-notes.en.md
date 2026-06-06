@@ -130,6 +130,8 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - Physical button mapping is confirmed for every button except power:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
   SELECT=`KEY_RIGHTCTRL`, Function=`KEY_ESC`.
+- Because the power button may be handled on the kernel side, use Function as
+  the primary candidate for the safe shutdown/resume menu.
 
 For now, keep stock `keymon` while the plumOS frontend reads
 `/dev/input/event3` directly. Details live in

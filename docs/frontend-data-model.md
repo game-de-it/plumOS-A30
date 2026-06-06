@@ -493,6 +493,8 @@ rules:
   `<core>_libretro.so` が存在する場合だけ実行可能にする。欠けている場合は launch plan を
   non-executable として扱う
 - RetroArch の Auto Save State / Auto Load State との実接続は launcher/RetroArch 実装時に行う
+- RetroArch 実行中の safe shutdown/resume menu は、電源ボタンではなく Function button を
+  第一候補にする。電源ボタンは kernel 側で処理される可能性があるため、必須経路にしない
 
 ## START menu model
 

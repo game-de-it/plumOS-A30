@@ -99,19 +99,20 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | reserved |
 | Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | reserved |
-| Function | 1 | `KEY_ESC` | `function` | reserved |
+| Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 
 Notes:
 
 - The START menu opens from physical START (`KEY_ENTER`).
-- Function (`KEY_ESC`) is not treated as an alternate START button. It is
-  reserved for future hotkey/menu behavior.
+- Function (`KEY_ESC`) is not treated as an alternate START button. It is the
+  primary candidate for a safe shutdown/resume menu.
 - X/Y/L/R/L2/R2/volume buttons are identified by the probe but are not assigned
   to normal controller UI actions yet.
-- The power button remains unconfirmed to avoid stock sleep/shutdown side
-  effects. Capture it together with the RetroArch safe shutdown/resume design.
+- The power button remains unconfirmed to avoid stock or kernel-side
+  sleep/shutdown side effects. Design plumOS auto-resume without depending on
+  the power button, with Function as the preferred fallback trigger.
 
 ## Policy
 
@@ -120,6 +121,8 @@ Notes:
 - Do not use exclusive mechanisms such as `EVIOCGRAB` while coexisting with
   stock MainUI.
 - Button code/action mapping is confirmed for every button except power.
+- Prefer opening the safe shutdown/resume menu from Function instead of the
+  power key.
 - Revisit whether to keep or stop `keymon` when plumOS becomes the regular
   boot frontend.
 

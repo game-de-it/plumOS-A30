@@ -505,6 +505,9 @@ Rules:
   runtime files keep the launch plan non-executable.
 - RetroArch Auto Save State / Auto Load State integration belongs to the later
   launcher/RetroArch implementation.
+- While RetroArch is running, prefer Function as the safe shutdown/resume menu
+  trigger instead of the power button. The power button may be handled on the
+  kernel side, so it must not be the only path.
 
 ## START Menu
 

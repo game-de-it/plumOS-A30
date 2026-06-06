@@ -276,8 +276,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `plumos-input-compare` では、stock `keymon` と stock `MainUI` が動作中でも
 `/dev/input/event3` を非排他で直接 open/poll できることを確認しています。
 実機 mapping では A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
-SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は現時点では通常操作に割り当てず、
-将来の hotkey/menu 用に予約します。
+SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は START 代替ではなく、
+safe shutdown/resume menu の preview に割り当てています。
 
 TOP を 1 回だけ表示:
 
@@ -294,6 +294,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,b,start,down,down,a,b,start,down,down,down,a,b,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script function,q'
 ```
 
 実機ボタンの raw event を確認:
@@ -311,8 +314,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - START: START menu を開く
 - START menu: Settings/Favorites/Recent は実画面へ遷移し、その他は action preview を出す
 - SELECT: system/per-ROM core preview
+- Function: safe shutdown/resume menu preview
 - Settings: 現在値を一覧表示し、A は edit preview を出す
-- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `q`
+- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `f`, `q`
 
 Settings 画面では plumOS frontend 設定と theme 状態に加えて、A30 固有設定の
 read-only inventory も表示します。現在は `/config/system.json` から volume、

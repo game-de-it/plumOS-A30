@@ -96,18 +96,19 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | reserved |
 | 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | reserved |
-| Function | 1 | `KEY_ESC` | `function` | reserved |
+| Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 
 注意:
 
 - START menu は物理 START (`KEY_ENTER`) で開きます。
-- Function (`KEY_ESC`) は START の代替としては扱わず、将来の hotkey/menu 用に予約します。
+- Function (`KEY_ESC`) は START の代替としては扱わず、safe shutdown/resume menu の
+  第一候補として扱います。
 - X/Y/L/R/L2/R2/音量ボタンは probe では識別しますが、現時点の controller UI では
   通常操作に割り当てません。
-- 電源ボタンは stock 側の sleep/shutdown 介入を避けるため未確定です。RetroArch 実行中の
-  safe shutdown/resume 設計とセットで別途確認します。
+- 電源ボタンは stock 側または kernel 側の sleep/shutdown 介入を避けるため未確定です。
+  plumOS の自動再開機能は電源ボタンに依存せず、Function button 代替を優先して設計します。
 
 ## 方針
 
@@ -115,6 +116,7 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 - plumOS frontend の操作入力は `/dev/input/event3` の直接読み取りで実装する
 - stock MainUI と共存している間は `EVIOCGRAB` のような排他取得は使わない
 - 電源ボタン以外の button code/action mapping は実機で確定済み
+- safe shutdown/resume menu は電源キーではなく Function button から開く案を第一候補にする
 - plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
 
 現時点の推奨は「`keymon` は残すが、plumOS frontend は直接 input event を読む」です。

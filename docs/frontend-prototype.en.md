@@ -286,8 +286,8 @@ stdin fallback. On the A30 it looks for `gpio-keys-polled` in
 `plumos-input-compare` confirms that `/dev/input/event3` can be opened and
 polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
 The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
-SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is reserved for future hotkey/menu
-behavior instead of being assigned to a normal UI action now.
+SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is not an alternate START button; it
+opens the safe shutdown/resume menu preview.
 
 Render TOP once:
 
@@ -304,6 +304,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,b,start,down,down,a,b,start,down,down,down,a,b,q'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script function,q'
 ```
 
 Dump raw device button events:
@@ -323,8 +326,9 @@ Controls:
 - START menu: Settings/Favorites/Recent open real screens; other actions show
   previews.
 - SELECT: system/per-ROM core preview.
+- Function: safe shutdown/resume menu preview.
 - Settings: show current values; A shows edit preview.
-- SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `q`.
+- SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 The Settings screen also shows a read-only inventory for A30-specific settings,
 separate from plumOS frontend settings and theme state. It reads volume,
