@@ -1,17 +1,16 @@
 plumOS A30 SSH kit
 ==================
 
-1. Put your public SSH key in:
+1. 作業用PCのSSH公開鍵を次のファイルへ入れる:
    plumos/ssh/etc/authorized_keys
 
-2. Copy this whole directory's contents to the SD card root.
+2. このdirectoryの中身をすべてSDカード直下へコピーする。
 
-3. On the Miyoo A30, run Ports -> Start SSH.
+3. Miyoo A30で Ports -> Start SSH を実行する。
 
-4. Connect from your workstation:
+4. 作業用PCから接続する:
    ssh -p 2222 root@A30_IP_ADDRESS
 
-Logs are written to:
+logの出力先:
    plumos/ssh/log/dropbear.log
    plumos/ssh/log/network.txt
-

@@ -1,49 +1,57 @@
 # plumOS A30
 
-Custom firmware bring-up workspace for the Miyoo A30.
+Miyoo A30 向けカスタムファームウェア `plumOS` の開発ワークスペースです。
 
-The first milestone is reliable remote access. This repository currently builds
-a small Dropbear-based SSH kit that can be copied to the SD card and launched
-from Ports on the handheld.
+このプロジェクトでは、A30 の既存 rootfs をできるだけ触らず、SD カード上の
+`/mnt/SDCARD/plumos` 配下にフロントエンド、ライブラリ、RetroArch、libretro
+core、設定、ログを集約して動かすことを目標にします。
 
-## Current Focus
+## 現在の状態
 
-1. Build an armhf static Dropbear SSH server.
-2. Start it from the SD card without modifying NAND/rootfs permanently.
-3. Connect from the workstation and collect system information.
-4. Use that information to define the next firmware TODOs.
+最初のマイルストーンとして、A30 へ SSH で入るための Dropbear ベースの開発用
+SSH キットを作成しました。SSH 経由で起動処理、マウント状況、Wi-Fi、既存
+フロントエンド、RetroArch 構成を調査済みです。
 
-## Build SSH Kit
+調査結果と設計方針は以下にまとめています。
+
+- [A30 システム調査メモ](docs/a30-system-notes.md)
+- [plumOS 設計方針](docs/plumos-design-policy.md)
+- [SSH 導入手順](docs/ssh-bringup.md)
+- [TODO](TODO.md)
+
+英語版は同名の `.en.md` ファイルとして残します。
+
+## SSH キットのビルド
 
 ```sh
 ./scripts/build-ssh-kit.sh
 ```
 
-The script downloads Dropbear, verifies the pinned SHA-256, cross-compiles it
-with Zig for `arm-linux-musleabihf`, then assembles:
+このスクリプトは Dropbear をダウンロードし、固定した SHA-256 を検証したうえで
+`arm-linux-musleabihf` 向けに静的リンクのバイナリをビルドします。生成物は以下に
+配置されます。
 
 ```text
 dist/plumos-a30-ssh-kit/
 dist/plumos-a30-ssh-kit.tar.gz
 ```
 
-Before copying to the SD card, place your public key in:
+SD カードへコピーする前に、作業用 PC の公開鍵を次のファイルへ入れてください。
 
 ```text
 dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys
 ```
 
-Then copy the contents of `dist/plumos-a30-ssh-kit/` to the root of the A30 SD
-card. On the device, launch `Start SSH` from Ports.
+その後、`dist/plumos-a30-ssh-kit/` の中身を A30 の SD カード直下へコピーします。
+A30 側では Ports から `Start SSH` を実行します。
 
-Default connection:
+接続例:
 
 ```sh
 ssh -p 2222 root@A30_IP_ADDRESS
 ```
 
-## References
+## 参考資料
 
 - Miyoo A30 toolchain reference: https://codeberg.org/hydrogen18/miyooa30
 - Dropbear SSH: https://matt.ucc.asn.au/dropbear/dropbear.html
-

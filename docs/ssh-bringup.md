@@ -1,39 +1,39 @@
-# SSH Bring-Up
+# SSH 導入手順
 
-This project uses Dropbear for the first remote shell because it is small,
-embedded-friendly, and can be built as a static armhf binary.
+最初のリモート shell には Dropbear を使います。小さく、組み込み機器向けで、
+静的リンクの armhf binary として扱いやすいためです。
 
-The current build uses Dropbear `2026.91`, published by the upstream project on
-2026-05-10. The pinned tarball hash is:
+現在の build は upstream が 2026-05-10 に公開した Dropbear `2026.91` を使います。
+固定している tarball の SHA-256 は以下です。
 
 ```text
 defa924475abf6bc1e74abc00173e46bfdc804bd47caafa14f5a4ef0cc76da34
 ```
 
-This is a development access kit. The Dropbear build relaxes
-`authorized_keys` ownership/mode checks so the key file can live on the A30 SD
-card even when the stock rootfs is read-only and the SD card is FAT/exFAT.
+これは開発用 access kit です。A30 の stock rootfs は read-only で、SD カードは
+FAT/exFAT 系のため Unix permission を表現できません。そのため、この Dropbear build
+では `authorized_keys` の owner/mode check を緩めています。
 
-## Build
+## ビルド
 
 ```sh
 ./scripts/build-ssh-kit.sh
 ```
 
-Optional: if an ARM strip tool is available, binaries are stripped
-automatically. To force Docker-based stripping on this workstation:
+任意: ARM 用の `strip` tool が見つかる場合は自動で binary を strip します。この作業
+環境で Docker を使った strip を明示する場合は以下を実行します。
 
 ```sh
 PLUMOS_DOCKER_STRIP=1 ./scripts/build-ssh-kit.sh
 ```
 
-## Prepare SD Card
+## SD カード準備
 
-1. Edit `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys`.
-2. Put one SSH public key on a single line.
-3. Copy all contents of `dist/plumos-a30-ssh-kit/` to the SD card root.
+1. `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys` を編集する
+2. 作業用 PC の SSH 公開鍵を 1 行で入れる
+3. `dist/plumos-a30-ssh-kit/` の中身を SD カード直下へコピーする
 
-The copied SD card should contain:
+コピー後の SD カードには以下が入ります。
 
 ```text
 /mnt/SDCARD/plumos/ssh/start-ssh.sh
@@ -45,43 +45,43 @@ The copied SD card should contain:
 /mnt/SDCARD/Roms/PORTS/Stop SSH.sh
 ```
 
-## Start
+## 起動
 
-On the Miyoo A30, open Ports and run `Start SSH`.
+Miyoo A30 で Ports を開き、`Start SSH` を実行します。
 
-The launcher writes logs to:
+log は以下へ出力されます。
 
 ```text
 /mnt/SDCARD/plumos/ssh/log/dropbear.log
 /mnt/SDCARD/plumos/ssh/log/network.txt
 ```
 
-If the IP address is not visible in the UI/router, remove the SD card and check
-`network.txt`; it dumps any available network commands and useful `/proc/net`
-files.
+UI や router で IP address が分からない場合は、SD カードを抜いて `network.txt` を
+確認します。このファイルには利用可能な network command の出力と `/proc/net` の
+情報が入ります。
 
-If the log says no public key was found, replace
-`plumos/ssh/etc/authorized_keys` on the SD card with a real workstation public
-key. Commented example lines are ignored.
+log に public key が見つからないと出た場合は、SD カード上の
+`plumos/ssh/etc/authorized_keys` を実際の作業用 PC の公開鍵で置き換えてください。
+comment 行の example key は無視されます。
 
-## Connect
+## 接続
 
 ```sh
 ssh -p 2222 root@A30_IP_ADDRESS
 ```
 
-If you use a non-default key:
+default 以外の key を使う場合:
 
 ```sh
 ssh -i ~/.ssh/YOUR_KEY -p 2222 root@A30_IP_ADDRESS
 ```
 
-## Collect Device Information
+## 実機情報の収集
 
-After SSH works:
+SSH 接続できるようになったら、作業用 PC 側で以下を実行します。
 
 ```sh
 ./scripts/collect-a30-info.sh root@A30_IP_ADDRESS
 ```
 
-The collector writes a timestamped directory under `artifacts/`.
+収集結果は timestamp 付きの directory として `artifacts/` 配下に保存されます。
