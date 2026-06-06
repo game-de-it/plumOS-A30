@@ -119,6 +119,25 @@ dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 The same probe binary is used for GameController checks and for enumerating SDL
 video/render backends and attempting a software-renderer draw.
 
+Build the RetroArch minimal display probe. This build does not handle
+core/audio/input yet; it is a short device check for whether RetroArch itself
+can show RGUI through the A30 Mali fbdev path.
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+Outputs:
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
@@ -203,6 +222,19 @@ To check only the SDL2 render backends:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
+
+Deploy the RetroArch minimal display probe to the SD card root and run it. By
+default the script uses plumOS-target test conditions: it stops stock
+`MainUI`/`keymon` and does not restart stock processes afterward. Use
+`--rotation ccw` to show the RGUI horizontally on the physical A30 screen.
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+The probe saves `/tmp/plumos-retroarch-minimal.log` to
+`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log`.
 
 Collect logs.
 

@@ -287,6 +287,14 @@ RetroArch は build 時点で公式 upstream の latest stable release を再確
 A30 向け armv7 hard-float build を作る前提にします。stockOS 側の RetroArch/core
 version は互換調査の参考に留め、最新版で実機異常が出た場合だけ比較対象にします。
 
+2026-06-07 時点では、plumOS 側で RetroArch 1.22.2 minimal display probe を
+`/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置し、A30 実機で
+`mali_fbdev` + GLES/EGL + RGUI 表示を確認済みです。A30 の物理画面で横向きにするには、
+RetroArch の `video_rotation` だけでは足りず、GL2 menu/default draw の MVP を A30 の
+`fbdev_mali` context だけ rotation 済み `mvp` へ切り替える patch と `--rotation ccw` を
+使います。この minimal build は表示確認用で、core/audio/input は full runtime 段階で
+検証します。
+
 ## 既存 launch script の傾向
 
 多くの emulator script は以下を行います。
@@ -326,6 +334,7 @@ plumOS では、まず既存挙動を再現できる互換 layer を作り、そ
 - `/mnt/SDCARD/miyoo/app/MainUI` は復旧可能な wrapper として扱う
 - plumOS 本体は `/mnt/SDCARD/plumos` 配下へ置く
 - stock の `/mnt/SDCARD/miyoo/lib` には依存しない
-- build 時点で最新 stable の RetroArch と必要 core を確認し、A30 向けに build する
+- build 時点で最新 stable の RetroArch と必要 core を確認し、A30 向けに build する。
+  RetroArch 本体の minimal RGUI 表示は 1.22.2 で確認済み
 - core は一括更新せず、system ごとに起動、performance、save/state、input を検証する
 - CPU policy、Wi-Fi、input、audio/video driver は「既存仕様を疑う」対象として扱う

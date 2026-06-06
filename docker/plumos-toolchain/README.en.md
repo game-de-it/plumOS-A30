@@ -231,6 +231,35 @@ SDL2 render backend check:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
+## RetroArch Minimal Display Probe Build
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+Outputs:
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
+This is the smallest current build for checking whether RetroArch itself can
+display RGUI through the A30 Mali fbdev path. It is not the final
+core/audio/input runtime yet.
+
+Device check:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+`--rotation ccw` displays the RGUI horizontally on the physical A30 screen.
+
 ## Shell
 
 ```sh
@@ -257,8 +286,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 - For libraries, RetroArch, libretro cores, and standalone emulators, check the
   upstream latest stable release at build time and record the selected
   version/tag/commit/build options in manifests.
-- Final RetroArch and libretro core builds still need the A30 sysroot and
-  library policy.
+- The RetroArch minimal display probe is for A30 real-screen validation. The
+  final RetroArch/libretro core runtime still needs the A30 sysroot and library
+  policy.
 - Dynamically linked binaries must avoid depending on a glibc newer than the
   A30 stock glibc `2.23`, either through a dedicated sysroot or a bundled
   runtime.

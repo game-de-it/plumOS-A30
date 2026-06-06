@@ -230,6 +230,34 @@ SDL2 render backend 確認:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
+## RetroArch minimal display probe build
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+生成物:
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
+この build は、RetroArch 本体の RGUI が A30 の Mali fbdev 経路で表示できるかを
+確認する最小構成です。core/audio/input はまだ最終runtimeでは扱いません。
+
+実機確認:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+`--rotation ccw` では A30 の物理画面で横向き RGUI を表示します。
+
 ## shell
 
 ```sh
@@ -256,8 +284,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 - ライブラリ、RetroArch、libretro core、standalone emulator は build 時点の
   upstream latest stable を確認し、選んだ version/tag/commit/build option を manifest
   に残します。
-- RetroArch と libretro core の最終 build には、A30 向け sysroot と library 方針を
-  追加していきます。
+- RetroArch minimal display probe は A30 実画面表示確認用です。libretro core を含む
+  最終 runtime build には、A30 向け sysroot と library 方針を追加していきます。
 - 動的 link する binary は A30 の glibc `2.23` より新しい glibc へ依存しないよう、
   別途 sysroot または同梱 runtime を使う必要があります。
 - BusyBox は便利な第一段階ですが、GNU/Linux らしい `ps` や `top` の互換性には限界が

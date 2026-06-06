@@ -275,6 +275,14 @@ current generic buildbot binaries. Treat stockOS RetroArch/core versions as
 compatibility references only, and compare against them only when newer builds
 show hardware problems.
 
+As of 2026-06-07, plumOS has a RetroArch 1.22.2 minimal display probe installed
+at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`, and the A30 device confirms
+RGUI display through `mali_fbdev` + GLES/EGL. Horizontal display on the physical
+A30 screen needs more than RetroArch's normal `video_rotation`: the A30 patch
+switches GL2 menu/default drawing to the rotated `mvp` only under the
+`fbdev_mali` context, with `--rotation ccw`. This minimal build is for display
+validation; core/audio/input testing belongs to the full runtime phase.
+
 ## Launch Script Patterns
 
 Most emulator scripts:
@@ -328,6 +336,7 @@ direction.
 - Keep stock `keymon` initially unless input behavior requires replacement.
 - Check the latest stable RetroArch and required core releases at build time,
   then build them for `armv7-a hard-float`, targeting glibc 2.23 or a
-  compatible static/dynamic strategy.
+  compatible static/dynamic strategy. RetroArch minimal RGUI display is already
+  confirmed with 1.22.2.
 - Update cores in groups, validating ABI and performance per core rather than
   replacing all 908 MB at once.

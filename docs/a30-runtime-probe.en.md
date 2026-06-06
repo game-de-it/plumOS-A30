@@ -63,6 +63,27 @@ dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
 `/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, while the probe binary itself
 runs with bundled dynamic loader/shared libraries.
 
+RetroArch minimal display probe:
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+Outputs:
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
+This is the minimal RGUI display check for RetroArch 1.22.2. It uses
+`video_driver = "gl"` and `video_context_driver = "mali_fbdev"`. Audio, input,
+and core loading are not treated as the final runtime yet.
+
 ## Deploy/Run
 
 ```sh
@@ -150,6 +171,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms
 This script records `/dev/fb0`, `/dev/mali`, `/usr/lib/libEGL.so`,
 `/usr/lib/libGLESv2.so`, `eglCreateWindowSurface`, `eglMakeCurrent`,
 `eglSwapBuffers`, and `glReadPixels`.
+
+RetroArch minimal display probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+This script defaults to plumOS-target test conditions and stops stock
+`MainUI`/`keymon`. `--rotation ccw` passes `video_rotation = "1"` and
+`PLUMOS_RA_DISPLAY_ROTATION=ccw`, enabling the A30 GL2 menu MVP patch. Logs are
+kept in `/tmp/plumos-retroarch-minimal.log` and
+`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log`.
 
 ## Options
 
@@ -302,6 +335,38 @@ stock SDL, can swap to the A30 display. `NULL` native window and a
 `uint16_t width,height` fbdev window work; `uint32_t width,height` fails with
 `EGL_BAD_NATIVE_WINDOW`.
 
+RetroArch minimal display probe:
+
+```text
+[INFO] [EGL] EGL version: 1.4.
+[INFO] [GL] Found GL context: "fbdev_mali".
+[INFO] [GL] Vendor: ARM, Renderer: Mali-400 MP.
+[INFO] [GL] Default shader backend found: glsl.
+[INFO] [plumOS] A30 display rotation enabled: video_rotation=1 degrees=90.
+result=retroarch_minimal_survived_10s
+```
+
+On the A30 device on 2026-06-07, the RetroArch 1.22.2 minimal RGUI build held
+for 10 seconds through `fbdev_mali` + GLES/EGL, and the user visually confirmed
+horizontal display.
+
+Notes:
+
+- A build with `--enable-dynamic_egl` crashed with SIGSEGV immediately after
+  the `eglGetDisplay` fallback. Since the A30 `/usr/lib/libEGL.so.1` and
+  `/usr/lib/libGLESv2.so.2` resolve to `libMali.so`, the minimal build now
+  links EGL/GLES normally and the wrapper includes `/usr/lib:/lib` in the
+  runtime library path.
+- Disabling GLSL caused `Shader driver initialization failed`, so the minimal
+  build still keeps the GLSL backend.
+- RetroArch's normal `video_rotation = "1"` / `"3"` did not change the physical
+  RGUI orientation by itself. When the `fbdev_mali` context is active and
+  `PLUMOS_RA_DISPLAY_ROTATION` is set, the A30 patch switches GL2
+  menu/default drawing from `mvp_no_rot` to the rotated `mvp`.
+- Even with `audio_enable = "false"` / `audio_driver = "null"`, logs may still
+  include `failed_to_start_audio_driver`. For this display-only probe, that is
+  non-fatal; audio will be rechecked in the full runtime phase.
+
 ## Decision
 
 - Video: `/dev/fb0` reports 480x640, 32bpp, line length 1920, and short
@@ -337,9 +402,13 @@ stock SDL, can swap to the A30 display. `NULL` native window and a
   `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`, with stock
   `/etc/main`, `MainUI.stock`, and `keymon` stopped. The stock side was left
   stopped afterward.
+- RetroArch minimal: RetroArch 1.22.2 now has an A30 armv7 hard-float minimal
+  build that reaches `mali_fbdev` + GLES/EGL + RGUI display. Horizontal display
+  on the physical A30 screen is confirmed with the GL2 menu MVP patch and
+  `--rotation ccw`. Core/audio/input behavior is still unvalidated.
 
 The stock `keymon` comparison is split into
 [A30 input policy](a30-input-policy.en.md). Next steps are visual tuning of text
 readability, spacing, colors, and selection display on the device screen, plus
-the RetroArch SDL2/evdev build. SDL3/sdl2-compat custom video backend work
+RetroArch full-runtime core/audio/input smoke testing. SDL3/sdl2-compat custom video backend work
 should be revisited after the frontend presenter behavior is stable.

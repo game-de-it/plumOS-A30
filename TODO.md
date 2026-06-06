@@ -19,6 +19,8 @@
 - [ ] Docker 内で frontend、helper、RetroArch、libretro core を build できるようにする。
 - [ ] SDL2、RetroArch、libretro core、standalone emulator、補助 library は build 時点の latest stable upstream release を確認し、採用 version/tag/commit/build option を manifest 化する。
 - [x] SDL2 互換 runtime は upstream SDL3 3.4.10 + sdl2-compat 2.32.68 を採用し、tag/URL/SHA-256/build option を manifest 化する。
+- [x] Docker 内で RetroArch 1.22.2 minimal display probe を build できるようにする。
+- [x] RetroArch minimal build は upstream tag/URL/SHA-256/build option を manifest 化する。
 - [x] Docker 内で frontend compatibility scanner を build できるようにする。
 - [x] Docker build output を `dist/` または staging directory へ集約する。
 - [x] build cache と大きな生成物が git に入らないよう ignore/配置を整理する。
@@ -175,10 +177,14 @@
 ## Phase 7 - RetroArch and Core Runtime
 
 - [x] stockOS 側の `Emu`/`RApp`/installed core を参考に、plumOS でビルドする emulator/core/standalone target inventory を作り、A30で満足に動く見込みで Class A/B/C に分類する。
-- [ ] build 時点で最新 stable の RetroArch release を確認し、A30 の armv7 hard-float 環境向けに build/test する。
-- [ ] RetroArch を `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置する。
+- [x] build 時点で最新 stable の RetroArch release を確認し、RetroArch 1.22.2 minimal RGUI/Mali fbdev build を A30 の armv7 hard-float 環境向けに build/test する。
+- [x] RetroArch minimal display probe を `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置する。
+- [x] RetroArch minimal display probe は `HOME=/mnt/SDCARD/plumos/retroarch/home` と plumOS 管理 config を使い、stock `HOME=/mnt/SDCARD/RetroArch` に依存しないことを確認する。
+- [x] RetroArch 1.22.2 minimal build で `fbdev_mali` + GLES/EGL + RGUI 表示を確認し、A30 GL2 menu MVP patch + `--rotation ccw` で横向き表示をユーザー目視確認する。
+- [ ] RetroArch full runtime build で audio/input/core/content loading を検証する。
+- [ ] RetroArch full runtime を `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ置き換える方針を決める。
 - [ ] core を `/mnt/SDCARD/plumos/retroarch/cores` へ配置する。
-- [ ] `HOME=/mnt/SDCARD/RetroArch` に依存しない起動方法へ移行する。
+- [ ] full RetroArch/core runtime でも `HOME=/mnt/SDCARD/RetroArch` に依存しない起動方法へ移行する。
 - [ ] `--config` と override config で system/core ごとの差分を管理する。
 - [ ] libretro core は system ごとに段階更新する。
 - [ ] libretro core と standalone emulator は stockOS version ではなく upstream latest stable を初期候補にし、実機異常がある場合だけ stockOS 側 version/patch/build option と比較する。

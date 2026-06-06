@@ -1,0 +1,51 @@
+--- a/gfx/drivers/gl2.c
++++ b/gfx/drivers/gl2.c
+@@ -375,0 +376,13 @@
++
++static bool gl2_plumos_a30_display_rotation_enabled(const gl2_t *gl)
++{
++   const char *rotation = getenv("PLUMOS_RA_DISPLAY_ROTATION");
++
++   if (     !gl
++         || !gl->ctx_driver
++         || !gl->ctx_driver->ident
++         || !string_is_equal(gl->ctx_driver->ident, "fbdev_mali"))
++      return false;
++
++   if (string_is_empty(rotation))
++      return false;
+@@ -376,0 +390,15 @@
++   if (     string_is_equal(rotation, "none")
++         || string_is_equal(rotation, "normal")
++         || string_is_equal(rotation, "0"))
++      return false;
++
++   return true;
++}
++
++static math_matrix_4x4 *gl2_plumos_a30_default_mvp(gl2_t *gl)
++{
++   if (gl2_plumos_a30_display_rotation_enabled(gl))
++      return &gl->mvp;
++   return &gl->mvp_no_rot;
++}
++
+@@ -384 +412 @@
+-   return &gl->mvp_no_rot;
++   return gl2_plumos_a30_default_mvp(gl);
+@@ -523 +551 @@
+-      : (math_matrix_4x4*)&gl->mvp_no_rot);
++      : gl2_plumos_a30_default_mvp(gl));
+@@ -824 +852 @@
+-            &gl->mvp_no_rot);
++            gl2_plumos_a30_default_mvp(gl));
+@@ -2749 +2777 @@
+-   gl->shader->set_mvp(gl->shader_data, &gl->mvp_no_rot);
++   gl->shader->set_mvp(gl->shader_data, gl2_plumos_a30_default_mvp(gl));
+@@ -2967,0 +2996,3 @@
++   if (gl2_plumos_a30_display_rotation_enabled(gl))
++      RARCH_LOG("[plumOS] A30 display rotation enabled: video_rotation=%u degrees=%u.\n",
++            rotation, gl->rotation);
+@@ -3329 +3360 @@
+-   gl->shader->set_mvp(gl->shader_data, &gl->mvp_no_rot);
++   gl->shader->set_mvp(gl->shader_data, gl2_plumos_a30_default_mvp(gl));

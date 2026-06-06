@@ -118,6 +118,25 @@ dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 同じ probe binary は GameController 確認に加えて、SDL video/render backend の列挙と
 software renderer の描画試行にも使います。
 
+RetroArch minimal display probe を build します。これは core/audio/input をまだ扱わず、
+RetroArch 本体の RGUI が A30 の Mali fbdev 経路で実画面表示できるかを見るための
+短時間確認用 build です。
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。
@@ -201,6 +220,18 @@ SDL2 render backend だけを確認する場合:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
+
+RetroArch minimal display probe は、SD カード root へ展開して実行します。既定では
+plumOS としての試験条件に寄せ、stock `MainUI`/`keymon` を止め、終了後に stock 側を
+戻しません。A30 の物理画面で横向き RGUI を見る場合は `--rotation ccw` を使います。
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+この probe は `/tmp/plumos-retroarch-minimal.log` を
+`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log` に保存します。
 
 log を回収します。
 

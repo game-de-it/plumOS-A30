@@ -32,14 +32,16 @@ Inventory date: 2026-06-07
 
 | package | plumOS target | note |
 | --- | --- | --- |
-| RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | Build for A30 armv7 hard-float. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. Validate the A30 Mali/fbdev real-display path separately. |
+| RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. Full runtime still needs input/audio/content-loading validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. Prefer upstream latest stable. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Use for PPSSPP and engines where standalone is better than libretro. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
 Note: the plumOS-bundled SDL3+sdl2-compat runtime does not provide an A30 real
-screen video backend. RetroArch display output cannot simply assume generic SDL2
-video; fbdev/Mali EGL or another A30-capable path must be validated.
+screen video backend. The RetroArch minimal display probe does not use SDL; it
+uses RetroArch's `mali_fbdev` context with the A30 rootfs
+`/usr/lib/libEGL.so`/`libGLESv2.so`. RGUI display is confirmed, but real
+core-loaded game video, audio, and input still need the next validation step.
 
 ## Class A: initial build targets
 
@@ -128,8 +130,9 @@ an experimental target or a known-light title.
 
 ## Open checks before building everything
 
-- RetroArch real video output path on A30:
-  plain upstream SDL2/SDL3+sdl2-compat is not enough for `/dev/fb0` display.
+- RetroArch full content smoke: minimal RGUI display is confirmed through
+  `fbdev_mali`, but core-loaded video/audio/input/save-state behavior still
+  needs device validation.
 - Core build recipes need tag/URL/SHA-256/build options recorded in a manifest.
 - Save/state/system/BIOS directories must move away from stock
   `HOME=/mnt/SDCARD/RetroArch`.

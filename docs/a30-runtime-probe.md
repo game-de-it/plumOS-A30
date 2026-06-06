@@ -63,6 +63,27 @@ dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
 `/usr/lib/libEGL.so` と `/usr/lib/libGLESv2.so` を `dlopen` します。probe 本体は
 bundled dynamic loader/shared libraries で起動します。
 
+RetroArch minimal display probe:
+
+```sh
+./scripts/docker-build.sh retroarch-minimal
+```
+
+生成物:
+
+```text
+dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch
+dist/plumos-retroarch-minimal/plumos/retroarch/bin/retroarch.bin
+dist/plumos-retroarch-minimal/plumos/retroarch/config/retroarch-minimal.cfg
+dist/plumos-retroarch-minimal/plumos/lib/
+dist/plumos-retroarch-minimal/docs/manifest.txt
+```
+
+この build は RetroArch 1.22.2 の最小 RGUI 表示確認用です。`video_driver = "gl"` と
+`video_context_driver = "mali_fbdev"` を使い、audio/input/core loading はまだ最終 runtime
+として扱いません。
+
 ## deploy/run
 
 ```sh
@@ -148,6 +169,18 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms
 この script は `/dev/fb0`, `/dev/mali`, `/usr/lib/libEGL.so`,
 `/usr/lib/libGLESv2.so` を確認し、`eglCreateWindowSurface`,
 `eglMakeCurrent`, `eglSwapBuffers`, `glReadPixels` の成否を記録します。
+
+RetroArch minimal display probe:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
+```
+
+この script は plumOS としての試験条件に寄せ、既定で stock `MainUI`/`keymon` を止めます。
+`--rotation ccw` は `video_rotation = "1"` と
+`PLUMOS_RA_DISPLAY_ROTATION=ccw` を渡し、A30 GL2 menu MVP patch を有効にします。
+log は `/tmp/plumos-retroarch-minimal.log` と
+`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log` に残します。
 
 ## options
 
@@ -295,6 +328,36 @@ A30 上で実画面へ swap できることを確認しました。`NULL` native
 `uint16_t width,height` の `fbdev_window` は成功し、`uint32_t width,height` は
 `EGL_BAD_NATIVE_WINDOW` でした。
 
+RetroArch minimal display probe:
+
+```text
+[INFO] [EGL] EGL version: 1.4.
+[INFO] [GL] Found GL context: "fbdev_mali".
+[INFO] [GL] Vendor: ARM, Renderer: Mali-400 MP.
+[INFO] [GL] Default shader backend found: glsl.
+[INFO] [plumOS] A30 display rotation enabled: video_rotation=1 degrees=90.
+result=retroarch_minimal_survived_10s
+```
+
+2026-06-07 の A30 実機確認では、RetroArch 1.22.2 minimal RGUI build が
+`fbdev_mali` + GLES/EGL で 10 秒保持でき、ユーザー目視で横向き表示を確認しました。
+
+注意点:
+
+- `--enable-dynamic_egl` を使った build は `eglGetDisplay` fallback 直後に SIGSEGV した。
+  A30 では `/usr/lib/libEGL.so.1` と `/usr/lib/libGLESv2.so.2` が `libMali.so` へ繋がるため、
+  最小 build では EGL/GLES を通常リンクし、wrapper の library path に `/usr/lib:/lib` を
+  入れる方針にした。
+- GLSL を無効化すると `Shader driver initialization failed` で起動できなかったため、
+  minimal build でも GLSL backend は残す。
+- RetroArch 標準の `video_rotation = "1"` / `"3"` だけでは RGUI の物理向きは変わらなかった。
+  A30 の `fbdev_mali` context で `PLUMOS_RA_DISPLAY_ROTATION` が指定されている場合だけ、
+  GL2 menu/default draw の MVP を `mvp_no_rot` ではなく rotation 済み `mvp` に切り替える
+  patch を当てている。
+- `audio_enable = "false"` / `audio_driver = "null"` でも log に
+  `failed_to_start_audio_driver` が出ることがある。今回の表示確認では非致命扱いにし、
+  audio は full runtime 段階で再検証する。
+
 ## 判断
 
 - video: `/dev/fb0` は 480x640、32bpp、line length 1920 として取得でき、短時間の
@@ -325,8 +388,12 @@ A30 上で実画面へ swap できることを確認しました。`NULL` native
   維持されることを確認した上で、stock `/etc/main`、`MainUI.stock`、`keymon` を止めた
   plumOS 想定状態でも `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`
   が `result=frontend_mali_renderer_rc_0` で完了した。終了後も stock 側は戻していない
+- RetroArch minimal: RetroArch 1.22.2 を A30 armv7 hard-float 向けに最小 build し、
+  `mali_fbdev` + GLES/EGL + RGUI 表示まで成功した。A30 物理画面の横向き表示は
+  GL2 menu MVP patch と `--rotation ccw` で確認済み。core/audio/input は未検証
 
 stock `keymon` と直接 input event の比較は [A30 input policy](a30-input-policy.md) に
 分離しました。次は、`plumos-controller-ui-mali` の実機画面での文字可読性/余白/配色の
-目視調整と、RetroArch SDL2/evdev build に進みます。SDL3/sdl2-compat custom video backend 化は
+目視調整と、RetroArch full runtime の core/audio/input smoke に進みます。
+SDL3/sdl2-compat custom video backend 化は
 frontend presenter の挙動が固まってから再判断します。
