@@ -24,6 +24,12 @@
           "action": "internal:favorites"
         },
         {
+          "id": "recent",
+          "display_name": "Recent",
+          "kind": "internal",
+          "action": "internal:recent"
+        },
+        {
           "id": "network",
           "display_name": "Network",
           "kind": "internal",

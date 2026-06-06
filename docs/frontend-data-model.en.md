@@ -50,6 +50,7 @@ official plumOS specification.
     recent.json
     favorites.json
     play-history.json
+    resume-session.json
     core-overrides.json
     cursor-state.json
     scan-stats.json
@@ -257,6 +258,7 @@ Text mode can force `use_icons=false`; icons may exist but are not required.
   "rom_mode": "text",
   "show_empty_systems": false,
   "show_favorites_on_top": false,
+  "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",
   "rom_scan_policy": "on_enter",
@@ -270,6 +272,13 @@ Text mode can force `use_icons=false`; icons may exist but are not required.
 `ui_mode` is the global default. `top_mode` and `rom_mode` may diverge.
 The default `rom_scan_policy` is `on_enter`; stock-style manual refresh is not
 the default. Use `cached` or `manual_refresh` only when performance requires it.
+
+`boot_resume_mode`:
+
+- `off`: show the normal TOP screen on boot.
+- `last`: launch the pending resume session when one exists.
+- `picker`: show the pending resume target plus recent list and let the user
+  choose what to resume.
 
 ## TOP Screen
 
@@ -394,6 +403,79 @@ Rules:
   system.
 - Do not adopt stock favorite formats directly. Add an importer only if needed.
 
+## Recent / Resume Model
+
+Recent and Resume are separate. Recent is the browsing history; Resume is the
+single target that may be offered at the next boot. Keeping them separate avoids
+mixing "played before" with "should be resumed next".
+
+Recent state path:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/recent.json
+```
+
+Schema:
+
+```json
+{
+  "version": 1,
+  "recents": [
+    {
+      "system_id": "gba",
+      "relative_path": "GBA/example.gba",
+      "title": "example",
+      "file_name": "example.gba",
+      "path": "/mnt/SDCARD/Roms/GBA/example.gba",
+      "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+      "launch_profile": "retroarch:mgba",
+      "last_played_at": "2026-06-06T12:34:56Z",
+      "resume_available": true
+    }
+  ]
+}
+```
+
+Resume state path:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/resume-session.json
+```
+
+Schema:
+
+```json
+{
+  "version": 1,
+  "pending": true,
+  "reason": "shutdown",
+  "system_id": "gba",
+  "relative_path": "GBA/example.gba",
+  "title": "example",
+  "file_name": "example.gba",
+  "path": "/mnt/SDCARD/Roms/GBA/example.gba",
+  "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+  "launch_profile": "retroarch:mgba",
+  "updated_at": "2026-06-06T12:34:56Z",
+  "auto_state_load": true
+}
+```
+
+Rules:
+
+- Adding a recent entry moves that ROM to the top.
+- Store the resolved launch profile used for that launch.
+- Resuming from history should prefer the `launch_profile` stored in
+  recent/resume state over the current system default.
+- `pending=true` in `resume-session.json` means the target should be offered on
+  the next boot.
+- `boot_resume_mode=last` launches pending resume directly. The initial text
+  prototype only prints that boot decision; real launching is handled later.
+- `boot_resume_mode=picker` shows pending resume plus recent list so the user can
+  choose what to resume.
+- RetroArch Auto Save State / Auto Load State integration belongs to the later
+  launcher/RetroArch implementation.
+
 ## START Menu
 
 Pressing START on the TOP screen or ROM list opens the system menu. OS reboot,
@@ -407,6 +489,7 @@ settings, and non-emulator app flows should not clutter the TOP system list.
     { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
     { "id": "apps", "display_name": "Apps", "action": "menu:apps" },
     { "id": "favorites", "display_name": "Favorites", "action": "internal:favorites" },
+    { "id": "recent", "display_name": "Recent", "action": "internal:recent" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
     { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },

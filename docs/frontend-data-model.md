@@ -46,6 +46,7 @@
     recent.json               plumOS recent list
     favorites.json            plumOS favorites
     play-history.json         play count and last played timestamps
+    resume-session.json       pending boot resume target
     core-overrides.json       per-ROM/per-system launch profile overrides
     cursor-state.json         last selected system/ROM/view position
     scan-stats.json           scan timing and fallback policy state
@@ -254,6 +255,7 @@ text mode では使いません。
   "rom_mode": "text",
   "show_empty_systems": false,
   "show_favorites_on_top": false,
+  "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",
   "rom_scan_policy": "on_enter",
@@ -270,6 +272,12 @@ TOP は text、ROM list は gallery のような構成も可能にします。
 `rom_scan_policy` の default は `on_enter` です。stock FE のような「手動 refresh しないと
 ROM が出ない」方式は default にしません。性能上必要な場合だけ `cached` または
 `manual_refresh` へ切り替えます。
+
+`boot_resume_mode`:
+
+- `off`: 起動時は通常の TOP を表示する
+- `last`: pending resume session があれば同じ ROM/launch profile で再開する
+- `picker`: 起動時に pending resume と recent list を表示し、ユーザーが選んで再開する
 
 ## TOP screen model
 
@@ -390,6 +398,76 @@ rules:
 - `show_favorites_on_top=true` の場合、Favorites は TOP に仮想 system として表示できる
 - stock favorite 形式を直接採用せず、必要な場合だけ importer を作る
 
+## Recent / Resume model
+
+Recent と Resume は分離します。Recent は履歴一覧、Resume は次回起動時の再開候補です。
+混ぜると「過去に遊んだ」ことと「次回自動再開すべき」ことの意味が曖昧になるため、
+別 file にします。
+
+Recent 保存先:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/recent.json
+```
+
+schema:
+
+```json
+{
+  "version": 1,
+  "recents": [
+    {
+      "system_id": "gba",
+      "relative_path": "GBA/example.gba",
+      "title": "example",
+      "file_name": "example.gba",
+      "path": "/mnt/SDCARD/Roms/GBA/example.gba",
+      "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+      "launch_profile": "retroarch:mgba",
+      "last_played_at": "2026-06-06T12:34:56Z",
+      "resume_available": true
+    }
+  ]
+}
+```
+
+Resume 保存先:
+
+```text
+/mnt/SDCARD/plumos/state/frontend/resume-session.json
+```
+
+schema:
+
+```json
+{
+  "version": 1,
+  "pending": true,
+  "reason": "shutdown",
+  "system_id": "gba",
+  "relative_path": "GBA/example.gba",
+  "title": "example",
+  "file_name": "example.gba",
+  "path": "/mnt/SDCARD/Roms/GBA/example.gba",
+  "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+  "launch_profile": "retroarch:mgba",
+  "updated_at": "2026-06-06T12:34:56Z",
+  "auto_state_load": true
+}
+```
+
+rules:
+
+- recent entry は最後に起動した ROM を先頭へ移動する
+- recent entry の `launch_profile` は起動時に解決済みの profile を保存する
+- 履歴から再開する場合は、現在の system default ではなく recent/resume に保存された
+  `launch_profile` を優先する
+- `resume-session.json` の `pending=true` は「次回起動時に再開候補として扱う」ことを示す
+- `boot_resume_mode=last` は pending resume を直接起動する。ただし初期 prototype では
+  実起動せず、起動判断だけを text UI で表示する
+- `boot_resume_mode=picker` は pending resume と recent list を表示し、ユーザー選択で再開する
+- RetroArch の Auto Save State / Auto Load State との実接続は launcher/RetroArch 実装時に行う
+
 ## START menu model
 
 TOP 画面や ROM list 画面で START を押すと、system menu を開きます。OS reboot や
@@ -403,6 +481,7 @@ settings など、emulator ではない機能は TOP に直接並べず、この
     { "id": "settings", "display_name": "Settings", "action": "internal:settings" },
     { "id": "apps", "display_name": "Apps", "action": "menu:apps" },
     { "id": "favorites", "display_name": "Favorites", "action": "internal:favorites" },
+    { "id": "recent", "display_name": "Recent", "action": "internal:recent" },
     { "id": "refresh-current", "display_name": "Refresh Current System", "action": "scan:current" },
     { "id": "network", "display_name": "Network", "action": "internal:network" },
     { "id": "reboot", "display_name": "Reboot", "action": "system:reboot", "confirm": true },

@@ -230,6 +230,39 @@ shows `*` for favorite entries. The START menu `Favorites` entry is the path to
 this Favorites list. When `show_favorites_on_top=true`, Favorites can also be
 opened from the TOP screen.
 
+Add and list Recent:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui recent add ports "PORTS/Start SSH.sh" --profile external:port'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui recent'
+```
+
+Set and show Resume session:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui resume set ports "PORTS/Start SSH.sh" --profile external:port --reason shutdown'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui resume show'
+```
+
+Boot resume decision:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui boot'
+```
+
+`recent.json` is the browsing history; `resume-session.json` is the next-boot
+resume candidate. `boot_resume_mode` in `settings.json` accepts `off`, `last`,
+and `picker`. The `boot` prototype only prints the decision; it does not launch
+RetroArch yet. Real auto state load integration belongs to the later
+RetroArch/launcher implementation.
+
 A30 device check on 2026-06-06:
 
 ```text
@@ -248,10 +281,11 @@ menu: start
   1. Settings                 internal   internal:settings        no
   2. Apps                     submenu    menu:apps                no
   3. Favorites                internal   internal:favorites       no
-  4. Network                  internal   internal:network         no
-  5. Refresh Current System   scan       scan:current             no
-  6. Reboot                   system     system:reboot            yes
-  7. Shutdown                 system     system:shutdown          yes
+  4. Recent                   internal   internal:recent          no
+  5. Network                  internal   internal:network         no
+  6. Refresh Current System   scan       scan:current             no
+  7. Reboot                   system     system:reboot            yes
+  8. Shutdown                 system     system:shutdown          yes
 
 plumOS text UI - core selection
 scope: system

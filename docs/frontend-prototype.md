@@ -221,6 +221,38 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 入口です。`show_favorites_on_top=true` の場合は、START menu だけでなく TOP からも
 Favorites へ入れます。
 
+Recent 追加と一覧:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui recent add ports "PORTS/Start SSH.sh" --profile external:port'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui recent'
+```
+
+Resume session 設定と表示:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui resume set ports "PORTS/Start SSH.sh" --profile external:port --reason shutdown'
+
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui resume show'
+```
+
+起動時 resume 判断:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-text-ui boot'
+```
+
+`recent.json` は履歴一覧、`resume-session.json` は次回起動時の再開候補です。
+`settings.json` の `boot_resume_mode` は `off`, `last`, `picker` を指定できます。
+この prototype の `boot` は判断を表示するだけで、RetroArch はまだ起動しません。
+実際の auto state load は RetroArch/launcher 実装時に接続します。
+
 2026-06-06 の A30 実機確認:
 
 ```text
@@ -239,10 +271,11 @@ menu: start
   1. Settings                 internal   internal:settings        no
   2. Apps                     submenu    menu:apps                no
   3. Favorites                internal   internal:favorites       no
-  4. Network                  internal   internal:network         no
-  5. Refresh Current System   scan       scan:current             no
-  6. Reboot                   system     system:reboot            yes
-  7. Shutdown                 system     system:shutdown          yes
+  4. Recent                   internal   internal:recent          no
+  5. Network                  internal   internal:network         no
+  6. Refresh Current System   scan       scan:current             no
+  7. Reboot                   system     system:reboot            yes
+  8. Shutdown                 system     system:shutdown          yes
 
 plumOS text UI - core selection
 scope: system

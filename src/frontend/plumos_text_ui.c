@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef PATH_MAX
@@ -19,6 +20,7 @@
 #define MAX_SYSTEM_CORE_OVERRIDES 256
 #define MAX_ROM_CORE_OVERRIDES 1024
 #define MAX_FAVORITES 2048
+#define MAX_RECENTS 256
 #define TEXT_PATH_MAX 1024
 
 struct top_entry {
@@ -98,9 +100,41 @@ struct favorite_state {
   size_t count;
 };
 
+struct recent_entry {
+  char system_id[64];
+  char relative_path[TEXT_PATH_MAX];
+  char title[256];
+  char file_name[256];
+  char path[TEXT_PATH_MAX];
+  char thumbnail[TEXT_PATH_MAX];
+  char launch_profile[128];
+  char last_played_at[64];
+  int resume_available;
+};
+
+struct recent_state {
+  struct recent_entry entries[MAX_RECENTS];
+  size_t count;
+};
+
+struct resume_session {
+  int pending;
+  char reason[64];
+  char system_id[64];
+  char relative_path[TEXT_PATH_MAX];
+  char title[256];
+  char file_name[256];
+  char path[TEXT_PATH_MAX];
+  char thumbnail[TEXT_PATH_MAX];
+  char launch_profile[128];
+  char updated_at[64];
+  int auto_state_load;
+};
+
 struct frontend_settings {
   int show_favorites_on_top;
   int show_empty_systems;
+  char boot_resume_mode[32];
 };
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -221,6 +255,21 @@ static int valid_relative_rom_path(const char *s) {
     return 0;
   }
   return 1;
+}
+
+static void current_utc_timestamp(char *out, size_t out_size) {
+  time_t now;
+  struct tm *tm_now;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  now = time(NULL);
+  tm_now = gmtime(&now);
+  if (!tm_now || strftime(out, out_size, "%Y-%m-%dT%H:%M:%SZ", tm_now) == 0) {
+    copy_string(out, out_size, "unknown");
+  }
 }
 
 static char *read_file(const char *path, size_t *size_out) {
@@ -623,6 +672,7 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
 
 static void init_frontend_settings(struct frontend_settings *settings) {
   memset(settings, 0, sizeof(*settings));
+  copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
 }
 
 static int load_frontend_settings(const char *path, struct frontend_settings *settings) {
@@ -640,6 +690,13 @@ static int load_frontend_settings(const char *path, struct frontend_settings *se
   settings->show_favorites_on_top =
       json_get_bool(json, json + json_size, "show_favorites_on_top", 0);
   settings->show_empty_systems = json_get_bool(json, json + json_size, "show_empty_systems", 0);
+  json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
+                  sizeof(settings->boot_resume_mode));
+  if (strcmp(settings->boot_resume_mode, "off") != 0 &&
+      strcmp(settings->boot_resume_mode, "last") != 0 &&
+      strcmp(settings->boot_resume_mode, "picker") != 0) {
+    copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
+  }
   free(json);
   return 1;
 }
@@ -987,6 +1044,27 @@ static int find_rom_by_relative_path(const struct rom_entry *entries, size_t cou
   return -1;
 }
 
+static int resolve_launch_profile(const struct core_system_def *system,
+                                  const struct core_override_state *overrides,
+                                  const char *relative_path, char *out, size_t out_size) {
+  int idx;
+
+  if (relative_path) {
+    idx = find_rom_core_override(overrides, system->id, relative_path);
+    if (idx >= 0) {
+      return copy_string(out, out_size, overrides->rom_overrides[idx].launch_profile);
+    }
+  }
+  idx = find_system_core_override(overrides, system->id);
+  if (idx >= 0) {
+    return copy_string(out, out_size, overrides->system_overrides[idx].launch_profile);
+  }
+  if (system->default_launch_profile[0]) {
+    return copy_string(out, out_size, system->default_launch_profile);
+  }
+  return copy_string(out, out_size, "auto");
+}
+
 static void init_favorite_state(struct favorite_state *state) {
   memset(state, 0, sizeof(*state));
 }
@@ -1151,6 +1229,286 @@ static int clear_favorite(struct favorite_state *state, const char *system_id,
   }
   state->count--;
   return 1;
+}
+
+static void init_recent_state(struct recent_state *state) {
+  memset(state, 0, sizeof(*state));
+}
+
+static int find_recent(const struct recent_state *state, const char *system_id,
+                       const char *relative_path) {
+  size_t i;
+  for (i = 0; i < state->count; i++) {
+    if (strcmp(state->entries[i].system_id, system_id) == 0 &&
+        strcmp(state->entries[i].relative_path, relative_path) == 0) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static int load_recent(const char *path, struct recent_state *state) {
+  char *json;
+  size_t json_size;
+  const char *array_start;
+  const char *array_end;
+  const char *cursor;
+
+  init_recent_state(state);
+  if (!file_exists(path)) {
+    return 1;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "recents", &array_start, &array_end)) {
+    free(json);
+    return 0;
+  }
+
+  cursor = array_start;
+  while (state->count < MAX_RECENTS) {
+    const char *obj_start;
+    const char *obj_end;
+    char *obj;
+    struct recent_entry entry;
+
+    if (!json_next_object(&cursor, array_end, &obj_start, &obj_end)) {
+      break;
+    }
+    obj = range_dup(obj_start, obj_end);
+    if (!obj) {
+      free(json);
+      return 0;
+    }
+
+    memset(&entry, 0, sizeof(entry));
+    json_get_string(obj, obj + strlen(obj), "system_id", entry.system_id,
+                    sizeof(entry.system_id));
+    json_get_string(obj, obj + strlen(obj), "relative_path", entry.relative_path,
+                    sizeof(entry.relative_path));
+    json_get_string(obj, obj + strlen(obj), "title", entry.title, sizeof(entry.title));
+    json_get_string(obj, obj + strlen(obj), "file_name", entry.file_name,
+                    sizeof(entry.file_name));
+    json_get_string(obj, obj + strlen(obj), "path", entry.path, sizeof(entry.path));
+    json_get_string(obj, obj + strlen(obj), "thumbnail", entry.thumbnail,
+                    sizeof(entry.thumbnail));
+    json_get_string(obj, obj + strlen(obj), "launch_profile", entry.launch_profile,
+                    sizeof(entry.launch_profile));
+    json_get_string(obj, obj + strlen(obj), "last_played_at", entry.last_played_at,
+                    sizeof(entry.last_played_at));
+    entry.resume_available = json_get_bool(obj, obj + strlen(obj), "resume_available", 0);
+
+    if (valid_system_id(entry.system_id) && valid_relative_rom_path(entry.relative_path) &&
+        entry.launch_profile[0] && find_recent(state, entry.system_id, entry.relative_path) < 0) {
+      if (!entry.title[0]) {
+        copy_string(entry.title, sizeof(entry.title),
+                    entry.file_name[0] ? entry.file_name : entry.relative_path);
+      }
+      state->entries[state->count++] = entry;
+    }
+    free(obj);
+  }
+
+  free(json);
+  return 1;
+}
+
+static int save_recent(const char *path, const struct recent_state *state) {
+  char tmp_path[PATH_MAX];
+  FILE *f;
+  size_t i;
+
+  if (!ensure_parent_dir(path)) {
+    return 0;
+  }
+  if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path) >= (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+
+  fprintf(f, "{\n");
+  fprintf(f, "  \"version\": 1,\n");
+  fprintf(f, "  \"recents\": [\n");
+  for (i = 0; i < state->count; i++) {
+    fprintf(f, "    { \"system_id\": ");
+    json_write_escaped(f, state->entries[i].system_id);
+    fprintf(f, ", \"relative_path\": ");
+    json_write_escaped(f, state->entries[i].relative_path);
+    fprintf(f, ", \"title\": ");
+    json_write_escaped(f, state->entries[i].title);
+    fprintf(f, ", \"file_name\": ");
+    json_write_escaped(f, state->entries[i].file_name);
+    fprintf(f, ", \"path\": ");
+    json_write_escaped(f, state->entries[i].path);
+    fprintf(f, ", \"thumbnail\": ");
+    json_write_escaped(f, state->entries[i].thumbnail);
+    fprintf(f, ", \"launch_profile\": ");
+    json_write_escaped(f, state->entries[i].launch_profile);
+    fprintf(f, ", \"last_played_at\": ");
+    json_write_escaped(f, state->entries[i].last_played_at);
+    fprintf(f, ", \"resume_available\": %s", state->entries[i].resume_available ? "true" : "false");
+    fprintf(f, " }%s\n", i + 1 < state->count ? "," : "");
+  }
+  fprintf(f, "  ]\n");
+  fprintf(f, "}\n");
+
+  if (fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  return 1;
+}
+
+static void recent_entry_from_rom(struct recent_entry *entry, const char *system_id,
+                                  const struct rom_entry *rom, const char *launch_profile,
+                                  const char *played_at, int resume_available) {
+  memset(entry, 0, sizeof(*entry));
+  copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+  copy_string(entry->relative_path, sizeof(entry->relative_path), rom->relative_path);
+  copy_string(entry->title, sizeof(entry->title), rom->title[0] ? rom->title : rom->relative_path);
+  copy_string(entry->file_name, sizeof(entry->file_name), rom->file_name);
+  copy_string(entry->path, sizeof(entry->path), rom->path);
+  copy_string(entry->thumbnail, sizeof(entry->thumbnail), rom->thumbnail);
+  copy_string(entry->launch_profile, sizeof(entry->launch_profile), launch_profile);
+  copy_string(entry->last_played_at, sizeof(entry->last_played_at), played_at);
+  entry->resume_available = resume_available;
+}
+
+static int add_recent_entry(struct recent_state *state, const struct recent_entry *entry) {
+  int idx = find_recent(state, entry->system_id, entry->relative_path);
+  if (idx >= 0) {
+    if (idx > 0) {
+      memmove(&state->entries[1], &state->entries[0], (size_t)idx * sizeof(state->entries[0]));
+    }
+  } else {
+    if (state->count < MAX_RECENTS) {
+      state->count++;
+    }
+    if (state->count > 1) {
+      memmove(&state->entries[1], &state->entries[0],
+              (state->count - 1) * sizeof(state->entries[0]));
+    }
+  }
+  state->entries[0] = *entry;
+  return 1;
+}
+
+static void init_resume_session(struct resume_session *session) {
+  memset(session, 0, sizeof(*session));
+  copy_string(session->reason, sizeof(session->reason), "none");
+}
+
+static int load_resume_session(const char *path, struct resume_session *session) {
+  char *json;
+  size_t json_size;
+
+  init_resume_session(session);
+  if (!file_exists(path)) {
+    return 1;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  session->pending = json_get_bool(json, json + json_size, "pending", 0);
+  json_get_string(json, json + json_size, "reason", session->reason, sizeof(session->reason));
+  json_get_string(json, json + json_size, "system_id", session->system_id,
+                  sizeof(session->system_id));
+  json_get_string(json, json + json_size, "relative_path", session->relative_path,
+                  sizeof(session->relative_path));
+  json_get_string(json, json + json_size, "title", session->title, sizeof(session->title));
+  json_get_string(json, json + json_size, "file_name", session->file_name,
+                  sizeof(session->file_name));
+  json_get_string(json, json + json_size, "path", session->path, sizeof(session->path));
+  json_get_string(json, json + json_size, "thumbnail", session->thumbnail,
+                  sizeof(session->thumbnail));
+  json_get_string(json, json + json_size, "launch_profile", session->launch_profile,
+                  sizeof(session->launch_profile));
+  json_get_string(json, json + json_size, "updated_at", session->updated_at,
+                  sizeof(session->updated_at));
+  session->auto_state_load = json_get_bool(json, json + json_size, "auto_state_load", 1);
+  if (!session->reason[0]) {
+    copy_string(session->reason, sizeof(session->reason), session->pending ? "shutdown" : "none");
+  }
+  free(json);
+  return 1;
+}
+
+static int save_resume_session(const char *path, const struct resume_session *session) {
+  char tmp_path[PATH_MAX];
+  FILE *f;
+
+  if (!ensure_parent_dir(path)) {
+    return 0;
+  }
+  if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path) >= (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+
+  fprintf(f, "{\n");
+  fprintf(f, "  \"version\": 1,\n");
+  fprintf(f, "  \"pending\": %s,\n", session->pending ? "true" : "false");
+  fprintf(f, "  \"reason\": ");
+  json_write_escaped(f, session->reason);
+  fprintf(f, ",\n  \"system_id\": ");
+  json_write_escaped(f, session->system_id);
+  fprintf(f, ",\n  \"relative_path\": ");
+  json_write_escaped(f, session->relative_path);
+  fprintf(f, ",\n  \"title\": ");
+  json_write_escaped(f, session->title);
+  fprintf(f, ",\n  \"file_name\": ");
+  json_write_escaped(f, session->file_name);
+  fprintf(f, ",\n  \"path\": ");
+  json_write_escaped(f, session->path);
+  fprintf(f, ",\n  \"thumbnail\": ");
+  json_write_escaped(f, session->thumbnail);
+  fprintf(f, ",\n  \"launch_profile\": ");
+  json_write_escaped(f, session->launch_profile);
+  fprintf(f, ",\n  \"updated_at\": ");
+  json_write_escaped(f, session->updated_at);
+  fprintf(f, ",\n  \"auto_state_load\": %s\n", session->auto_state_load ? "true" : "false");
+  fprintf(f, "}\n");
+
+  if (fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  return 1;
+}
+
+static void resume_session_from_rom(struct resume_session *session, const char *system_id,
+                                    const struct rom_entry *rom, const char *launch_profile,
+                                    const char *updated_at, const char *reason, int pending,
+                                    int auto_state_load) {
+  init_resume_session(session);
+  session->pending = pending;
+  copy_string(session->reason, sizeof(session->reason), reason && reason[0] ? reason : "shutdown");
+  copy_string(session->system_id, sizeof(session->system_id), system_id);
+  copy_string(session->relative_path, sizeof(session->relative_path), rom->relative_path);
+  copy_string(session->title, sizeof(session->title), rom->title[0] ? rom->title : rom->relative_path);
+  copy_string(session->file_name, sizeof(session->file_name), rom->file_name);
+  copy_string(session->path, sizeof(session->path), rom->path);
+  copy_string(session->thumbnail, sizeof(session->thumbnail), rom->thumbnail);
+  copy_string(session->launch_profile, sizeof(session->launch_profile), launch_profile);
+  copy_string(session->updated_at, sizeof(session->updated_at), updated_at);
+  session->auto_state_load = auto_state_load;
 }
 
 static int append_favorites_top_entry(struct top_entry *entries, size_t max_entries,
@@ -1340,6 +1698,47 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
 
   *count_out = count;
   free(json);
+  return 1;
+}
+
+static int load_selected_rom(const char *plumos_root, const char *sdcard_root,
+                             const char *system_id, const char *relative_path, int scan,
+                             struct rom_entry *rom_out) {
+  char system_cache_path[PATH_MAX];
+  struct rom_entry *entries;
+  size_t count = 0;
+  long ready_ms = -1;
+  int rom_idx;
+
+  if (!build_system_cache_path(system_cache_path, sizeof(system_cache_path), plumos_root,
+                               system_id)) {
+    fprintf(stderr, "error: system cache path is too long\n");
+    return 0;
+  }
+  if ((scan || !file_exists(system_cache_path)) &&
+      !run_scanner(plumos_root, sdcard_root, system_id, 0)) {
+    return 0;
+  }
+  entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
+  if (!entries) {
+    fprintf(stderr, "error: out of memory\n");
+    return 0;
+  }
+  if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
+                        &ready_ms)) {
+    fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
+    free(entries);
+    return 0;
+  }
+  (void)ready_ms;
+  rom_idx = find_rom_by_relative_path(entries, count, relative_path);
+  if (rom_idx < 0) {
+    fprintf(stderr, "error: ROM is not in scan cache for %s: %s\n", system_id, relative_path);
+    free(entries);
+    return 0;
+  }
+  *rom_out = entries[rom_idx];
+  free(entries);
   return 1;
 }
 
@@ -1607,6 +2006,101 @@ static void print_favorite_result(const char *action, const char *system_id,
   printf("count: %zu\n", favorites->count);
 }
 
+static void print_recent(const struct recent_state *recent, size_t limit, const char *path) {
+  size_t i;
+  size_t shown = 0;
+
+  printf("plumOS text UI - Recent\n");
+  printf("source: %s\n", path);
+  printf("count: %zu\n", recent->count);
+  printf("\n");
+  printf("%-4s %-12s %-4s %-34s %-22s %s\n", "No.", "System", "Resume", "Title",
+         "Last played", "Launch profile");
+  printf("%-4s %-12s %-4s %-34s %-22s %s\n", "---", "------", "------", "-----",
+         "-----------", "--------------");
+
+  for (i = 0; i < recent->count; i++) {
+    if (limit > 0 && shown >= limit) {
+      continue;
+    }
+    shown++;
+    printf("%3zu. %-12s %-6s %-34s %-22s %s\n", shown, recent->entries[i].system_id,
+           recent->entries[i].resume_available ? "yes" : "no", recent->entries[i].title,
+           recent->entries[i].last_played_at, recent->entries[i].launch_profile);
+  }
+  if (recent->count == 0) {
+    printf("(recent entry はまだありません。)\n");
+  } else if (limit > 0 && recent->count > shown) {
+    printf("... %zu more\n", recent->count - shown);
+  }
+}
+
+static void print_resume_session(const struct resume_session *session, const char *path) {
+  printf("plumOS text UI - resume session\n");
+  printf("source: %s\n", path);
+  printf("pending: %s\n", session->pending ? "yes" : "no");
+  printf("reason: %s\n", session->reason);
+  printf("system: %s\n", session->system_id);
+  printf("rom: %s\n", session->relative_path);
+  printf("title: %s\n", session->title);
+  printf("launch_profile: %s\n", session->launch_profile);
+  printf("updated_at: %s\n", session->updated_at);
+  printf("auto_state_load: %s\n", session->auto_state_load ? "yes" : "no");
+}
+
+static void print_resume_result(const char *action, const struct resume_session *session,
+                                const char *path) {
+  printf("plumOS text UI - resume\n");
+  printf("action: %s\n", action);
+  printf("source: %s\n", path);
+  printf("pending: %s\n", session->pending ? "yes" : "no");
+  printf("system: %s\n", session->system_id);
+  printf("rom: %s\n", session->relative_path);
+  printf("title: %s\n", session->title);
+  printf("launch_profile: %s\n", session->launch_profile);
+  printf("updated_at: %s\n", session->updated_at);
+}
+
+static void print_boot_resume(const struct frontend_settings *settings,
+                              const struct resume_session *session,
+                              const struct recent_state *recent, size_t limit,
+                              const char *resume_path, const char *recent_path) {
+  printf("plumOS text UI - boot resume\n");
+  printf("mode: %s\n", settings->boot_resume_mode);
+  printf("resume: %s\n", resume_path);
+  printf("recent: %s\n", recent_path);
+  printf("\n");
+
+  if (strcmp(settings->boot_resume_mode, "off") == 0) {
+    printf("decision: show TOP\n");
+    return;
+  }
+  if (strcmp(settings->boot_resume_mode, "last") == 0) {
+    if (session->pending && session->system_id[0] && session->relative_path[0]) {
+      printf("decision: launch pending resume\n");
+      printf("system: %s\n", session->system_id);
+      printf("rom: %s\n", session->relative_path);
+      printf("title: %s\n", session->title);
+      printf("launch_profile: %s\n", session->launch_profile);
+      printf("auto_state_load: %s\n", session->auto_state_load ? "yes" : "no");
+    } else {
+      printf("decision: show TOP\n");
+      printf("reason: no pending resume session\n");
+    }
+    return;
+  }
+
+  printf("decision: show resume picker\n");
+  if (session->pending && session->system_id[0] && session->relative_path[0]) {
+    printf("\n");
+    printf("Pending resume:\n");
+    printf("  %s / %s / %s / %s\n", session->system_id, session->title,
+           session->relative_path, session->launch_profile);
+  }
+  printf("\n");
+  print_recent(recent, limit, recent_path);
+}
+
 static void print_menu(const char *menu_id, const struct menu_entry *entries, size_t count,
                        size_t limit, const char *path) {
   size_t i;
@@ -1736,6 +2230,13 @@ static void usage(const char *argv0) {
   printf("  %s favorites [--limit N]\n", argv0);
   printf("  %s favorite rom SYSTEM RELATIVE_PATH [--toggle|--set|--clear] [--no-scan]\n",
          argv0);
+  printf("  %s recent [--limit N]\n", argv0);
+  printf("  %s recent add SYSTEM RELATIVE_PATH [--profile PROFILE] [--resume yes|no] [--no-scan]\n",
+         argv0);
+  printf("  %s resume show|clear\n", argv0);
+  printf("  %s resume set SYSTEM RELATIVE_PATH [--profile PROFILE] [--reason REASON] [--no-scan]\n",
+         argv0);
+  printf("  %s boot [--limit N]\n", argv0);
   printf("\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
@@ -1755,6 +2256,8 @@ int main(int argc, char **argv) {
   char apps_path[PATH_MAX];
   char core_overrides_path[PATH_MAX];
   char favorites_path[PATH_MAX];
+  char recent_path[PATH_MAX];
+  char resume_session_path[PATH_MAX];
   const char *cmd;
   size_t limit = 0;
   int i;
@@ -1800,6 +2303,13 @@ int main(int argc, char **argv) {
     fprintf(stderr, "error: favorites path is too long\n");
     return 1;
   }
+  if (!join_path(recent_path, sizeof(recent_path), plumos_root,
+                 "state/frontend/recent.json") ||
+      !join_path(resume_session_path, sizeof(resume_session_path), plumos_root,
+                 "state/frontend/resume-session.json")) {
+    fprintf(stderr, "error: recent/resume path is too long\n");
+    return 1;
+  }
 
   if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
     usage(argv[0]);
@@ -1810,7 +2320,7 @@ int main(int argc, char **argv) {
   if (strcmp(cmd, "top") == 0) {
     struct top_entry *entries;
     struct frontend_settings settings;
-    struct favorite_state favorites;
+    static struct favorite_state favorites;
     size_t count = 0;
     long ready_ms = -1;
     int show_all = 0;
@@ -1870,7 +2380,7 @@ int main(int argc, char **argv) {
 
   if (strcmp(cmd, "roms") == 0) {
     struct rom_entry *entries;
-    struct favorite_state favorites;
+    static struct favorite_state favorites;
     const char *system_id;
     size_t count = 0;
     long ready_ms = -1;
@@ -1943,7 +2453,7 @@ int main(int argc, char **argv) {
   }
 
   if (strcmp(cmd, "favorites") == 0) {
-    struct favorite_state favorites;
+    static struct favorite_state favorites;
     const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
 
     limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 50;
@@ -1970,7 +2480,7 @@ int main(int argc, char **argv) {
     const char *system_id;
     const char *rom_relative_path;
     const char *action = "toggle";
-    struct favorite_state favorites;
+    static struct favorite_state favorites;
     struct rom_entry *entries;
     struct rom_entry selected_rom;
     size_t count = 0;
@@ -2092,6 +2602,260 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (strcmp(cmd, "recent") == 0 || strcmp(cmd, "recents") == 0) {
+    static struct recent_state recent;
+    const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
+
+    limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 20;
+    if (argc >= 3 && strcmp(argv[2], "add") == 0) {
+      const char *system_id;
+      const char *rom_relative_path;
+      const char *profile_arg = NULL;
+      const char *played_at_arg = NULL;
+      int resume_available = 1;
+      int scan = 1;
+      struct rom_entry rom;
+      struct core_system_def system;
+      static struct core_override_state overrides;
+      struct recent_entry entry;
+      char launch_profile[128];
+      char played_at[64];
+
+      if (argc < 5) {
+        fprintf(stderr, "error: recent add requires SYSTEM RELATIVE_PATH\n");
+        usage(argv[0]);
+        return 2;
+      }
+      system_id = argv[3];
+      rom_relative_path = argv[4];
+      if (!valid_system_id(system_id) || !valid_relative_rom_path(rom_relative_path)) {
+        fprintf(stderr, "error: invalid recent target\n");
+        return 2;
+      }
+      for (i = 5; i < argc; i++) {
+        if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+          profile_arg = argv[++i];
+          if (!valid_launch_profile_id(profile_arg)) {
+            fprintf(stderr, "error: invalid launch profile: %s\n", profile_arg);
+            return 2;
+          }
+        } else if (strcmp(argv[i], "--played-at") == 0 && i + 1 < argc) {
+          played_at_arg = argv[++i];
+        } else if (strcmp(argv[i], "--resume") == 0 && i + 1 < argc) {
+          const char *value = argv[++i];
+          if (strcmp(value, "yes") == 0 || strcmp(value, "true") == 0 || strcmp(value, "1") == 0) {
+            resume_available = 1;
+          } else if (strcmp(value, "no") == 0 || strcmp(value, "false") == 0 ||
+                     strcmp(value, "0") == 0) {
+            resume_available = 0;
+          } else {
+            fprintf(stderr, "error: --resume expects yes or no\n");
+            return 2;
+          }
+        } else if (strcmp(argv[i], "--no-scan") == 0) {
+          scan = 0;
+        } else {
+          fprintf(stderr, "error: unknown recent option: %s\n", argv[i]);
+          usage(argv[0]);
+          return 2;
+        }
+      }
+
+      if (!load_selected_rom(plumos_root, sdcard_root, system_id, rom_relative_path, scan, &rom)) {
+        return 1;
+      }
+      if (profile_arg) {
+        copy_string(launch_profile, sizeof(launch_profile), profile_arg);
+      } else {
+        if (!load_core_system_def(systems_path, system_id, &system) ||
+            !load_core_overrides(core_overrides_path, &overrides) ||
+            !resolve_launch_profile(&system, &overrides, rom_relative_path, launch_profile,
+                                    sizeof(launch_profile))) {
+          fprintf(stderr, "error: cannot resolve launch profile for %s\n", system_id);
+          return 1;
+        }
+      }
+      if (played_at_arg) {
+        copy_string(played_at, sizeof(played_at), played_at_arg);
+      } else {
+        current_utc_timestamp(played_at, sizeof(played_at));
+      }
+      if (!load_recent(recent_path, &recent)) {
+        fprintf(stderr, "error: cannot read recent: %s\n", recent_path);
+        return 1;
+      }
+      recent_entry_from_rom(&entry, system_id, &rom, launch_profile, played_at,
+                            resume_available);
+      add_recent_entry(&recent, &entry);
+      if (!save_recent(recent_path, &recent)) {
+        fprintf(stderr, "error: cannot write recent: %s\n", recent_path);
+        return 1;
+      }
+      print_recent(&recent, limit, recent_path);
+      return 0;
+    }
+
+    for (i = 2; i < argc; i++) {
+      if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
+        limit = (size_t)strtoul(argv[++i], NULL, 10);
+      } else {
+        fprintf(stderr, "error: unknown recent option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+    if (!load_recent(recent_path, &recent)) {
+      fprintf(stderr, "error: cannot read recent: %s\n", recent_path);
+      return 1;
+    }
+    print_recent(&recent, limit, recent_path);
+    return 0;
+  }
+
+  if (strcmp(cmd, "resume") == 0) {
+    const char *subcmd = argc >= 3 ? argv[2] : "show";
+    static struct resume_session session;
+
+    if (strcmp(subcmd, "show") == 0) {
+      if (!load_resume_session(resume_session_path, &session)) {
+        fprintf(stderr, "error: cannot read resume session: %s\n", resume_session_path);
+        return 1;
+      }
+      print_resume_session(&session, resume_session_path);
+      return 0;
+    }
+    if (strcmp(subcmd, "clear") == 0) {
+      init_resume_session(&session);
+      current_utc_timestamp(session.updated_at, sizeof(session.updated_at));
+      if (!save_resume_session(resume_session_path, &session)) {
+        fprintf(stderr, "error: cannot write resume session: %s\n", resume_session_path);
+        return 1;
+      }
+      print_resume_result("clear", &session, resume_session_path);
+      return 0;
+    }
+    if (strcmp(subcmd, "set") == 0) {
+      const char *system_id;
+      const char *rom_relative_path;
+      const char *profile_arg = NULL;
+      const char *reason = "shutdown";
+      int auto_state_load = 1;
+      int scan = 1;
+      struct rom_entry rom;
+      struct core_system_def system;
+      static struct core_override_state overrides;
+      static struct recent_state recent;
+      struct recent_entry recent_entry;
+      char launch_profile[128];
+      char updated_at[64];
+
+      if (argc < 5) {
+        fprintf(stderr, "error: resume set requires SYSTEM RELATIVE_PATH\n");
+        usage(argv[0]);
+        return 2;
+      }
+      system_id = argv[3];
+      rom_relative_path = argv[4];
+      if (!valid_system_id(system_id) || !valid_relative_rom_path(rom_relative_path)) {
+        fprintf(stderr, "error: invalid resume target\n");
+        return 2;
+      }
+      for (i = 5; i < argc; i++) {
+        if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+          profile_arg = argv[++i];
+          if (!valid_launch_profile_id(profile_arg)) {
+            fprintf(stderr, "error: invalid launch profile: %s\n", profile_arg);
+            return 2;
+          }
+        } else if (strcmp(argv[i], "--reason") == 0 && i + 1 < argc) {
+          reason = argv[++i];
+        } else if (strcmp(argv[i], "--auto-state-load") == 0 && i + 1 < argc) {
+          const char *value = argv[++i];
+          if (strcmp(value, "yes") == 0 || strcmp(value, "true") == 0 || strcmp(value, "1") == 0) {
+            auto_state_load = 1;
+          } else if (strcmp(value, "no") == 0 || strcmp(value, "false") == 0 ||
+                     strcmp(value, "0") == 0) {
+            auto_state_load = 0;
+          } else {
+            fprintf(stderr, "error: --auto-state-load expects yes or no\n");
+            return 2;
+          }
+        } else if (strcmp(argv[i], "--no-scan") == 0) {
+          scan = 0;
+        } else {
+          fprintf(stderr, "error: unknown resume option: %s\n", argv[i]);
+          usage(argv[0]);
+          return 2;
+        }
+      }
+
+      if (!load_selected_rom(plumos_root, sdcard_root, system_id, rom_relative_path, scan, &rom)) {
+        return 1;
+      }
+      if (profile_arg) {
+        copy_string(launch_profile, sizeof(launch_profile), profile_arg);
+      } else {
+        if (!load_core_system_def(systems_path, system_id, &system) ||
+            !load_core_overrides(core_overrides_path, &overrides) ||
+            !resolve_launch_profile(&system, &overrides, rom_relative_path, launch_profile,
+                                    sizeof(launch_profile))) {
+          fprintf(stderr, "error: cannot resolve launch profile for %s\n", system_id);
+          return 1;
+        }
+      }
+      current_utc_timestamp(updated_at, sizeof(updated_at));
+      resume_session_from_rom(&session, system_id, &rom, launch_profile, updated_at, reason, 1,
+                              auto_state_load);
+      if (!save_resume_session(resume_session_path, &session)) {
+        fprintf(stderr, "error: cannot write resume session: %s\n", resume_session_path);
+        return 1;
+      }
+
+      if (!load_recent(recent_path, &recent)) {
+        fprintf(stderr, "error: cannot read recent: %s\n", recent_path);
+        return 1;
+      }
+      recent_entry_from_rom(&recent_entry, system_id, &rom, launch_profile, updated_at, 1);
+      add_recent_entry(&recent, &recent_entry);
+      if (!save_recent(recent_path, &recent)) {
+        fprintf(stderr, "error: cannot write recent: %s\n", recent_path);
+        return 1;
+      }
+      print_resume_result("set", &session, resume_session_path);
+      return 0;
+    }
+
+    fprintf(stderr, "error: unknown resume command: %s\n", subcmd);
+    usage(argv[0]);
+    return 2;
+  }
+
+  if (strcmp(cmd, "boot") == 0) {
+    struct frontend_settings settings;
+    static struct resume_session session;
+    static struct recent_state recent;
+    const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
+
+    limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 10;
+    for (i = 2; i < argc; i++) {
+      if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) {
+        limit = (size_t)strtoul(argv[++i], NULL, 10);
+      } else {
+        fprintf(stderr, "error: unknown boot option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+    if (!load_frontend_settings(settings_path, &settings) ||
+        !load_resume_session(resume_session_path, &session) ||
+        !load_recent(recent_path, &recent)) {
+      fprintf(stderr, "error: cannot read boot resume state\n");
+      return 1;
+    }
+    print_boot_resume(&settings, &session, &recent, limit, resume_session_path, recent_path);
+    return 0;
+  }
+
   if (strcmp(cmd, "menu") == 0) {
     const char *menu_id;
 
@@ -2158,7 +2922,7 @@ int main(int argc, char **argv) {
     const char *rom_relative_path = NULL;
     const char *set_profile = NULL;
     struct core_system_def system;
-    struct core_override_state state;
+    static struct core_override_state state;
     int clear = 0;
     int scan = 1;
     int option_start;

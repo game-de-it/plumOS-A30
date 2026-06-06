@@ -87,7 +87,9 @@
 - [x] core 選択は core id だけでなく launch profile id として保存できるようにする。
 - [x] ROM list で favorite toggle を実装し、START menu から Favorites を開けるようにする。
 - [x] Favorites を TOP に仮想 system として表示する optional setting を用意する。
-- [ ] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。
+- [x] `recent.json` で履歴 ROM/launch profile/resume availability を管理する。
+- [x] `resume-session.json` で自動 ROM 再開対象の ROM/core/launch profile/pending 状態を管理する。
+- [x] `boot_resume_mode=off|last|picker` の text UI prototype を実装する。
 - [ ] 起動時に pending resume session があれば同じ ROM/core/launch profile で自動起動する。
 - [ ] controller-first の最小 frontend prototype を作る。
 - [ ] system list、ROM list、recent、favorites、settings を実装する。
