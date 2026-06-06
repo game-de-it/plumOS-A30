@@ -13,6 +13,10 @@ This document records the design direction for plumOS on the Miyoo A30.
   dependencies.
 - Do not assume the stock behavior is optimal; measure and replace it when a
   better approach is proven.
+- Build primarily inside Docker, transfer artifacts to the device, and validate
+  them on real hardware.
+- Include developer-facing Docker toolchain files as part of the final project
+  deliverables, alongside the end-user runtime package.
 
 ## Proposed Directory Layout
 
@@ -42,6 +46,53 @@ This document records the design direction for plumOS on the Miyoo A30.
   logs/
   ssh/
 ```
+
+## Docker/toolchain Policy
+
+plumOS builds should be reproducible inside Docker instead of depending on the
+workstation's local environment. The A30 toolchain, sysroot, build dependencies,
+and RetroArch/core build helpers can be customized specifically for plumOS.
+
+Expected repository layout:
+
+```text
+docker/
+  plumos-toolchain/
+    Dockerfile
+    README.md
+    scripts/
+scripts/
+  docker-build.sh
+  deploy-a30.sh
+  run-a30.sh
+  collect-a30-logs.sh
+  package-release.sh
+```
+
+Basic build/deploy loop:
+
+1. Build the Docker image.
+2. Build the frontend, helpers, RetroArch, cores, and runtime package inside the
+   container.
+3. Write outputs to `dist/` or a staging directory.
+4. Transfer artifacts to `/mnt/SDCARD/plumos` on the A30 through SSH/SCP/rsync
+   or an equivalent path.
+5. Run commands on the device.
+6. Collect logs/results and feed them into the next iteration.
+
+Docker build targets:
+
+- A30 sysroot/toolchain.
+- SDL/input/audio/video test binaries.
+- plumOS frontend/helpers.
+- RetroArch.
+- libretro cores.
+- Packaging/release tooling.
+
+The Docker image may become large, so git should contain Dockerfiles, scripts,
+locks/hashes, patches, and build recipes. Large build caches and generated
+binary archives should be treated as release artifacts and split across GitHub
+Release assets when needed.
 
 ## Boundary With The Stock Boot Flow
 
@@ -75,6 +126,9 @@ these strategies:
 RetroArch, SDL, and other dependency-heavy components should be built against an
 explicit A30 sysroot. Since the stock A30 runtime uses glibc `2.23`, do not
 assume generic Linux armhf binaries will work.
+
+The runtime package should be produced by Docker builds and should run from
+`/mnt/SDCARD/plumos` after extraction to the SD card.
 
 ## RetroArch Policy
 
@@ -150,9 +204,11 @@ Compatibility to preserve:
 
 ## Immediate Experiments
 
-1. Build a rollback-safe `MainUI` wrapper.
-2. Add `/mnt/SDCARD/plumos/bin/plumos-env` to set runtime paths.
-3. Manually run a plumOS frontend prototype while keeping stock MainUI.
-4. Run minimal SDL/input/audio/video test binaries on the A30.
-5. Build RetroArch `v1.22.2` for the A30 and validate one system first.
-6. Collect comparison logs for CPU policies.
+1. Build the minimal Dockerfile for the plumOS toolchain.
+2. Add a deploy helper that transfers Docker build output to the device.
+3. Build a rollback-safe `MainUI` wrapper.
+4. Add `/mnt/SDCARD/plumos/bin/plumos-env` to set runtime paths.
+5. Manually run a plumOS frontend prototype while keeping stock MainUI.
+6. Run minimal SDL/input/audio/video test binaries on the A30.
+7. Build RetroArch `v1.22.2` for the A30 and validate one system first.
+8. Collect comparison logs for CPU policies.

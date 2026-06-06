@@ -6,6 +6,11 @@ The project goal is to avoid depending on the stock A30 userland as much as
 possible. Frontend code, libraries, RetroArch, libretro cores, configuration,
 and logs should live under `/mnt/SDCARD/plumos` on the SD card.
 
+The intended development loop is to build A30-targeted files inside Docker,
+transfer them to the device over SSH, validate on real hardware, collect logs,
+and iterate. Final deliverables should include both the SD-card runtime package
+and developer-facing Docker/toolchain files.
+
 ## Current Status
 
 The first milestone, reliable SSH access, is working through a small

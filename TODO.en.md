@@ -1,33 +1,102 @@
 # TODO
 
-## Done
+## Phase 0 - Repository and Remote Access
 
-- Build a development SSH kit that starts from the SD card.
-- Allow workstation public keys under `plumos/ssh/etc/authorized_keys`.
-- Start SSH from Ports on the A30.
-- Collect device information with `scripts/collect-a30-info.sh root@A30_IP_ADDRESS`.
-- Document boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
+- [x] Prepare the local git repository at `/Users/kroot/plumOS-A30`.
+- [x] Build a development SSH kit that starts from the SD card.
+- [x] Allow workstation public keys under `plumos/ssh/etc/authorized_keys`.
+- [x] Start SSH from Ports on the A30.
+- [x] Collect device information with `scripts/collect-a30-info.sh root@A30_IP_ADDRESS`.
+- [x] Document boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
+- [x] Use Japanese as the primary documentation language and `.en.md` for English.
+- [ ] Finalize GitHub remote, license, and release policy before publication.
 
-## Next Implementation And Investigation
+## Phase 1 - Docker Toolchain and Build Environment
 
-- Build a rollback-safe `MainUI` wrapper.
-- Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from that wrapper.
-- Package the `/mnt/SDCARD/plumos` runtime directory layout.
-- Add `plumos-env` without depending on stock `/mnt/SDCARD/miyoo/lib`.
-- Manually run a plumOS frontend prototype while keeping stock MainUI.
-- Build a compatibility layer that reads the stock JSON schema from `Emu`,
-  `RApp`, `App`, `Themes`, `Roms`, and `Imgs`.
-- Recognize existing ROMs, artwork, saves, and states without moving them.
-- Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path
-  `$1`, `launchlist`, and `recentlist.json`.
-- Run minimal SDL/input/audio/video test binaries on the A30.
-- Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
-- Prepare a reproducible A30 sysroot/toolchain.
-- Build/test RetroArch `v1.22.2` for the A30 armv7 hard-float environment.
-- Update libretro cores per system, validating boot, performance, save/state,
-  and input.
-- Measure CPU governor, CPU online/offline, and clock policy to decide whether
-  stock script behavior is actually valid.
-- Check whether the Wi-Fi power sequence can be safely reproduced from plumOS.
-- Decide whether SSH stays a development package or becomes a plumOS service.
-- Define the GitHub release package/artifact workflow.
+- [ ] Design a plumOS-specific Docker build environment.
+- [ ] Put the toolchain Dockerfile and helper scripts under `docker/`.
+- [ ] Make the A30 sysroot reproducible through Docker builds.
+- [ ] Build the frontend, helpers, RetroArch, and libretro cores inside Docker.
+- [ ] Collect Docker build output under `dist/` or a staging directory.
+- [ ] Keep build cache and large generated files out of git.
+- [ ] Document how to build and use the Docker image in Japanese and English.
+
+## Phase 2 - plumOS Runtime Layout
+
+- [ ] Package the `/mnt/SDCARD/plumos` runtime directory layout.
+- [ ] Define the roles of `bin/`, `lib/`, `runtime/`, `frontend/`, `retroarch/`,
+  `config/`, `state/`, `cache/`, `logs/`, and `ssh/`.
+- [ ] Add `plumos-env` without depending on stock `/mnt/SDCARD/miyoo/lib`.
+- [ ] Validate the bundled dynamic linker/shared library strategy when dynamic
+  linking is required.
+- [ ] Run a smoke test on the device using only plumOS runtime paths.
+
+## Phase 3 - Device Deployment Loop
+
+- [ ] Add a deploy script that transfers Docker-built artifacts to the A30.
+- [ ] Choose the SSH/SCP/rsync-equivalent transfer method.
+- [ ] Add helpers to run commands on the device and collect logs afterward.
+- [ ] Make build -> deploy -> run -> collect logs work through one command.
+- [ ] Document a rollback path that only requires SD-card changes.
+
+## Phase 4 - Boot Bootstrap
+
+- [ ] Build a rollback-safe `MainUI` wrapper.
+- [ ] Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
+- [ ] Fall back to stock MainUI if wrapper startup fails.
+- [ ] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
+- [ ] Manually run a plumOS frontend prototype while keeping stock MainUI.
+- [ ] Confirm the A30 remains recoverable after reboot.
+
+## Phase 5 - Frontend Compatibility Layer
+
+- [ ] Read the stock JSON schema from `Emu`, `RApp`, `App`, `Themes`, `Roms`,
+  and `Imgs`.
+- [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
+- [ ] Implement ROM filtering through `extlist`.
+- [ ] Support alternate launchers/cores through `launchlist`.
+- [ ] Handle a `Roms/recentlist.json` compatible recent list.
+- [ ] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path
+  `$1`.
+- [ ] Eventually move away from shell launch scripts toward plumOS launch
+  profiles.
+
+## Phase 6 - Frontend Implementation
+
+- [ ] Build a minimal controller-first frontend prototype.
+- [ ] Implement system list, ROM list, recents, favorites, and settings.
+- [ ] Decide how to load themes, fonts, and artwork.
+- [ ] Decide how to handle A30 settings such as brightness, volume, Wi-Fi, and
+  keymap.
+- [ ] Run minimal SDL/input/audio/video test binaries on the A30.
+- [ ] Compare keeping stock `keymon` with reading `/dev/input/event*` directly.
+
+## Phase 7 - RetroArch and Core Runtime
+
+- [ ] Build/test RetroArch `v1.22.2` for the A30 armv7 hard-float environment.
+- [ ] Place RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.
+- [ ] Place cores under `/mnt/SDCARD/plumos/retroarch/cores`.
+- [ ] Stop depending on `HOME=/mnt/SDCARD/RetroArch`.
+- [ ] Manage per-system/core differences through `--config` and override configs.
+- [ ] Update libretro cores per system in stages.
+- [ ] Validate boot, performance, save/state, input, and audio/video per core.
+
+## Phase 8 - A30 System Policy Validation
+
+- [ ] Measure CPU governor, CPU online/offline, and clock policy.
+- [ ] Decide whether the stock CPU2/CPU3 offline behavior is valid.
+- [ ] Compare `performance`, `ondemand`, and `interactive` governors.
+- [ ] Restore CPU state reliably after game exit.
+- [ ] Check whether the Wi-Fi power sequence can be safely reproduced from plumOS.
+- [ ] Decide whether to keep stock Wi-Fi userland or bundle it with plumOS.
+- [ ] Decide whether SSH stays a development package or becomes a plumOS service.
+
+## Phase 9 - Packaging and Release
+
+- [ ] Treat development Docker files as part of the project deliverables.
+- [ ] Build the runtime package that is extracted to the SD card.
+- [ ] Build a developer Docker/toolchain package.
+- [ ] Decide how to split end-user releases and developer releases.
+- [ ] Prepare license notices and upstream attribution.
+- [ ] Add a GitHub Release package/artifact workflow.
+- [ ] Verify install and rollback on a fresh-SD-card equivalent setup.

@@ -6,6 +6,11 @@ Miyoo A30 向けカスタムファームウェア `plumOS` の開発ワークス
 `/mnt/SDCARD/plumos` 配下にフロントエンド、ライブラリ、RetroArch、libretro
 core、設定、ログを集約して動かすことを目標にします。
 
+開発の基本ループは、Docker 内で A30 向けのファイルを build し、SSH 経由で実機へ
+転送して動作確認し、log を回収して次の修正へ進む形にします。最終的な配布物には、
+SD カードへ展開する runtime package だけでなく、開発者向けの Docker/toolchain
+関連ファイルも含めます。
+
 ## 現在の状態
 
 最初のマイルストーンとして、A30 へ SSH で入るための Dropbear ベースの開発用
