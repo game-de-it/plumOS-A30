@@ -167,8 +167,8 @@ backend 候補:
   min/max/center のみで、押し込み設定は見当たらない。初期 plumOS では
   左スティック押し込みを未接続/未対応として扱う
 - stock RetroArch は SDL1 有効、SDL2/udev/evdev 無効。`plumos-joystickd` の
-  axes-only `js0` は Linux joystick API では見えるが、stock RetroArch log では
-  autoconfig/接続を確認できなかった
+  axes-only `js0` と composite `plumOS A30 Gamepad` は Linux joystick API では
+  見えるが、stock RetroArch log では autoconfig/接続を確認できなかった
 - MainUI から起動した stock RetroArch の Port1 Controls bind 待ち受けでは
   左スティックが `Axis -2`/`±2` として検出されるが、実際のメニューカーソル移動には
   使えていない
@@ -184,6 +184,8 @@ backend 候補:
 - RetroArch/standalone emulator 向け analog 方針は、stock SDL1 依存ではなく
   `plumos-joystickd` の buttons+axes composite virtual pad mode と
   plumOS RetroArch の SDL2/evdev 対応を優先して検証する
+- stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に
+  `plumos-joystickd --device-mode xbox` の process/device/fd は残らなかった
 - 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
   Function button を第一候補にする
 

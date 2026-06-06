@@ -30,7 +30,23 @@
 #define SYN_REPORT 0
 #define ABS_X 0
 #define ABS_Y 1
+#define ABS_Z 2
+#define ABS_RX 3
+#define ABS_RY 4
+#define ABS_RZ 5
+#define ABS_HAT0X 16
+#define ABS_HAT0Y 17
+#define BTN_A 304
+#define BTN_B 305
+#define BTN_X 307
+#define BTN_Y 308
+#define BTN_TL 310
+#define BTN_TR 311
+#define BTN_SELECT 314
+#define BTN_START 315
+#define BTN_MODE 316
 #define BTN_THUMBL 317
+#define BTN_THUMBR 318
 struct input_event {
   struct timeval time;
   unsigned short type;
@@ -156,6 +172,18 @@ static const char *abs_name(unsigned short code) {
     return "ABS_X";
   case ABS_Y:
     return "ABS_Y";
+  case ABS_Z:
+    return "ABS_Z";
+  case ABS_RX:
+    return "ABS_RX";
+  case ABS_RY:
+    return "ABS_RY";
+  case ABS_RZ:
+    return "ABS_RZ";
+  case ABS_HAT0X:
+    return "ABS_HAT0X";
+  case ABS_HAT0Y:
+    return "ABS_HAT0Y";
   default:
     return "-";
   }
@@ -163,8 +191,28 @@ static const char *abs_name(unsigned short code) {
 
 static const char *key_name(unsigned short code) {
   switch (code) {
+  case BTN_A:
+    return "BTN_A";
+  case BTN_B:
+    return "BTN_B";
+  case BTN_X:
+    return "BTN_X";
+  case BTN_Y:
+    return "BTN_Y";
+  case BTN_TL:
+    return "BTN_TL";
+  case BTN_TR:
+    return "BTN_TR";
+  case BTN_SELECT:
+    return "BTN_SELECT";
+  case BTN_START:
+    return "BTN_START";
+  case BTN_MODE:
+    return "BTN_MODE";
   case BTN_THUMBL:
     return "BTN_THUMBL";
+  case BTN_THUMBR:
+    return "BTN_THUMBR";
   default:
     return "-";
   }
@@ -240,7 +288,7 @@ static void print_evdev_device_info(int fd, const char *path) {
 static void usage(const char *argv0) {
   printf("Usage: %s [--js PATH] [--event PATH] [--name NAME] [--timeout-ms MS] [--no-js] [--no-event]\n",
          argv0);
-  printf("Read Linux joystick and evdev events from the plumOS virtual analog stick.\n");
+  printf("Read Linux joystick and evdev events from a plumOS virtual input device.\n");
 }
 
 int main(int argc, char **argv) {

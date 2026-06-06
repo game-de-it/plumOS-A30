@@ -180,6 +180,8 @@ Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --deploy
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --device-mode analog
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --device-mode xbox
 ```
 
 Result observed on 2026-06-06:
@@ -195,6 +197,22 @@ result=retroarch_sdl_driver_only
 Temporary `sdl` and `sdl_dingux` autoconfig files were tested, but the RetroArch
 log did not show configured/connection lines for `plumOS A30 Analog Stick`.
 
+The same script was extended with `--device-mode xbox` and re-run with
+`plumOS A30 Gamepad`.
+
+```text
+detected mode=xbox name="plumOS A30 Gamepad" js=/dev/input/js0 event=/dev/input/event4
+js info path=/dev/input/js0 name="plumOS A30 Gamepad" axes=8 buttons=11
+evdev info path=/dev/input/event4 name="plumOS A30 Gamepad"
+[INFO] [Input]: Found input driver: "sdl".
+[INFO] [Joypad]: Found joypad driver: "sdl".
+result=retroarch_sdl_driver_only
+```
+
+Stock RetroArch stdout prints `joystick read cal` and `thread serial joystick`,
+but RetroArch logs still do not show configured/connection lines for either the
+axes-only or composite `plumOS A30 ...` device.
+
 In a manual stock RetroArch launch from MainUI, the Port 1 Controls binding UI
 detects the left stick as `Axis -2`/`+/-2`, but moving the stick does not move
 the menu cursor. From SSH, the stock RetroArch process mapped `libSDL-1.2.so.0`,
@@ -206,12 +224,13 @@ Current judgment:
 - The `plumos-joystickd` virtual device is visible through the Linux joystick
   API and evdev.
 - The stock RetroArch SDL1 joypad driver is enabled, but logs do not confirm
-  autoconfig/connection for the axes-only `js0` device.
+  autoconfig/connection for either the axes-only `js0` device or the composite
+  `plumOS A30 Gamepad`.
 - Stock RetroArch appears to detect an axis during binding, but that does not
   translate into normal menu/game operation.
-- The plumOS RetroArch path should not rely on this stock SDL1 behavior. Prefer
-  a plumOS build with SDL2/evdev support, or evaluate a composite virtual pad
-  with both buttons and axes.
+- The RetroArch analog strategy should not rely on this stock SDL1 behavior.
+  Prioritize a plumOS RetroArch build with SDL2/evdev support plus the
+  buttons+axes composite virtual pad.
 
 ## PPSSPP / SDL2 GameController Check
 
@@ -401,6 +420,9 @@ pad 1 has been assigned to control pad: Atari Xbox 360 Game Controller
 This confirms that `plumos-joystickd --device-mode xbox` is recognized through
 stock PPSSPP's SDL2 GameController path and successfully loads a GameController
 mapping. Both process fds and PPSSPP logs show PPSSPP using the plumOS gamepad.
+After the PPSSPP direct-launch and stock RetroArch probes finished, no stale
+`plumos-joystickd` process, `plumOS A30 Gamepad` device, or
+`/dev/uinput`/`event4`/`ttyS0` fd remained.
 
 ## Options
 
@@ -435,9 +457,11 @@ mapping. Both process fds and PPSSPP logs show PPSSPP using the plumOS gamepad.
   for now.
 - Treat `plumos-joystickd` as the analog-stick path for RetroArch and standalone
   emulators.
-- Keep `plumos-joystickd` axes-only with `ABS_X`/`ABS_Y`; do not expose a stick
-  click button.
+- Treat `analog` mode as the `ABS_X`/`ABS_Y` axes-only device and `xbox` mode as
+  the emulator-facing buttons+axes composite virtual pad.
+- Do not emit a left-stick click event in initial plumOS.
 - Consider enabling the daemon only while an emulator is running.
-- Check SDL/RetroArch after `plumos-joystick-reader` confirms the Linux joystick
-  API/evdev foundation on hardware.
-- Eventually, launch profiles should declare whether they need the analog daemon.
+- Do not tune for stock RetroArch/SDL1; prioritize the plumOS RetroArch build
+  with SDL2/evdev and the `xbox` mode composite pad.
+- Eventually, launch profiles should declare whether they need the input daemon
+  and which device mode to use.

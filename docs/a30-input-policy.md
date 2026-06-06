@@ -263,6 +263,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
   優先して検証する
 - stock PPSSPP を `miyoo282_xpad_inputd` なしで直接起動し、`plumOS A30 Gamepad` が
   SDL2 GameController mapping 成功で pad 1 に割り当てられることを確認済み
+- stock RetroArch/SDL1 では axes-only と composite gamepad のどちらも Linux joystick
+  API からは見えるが、RetroArch log では autoconfig/接続を確認できない。RetroArch は
+  plumOS build の SDL2/evdev + composite virtual pad を優先する
 - `plumos-joystickd --device-mode xbox` は常駐候補にする。ただし default service 化は
   FE/`keymon`/emulator の二重入力と fd 残りを実機で確認してから行う
 

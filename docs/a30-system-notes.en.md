@@ -147,8 +147,9 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   axis min/max/center values, with no stick-click setting. Initial plumOS treats
   the left-stick click as unconnected/unsupported.
 - Stock RetroArch has SDL1 enabled and SDL2/udev/evdev disabled. The axes-only
-  `js0` from `plumos-joystickd` is visible through the Linux joystick API, but
-  stock RetroArch logs did not confirm autoconfig/connection.
+  `js0` and composite `plumOS A30 Gamepad` from `plumos-joystickd` are visible
+  through the Linux joystick API, but stock RetroArch logs did not confirm
+  autoconfig/connection.
 - In stock RetroArch launched from MainUI, the Port 1 Controls binding UI
   detects the left stick as `Axis -2`/`+/-2`, but the stick does not move the
   menu cursor in normal operation.
@@ -164,6 +165,8 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - For RetroArch and standalone emulator analog input, prioritize testing a
   `plumos-joystickd` buttons+axes composite virtual pad mode plus SDL2/evdev in
   the plumOS RetroArch build instead of relying on the stock SDL1 path.
+- Short stock MainUI/keymon, PPSSPP direct-launch, and stock RetroArch probes
+  left no stale `plumos-joystickd --device-mode xbox` process/device/fd behind.
 - Because the power button may be handled on the kernel side, use Function as
   the primary candidate for the safe shutdown/resume menu.
 

@@ -278,6 +278,10 @@ Judgment:
 - Stock PPSSPP was launched directly without `miyoo282_xpad_inputd`, and
   `plumOS A30 Gamepad` was assigned to pad 1 after a successful SDL2
   GameController mapping.
+- Under stock RetroArch/SDL1, both the axes-only and composite gamepad devices
+  are visible through the Linux joystick API, but RetroArch logs do not confirm
+  autoconfig/connection. Prefer SDL2/evdev plus the composite virtual pad in the
+  plumOS RetroArch build.
 - Treat `plumos-joystickd --device-mode xbox` as an always-running candidate,
   but only make it the default service after checking duplicate input and stale
   fd behavior across the frontend, `keymon`, and emulators on hardware.

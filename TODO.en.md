@@ -182,10 +182,12 @@
 - [x] Document that stock PPSSPP reads an Xbox 360-like `MIYOO Pad1`
   (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) through SDL2
   GameController/Joystick APIs.
-- [ ] Check whether RetroArch/SDL can see the `plumos-joystickd` virtual input
-  device.
-- [ ] Choose the RetroArch analog strategy: axes-only device, composite virtual
-  pad with buttons+axes, or SDL2/evdev support in the plumOS RetroArch build.
+- [x] Verify that with stock RetroArch/SDL1, `plumos-joystickd` axes-only and
+  composite virtual input devices are visible through the Linux joystick API,
+  but RetroArch logs still do not confirm device/autoconfig recognition.
+- [x] Choose the RetroArch analog strategy: do not rely on stock SDL1; prioritize
+  SDL2/evdev plus a buttons+axes composite virtual pad in the plumOS RetroArch
+  build.
 - [x] Add a PPSSPP-like buttons+axes composite virtual pad mode to
   `plumos-joystickd`.
 - [x] Add `scripts/probe-a30-joystickd-xbox.sh` so `--device-mode xbox` hardware
@@ -196,6 +198,9 @@
   tested with the plumOS gamepad and without the stock input daemon.
 - [x] Verify that `plumos-joystickd --device-mode xbox` is recognized by
   PPSSPP/SDL2 GameController and loads a GameController mapping successfully.
+- [x] Confirm that short stock MainUI/keymon, PPSSPP direct-launch, and stock
+  RetroArch probes leave no stale `plumos-joystickd --device-mode xbox`
+  process/device/fd behind.
 - [ ] Check whether keeping `plumos-joystickd --device-mode xbox` always running
   during plumOS causes duplicate input or stale fd issues in the frontend,
   `keymon`, or emulators.
