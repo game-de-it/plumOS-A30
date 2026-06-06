@@ -109,7 +109,8 @@
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。
-- [ ] SDL 実画面出力は direct framebuffer presenter、custom SDL video backend、または sunxi/mali/disp 経路として別途設計する。
+- [x] stock SDL1/SDL2 の video backend を調査し、stock SDL2 は custom `mali` backend で `/dev/fb0` + Mali fbdev EGL 経路に出すことを確認する。
+- [ ] SDL 実画面出力は direct framebuffer presenter、stock SDL2 の `mali` 挙動を参考にした custom SDL video backend、または sunxi/mali/disp 経路として別途設計する。
 - [ ] stock MainUI を停止または置き換えた状態で audio playback を再検証する。
 - [x] stock `keymon` を残す場合と直接 `/dev/input/event*` を読む場合を比較する。
 - [x] `plumos-input-compare --all-events` で電源/左スティック押し込み以外の物理ボタンの code/action mapping を確定する。
@@ -145,7 +146,7 @@
 - [x] stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に `plumos-joystickd --device-mode xbox` の stale process/device/fd が残らないことを確認する。
 - [x] `scripts/probe-a30-joystickd-buttons.sh` を追加し、A/B/X/Y、D-pad、L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` の button/hat/trigger event として転送されることを確認する。
 - [x] `scripts/probe-a30-sdl2-gamepad.sh` を追加し、plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 が `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として自動認識することを確認する。
-- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。
+- [ ] plumOS 起動中に `plumos-joystickd --device-mode xbox` を常駐させても FE/keymon/emulator に二重入力や fd 残りの弊害がないか確認する。stock `keymon` が削除済み `js*`/`event*` fd を保持する場合も含めて見る。
 - [ ] plumOS RetroArch build では stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad を優先案として検証する。
 - [ ] `/dev/mem` ADC 経路は stock calibration/test 画面由来の可能性として優先度を下げ、必要になった場合のみ再調査する。
 - [x] Function button で開く SAFE menu prototype を controller UI に実装する。

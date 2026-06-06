@@ -120,8 +120,13 @@ On 2026-06-06, `plumos-runtime-probe` was run on the A30 and confirmed:
   `/dev/dri`. With upstream SDL3+sdl2-compat, rendering only works through the
   `dummy`/`offscreen`/`evdev` software paths; no SDL framebuffer/render backend
   that presents to the real display was found.
+- Stock SDL2 video: stock `libSDL2-2.0.so.0.2600.1` reports SDL `2.26.1` and
+  only exposes the custom `mali` video driver plus `offscreen`. The `mali` path
+  creates an `opengles2` renderer through `/dev/fb0` and the
+  `/usr/lib/libMali.so` fbdev EGL stack.
 
-Details live in [A30 runtime probe](a30-runtime-probe.en.md).
+Details live in [A30 runtime probe](a30-runtime-probe.en.md) and
+[A30 stock SDL video path](a30-stock-sdl-video.en.md).
 
 ## Input Policy
 
@@ -171,7 +176,10 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
   `plumos-joystickd` buttons+axes composite virtual pad mode plus SDL2/evdev in
   the plumOS RetroArch build instead of relying on the stock SDL1 path.
 - Short stock MainUI/keymon, PPSSPP direct-launch, and stock RetroArch probes
-  left no stale `plumos-joystickd --device-mode xbox` process/device/fd behind.
+  left no stale `plumos-joystickd --device-mode xbox` process or virtual device
+  node behind. However, a 2026-06-07 `/proc` check showed stock `keymon`
+  holding deleted historical `js*`/`event*` fds, so fd-retention impact should
+  be rechecked before the daemon is made persistent.
 - `plumos-joystickd --device-mode xbox` button forwarding was confirmed for
   A/B/X/Y, D-pad, L/R, L2/R2, START/SELECT, and Function as
   `plumOS A30 Gamepad` button/hat/trigger events.

@@ -141,8 +141,12 @@ backend 候補:
 - SDL2 render: A30 は `/dev/fb*`, `/dev/mali`, `/dev/disp` を持つが `/dev/dri` は無い。
   upstream SDL3+sdl2-compat では `dummy`/`offscreen`/`evdev` の software renderer までで、
   実画面に出る SDL framebuffer/render backend は確認できない
+- stock SDL2 video: stock `libSDL2-2.0.so.0.2600.1` は SDL `2.26.1` で、
+  custom `mali` video driver と `offscreen` の2 driver 構成。`mali` は
+  `/dev/fb0` + `/usr/lib/libMali.so` の fbdev EGL 経路で `opengles2` renderer を作る
 
-詳細は [A30 runtime probe](a30-runtime-probe.md) にまとめています。
+詳細は [A30 runtime probe](a30-runtime-probe.md) と
+[A30 stock SDL 画面出力経路](a30-stock-sdl-video.md) にまとめています。
 
 ## Input policy
 
@@ -190,7 +194,10 @@ backend 候補:
   `plumos-joystickd` の buttons+axes composite virtual pad mode と
   plumOS RetroArch の SDL2/evdev 対応を優先して検証する
 - stock MainUI/keymon、PPSSPP direct launch、stock RetroArch probe の短時間確認後に
-  `plumos-joystickd --device-mode xbox` の process/device/fd は残らなかった
+  `plumos-joystickd --device-mode xbox` の process と virtual device node は残らなかった。
+  ただし 2026-06-07 の `/proc` 確認では、stock `keymon` が削除済みの過去
+  `js*`/`event*` fd を保持する場合が見えたため、常駐設計前に fd 残りの影響を
+  再検証する
 - `plumos-joystickd --device-mode xbox` の button forwarding で A/B/X/Y、D-pad、
   L/R、L2/R2、START/SELECT、Function が `plumOS A30 Gamepad` 側の
   button/hat/trigger event として出ることを確認した
