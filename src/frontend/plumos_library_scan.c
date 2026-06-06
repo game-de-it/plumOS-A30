@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -59,6 +60,9 @@ struct rom_entry {
   char directory_alias[64];
   char thumbnail[PATH_MAX];
   uint64_t id_hash;
+  int has_identity;
+  dev_t device;
+  ino_t inode;
 };
 
 struct rom_vector {
@@ -70,12 +74,16 @@ struct rom_vector {
 struct scanned_dir {
   size_t system_index;
   char path[PATH_MAX];
+  int has_identity;
+  dev_t device;
+  ino_t inode;
 };
 
 struct scan_ctx {
   const char *sdcard_root;
   const char *plumos_root;
   const char *system_filter;
+  int resolve_thumbnails;
   struct system_def *systems;
   size_t system_count;
   struct rom_vector roms;
@@ -84,6 +92,10 @@ struct scan_ctx {
   size_t files_seen;
   size_t files_matched;
   size_t thumbnails_found;
+  long long load_ms;
+  long long scan_ms;
+  long long sort_ms;
+  long long ready_ms;
   struct scanned_dir scanned_dirs[MAX_SCANNED_DIRS];
   size_t scanned_dir_count;
 };
@@ -343,6 +355,20 @@ static int build_stem_ext_name(char *out, size_t out_size, const char *stem, con
   memcpy(out + stem_len + 1, ext, ext_len);
   out[stem_len + 1 + ext_len] = '\0';
   return 1;
+}
+
+static int build_system_cache_path(char *out, size_t out_size, const char *plumos_root,
+                                   const char *system_id) {
+  char dir[PATH_MAX];
+  char name[128];
+
+  if (!join_path(dir, sizeof(dir), plumos_root, "state/frontend/systems")) {
+    return 0;
+  }
+  if (!build_stem_ext_name(name, sizeof(name), system_id, "json")) {
+    return 0;
+  }
+  return join_path(out, out_size, dir, name);
 }
 
 static uint64_t fnv1a64_update(uint64_t hash, const char *s) {
@@ -833,9 +859,17 @@ static int append_rom(struct rom_vector *roms, const struct rom_entry *entry) {
   return 1;
 }
 
-static int rom_already_seen(const struct rom_vector *roms, size_t system_index, const char *path) {
+static int rom_already_seen(const struct rom_vector *roms, size_t system_index, const char *path,
+                            int has_identity, dev_t device, ino_t inode) {
   size_t i;
   for (i = 0; i < roms->count; i++) {
+    if (roms->items[i].system_index != system_index) {
+      continue;
+    }
+    if (has_identity && roms->items[i].has_identity && roms->items[i].device == device &&
+        roms->items[i].inode == inode) {
+      return 1;
+    }
     if (roms->items[i].system_index == system_index && strcmp(roms->items[i].path, path) == 0) {
       return 1;
     }
@@ -844,24 +878,35 @@ static int rom_already_seen(const struct rom_vector *roms, size_t system_index, 
 }
 
 static int scanned_dir_already_seen(const struct scan_ctx *ctx, size_t system_index,
-                                    const char *path) {
+                                    const char *path, int has_identity, dev_t device,
+                                    ino_t inode) {
   size_t i;
   for (i = 0; i < ctx->scanned_dir_count; i++) {
-    if (ctx->scanned_dirs[i].system_index == system_index &&
-        strcmp(ctx->scanned_dirs[i].path, path) == 0) {
+    if (ctx->scanned_dirs[i].system_index != system_index) {
+      continue;
+    }
+    if (has_identity && ctx->scanned_dirs[i].has_identity &&
+        ctx->scanned_dirs[i].device == device && ctx->scanned_dirs[i].inode == inode) {
+      return 1;
+    }
+    if (strcmp(ctx->scanned_dirs[i].path, path) == 0) {
       return 1;
     }
   }
   return 0;
 }
 
-static void remember_scanned_dir(struct scan_ctx *ctx, size_t system_index, const char *path) {
+static void remember_scanned_dir(struct scan_ctx *ctx, size_t system_index, const char *path,
+                                 int has_identity, dev_t device, ino_t inode) {
   if (ctx->scanned_dir_count >= MAX_SCANNED_DIRS) {
     return;
   }
   ctx->scanned_dirs[ctx->scanned_dir_count].system_index = system_index;
   copy_string(ctx->scanned_dirs[ctx->scanned_dir_count].path,
               sizeof(ctx->scanned_dirs[ctx->scanned_dir_count].path), path);
+  ctx->scanned_dirs[ctx->scanned_dir_count].has_identity = has_identity;
+  ctx->scanned_dirs[ctx->scanned_dir_count].device = device;
+  ctx->scanned_dirs[ctx->scanned_dir_count].inode = inode;
   ctx->scanned_dir_count++;
 }
 
@@ -965,15 +1010,25 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
   char rel_stem[PATH_MAX];
   char flat_stem[256];
   char relative_path[PATH_MAX];
+  struct stat st;
+  int has_identity;
   size_t pos = 0;
 
+  memset(&st, 0, sizeof(st));
   canonical_path(canonical_abs, sizeof(canonical_abs), abs_path);
-  if (rom_already_seen(&ctx->roms, system_index, canonical_abs)) {
+  has_identity = stat(abs_path, &st) == 0;
+  if (rom_already_seen(&ctx->roms, system_index, canonical_abs, has_identity, st.st_dev,
+                       st.st_ino)) {
     return;
   }
 
   memset(&entry, 0, sizeof(entry));
   entry.system_index = system_index;
+  entry.has_identity = has_identity;
+  if (has_identity) {
+    entry.device = st.st_dev;
+    entry.inode = st.st_ino;
+  }
   copy_string(entry.path, sizeof(entry.path), canonical_abs);
   copy_string(entry.file_name, sizeof(entry.file_name), path_basename(abs_path));
   copy_string(entry.extension, sizeof(entry.extension), file_extension(entry.file_name));
@@ -989,7 +1044,8 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
 
   stem_from_relative_path(rel_stem, sizeof(rel_stem), rel_path);
   stem_from_name(flat_stem, sizeof(flat_stem), entry.file_name);
-  if (find_thumbnail(ctx, system, rel_stem, flat_stem, entry.thumbnail, sizeof(entry.thumbnail))) {
+  if (ctx->resolve_thumbnails &&
+      find_thumbnail(ctx, system, rel_stem, flat_stem, entry.thumbnail, sizeof(entry.thumbnail))) {
     ctx->thumbnails_found++;
   }
 
@@ -1051,18 +1107,23 @@ static void scan_alias_dir(struct scan_ctx *ctx, size_t system_index, const char
                            const char *alias_name) {
   char alias_path[PATH_MAX];
   char canonical_alias_path[PATH_MAX];
+  struct stat st;
+  int has_identity;
 
+  memset(&st, 0, sizeof(st));
   if (!join_path(alias_path, sizeof(alias_path), rom_root, alias_name)) {
     return;
   }
   if (!is_directory(alias_path)) {
     return;
   }
+  has_identity = stat(alias_path, &st) == 0;
   canonical_path(canonical_alias_path, sizeof(canonical_alias_path), alias_path);
-  if (scanned_dir_already_seen(ctx, system_index, canonical_alias_path)) {
+  if (scanned_dir_already_seen(ctx, system_index, canonical_alias_path, has_identity, st.st_dev,
+                               st.st_ino)) {
     return;
   }
-  remember_scanned_dir(ctx, system_index, canonical_alias_path);
+  remember_scanned_dir(ctx, system_index, canonical_alias_path, has_identity, st.st_dev, st.st_ino);
   ctx->alias_dirs_found++;
   ctx->alias_dirs_scanned++;
   scan_dir_recursive(ctx, system_index, alias_name, canonical_alias_path, "");
@@ -1307,7 +1368,13 @@ static int write_library_index(const struct scan_ctx *ctx, const char *output_pa
   fprintf(f, "    \"files_seen\": %zu,\n", ctx->files_seen);
   fprintf(f, "    \"files_matched\": %zu,\n", ctx->files_matched);
   fprintf(f, "    \"rom_count\": %zu,\n", ctx->roms.count);
-  fprintf(f, "    \"thumbnail_count\": %zu\n", ctx->thumbnails_found);
+  fprintf(f, "    \"thumbnail_count\": %zu,\n", ctx->thumbnails_found);
+  fprintf(f, "    \"thumbnail_lookup_deferred\": %s,\n",
+          ctx->resolve_thumbnails ? "false" : "true");
+  fprintf(f, "    \"load_ms\": %lld,\n", ctx->load_ms);
+  fprintf(f, "    \"scan_ms\": %lld,\n", ctx->scan_ms);
+  fprintf(f, "    \"sort_ms\": %lld,\n", ctx->sort_ms);
+  fprintf(f, "    \"ready_ms\": %lld\n", ctx->ready_ms);
   fprintf(f, "  }\n");
   fprintf(f, "}\n");
 
@@ -1352,13 +1419,20 @@ static void print_system_summary(const struct scan_ctx *ctx) {
 }
 
 static void usage(const char *argv0) {
-  printf("Usage: %s [--systems PATH] [--output PATH] [--system ID]\n", argv0);
+  printf("Usage: %s [--systems PATH] [--output PATH] [--system ID|--on-enter ID]\n", argv0);
+  printf("\n");
+  printf("Options:\n");
+  printf("  --system ID    Scan one system. Default output is state/frontend/systems/ID.json.\n");
+  printf("  --on-enter ID  Alias for --system ID, intended for ROM-list entry refresh.\n");
+  printf("  --defer-thumbnails  Skip thumbnail lookup for fast first text display.\n");
+  printf("  --with-thumbnails   Resolve thumbnails during the scan.\n");
   printf("\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT   Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT          Default: $PLUMOS_SDCARD_ROOT/plumos\n");
   printf("  PLUMOS_SYSTEMS_JSON  Default: $PLUMOS_ROOT/config/frontend/systems.json\n");
-  printf("  PLUMOS_LIBRARY_INDEX Default: $PLUMOS_ROOT/state/frontend/library-index.json\n");
+  printf("  PLUMOS_LIBRARY_INDEX Default: full scan uses state/frontend/library-index.json;\n");
+  printf("                       system scan uses state/frontend/systems/ID.json\n");
 }
 
 int main(int argc, char **argv) {
@@ -1368,12 +1442,21 @@ int main(int argc, char **argv) {
   const char *plumos_root_env;
   const char *systems_path;
   const char *output_path;
+  const char *output_env;
   const char *system_filter = NULL;
   char default_plumos_root[PATH_MAX];
   char default_systems_path[PATH_MAX];
   char default_output_path[PATH_MAX];
+  char selected_output_path[PATH_MAX];
   long long started_ms;
+  long long loaded_ms;
+  long long scanned_ms;
+  long long sorted_ms;
   long long elapsed_ms;
+  int output_explicit = 0;
+  int on_enter_mode = 0;
+  int resolve_thumbnails = 1;
+  int thumbnail_policy_explicit = 0;
   int i;
 
   sdcard_root = getenv("PLUMOS_SDCARD_ROOT");
@@ -1394,11 +1477,12 @@ int main(int argc, char **argv) {
     systems_path = default_systems_path;
   }
 
-  output_path = getenv("PLUMOS_LIBRARY_INDEX");
-  if (!output_path || !output_path[0]) {
-    join_path(default_output_path, sizeof(default_output_path), default_plumos_root,
-              "state/frontend/library-index.json");
-    output_path = default_output_path;
+  output_env = getenv("PLUMOS_LIBRARY_INDEX");
+  if (output_env && output_env[0]) {
+    output_path = output_env;
+    output_explicit = 1;
+  } else {
+    output_path = NULL;
   }
 
   for (i = 1; i < argc; i++) {
@@ -1412,10 +1496,26 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[i], "--output") == 0 && i + 1 < argc) {
       output_path = argv[++i];
+      output_explicit = 1;
       continue;
     }
     if (strcmp(argv[i], "--system") == 0 && i + 1 < argc) {
       system_filter = argv[++i];
+      continue;
+    }
+    if (strcmp(argv[i], "--on-enter") == 0 && i + 1 < argc) {
+      system_filter = argv[++i];
+      on_enter_mode = 1;
+      continue;
+    }
+    if (strcmp(argv[i], "--defer-thumbnails") == 0) {
+      resolve_thumbnails = 0;
+      thumbnail_policy_explicit = 1;
+      continue;
+    }
+    if (strcmp(argv[i], "--with-thumbnails") == 0) {
+      resolve_thumbnails = 1;
+      thumbnail_policy_explicit = 1;
       continue;
     }
     fprintf(stderr, "error: unknown argument: %s\n", argv[i]);
@@ -1423,28 +1523,59 @@ int main(int argc, char **argv) {
     return 2;
   }
 
+  if (!output_explicit) {
+    if (system_filter) {
+      if (!build_system_cache_path(selected_output_path, sizeof(selected_output_path),
+                                   default_plumos_root, system_filter)) {
+        fprintf(stderr, "error: cannot build system cache path for %s\n", system_filter);
+        return 1;
+      }
+      output_path = selected_output_path;
+    } else {
+      join_path(default_output_path, sizeof(default_output_path), default_plumos_root,
+                "state/frontend/library-index.json");
+      output_path = default_output_path;
+    }
+  }
+  if (on_enter_mode && !thumbnail_policy_explicit) {
+    resolve_thumbnails = 0;
+  }
+
   memset(&ctx, 0, sizeof(ctx));
   memset(systems, 0, sizeof(systems));
   ctx.sdcard_root = sdcard_root;
   ctx.plumos_root = default_plumos_root;
   ctx.system_filter = system_filter;
+  ctx.resolve_thumbnails = resolve_thumbnails;
   ctx.systems = systems;
 
   started_ms = now_ms();
   if (!load_systems(systems_path, systems, &ctx.system_count)) {
     return 1;
   }
+  loaded_ms = now_ms();
 
   printf("plumOS library scan\n");
   printf("systems: %s loaded=%zu\n", systems_path, ctx.system_count);
   printf("sdcard_root: %s\n", ctx.sdcard_root);
   printf("plumos_root: %s\n", ctx.plumos_root);
   if (system_filter) {
+    printf("mode: %s\n", on_enter_mode ? "on-enter" : "system");
     printf("filter: system=%s\n", system_filter);
+  } else {
+    printf("mode: full\n");
   }
+  printf("thumbnail_lookup: %s\n", ctx.resolve_thumbnails ? "resolved" : "deferred");
+  printf("output: %s\n", output_path);
 
   scan_systems(&ctx);
+  scanned_ms = now_ms();
   qsort(ctx.roms.items, ctx.roms.count, sizeof(ctx.roms.items[0]), cmp_rom_entries);
+  sorted_ms = now_ms();
+  ctx.load_ms = loaded_ms - started_ms;
+  ctx.scan_ms = scanned_ms - loaded_ms;
+  ctx.sort_ms = sorted_ms - scanned_ms;
+  ctx.ready_ms = sorted_ms - started_ms;
 
   if (!write_library_index(&ctx, output_path)) {
     free(ctx.roms.items);
@@ -1453,6 +1584,9 @@ int main(int argc, char **argv) {
 
   elapsed_ms = now_ms() - started_ms;
   print_system_summary(&ctx);
+  printf("timing load_ms=%lld scan_ms=%lld sort_ms=%lld ready_ms=%lld write_ms=%lld total_ms=%lld\n",
+         ctx.load_ms, ctx.scan_ms, ctx.sort_ms, ctx.ready_ms, elapsed_ms - ctx.ready_ms,
+         elapsed_ms);
   printf("summary alias_dirs=%zu files_seen=%zu matched=%zu roms=%zu thumbnails=%zu elapsed_ms=%lld\n",
          ctx.alias_dirs_found, ctx.files_seen, ctx.files_matched, ctx.roms.count,
          ctx.thumbnails_found, elapsed_ms);

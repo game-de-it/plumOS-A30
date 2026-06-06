@@ -56,12 +56,22 @@ default path:
 
 ```text
 systems: /mnt/SDCARD/plumos/config/frontend/systems.json
-output:  /mnt/SDCARD/plumos/state/frontend/library-index.json
+full output:      /mnt/SDCARD/plumos/state/frontend/library-index.json
+on-enter output:  /mnt/SDCARD/plumos/state/frontend/systems/<system>.json
 roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
 ```
 
-`--system nes` のように指定すると、対象 system だけを scan できます。今後の
-「機種選択時に対象 system だけ再 scan」する実装はこの動作を使います。
+`--on-enter nes` を指定すると、対象 system だけを scan し、全体 cache を壊さず
+`state/frontend/systems/nes.json` に保存します。ROM list に入る瞬間の再 scan はこの動作を
+使います。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-library-scan --on-enter nes'
+```
+
+`--on-enter` では text mode の初回表示を優先し、thumbnail lookup は default で遅延します。
+thumbnail も同時に解決したい場合は `--with-thumbnails` を使います。
 
 環境変数:
 
@@ -81,6 +91,28 @@ roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
 - subdirectory artwork 優先、flat artwork fallback、placeholder fallback
 - `png`, `jpg`, `jpeg`, `webp` の case-insensitive lookup
 - `Roms` と `roms`、`GBA` と `gba` のような大文字小文字違いの重複 scan 抑制
+- `--on-enter` の per-system cache 出力
+- text mode 初回表示向けの deferred thumbnail lookup
+
+## ROM scan benchmark
+
+1000 dummy ROM files の実機計測は以下の script で実行します。dummy file は
+`/mnt/SDCARD/plumos/tmp/rom-scan-bench` だけに作られ、計測後に削除されます。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/benchmark-a30-rom-scan.sh 1000
+```
+
+2026-06-06 の A30 実機結果:
+
+```text
+system nes roms=1000 thumbnails=0
+timing load_ms=10 scan_ms=362 sort_ms=2 ready_ms=374 write_ms=29 total_ms=403
+summary alias_dirs=1 files_seen=1000 matched=1000 roms=1000 thumbnails=0 elapsed_ms=403
+```
+
+`ready_ms=374` なので、text mode の初回表示については 500ms 基準を下回りました。
+このため、現時点では stock FE 方式の manual refresh へ戻さず、on-enter scan を維持します。
 
 ## 現在読む情報
 

@@ -340,6 +340,10 @@ Performance gate:
 - Record measurements and rationale in a decision record before switching to
   manual refresh.
 
+On 2026-06-06, the A30 measured `374ms` ready time for 1000 dummy ROM files with
+deferred thumbnail lookup via `--on-enter nes`, so the initial implementation
+keeps `on_enter`.
+
 `library-index.json` is a scan cache, but the filesystem remains the source of
 truth for ROM lists.
 

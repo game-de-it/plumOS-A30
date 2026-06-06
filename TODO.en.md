@@ -84,8 +84,8 @@
 - [x] Design a plumOS-native system/app/theme data model.
 - [x] Create the initial `systems.json` seed.
 - [x] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
-- [ ] Build an on-enter per-system ROM directory re-scan prototype.
-- [ ] Measure first text-mode display time with 1000 dummy ROM files.
+- [x] Build an on-enter per-system ROM directory re-scan prototype.
+- [x] Measure first text-mode display time with 1000 dummy ROM files.
 - [ ] Implement a START menu UI model for settings/apps/reboot/shutdown.
 - [ ] Implement system default core selection with SELECT on a highlighted TOP
   system.

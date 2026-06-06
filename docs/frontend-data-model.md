@@ -340,6 +340,9 @@ ROM list は機種を選択して ROM list screen に入るたびに、その機
 - それでも遅い場合だけ、stock FE に近い manual refresh 方式を候補にする
 - manual refresh 方式へ変更する場合は、理由と計測結果を decision record に残す
 
+2026-06-06 の A30 実機計測では、thumbnail lookup を遅延した `--on-enter nes` の
+1000 dummy ROM ready time は `374ms` でした。このため初期実装では `on_enter` を維持します。
+
 `library-index.json` は scan cache ですが、freshness より速さが必要な場面だけ使います。
 ROM list の正本は常に filesystem です。
 

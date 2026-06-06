@@ -58,12 +58,23 @@ Default paths:
 
 ```text
 systems: /mnt/SDCARD/plumos/config/frontend/systems.json
-output:  /mnt/SDCARD/plumos/state/frontend/library-index.json
+full output:     /mnt/SDCARD/plumos/state/frontend/library-index.json
+on-enter output: /mnt/SDCARD/plumos/state/frontend/systems/<system>.json
 roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
 ```
 
-Pass `--system nes` to scan only one system. The future on-enter per-system
-scan flow will use this behavior.
+Pass `--on-enter nes` to scan one system and write
+`state/frontend/systems/nes.json` without replacing the full cache. The ROM-list
+entry refresh flow uses this behavior.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-library-scan --on-enter nes'
+```
+
+`--on-enter` prioritizes the first text-mode display and defers thumbnail lookup
+by default. Use `--with-thumbnails` when thumbnails should be resolved during the
+scan.
 
 Environment:
 
@@ -85,6 +96,31 @@ Implemented:
 - Case-insensitive lookup for `png`, `jpg`, `jpeg`, and `webp`.
 - Duplicate scan suppression for case variants such as `Roms`/`roms` and
   `GBA`/`gba`.
+- Per-system cache output for `--on-enter`.
+- Deferred thumbnail lookup for the first text-mode display.
+
+## ROM Scan Benchmark
+
+Run the 1000 dummy ROM benchmark with:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/benchmark-a30-rom-scan.sh 1000
+```
+
+Dummy files are created only under `/mnt/SDCARD/plumos/tmp/rom-scan-bench` and
+removed after the run.
+
+A30 device result on 2026-06-06:
+
+```text
+system nes roms=1000 thumbnails=0
+timing load_ms=10 scan_ms=362 sort_ms=2 ready_ms=374 write_ms=29 total_ms=403
+summary alias_dirs=1 files_seen=1000 matched=1000 roms=1000 thumbnails=0 elapsed_ms=403
+```
+
+`ready_ms=374` is below the 500 ms threshold for the first text-mode display, so
+plumOS keeps the on-enter scan policy instead of switching to stock-style manual
+refresh.
 
 ## Current Inputs
 
