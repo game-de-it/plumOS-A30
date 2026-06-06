@@ -1,0 +1,4 @@
+# Replace this file with your workstation public key.
+# Example:
+# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexamplekey user@host
+
