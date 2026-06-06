@@ -327,9 +327,13 @@ stock SDL, can swap to the A30 display. `NULL` native window and a
 - Frontend Mali: the recommended first path is now a frontend-integrated
   presenter. `plumos-controller-ui-mali` displayed TOP, ran a full scan, and
   navigated into/back from a ROM list with `down,a,b,q` on the A30.
+- Frontend Mali readability/stability: the renderer now uses an A30-oriented
+  compact layout. `--exercise 3` and a 30-second hold while stock
+  `MainUI.stock`/`keymon` were still running finished with
+  `result=frontend_mali_renderer_rc_0`.
 
 The stock `keymon` comparison is split into
-[A30 input policy](a30-input-policy.en.md). Next steps are visual inspection and
-longer operation testing for `plumos-controller-ui-mali`, plus the RetroArch
-SDL2/evdev build. SDL3/sdl2-compat custom video backend work should be revisited
-after the frontend presenter behavior is stable.
+[A30 input policy](a30-input-policy.en.md). Next steps are visual tuning of text
+readability, spacing, colors, and selection display on the device screen, plus
+the RetroArch SDL2/evdev build. SDL3/sdl2-compat custom video backend work
+should be revisited after the frontend presenter behavior is stable.

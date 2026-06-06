@@ -304,10 +304,18 @@ Mali renderer device checks:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 30
 ```
 
 On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
 `down,a,b,q` script from TOP into a ROM list and back with
+`result=frontend_mali_renderer_rc_0`.
+The Mali renderer was then changed to an A30-oriented compact layout. Long help
+lines are moved into two bottom hint lines, and list rows are space-compacted
+with profile details omitted so they fit the 480px width. `--exercise 3`
+automatically walked through TOP/ROM/Settings/SAFE, and a 30-second hold while
+stock `MainUI.stock` and `keymon` were still running also finished with
 `result=frontend_mali_renderer_rc_0`.
 
 Render TOP once:

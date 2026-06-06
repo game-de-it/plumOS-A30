@@ -144,8 +144,11 @@
 - [x] Choose the initial real-display path: integrate fbdev + Mali EGL directly
   into the frontend first, and confirm TOP display plus ROM-list navigation with
   `plumos-controller-ui-mali` on the A30.
-- [ ] Visually inspect `plumos-controller-ui-mali`, including text readability
-  and longer operation while stock MainUI/keymon are still present.
+- [x] Convert `plumos-controller-ui-mali` to an A30-oriented compact layout and
+  confirm TOP/ROM/Settings/SAFE exercise plus a 30-second hold while stock
+  MainUI/keymon are still present.
+- [ ] Visually inspect `plumos-controller-ui-mali` on the device screen and tune
+  text readability, spacing, colors, and selection display.
 - [ ] Revisit SDL3/sdl2-compat custom video backend work after the frontend
   presenter behavior is stable.
 - [ ] Re-test audio playback with stock MainUI stopped or replaced.

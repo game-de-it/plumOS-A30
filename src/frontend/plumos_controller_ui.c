@@ -2487,6 +2487,9 @@ int main(int argc, char **argv) {
 
   if (script) {
     exit_code = run_script(&ui, script) ? 0 : 1;
+    if (ui.renderer_mali && ui.timeout_sec > 0) {
+      sleep((unsigned int)ui.timeout_sec);
+    }
   } else if (ui.once) {
     render_ui(&ui);
     if (ui.renderer_mali && ui.timeout_sec > 0) {

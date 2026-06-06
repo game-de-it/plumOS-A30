@@ -740,50 +740,246 @@ static void plumos_mali_text(struct plumos_mali_renderer *renderer, const char *
   }
 }
 
+static int plumos_mali_starts_with(const char *s, const char *prefix) {
+  return s && prefix && strncmp(s, prefix, strlen(prefix)) == 0;
+}
+
+static int plumos_mali_is_empty_or_help(const char *line) {
+  if (!line || !line[0]) {
+    return 1;
+  }
+  if (strstr(line, "A:") && strstr(line, "Q:")) {
+    return 1;
+  }
+  return 0;
+}
+
+static int plumos_mali_is_entry_line(const char *line) {
+  const char *p = line;
+
+  if (!line || !line[0]) {
+    return 0;
+  }
+  if (*p == '>') {
+    return 1;
+  }
+  while (*p == ' ') {
+    p++;
+  }
+  return *p >= '0' && *p <= '9';
+}
+
+static void plumos_mali_compact_spaces(const char *in, char *out, size_t out_size) {
+  size_t n = 0;
+  int pending_space = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!in) {
+    return;
+  }
+  while (*in == ' ') {
+    in++;
+  }
+  while (*in && n + 1 < out_size) {
+    unsigned char c = (unsigned char)*in++;
+    if (c <= ' ') {
+      pending_space = n > 0;
+      continue;
+    }
+    if (pending_space && n + 1 < out_size) {
+      out[n++] = ' ';
+      pending_space = 0;
+    }
+    out[n++] = (char)c;
+  }
+  while (n > 0 && out[n - 1] == ' ') {
+    n--;
+  }
+  out[n] = '\0';
+}
+
+static void plumos_mali_truncate(char *s, size_t max_chars) {
+  size_t len;
+
+  if (!s || max_chars == 0) {
+    return;
+  }
+  len = strlen(s);
+  if (len <= max_chars) {
+    return;
+  }
+  if (max_chars > 1) {
+    s[max_chars - 1] = '~';
+  }
+  s[max_chars] = '\0';
+}
+
+static void plumos_mali_make_title(const char *line, char *out, size_t out_size) {
+  const char *screen;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  screen = line ? strstr(line, " - ") : NULL;
+  if (screen && screen[3]) {
+    snprintf(out, out_size, "plumOS %s", screen + 3);
+  } else if (line && line[0]) {
+    snprintf(out, out_size, "%.40s", line);
+  } else {
+    snprintf(out, out_size, "plumOS");
+  }
+}
+
+static void plumos_mali_make_entry(const char *line, char *out, size_t out_size) {
+  char compact[160];
+  char *profile;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  plumos_mali_compact_spaces(line, compact, sizeof(compact));
+  profile = strstr(compact, " profile=");
+  if (profile) {
+    *profile = '\0';
+  }
+  snprintf(out, out_size, "%s", compact);
+  plumos_mali_truncate(out, 38);
+}
+
+static void plumos_mali_make_meta(const char *line, char *out, size_t out_size) {
+  char compact[160];
+
+  if (!out || out_size == 0 || !line || !line[0]) {
+    return;
+  }
+  plumos_mali_compact_spaces(line, compact, sizeof(compact));
+  snprintf(out, out_size, "%s", compact);
+  plumos_mali_truncate(out, 38);
+}
+
+static void plumos_mali_hints_for_title(const char *title, const char **hint_a,
+                                        const char **hint_b) {
+  if (strstr(title, "SAFE")) {
+    *hint_a = "A Preview  B Cancel  Fn Close";
+    *hint_b = "Up/Down Move        Q Quit";
+  } else if (strstr(title, "START")) {
+    *hint_a = "A Open    B Back    Up/Down";
+    *hint_b = "Right Open          Q Quit";
+  } else if (strstr(title, "SETTINGS")) {
+    *hint_a = "A Preview B Back    Up/Down";
+    *hint_b = "Start Menu          Q Quit";
+  } else if (strstr(title, "ROMS") || strstr(title, "FAVORITES") ||
+             strstr(title, "RECENT")) {
+    *hint_a = "A Preview B Back    Start Menu";
+    *hint_b = "Select Core Fn Safe Q Quit";
+  } else {
+    *hint_a = "A Open    B Back    Start Menu";
+    *hint_b = "Select Core Fn Safe Q Quit";
+  }
+}
+
 static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
                                     const char lines[][160], size_t line_count) {
   size_t i;
-  float margin = 12.0f;
-  float y = 14.0f;
-  int scale = 2;
-  float line_height = 16.0f;
-  size_t max_lines;
+  char title[80];
+  char meta[160];
+  char status[160];
+  char entries[18][160];
+  size_t entry_count = 0;
+  const char *hint_a;
+  const char *hint_b;
+  float margin = 14.0f;
+  float y;
+  float line_height = 28.0f;
 
   renderer->gl.Viewport(0, 0, renderer->width, renderer->height);
   renderer->gl.UseProgram(renderer->program);
-  renderer->gl.ClearColor(0.015f, 0.018f, 0.020f, 1.0f);
+  renderer->gl.ClearColor(0.012f, 0.016f, 0.018f, 1.0f);
   renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
 
-  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 34.0f,
-                   0.035f, 0.070f, 0.080f, 1.0f);
+  title[0] = '\0';
+  meta[0] = '\0';
+  status[0] = '\0';
+  if (line_count > 0) {
+    plumos_mali_make_title(lines[0], title, sizeof(title));
+  } else {
+    plumos_mali_make_title(NULL, title, sizeof(title));
+  }
+  for (i = 1; i < line_count; i++) {
+    const char *line = lines[i];
+    if (plumos_mali_is_empty_or_help(line)) {
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "status:")) {
+      plumos_mali_make_meta(line, status, sizeof(status));
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "source:")) {
+      if (!status[0]) {
+        plumos_mali_make_meta(line, status, sizeof(status));
+      }
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "system=") || plumos_mali_starts_with(line, "entries=") ||
+        plumos_mali_starts_with(line, "target=") || plumos_mali_starts_with(line, "profile=")) {
+      if (!meta[0]) {
+        plumos_mali_make_meta(line, meta, sizeof(meta));
+      }
+      continue;
+    }
+    if (plumos_mali_is_entry_line(line) && entry_count < sizeof(entries) / sizeof(entries[0])) {
+      plumos_mali_make_entry(line, entries[entry_count], sizeof(entries[entry_count]));
+      entry_count++;
+    }
+  }
+  plumos_mali_hints_for_title(title, &hint_a, &hint_b);
+
+  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 68.0f,
+                   0.020f, 0.055f, 0.060f, 1.0f);
   plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
                    0.95f, 0.55f, 0.12f, 1.0f);
+  plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 58.0f,
+                   (float)renderer->width, 58.0f, 0.020f, 0.038f, 0.042f, 1.0f);
 
-  if (line_count > 0) {
-    plumos_mali_text(renderer, lines[0], margin, y, scale, 0.70f, 0.95f, 0.92f, 1.0f);
+  plumos_mali_text(renderer, title, margin, 13.0f, 3, 0.78f, 0.98f, 0.94f, 1.0f);
+  if (meta[0]) {
+    plumos_mali_text(renderer, meta, margin, 44.0f, 2, 0.58f, 0.76f, 0.78f, 1.0f);
   }
 
-  y = 44.0f;
-  max_lines = (size_t)((renderer->height - y - 10.0f) / line_height);
-  for (i = 1; i < line_count && i <= max_lines; i++) {
-    const char *line = lines[i];
+  y = 86.0f;
+  for (i = 0; i < entry_count; i++) {
+    const char *line = entries[i];
     float r = 0.82f;
     float g = 0.86f;
-    float b = 0.86f;
+    float b = 0.84f;
     if (line[0] == '>') {
-      plumos_mali_rect(renderer, 8.0f, y - 4.0f, (float)renderer->width - 16.0f,
-                       line_height, 0.13f, 0.18f, 0.16f, 1.0f);
+      plumos_mali_rect(renderer, 8.0f, y - 7.0f, (float)renderer->width - 16.0f,
+                       26.0f, 0.12f, 0.18f, 0.15f, 1.0f);
       r = 1.0f;
-      g = 0.92f;
-      b = 0.58f;
-    } else if (strstr(line, "status:") == line || strstr(line, "source:") == line) {
-      r = 0.56f;
-      g = 0.78f;
-      b = 0.93f;
+      g = 0.91f;
+      b = 0.55f;
     }
-    plumos_mali_text(renderer, line, margin, y, scale, r, g, b, 1.0f);
+    plumos_mali_text(renderer, line, margin, y, 2, r, g, b, 1.0f);
     y += line_height;
+    if (y > (float)renderer->height - 105.0f) {
+      break;
+    }
   }
+  if (entry_count == 0) {
+    plumos_mali_text(renderer, "No entries", margin, y, 2, 0.72f, 0.78f, 0.76f, 1.0f);
+  }
+  if (status[0]) {
+    plumos_mali_text(renderer, status, margin, (float)renderer->height - 84.0f, 2,
+                     0.56f, 0.80f, 0.96f, 1.0f);
+  }
+  plumos_mali_text(renderer, hint_a, margin, (float)renderer->height - 48.0f, 2,
+                   0.72f, 0.84f, 0.86f, 1.0f);
+  plumos_mali_text(renderer, hint_b, margin, (float)renderer->height - 26.0f, 2,
+                   0.72f, 0.84f, 0.86f, 1.0f);
   renderer->gl.Finish();
   return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
 }

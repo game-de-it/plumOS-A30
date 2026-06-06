@@ -293,11 +293,17 @@ Mali renderer の実機確認:
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --script down,a,b,q
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 2 --exercise 3
+A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --timeout 30
 ```
 
 2026-06-07 の A30 実機確認では、full scan 後に TOP を表示し、
 `down,a,b,q` script で TOP から ROM list に入り TOP へ戻る流れまで
 `result=frontend_mali_renderer_rc_0` でした。
+その後、Mali renderer は A30 向け compact layout に変更しました。長い help 行を
+下部の2行ヒントへ分離し、リスト行は空白圧縮と profile 省略で 480px 幅に収めます。
+`--exercise 3` で TOP/ROM/Settings/SAFE を自動往復し、stock `MainUI.stock` と
+`keymon` が動いたまま 30 秒保持しても `result=frontend_mali_renderer_rc_0` でした。
 
 TOP を 1 回だけ表示:
 
