@@ -216,6 +216,9 @@
 - [ ] SD カードへ展開する runtime package を作る。
 - [ ] 開発者向け Docker/toolchain package を作る。
 - [ ] end-user 向け release と developer 向け release の分け方を決める。
+- [ ] StockOS と plumOS の差分を整理する。例: stock RetroArch は SDL1有効/SDL2無効、plumOS は upstream RetroArch/core、SDL2/evdev + `plumos-joystickd`、stock MainUI/keymon 非依存、SDカード配下 runtime 管理。
+- [ ] plumOS 導入メリットを end-user 向けにまとめる。例: 最新寄り emulator/core、FEでの core/launch profile 選択、stockカテゴリ非依存、resume/safe shutdown 方針、Wi-Fi/SSH rescue、差し戻しやすいSDカード中心設計。
+- [ ] StockOS から plumOS へ移行する際の既知の制約/トレードオフを整理する。例: audio/input/full RetroArch runtime は段階検証中、A30 reboot挙動は未確定、stock互換ではなくplumOS独自仕様として設計する点。
 - [ ] license notice と upstream attribution を整理する。
 - [ ] GitHub Release 用の package/artifact workflow を作る。
 - [ ] fresh SD card 相当の環境で install/rollback を検証する。
