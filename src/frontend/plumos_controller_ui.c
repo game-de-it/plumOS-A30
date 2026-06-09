@@ -354,7 +354,8 @@ enum ui_screen {
   SCREEN_HELP = 7,
   SCREEN_CORE_SELECT = 8,
   SCREEN_NETWORK_RESCUE = 9,
-  SCREEN_WIFI_CONNECT = 10
+  SCREEN_WIFI_CONNECT = 10,
+  SCREEN_USB_DISK_CONFIRM = 11
 };
 
 enum wifi_connect_stage {
@@ -2593,6 +2594,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   }
   if (strcmp(id, "network_connect_wifi") == 0 ||
       strcmp(id, "network_rescue") == 0 ||
+      strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
       strcmp(id, "system_information") == 0 ||
@@ -2791,6 +2793,8 @@ static void add_network_settings_entries(struct ui_state *ui) {
                     "Scan SSID");
   add_setting_entry(ui, "network_rescue", "Run Network Recovery",
                     "Wi-Fi + DHCP + SSH");
+  add_setting_entry(ui, "network_usb_disk_mode", "USB Disk Mode",
+                    "USB drive");
   add_setting_entry(ui, "network_information", "INFORMATION", "");
 }
 
@@ -3926,6 +3930,9 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "network_rescue") == 0) {
     copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
     copy_string(line2, line2_size, "Restores the usual remote access path.");
+  } else if (strcmp(id, "network_usb_disk_mode") == 0) {
+    copy_string(line1, line1_size, "Expose the SD card as a USB drive.");
+    copy_string(line2, line2_size, "Requires PC eject and USB disconnect to return.");
   } else if (strcmp(id, "network_information") == 0) {
     copy_string(line1, line1_size, "Open read-only network information.");
     copy_string(line2, line2_size, "Connection, IP, signal, link speed, and SSH.");
@@ -4338,6 +4345,22 @@ static void render_wifi_connect(struct ui_state *ui) {
   }
 }
 
+static void render_usb_disk_confirm(struct ui_state *ui) {
+  ui_printf(ui, "plumOS controller UI - Network Settings - USB Disk Mode\n");
+  ui_printf(ui, "A: enter  B: Network Settings  Q: quit\n");
+  ui_printf(ui, "entries=4 cursor=1\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, ">   1  READY TO ENTER\n");
+  ui_printf(ui, "    2  SD Card: /mnt/SDCARD\n");
+  ui_printf(ui, "    3  PC eject is required\n");
+  ui_printf(ui, "    4  USB disconnect returns to plumOS\n");
+  ui_printf(ui, "footer1=%s\n", "A exposes the SD card as a USB drive.");
+  ui_printf(ui, "footer2=%s\n", "Eject on PC, then unplug USB to finish.");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
   if (ui->rescue_network) {
@@ -4359,6 +4382,8 @@ static void render_ui(struct ui_state *ui) {
     render_network_rescue(ui);
   } else if (ui->screen == SCREEN_WIFI_CONNECT) {
     render_wifi_connect(ui);
+  } else if (ui->screen == SCREEN_USB_DISK_CONFIRM) {
+    render_usb_disk_confirm(ui);
   } else {
     render_top(ui);
   }
@@ -4623,6 +4648,11 @@ static void open_network_rescue_screen(struct ui_state *ui) {
   set_status(ui, "network recovery ready");
 }
 
+static void open_usb_disk_confirm_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_USB_DISK_CONFIRM;
+  set_status(ui, "USB Disk Mode confirmation");
+}
+
 static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) {
   copy_string(ui->current_system_id, sizeof(ui->current_system_id), entry->id);
   copy_string(ui->current_system_name, sizeof(ui->current_system_name), entry->display_name);
@@ -4684,6 +4714,58 @@ static int run_network_rescue(struct ui_state *ui) {
     return 1;
   }
   set_status(ui, "network rescue returned non-zero");
+  return 0;
+}
+
+static int run_usb_disk_mode(struct ui_state *ui) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui) {
+    return 0;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-usb-disk-mode")) {
+    set_status(ui, "USB Disk Mode path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "USB Disk Mode helper missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos,
+                     " PLUMOS_USB_DISK_MODE_EXPERIMENTAL=1"
+                     " PLUMOS_USB_DISK_MODE_CONFIRM=UNMOUNT_SDCARD ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos,
+                     " enter >>/tmp/plumos-usb-disk-mode.ui.log 2>&1")) {
+    set_status(ui, "USB Disk Mode command too long");
+    return 0;
+  }
+
+  set_status(ui, "Entering USB Disk Mode");
+  render_ui(ui);
+  shutdown_ui_renderer(ui);
+  rc = system(cmd);
+  if (ui->renderer_mali && !init_ui_renderer(ui)) {
+    ui->renderer_mali = 0;
+  }
+  if (rc == -1) {
+    set_status(ui, "USB Disk Mode system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    set_status(ui, "USB Disk Mode finished");
+    return 1;
+  }
+  set_status(ui, "USB Disk Mode returned non-zero");
   return 0;
 }
 
@@ -5780,6 +5862,10 @@ static int is_network_information_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_information") == 0;
 }
 
+static int is_network_usb_disk_mode_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "network_usb_disk_mode") == 0;
+}
+
 static int is_system_display_color_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "system_display_color") == 0;
 }
@@ -6082,6 +6168,24 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
 
+  if (ui->screen == SCREEN_USB_DISK_CONFIRM) {
+    if (action == ACTION_A) {
+      run_usb_disk_mode(ui);
+      return;
+    }
+    if (action == ACTION_B) {
+      open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+      select_setting_entry_by_id(ui, "network_usb_disk_mode");
+      set_status(ui, "back to Network Settings");
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
+      return;
+    }
+    return;
+  }
+
   if (ui->screen == SCREEN_TOP) {
     if (action == ACTION_UP) {
       if (ui->top_cursor > 0) {
@@ -6235,6 +6339,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_network_setting_entry(entry)) {
         run_network_rescue(ui);
+        return;
+      }
+      if (is_network_usb_disk_mode_entry(entry)) {
+        open_usb_disk_confirm_screen(ui);
         return;
       }
       if (is_network_information_entry(entry)) {

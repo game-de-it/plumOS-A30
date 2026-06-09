@@ -66,7 +66,9 @@ By default, `enter` also refuses to run from SSH because USB Disk Mode unmounts
 
 ## Expected UI Flow
 
-If exposed to normal users, place `USB Disk Mode` under Network Settings or Apps.
+The validation entry lives at `Network Settings -> USB Disk Mode`. To avoid
+accidental entry, selecting the item opens a confirmation screen: A starts the
+mode, and B returns to Network Settings.
 
 1. Show a confirmation screen.
 2. Explain that the SD card is unavailable to A30 during this mode, and the user
