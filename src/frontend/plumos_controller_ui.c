@@ -433,6 +433,7 @@ struct ui_state {
   size_t wifi_count;
   size_t wifi_cursor;
   enum wifi_connect_stage wifi_stage;
+  int usb_disk_entering;
   size_t wifi_key_row;
   size_t wifi_key_col;
   int wifi_key_shift;
@@ -4350,12 +4351,21 @@ static void render_usb_disk_confirm(struct ui_state *ui) {
   ui_printf(ui, "A: enter  B: Network Settings  Q: quit\n");
   ui_printf(ui, "entries=4 cursor=1\n");
   ui_printf(ui, "\n");
-  ui_printf(ui, ">   1  READY TO ENTER\n");
-  ui_printf(ui, "    2  SD Card: /mnt/SDCARD\n");
-  ui_printf(ui, "    3  PC eject is required\n");
-  ui_printf(ui, "    4  USB disconnect returns to plumOS\n");
-  ui_printf(ui, "footer1=%s\n", "A exposes the SD card as a USB drive.");
-  ui_printf(ui, "footer2=%s\n", "Eject on PC, then unplug USB to finish.");
+  if (ui->usb_disk_entering) {
+    ui_printf(ui, ">   1  USB DISK MODE STARTING\n");
+    ui_printf(ui, "    2  Please wait\n");
+    ui_printf(ui, "    3  Preparing SD card\n");
+    ui_printf(ui, "    4  Do not unplug yet\n");
+    ui_printf(ui, "footer1=%s\n", "Starting USB Disk Mode.");
+    ui_printf(ui, "footer2=%s\n", "Windows will detect the drive shortly.");
+  } else {
+    ui_printf(ui, ">   1  READY TO ENTER\n");
+    ui_printf(ui, "    2  SD Card: /mnt/SDCARD\n");
+    ui_printf(ui, "    3  PC eject is required\n");
+    ui_printf(ui, "    4  USB disconnect returns to plumOS\n");
+    ui_printf(ui, "footer1=%s\n", "A exposes the SD card as a USB drive.");
+    ui_printf(ui, "footer2=%s\n", "Eject on PC, then unplug USB to finish.");
+  }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -4650,6 +4660,7 @@ static void open_network_rescue_screen(struct ui_state *ui) {
 
 static void open_usb_disk_confirm_screen(struct ui_state *ui) {
   ui->screen = SCREEN_USB_DISK_CONFIRM;
+  ui->usb_disk_entering = 0;
   set_status(ui, "USB Disk Mode confirmation");
 }
 
@@ -4750,13 +4761,16 @@ static int run_usb_disk_mode(struct ui_state *ui) {
     return 0;
   }
 
-  set_status(ui, "Entering USB Disk Mode");
+  ui->usb_disk_entering = 1;
+  set_status(ui, "USB Disk Mode starting");
   render_ui(ui);
+  usleep(100000);
   shutdown_ui_renderer(ui);
   rc = system(cmd);
   if (ui->renderer_mali && !init_ui_renderer(ui)) {
     ui->renderer_mali = 0;
   }
+  ui->usb_disk_entering = 0;
   if (rc == -1) {
     set_status(ui, "USB Disk Mode system call failed");
     return 0;
