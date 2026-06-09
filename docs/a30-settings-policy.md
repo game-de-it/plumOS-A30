@@ -25,7 +25,7 @@
 A30 runtime backend へ即時反映します。
 
 - `Volume`: `volume`。左右で `0..20` を変更し、ALSA `Soft Volume Master` へ反映する。将来は物理音量ボタンと連動する
-- `Brightness`: `brightness`。左右で `3..255` を変更し、`/sys/devices/virtual/disp/disp/attr/lcdbl` へ同じ値で反映する。A で検証用の tile 画面を開き、`10,30,50,70...250,255` を十字キーで選んで A で即時適用、B で戻る。`0..2` は画面消灯相当で操作不能になるため使わない。将来は START + 音量ボタンなどの hotkey と連動する
+- `Brightness`: `brightness`。左右で `1..20` を変更し、下記の表で `/sys/devices/virtual/disp/disp/attr/lcdbl` の RAW 値へ反映する。将来は START + 音量ボタンなどの hotkey と連動する
 - `Lumination`: `lumination`。左右で `0..10` を変更し、display `enhance` へ反映する
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
 - `Language`: `language`。左右で `English`, `Japanese`, `Chinese`, `Traditional Chinese`, `Korean`, `Spanish`, `Portuguese` を選択する
@@ -80,10 +80,32 @@ plumOS 側では `/mnt/SDCARD/plumos/config/system/settings.json` に `brightnes
 UI からは plumOS 側の `brightness`, `lumination`, `contrast`, `hue`,
 `saturation` を backup 付き atomic write で更新し、保存直後に A30 の
 `/sys/devices/virtual/disp/disp/attr/lcdbl` と
-`/sys/devices/virtual/disp/disp/attr/enhance` へ反映します。`brightness 3..255` は
-同じ `lcdbl 3..255` へ割り当てます。`0..2` は画面消灯相当になるため使いません。
-比較検証用に、`Brightness` で A を押すと `10,30,50,70...250,255` の tile 画面を開き、
-十字キーで選択した値を A で同じ `brightness` / `lcdbl` へ即時適用します。
+`/sys/devices/virtual/disp/disp/attr/enhance` へ反映します。ユーザー向けの
+`brightness 1..20` は、A30 の見た目の変化に合わせて次の RAW 値へ割り当てます。
+
+| brightness | lcdbl RAW |
+|---:|---:|
+| 1 | 2 |
+| 2 | 3 |
+| 3 | 4 |
+| 4 | 5 |
+| 5 | 6 |
+| 6 | 7 |
+| 7 | 8 |
+| 8 | 9 |
+| 9 | 10 |
+| 10 | 26 |
+| 11 | 43 |
+| 12 | 59 |
+| 13 | 75 |
+| 14 | 92 |
+| 15 | 108 |
+| 16 | 125 |
+| 17 | 141 |
+| 18 | 157 |
+| 19 | 174 |
+| 20 | 190 |
+
 `lumination 0..10` は `enhance` の第2値 `0..50`、
 `contrast` / `hue` / `saturation 0..20` は `enhance` の第3-5値 `0..100` に丸めます。
 

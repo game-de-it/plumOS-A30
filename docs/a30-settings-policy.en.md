@@ -28,11 +28,9 @@ are applied immediately to the A30 runtime backend.
 
 - `Volume`: `volume`; Left/Right changes `0..20`. Later
   this should track the physical volume buttons
-- `Brightness`: `brightness`; Left/Right changes `3..255` and applies the same
-  value to `lcdbl`. A opens a test tile screen for `10,30,50,70...250,255`;
-  D-pad selects a tile, A applies it immediately, and B returns. `0..2` is not
-  exposed because it maps to a display blackout. Later this should track a
-  hotkey such as START + volume
+- `Brightness`: `brightness`; Left/Right changes `1..20` and applies the mapped
+  RAW value to `/sys/devices/virtual/disp/disp/attr/lcdbl`. Later this should
+  track a hotkey such as START + volume
 - `Lumination`: `lumination`; Left/Right changes `0..10`
 - `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
   each change in the `0..20` range
@@ -95,12 +93,31 @@ files. plumOS stores `brightness`, `lumination`, `contrast`, `hue`, and
 The UI updates `brightness`, `lumination`, `contrast`, `hue`, and `saturation`
 in plumOS system settings using backed-up atomic writes, then applies them to
 `/sys/devices/virtual/disp/disp/attr/lcdbl` and
-`/sys/devices/virtual/disp/disp/attr/enhance`. `brightness 3..255` maps directly
-to the same `lcdbl 3..255` values. `0..2` is avoided because it behaves like a
-display blackout.
-A test tile screen is available from `Brightness` with A. It presents
-`10,30,50,70...250,255`; the selected tile is applied immediately to the same
-`brightness` / `lcdbl` path with A.
+`/sys/devices/virtual/disp/disp/attr/enhance`. User-facing `brightness 1..20`
+maps to the following RAW lcdbl values based on visual testing:
+
+| brightness | lcdbl RAW |
+|---:|---:|
+| 1 | 2 |
+| 2 | 3 |
+| 3 | 4 |
+| 4 | 5 |
+| 5 | 6 |
+| 6 | 7 |
+| 7 | 8 |
+| 8 | 9 |
+| 9 | 10 |
+| 10 | 26 |
+| 11 | 43 |
+| 12 | 59 |
+| 13 | 75 |
+| 14 | 92 |
+| 15 | 108 |
+| 16 | 125 |
+| 17 | 141 |
+| 18 | 157 |
+| 19 | 174 |
+| 20 | 190 |
 
 ## Volume
 

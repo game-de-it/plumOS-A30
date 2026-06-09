@@ -141,11 +141,13 @@
   2026-06-10 に線形 `lcdbl 26..255` では高域が早く飽和するとの目視フィードバックを受け、
   `lcdbl 12,18,26,36,50,68,90,118,160,255` の体感寄せ table へ変更した。その後、
   1〜3で最も大きく変化するとの追加フィードバックを受け、実験値として
-  `lcdbl 1,2,3,4,5,6,7,8,9,10` へ変更した。`lcdbl=2` 以下は真っ暗になり復帰不能に
-  近いため、最低値を3にし、上限探索用に `Brightness 3..255` = `lcdbl 3..255` へ変更した。
+  `lcdbl 1,2,3,4,5,6,7,8,9,10` へ変更した。その後、検証用 tile 画面で
+  `lcdbl 190` 付近が見た目の最大輝度に近いこと、低域の変化が大きいことを確認し、
+  ユーザー向け `brightness` は `1..20`、RAW は
+  `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190` にした。
   Settings の左右値変更は既存 repeat delay 後に 250ms 間隔、約4段階/秒で repeat する。
-  `Brightness` で A を押すと検証用の tile 画面を開き、`10,30,50,70...250,255` を
-  十字キーで選択して A で即時適用、B で System Settings に戻る。
+  検証用 tile 画面は通常ユーザー操作から隠し、`PLUMOS_CONTROLLER_BRIGHTNESS_TEST=1`
+  の明示時だけ RAW lcdbl 一時適用用として使う。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。

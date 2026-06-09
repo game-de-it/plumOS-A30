@@ -809,6 +809,42 @@ static int apply_runtime_volume(const struct device_settings *device) {
   return system_command_succeeded(system(cmd));
 }
 
+static long brightness_raw_value(long brightness) {
+  static const long raw_values[] = {
+      2, 3, 4, 5, 6, 7, 8, 9, 10, 26,
+      43, 59, 75, 92, 108, 125, 141, 157, 174, 190,
+  };
+
+  brightness = clamp_long(brightness, 1, 20);
+  return raw_values[brightness - 1];
+}
+
+static long brightness_setting_from_raw(long raw) {
+  long best_setting = 1;
+  long best_delta = labs(raw - brightness_raw_value(1));
+  long setting;
+
+  for (setting = 2; setting <= 20; setting++) {
+    long candidate = brightness_raw_value(setting);
+    long delta = labs(raw - candidate);
+    if (delta < best_delta) {
+      best_setting = setting;
+      best_delta = delta;
+    }
+  }
+  return best_setting;
+}
+
+static long brightness_setting_from_stored(long stored) {
+  if (stored >= 1 && stored <= 20) {
+    return stored;
+  }
+  if (stored < 1) {
+    return 1;
+  }
+  return brightness_setting_from_raw(stored);
+}
+
 static int apply_runtime_brightness(const struct device_settings *device) {
   char value[64];
   long backlight_value;
@@ -817,8 +853,8 @@ static int apply_runtime_brightness(const struct device_settings *device) {
   if (!device || !runtime_lcd_backend_available()) {
     return 0;
   }
-  brightness = clamp_long(device->brightness, 3, 255);
-  backlight_value = brightness;
+  brightness = clamp_long(device->brightness, 1, 20);
+  backlight_value = brightness_raw_value(brightness);
   snprintf(value, sizeof(value), "%ld\n", backlight_value);
   return write_text_file(A30_LCD_BACKLIGHT_PATH, value);
 }
@@ -1670,8 +1706,14 @@ static int load_device_settings(struct ui_state *ui) {
   json_end = json + json_size;
   ui->device.loaded = 1;
   ui->device.volume = json_get_long(json, json_end, "volume", ui->device.volume);
-  ui->device.brightness = json_get_long(json, json_end, "brightness", ui->device.brightness);
-  ui->device.brightness = clamp_long(ui->device.brightness, 3, 255);
+  {
+    long stored_brightness = json_get_long(json, json_end, "brightness",
+                                           ui->device.brightness);
+    ui->device.brightness = brightness_setting_from_stored(stored_brightness);
+    if (stored_brightness != ui->device.brightness) {
+      save_system_config_number(ui, "brightness", ui->device.brightness);
+    }
+  }
   ui->device.lumination = json_get_long(json, json_end, "lumination", ui->device.lumination);
   ui->device.contrast = json_get_long(json, json_end, "contrast", ui->device.contrast);
   ui->device.hue = json_get_long(json, json_end, "hue", ui->device.hue);
@@ -2193,7 +2235,8 @@ static void add_system_brightness_test_entries(struct ui_state *ui) {
     snprintf(id, sizeof(id), "system_brightness_test_%ld", brightness);
     snprintf(value, sizeof(value), "%ld", brightness);
     add_setting_entry(ui, id, value,
-                      device->brightness == brightness ? "current" : "preset");
+                      brightness_raw_value(device->brightness) == brightness ? "current"
+                                                                             : "preset");
   }
 }
 
@@ -3407,7 +3450,7 @@ static void setting_help_lines(const struct setting_entry *entry,
       copy_string(line2, line2_size, "Applies to Soft Volume Master and saves to plumOS.");
     } else if (strcmp(id, "system_brightness") == 0) {
       copy_string(line1, line1_size, "Screen brightness setting.");
-      copy_string(line2, line2_size, "LEFT/RIGHT fine-tunes; A opens preset test.");
+      copy_string(line2, line2_size, "LEFT/RIGHT changes 1..20 and applies lcdbl.");
     } else if (strcmp(id, "system_lumination") == 0) {
       copy_string(line1, line1_size, "Display lumination setting.");
       copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
@@ -3480,7 +3523,7 @@ static size_t brightness_test_nearest_index(long brightness) {
 
 static void render_brightness_test_settings(struct ui_state *ui) {
   size_t i;
-  long current = clamp_long(ui->device.brightness, 3, 255);
+  long current = brightness_raw_value(ui->device.brightness);
   long selected = current;
 
   if (ui->setting_count > 0 && ui->settings_cursor < ui->setting_count) {
@@ -3858,7 +3901,8 @@ static void open_settings_screen(struct ui_state *ui, enum settings_category cat
 static void open_system_brightness_test_screen(struct ui_state *ui) {
   open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST);
   if (ui->setting_count > 0) {
-    ui->settings_cursor = brightness_test_nearest_index(ui->device.brightness);
+    ui->settings_cursor = brightness_test_nearest_index(
+        brightness_raw_value(ui->device.brightness));
     if (ui->settings_cursor >= ui->setting_count) {
       ui->settings_cursor = ui->setting_count - 1;
     }
@@ -4205,6 +4249,12 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
 
 static int bool_from_setting_value(const char *value) {
   return setting_value_is_true(value);
+}
+
+static int brightness_test_tiles_enabled(void) {
+  const char *value = getenv("PLUMOS_CONTROLLER_BRIGHTNESS_TEST");
+
+  return value && setting_value_is_true(value);
 }
 
 static void settings_start_arrow_blink(struct ui_state *ui, int direction) {
@@ -4615,8 +4665,8 @@ static int save_setting_number(struct ui_state *ui, const char *id,
     max_value = 20;
   } else if (strcmp(id, "system_brightness") == 0) {
     system_key = "brightness";
-    min_value = 3;
-    max_value = 255;
+    min_value = 1;
+    max_value = 20;
   } else if (strcmp(id, "system_lumination") == 0) {
     system_key = "lumination";
     min_value = 0;
@@ -4679,27 +4729,22 @@ static int save_setting_number(struct ui_state *ui, const char *id,
 }
 
 static int save_brightness_test_value(struct ui_state *ui, long value) {
-  char runtime_status[128];
+  char raw[64];
 
   if (!ui) {
     return 0;
   }
-  value = clamp_long(value, 3, 255);
-  if (!save_system_config_number(ui, "brightness", value)) {
-    set_status(ui, "plumOS system config write failed");
+  value = clamp_long(value, 1, 255);
+  if (!runtime_lcd_backend_available()) {
+    set_status(ui, "brightness test backend unavailable");
     return 0;
   }
-  set_device_setting_number(&ui->device, "system_brightness", value);
-  apply_device_runtime_settings(&ui->device, "system_brightness", runtime_status,
-                                sizeof(runtime_status));
-  update_settings_entries_after_save(ui);
-  if (runtime_status[0]) {
-    snprintf(ui->status, sizeof(ui->status), "saved brightness=%ld; %s", value,
-             runtime_status);
-  } else {
-    snprintf(ui->status, sizeof(ui->status), "saved brightness=%ld; runtime applied",
-             value);
+  snprintf(raw, sizeof(raw), "%ld\n", value);
+  if (!write_text_file(A30_LCD_BACKLIGHT_PATH, raw)) {
+    set_status(ui, "brightness test write failed");
+    return 0;
   }
+  snprintf(ui->status, sizeof(ui->status), "test lcdbl raw=%ld; not saved", value);
   return 1;
 }
 
@@ -5076,7 +5121,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         return;
       }
       if (is_system_brightness_entry(entry)) {
-        open_system_brightness_test_screen(ui);
+        if (brightness_test_tiles_enabled()) {
+          open_system_brightness_test_screen(ui);
+        } else {
+          set_status(ui, "Brightness changes with LEFT/RIGHT");
+        }
         return;
       }
       if (is_system_information_entry(entry)) {
