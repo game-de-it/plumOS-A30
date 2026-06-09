@@ -26,6 +26,7 @@ RUN dpkg --add-architecture armhf \
     cmake \
     crossbuild-essential-armhf \
     curl \
+    dosfstools:armhf \
     file \
     flex \
     gettext \

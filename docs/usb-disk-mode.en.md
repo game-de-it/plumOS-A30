@@ -81,8 +81,6 @@ If exposed to normal users, place `USB Disk Mode` under Network Settings or Apps
 - Decide how to return from USB Disk Mode without relying only on USB disconnect.
 - Decide whether a rootfs/tmpfs-resident screen is needed while the SD card is
   unmounted.
-- A30 stock/plumOS userland does not currently provide `fsck.fat`/`dosfsck`;
-  bundle a FAT checker before making this a normal feature.
 - Compare `nofua=0` and `nofua=1` for speed and reliability.
 - Validate dirty-bit/remount behavior on macOS, Windows, and Linux.
 - Benchmark transfer speed with the same conditions used for FTP/SFTP/Samba.

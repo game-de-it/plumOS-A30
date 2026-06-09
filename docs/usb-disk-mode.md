@@ -76,8 +76,6 @@ SSH daemon も停止するためです。
 
 - A30 側で USB cable disconnect 以外の復帰入力をどう受けるか。
 - USB Disk Mode 中に画面へ案内を出し続ける rootfs/tmpfs resident UI が必要か。
-- A30 stock/plumOS userland には現時点で `fsck.fat`/`dosfsck` が無いため、正式化前に
-  FAT checker を同梱する。
 - `nofua=0` と `nofua=1` の速度/安定性比較。
 - macOS/Windows/Linux で eject 後の dirty bit と再 mount を検証する。
 - 実 transfer benchmark を FTP/SFTP/Samba と同じ条件で測る。

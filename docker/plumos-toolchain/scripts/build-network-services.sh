@@ -270,6 +270,30 @@ install_samba() {
   fi
 }
 
+install_fat_tools() {
+  local fsck_fat
+  local dst_bin="${BIN_DIR}/fsck.fat.bin"
+
+  fsck_fat="$(find_first /usr/sbin/fsck.fat /sbin/fsck.fat 2>/dev/null || true)"
+  if [ -z "$fsck_fat" ]; then
+    printf 'error: fsck.fat not found; rebuild the Docker image with dosfstools:armhf\n' >&2
+    return 1
+  fi
+
+  log "Installing FAT checker"
+  install -m 0755 "$fsck_fat" "$dst_bin"
+  copy_runtime_deps "$dst_bin"
+  write_loader_wrapper "${BIN_DIR}/fsck.fat" '${PLUMOS_ROOT}/bin/fsck.fat.bin' ''
+  cp "${BIN_DIR}/fsck.fat" "${BIN_DIR}/dosfsck"
+  chmod 0755 "${BIN_DIR}/dosfsck"
+
+  {
+    echo "fsck.fat: ${fsck_fat}"
+    file "$dst_bin"
+    echo
+  } >> "$MANIFEST"
+}
+
 write_docs() {
   cat > "${DOC_DIR}/README.txt" <<'EOF'
 plumOS network services
@@ -295,6 +319,7 @@ Services:
     Hidden experimental helper, /mnt/SDCARD/plumos/bin/plumos-usb-disk-mode.
     It unmounts /mnt/SDCARD before exposing /dev/mmcblk0p1 as USB Mass Storage
     and is not meant for normal UI use until hardware validation is complete.
+    The package includes fsck.fat/dosfsck for the remount recovery path.
 
 Persistent service state:
   /mnt/SDCARD/plumos/config/network/services.conf
@@ -314,6 +339,7 @@ EOF
 assemble_base
 install_sftp_server
 install_samba
+install_fat_tools
 write_docs
 
 printf 'Built %s\n' "$DIST_DIR"

@@ -96,7 +96,7 @@
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
 - [x] Connect Wi-Fi の SSID 検索、password 入力、DHCP、gateway ping、IP 表示を実機で確認する。
 - [x] FTP/SFTP/Samba の複数ファイル同時転送と速度を測定し、README の推奨サービスを更新する。
-- [ ] USB Disk Mode 正式化前に `dosfsck` / FAT checker を plumOS userland へ同梱する。
+- [x] USB Disk Mode 正式化前に `dosfsck` / FAT checker を plumOS userland へ同梱する。
 - [ ] USB Disk Mode の enter/finish flow を実機で検証し、通常UIへ出せる安全な復帰手順を固める。
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
