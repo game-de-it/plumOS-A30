@@ -115,6 +115,30 @@ Backend candidates:
 - Wi-Fi runtime: redacted status is readable from `/tmp/wpa_status.txt`.
 - Input: `gpio-keys-polled` normally resolves to `/dev/input/event3`.
 
+CPU policy findings:
+
+- Available governors include `interactive`, `conservative`, `userspace`,
+  `ondemand`, and `performance`.
+- cpufreq can set values such as 648000/816000/1200000/1344000 kHz.
+- Stock scripts tend to use 648/816 MHz for lighter systems and 1200 MHz or
+  above for heavier systems.
+- In the plumOS practical RetroArch probe, `performance` worked for screen,
+  audio, and controls, while `ondemand` caused audio stutter.
+- `userspace` with min/max/set speed fixed at 648000 kHz worked well for
+  NES/GB, so lightweight cores default to fixed frequency.
+- On 2026-06-07, a battery-powered dummy CPU load was measured. 2 cores +
+  performance + max load for 120 seconds averaged `current_now=487522` and
+  `power=1977.781mW`. 4 cores + performance + max load for 120 seconds averaged
+  `current_now=2020909` and `power=8066.453mW`.
+- The 4-core condition averaged about 4.1x the power of the 2-core condition,
+  so core count is also user-configurable.
+- During that measurement, the 4-core condition dropped cpufreq min/max/current
+  from 1344000 kHz to 1200000 kHz, possibly due to power, thermal, or PMIC-side
+  limiting.
+- The FE SELECT core menu shows CPU frequency/core presets per system/ROM and
+  resolves them into `plumos-retroarch-launch --cpu fixed --freq KHZ --cores 2|4`
+  at launch time.
+
 Detailed UI policy lives in [A30 settings UI policy](a30-settings-policy.en.md).
 
 ## Runtime Probe

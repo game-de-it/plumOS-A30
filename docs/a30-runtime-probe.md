@@ -20,6 +20,7 @@ dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
 dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
 dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -153,6 +154,19 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `plumos-shm-watch` は、左スティック calibration のように kernel input event に出ない
 経路を調べるための補助 binary です。shared memory へ書き込みは行いません。
+
+framebuffer mode/RGBA mask を復旧:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-fb-restore'
+```
+
+`plumos-fb-restore` は `/dev/fb0` を A30 の通常表示向けに戻します。具体的には
+`480x640`, virtual `480x1280`, bpp `32`, `rgba=8/16,8/8,8/0,8/24` へ復元します。
+SDL1/fbcon 系 standalone emulator が framebuffer mode や RGBA mask を変えた後、
+次の SDL2/Mali 起動前に使います。double-buffered fbdev の page offset は probe 上で
+`0,0` または `0,640` が見えることがあります。
 
 serial joystick raw data を確認:
 

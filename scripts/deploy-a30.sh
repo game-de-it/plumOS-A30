@@ -40,5 +40,5 @@ fi
 
 echo "Deploying ${SRC} to ${TARGET}:${REMOTE_DIR}"
 ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p '$REMOTE_DIR'"
-tar -cf - "${TAR_ARGS[@]}" | ssh "${SSH_OPTS[@]}" "$TARGET" "tar -xf - -C '$REMOTE_DIR'"
+COPYFILE_DISABLE=1 tar -cf - "${TAR_ARGS[@]}" | ssh "${SSH_OPTS[@]}" "$TARGET" "tar -xf - -C '$REMOTE_DIR'"
 echo "Deploy complete"

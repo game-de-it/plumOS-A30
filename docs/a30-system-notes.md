@@ -134,6 +134,24 @@ backend 候補:
 - Wi-Fi runtime: `/tmp/wpa_status.txt` から redacted status は読める
 - input: `gpio-keys-polled` は通常 `/dev/input/event3`
 
+CPU policy 実測:
+
+- governor 候補は `interactive`, `conservative`, `userspace`, `ondemand`, `performance`。
+- cpufreq 側で 648000/816000/1200000/1344000 kHz などを設定できる。
+- stock script は軽い機種で 648/816 MHz、重い機種で 1200 MHz 以上に寄せる傾向がある。
+- plumOS RetroArch 実用 probe では `performance` は画面/音/操作が良好だったが、
+  `ondemand` は音途切れが発生した。
+- `userspace` + min/max/set speed を 648000 kHz に固定した NES/GB probe は
+  画面/音/操作が良好だったため、軽量 core は fixed frequency を初期方針にする。
+- 2026-06-07 にバッテリー駆動で dummy CPU負荷を測定した。
+  2コア + performance + max load 120秒の平均は `current_now=487522`, `power=1977.781mW`。
+  4コア + performance + max load 120秒の平均は `current_now=2020909`, `power=8066.453mW`。
+  4コアは約4.1倍の平均電力になったため、core数もFEの設定対象にする。
+- 同測定中、4コア側は途中で cpufreq min/max/current が 1344000 kHz から 1200000 kHz へ
+  落ちた。電源/熱/PMIC側の上限制御の可能性がある。
+- FE の SELECT core menu では system/ROM ごとに CPU frequency/core preset を見せ、
+  実起動時は `plumos-retroarch-launch --cpu fixed --freq KHZ --cores 2|4` へ解決する。
+
 詳細な UI 方針は [A30 設定 UI 方針](a30-settings-policy.md) に分離しています。
 
 ## Runtime probe

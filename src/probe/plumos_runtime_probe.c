@@ -209,9 +209,12 @@ static int run_video_probe(const struct probe_config *cfg) {
     return 0;
   }
 
-  printf("video path=%s open=yes xres=%u yres=%u virtual=%ux%u offset=%u,%u bpp=%u line=%u\n",
+  printf("video path=%s open=yes xres=%u yres=%u virtual=%ux%u offset=%u,%u bpp=%u line=%u "
+         "rgba=%u/%u,%u/%u,%u/%u,%u/%u\n",
          cfg->fb_path, var.xres, var.yres, var.xres_virtual, var.yres_virtual,
-         var.xoffset, var.yoffset, var.bits_per_pixel, fix.line_length);
+         var.xoffset, var.yoffset, var.bits_per_pixel, fix.line_length,
+         var.red.length, var.red.offset, var.green.length, var.green.offset,
+         var.blue.length, var.blue.offset, var.transp.length, var.transp.offset);
 
   bytes_per_pixel = (int)((var.bits_per_pixel + 7) / 8);
   draw_w = var.xres < 64 ? (int)var.xres : 64;

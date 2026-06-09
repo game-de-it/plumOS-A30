@@ -20,6 +20,7 @@ dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
 dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
 dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -154,6 +155,19 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `plumos-shm-watch` is a helper for investigating paths that do not appear as
 kernel input events, such as left stick calibration. It does not write to shared
 memory.
+
+Restore framebuffer mode/RGBA masks:
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
+  '/mnt/SDCARD/plumos/bin/plumos-fb-restore'
+```
+
+`plumos-fb-restore` restores `/dev/fb0` to the normal A30 display mode:
+`480x640`, virtual `480x1280`, bpp `32`, and `rgba=8/16,8/8,8/0,8/24`.
+Use it before the next SDL2/Mali launch after an SDL1/fbcon standalone emulator
+changes the framebuffer mode or RGBA masks. The double-buffered fbdev page
+offset may appear as either `0,0` or `0,640` in probes.
 
 Serial joystick raw-data check:
 
