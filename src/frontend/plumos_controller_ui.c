@@ -4764,12 +4764,8 @@ static int run_usb_disk_mode(struct ui_state *ui) {
   ui->usb_disk_entering = 1;
   set_status(ui, "USB Disk Mode starting");
   render_ui(ui);
-  usleep(100000);
-  shutdown_ui_renderer(ui);
+  usleep(500000);
   rc = system(cmd);
-  if (ui->renderer_mali && !init_ui_renderer(ui)) {
-    ui->renderer_mali = 0;
-  }
   ui->usb_disk_entering = 0;
   if (rc == -1) {
     set_status(ui, "USB Disk Mode system call failed");
