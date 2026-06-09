@@ -82,6 +82,7 @@
     { "name": "megadrive", "source": "rocknix", "priority": 20 },
     { "name": "genesis", "source": "rocknix", "priority": 30 }
   ],
+  "scan_directories": false,
   "extensions": ["gen", "md", "smd", "32x", "bin", "chd", "zip", "7z"],
   "artwork": {
     "lookup": [
@@ -101,6 +102,8 @@ Field:
 - `display_name`: UI 表示名。短い機種名
 - `short_name`: さらに短い表示名。小さい画面や status 表示用
 - `directory_aliases`: ROM directory 名の候補
+- `scan_directories`: true の場合、alias root 直下の directory を ROM entry として扱う。
+  ScummVM/EasyRPG のように game が directory 単位で配布される system 用
 - `extensions`: この機種に属する ROM 拡張子。dot は付けない
 - `artwork.lookup`: thumbnail/capture/cover の探索先。順番に見る
 - `launch_profiles`: 起動候補。実体は frontend ではなく launcher 側で解決する
@@ -277,7 +280,8 @@ text mode は theme asset/font が壊れていても built-in font/color fallbac
   "top_mode": "text",
   "rom_mode": "text",
   "show_empty_systems": false,
-  "show_favorites_on_top": false,
+  "show_favorites_on_top": true,
+  "show_recent_on_top": true,
   "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",
@@ -492,9 +496,23 @@ rules:
 - launch profile が `retroarch:<core>` の場合は、plumOS 配下の RetroArch binary と
   `<core>_libretro.so` が存在する場合だけ実行可能にする。欠けている場合は launch plan を
   non-executable として扱う
+- launch profile が `standalone:<emulator>` の場合は、
+  `/mnt/SDCARD/plumos/bin/plumos-standalone-launch <emulator> <ROM>` に解決する。
+  `standalone:ppsspp`、`standalone:pcsx_rearmed`、`standalone:scummvm`、
+  `standalone:easyrpg` は A30 実機 first-pass 検証済みの候補として扱う
+- ROM list で A を押すと `plumos-text-ui launch ... --execute` を呼び、起動前に
+  pending resume を保存し、エミュレータ終了後に pending resume を clear する
 - RetroArch の Auto Save State / Auto Load State との実接続は launcher/RetroArch 実装時に行う
 - RetroArch 実行中の safe shutdown/resume menu は、電源ボタンではなく Function button を
   第一候補にする。電源ボタンは kernel 側で処理される可能性があるため、必須経路にしない
+- FE が emulator 待ちでブロックされる間は、`plumos-safe-hotkeyd` が
+  `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視し、Function=`KEY_ESC` から
+  `plumos-safe-shutdown --shutdown --no-poweroff` を起動する候補にする。2026-06-08 時点では
+  `plumos-text-ui launch --execute` が RetroArch/standalone launch 中だけ
+  `plumos-safe-hotkeyd --oneshot` を自動起動し、`SIGUSR1` trigger で RetroArch 実行中の
+  安全終了pathを確認済み。`scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で
+  再実行できる。物理 Function 押下は `trigger source=key` で確認済み。overlay menu の
+  有無は継続確認する
 
 ## SAFE menu model
 
@@ -520,10 +538,16 @@ rules:
 - 初期 cursor は `Cancel` に置き、Function の誤操作で即 sleep/shutdown しない
 - `Sleep` は save RAM flush と resume candidate 維持を行う。実 suspend が難しい場合は
   疑似 sleep 方針へ fallback する
-- `Shutdown` は save state、save RAM flush、`resume-session.json` 更新、RetroArch 終了、
-  `sync`、poweroff の順に行う
+- `Shutdown` は dedicated safe state slot 999 への save state、save RAM flush、
+  `resume-session.json` 更新、RetroArch 終了、`sync`、poweroff の順に行う
 - `Cancel`、B、LEFT、Function は元の画面へ戻る
-- 初期 prototype では plan preview だけを表示し、実処理は launcher/RetroArch 実装後に接続する
+- ROM list の A は実起動へ接続済み。SAFE menu の sleep/shutdown は
+  `plumos-safe-shutdown --no-poweroff` 経由で launcher/RetroArch 側の保存・終了・`sync`・
+  resume hold まで接続済み。`plumos-safe-shutdown` は power backend と sleep backend を
+  選べるが、実 poweroff/suspend 発火は別途確認する
+- emulator 実行中の `plumos-safe-hotkeyd` 直接安全終了pathは、text-ui launch 中の
+  自動起動と `.state999` 作成まで確認済み。ゲーム中にこの SAFE menu を重ねるか、
+  Function で直接 shutdown/sleep 相当へ入るかはUX決定待ち
 
 ## START menu model
 
@@ -576,13 +600,27 @@ schema:
 {
   "version": 1,
   "system_overrides": [
-    { "system_id": "nes", "launch_profile": "retroarch:nestopia" }
+    {
+      "system_id": "nes",
+      "launch_profile": "retroarch:nestopia",
+      "cpu_policy": "fixed",
+      "cpu_freq_khz": 648000,
+      "cpu_cores": 2
+    }
   ],
   "rom_overrides": [
     {
-      "system_id": "nes",
-      "relative_path": "FC/example.nes",
-      "launch_profile": "retroarch:fceumm"
+      "system_id": "dos",
+      "relative_path": "DOS/DOSBOX_DIGGER.ZIP",
+      "launch_profile": "retroarch:dosbox_pure",
+      "cpu_policy": "fixed",
+      "cpu_freq_khz": 1344000,
+      "cpu_cores": 4,
+      "content_suffix": "#DIGGER.EXE",
+      "audio_driver": "oss",
+      "audio_latency_ms": 256,
+      "dosbox_pure_force60fps": "true",
+      "dosbox_pure_cycles": "max"
     }
   ]
 }
@@ -593,8 +631,8 @@ schema:
 ```text
 1. ROM override
 2. system override
-3. SystemDefinition.default_launch_profile
-4. auto detect
+3. SystemDefinition.default_launch_profile / default_cpu_policy
+4. launcher default / auto detect
 ```
 
 rules:
@@ -602,8 +640,26 @@ rules:
 - 保存する値は core path ではなく `launch_profile` id とする
 - `retroarch:fceumm` のような profile id は launcher 側で RetroArch binary、core `.so`、
   config override、CPU policy へ解決する
+- `standalone:ppsspp` のような profile id は `plumos-standalone-launch` と
+  emulator id、ROM path、CPU policy へ解決する
+- `cpu_policy` は `performance|fixed`。`fixed` のときだけ `cpu_freq_khz` を保存する。
+  ユーザー向け UI では予測しづらい `keep` を表示・保存しない
+- `cpu_cores` は `2|4`。A30では2コアは CPU0+CPU1、4コアは CPU0-CPU3 を online にする
+- SELECT core menu には core候補と CPU frequency preset を同時に表示する
+- SELECT core menu には CPU core preset も表示する。2026-06-07 の dummy負荷測定では
+  4コアperformance負荷は2コアperformance負荷の約4倍の平均電力になったため、core数も
+  ユーザー設定対象にする
+- CPU設定も `launch_profile` と同じく ROM override > system override > system default の順で解決する
 - per-ROM override の key は `system_id` と、ROM alias root からの `relative_path`
   の組み合わせとする
+- DOSBox-Pure など1つのcontent内で起動ファイルを選ぶcoreでは、per-ROM override の
+  `content_suffix` に `#DIGGER.EXE` のような suffix を保存できる。FE launch plan は
+  実行時だけ ROM path に suffix を足し、`ROM.zip#EXE` を直接指定した場合も base ROM の
+  override を fallback 参照する
+- `audio_driver` と `audio_latency_ms` は RetroArch launcher の `--audio` /
+  `--audio-latency` に解決する
+- `dosbox_pure_force60fps` と `dosbox_pure_cycles` は DOSBox-Pure core option として
+  launcher の一時 append config に書き込む
 - ROM file を移動/rename した場合、per-ROM override は自動追跡しない
 - ROM override を clear すると system override へ戻り、system override もなければ
   `default_launch_profile` へ戻る
@@ -634,10 +690,32 @@ scan algorithm:
 1. `systems.json` を読む
 2. 各 `SystemDefinition.directory_aliases` を `rom_roots` に対して解決する
 3. 存在する directory を scan する
-4. `extensions` に一致する file だけを `RomEntry` にする
-5. 共有 directory では拡張子で system を振り分ける
-6. `RomEntry` の代表 path から artwork lookup を実行する
-7. 結果を `state/frontend/library-index.json` に保存する
+4. `extensions` に一致する file を `RomEntry` にする
+5. `scan_directories=true` の system では alias root 直下の directory も `RomEntry`
+   にし、その directory 内部は再帰 scan しない
+6. 共有 directory では拡張子で system を振り分ける
+7. `RomEntry` の代表 path から artwork lookup を実行する
+8. 結果を `state/frontend/library-index.json` に保存する
+
+### Directory ROM sidecar
+
+`scan_directories=true` の system では、directory 自体を `RomEntry` として扱います。
+ScummVM のように directory とは別に engine target id が必要な場合は、ROM directory
+または隣接 path に sidecar を置きます。
+
+対応する ScummVM sidecar:
+
+```text
+Roms/SCUMMVM/BASS-Floppy-1.3/.plumos-scummvm-target
+Roms/SCUMMVM/BASS-Floppy-1.3/scummvm-target.txt
+Roms/SCUMMVM/BASS-Floppy-1.3/.scummvm
+Roms/SCUMMVM/BASS-Floppy-1.3.scummvm
+Roms/SCUMMVM/BASS-Floppy-1.3.svm
+```
+
+内容は `target=sky`、`gameid=sky`、`scummvm_target=sky`、または `sky` のような
+1行形式を受け付けます。target id は ASCII の英数字、`.`、`_`、`-` のみ許可します。
+sidecar が無い場合、初期 fallback は既存検証ROMに合わせて `sky` です。
 
 ## Initial system seed
 

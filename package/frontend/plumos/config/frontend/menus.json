@@ -6,10 +6,34 @@
       "display_name": "START",
       "entries": [
         {
-          "id": "settings",
-          "display_name": "Settings",
+          "id": "ui-settings",
+          "display_name": "UI Settings",
           "kind": "internal",
-          "action": "internal:settings"
+          "action": "internal:ui-settings"
+        },
+        {
+          "id": "system-settings",
+          "display_name": "System Settings",
+          "kind": "internal",
+          "action": "internal:system-settings"
+        },
+        {
+          "id": "network-settings",
+          "display_name": "Network Settings",
+          "kind": "internal",
+          "action": "internal:network-settings"
+        },
+        {
+          "id": "network-recovery",
+          "display_name": "Network Recovery",
+          "kind": "internal",
+          "action": "internal:network-recovery"
+        },
+        {
+          "id": "performance-settings",
+          "display_name": "Performance Settings",
+          "kind": "internal",
+          "action": "internal:performance-settings"
         },
         {
           "id": "apps",
@@ -18,28 +42,10 @@
           "action": "menu:apps"
         },
         {
-          "id": "favorites",
-          "display_name": "Favorites",
+          "id": "help",
+          "display_name": "HELP",
           "kind": "internal",
-          "action": "internal:favorites"
-        },
-        {
-          "id": "recent",
-          "display_name": "Recent",
-          "kind": "internal",
-          "action": "internal:recent"
-        },
-        {
-          "id": "network",
-          "display_name": "Network",
-          "kind": "internal",
-          "action": "internal:network"
-        },
-        {
-          "id": "refresh-current",
-          "display_name": "Refresh Current System",
-          "kind": "scan",
-          "action": "scan:current"
+          "action": "internal:help"
         },
         {
           "id": "shutdown",

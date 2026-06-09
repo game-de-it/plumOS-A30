@@ -1,19 +1,20 @@
 # MainUI bootstrap
 
 A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動します。plumOS
-ではこの位置に小さな wrapper を置き、実体を `/mnt/SDCARD/plumos/bin/plumos-frontend`
-へ逃がします。
+ではこの位置に小さな wrapper を置き、実体を
+`/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` へ逃がします。
 
 ## 方針
 
 - stock MainUI は `/mnt/SDCARD/miyoo/app/MainUI.stock` として退避する
 - `/mnt/SDCARD/miyoo/app/MainUI` は shell wrapper にする
-- wrapper は `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動する
+- wrapper は `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` を通常FEとして起動する
 - wrapper は boot 復旧用に `/mnt/SDCARD/plumos/bin/plumos-network-rescue` を自動実行する
 - wrapper は stock `/etc/main` が先に起動した `keymon` を止める
-- `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` が存在する場合は、まず
-  `--rescue-network` で起動し、A ボタンで Wi-Fi 起動処理、DHCP、SSH start を再実行できる
-- plumOS frontend が未完成または異常終了した場合は stock MainUI へ fallback する
+- START menu の `Network Recovery` から Network Recovery 画面へ入り、A ボタンで
+  Wi-Fi 起動処理、DHCP、SSH start を再実行できる
+- controller UI が無い/異常終了した場合は旧 `plumos-frontend`、それも失敗した場合は
+  stock MainUI へ fallback する
 - log は `/mnt/SDCARD/plumos/logs/` へ出す
 - SD カード上のファイル操作だけで rollback できるようにする
 
@@ -44,14 +45,12 @@ install script は以下を行います。
 - `/mnt/SDCARD/miyoo/app/MainUI.stock` がなければ作成する
 - `/mnt/SDCARD/miyoo/app/MainUI` を wrapper に置き換える
 
-bootstrap package は `plumos-frontend` 本体を含みません。frontend は
+bootstrap package は controller UI 本体を含みません。frontend は
 `./scripts/docker-build.sh frontend` で別 package として build/deploy します。
-frontend が存在しない場合や非ゼロ終了した場合、wrapper は stock MainUI へ戻ります。
-現段階では reboot 復旧を優先し、wrapper 起動時に `plumos-network-rescue` を
-自動実行します。Mali controller UI が存在する場合は `plumos-frontend` より前に
-network rescue 画面を出します。A ボタンを押すと
-`/mnt/SDCARD/plumos/bin/plumos-network-rescue` が走り、Wi-Fi init、DHCP、dropbear SSH
-start を再実行します。
+wrapper 起動時は `plumos-network-rescue` を background で自動実行し、そのまま通常FEを
+表示します。Network Recovery 画面は通常FEの START menu から開き、A ボタンで
+`/mnt/SDCARD/plumos/bin/plumos-network-rescue` を再実行します。左右キーは実行/戻るに
+使わず、実行は A、戻る/キャンセルは B に統一します。
 
 ## disable
 
@@ -85,5 +84,6 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 
 ```text
 /mnt/SDCARD/plumos/logs/mainui-wrapper.log
+/mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
 ```

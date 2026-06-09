@@ -8,12 +8,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
 #include "plumos_mali_renderer.h"
+#endif
+
+#ifndef PLUMOS_MALI_SETTING_FLASH_MARKER
+#define PLUMOS_MALI_SETTING_FLASH_MARKER "@{F:"
 #endif
 
 #if defined(__has_include)
@@ -163,7 +169,9 @@ struct input_event {
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
 #define UI_RENDER_MAX_LINES 64
-#define UI_RENDER_LINE_MAX 160
+#define UI_RENDER_LINE_MAX 512
+#define UI_KEY_REPEAT_DELAY_MS 350
+#define UI_KEY_REPEAT_INTERVAL_MS 95
 
 struct top_entry {
   char id[64];
@@ -184,6 +192,44 @@ struct rom_entry {
   int resume_available;
 };
 
+static int dirname_path(char *out, size_t out_size, const char *path);
+
+static int rom_entry_alias_root_path(const struct rom_entry *entry, char *out,
+                                     size_t out_size) {
+  const char *slash;
+  size_t alias_len;
+  size_t rel_len;
+  size_t path_len;
+  size_t prefix_len;
+
+  if (!entry || !out || out_size == 0 || !entry->path[0]) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (!entry->relative_path[0]) {
+    return dirname_path(out, out_size, entry->path);
+  }
+  slash = strchr(entry->relative_path, '/');
+  if (!slash || slash == entry->relative_path) {
+    return dirname_path(out, out_size, entry->path);
+  }
+  alias_len = (size_t)(slash - entry->relative_path);
+  rel_len = strlen(entry->relative_path);
+  path_len = strlen(entry->path);
+  if (path_len < rel_len ||
+      strcmp(entry->path + path_len - rel_len, entry->relative_path) != 0) {
+    return dirname_path(out, out_size, entry->path);
+  }
+  prefix_len = path_len - rel_len;
+  if (prefix_len + alias_len + 1 > out_size) {
+    return 0;
+  }
+  memcpy(out, entry->path, prefix_len);
+  memcpy(out + prefix_len, entry->relative_path, alias_len);
+  out[prefix_len + alias_len] = '\0';
+  return 1;
+}
+
 struct menu_entry {
   char id[64];
   char display_name[128];
@@ -196,6 +242,17 @@ struct setting_entry {
   char id[64];
   char display_name[128];
   char value[256];
+};
+
+struct setting_choice {
+  const char *raw;
+  const char *display;
+};
+
+struct performance_cpu_preset {
+  const char *label;
+  const char *policy;
+  long freq_khz;
 };
 
 struct safe_entry {
@@ -223,18 +280,18 @@ struct device_settings {
   int loaded;
   int wpa_loaded;
   long volume;
-  long mute;
-  long bgm_volume;
   long brightness;
   long lumination;
   long contrast;
   long hue;
   long saturation;
-  long wifi_enabled;
-  long cpu_freq_mode;
-  char keymap[128];
   char language[64];
-  char stock_theme[UI_PATH_MAX];
+  char theme[UI_PATH_MAX];
+  char model[64];
+  char kernel_version[128];
+  char sdcard_storage[128];
+  char network_status_source[128];
+  char ssh_status[128];
   char brightness_backend[128];
   char volume_backend[128];
   char wifi_state[64];
@@ -248,6 +305,7 @@ struct device_settings {
 struct frontend_settings {
   int show_empty_systems;
   int show_favorites_on_top;
+  int show_recent_on_top;
   char boot_resume_mode[32];
   char ui_mode[32];
   char top_mode[32];
@@ -256,6 +314,9 @@ struct frontend_settings {
   char sort_systems[64];
   char sort_roms[64];
   char rom_scan_policy[64];
+  long rom_scan_slow_threshold_ms;
+  long rom_scan_test_file_count;
+  char last_system_id[64];
 };
 
 enum ui_screen {
@@ -266,7 +327,18 @@ enum ui_screen {
   SCREEN_RECENT = 4,
   SCREEN_SETTINGS = 5,
   SCREEN_SAFE_MENU = 6,
-  SCREEN_HELP = 7
+  SCREEN_HELP = 7,
+  SCREEN_CORE_SELECT = 8,
+  SCREEN_NETWORK_RESCUE = 9
+};
+
+enum settings_category {
+  SETTINGS_CATEGORY_UI = 0,
+  SETTINGS_CATEGORY_SYSTEM,
+  SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR,
+  SETTINGS_CATEGORY_SYSTEM_INFORMATION,
+  SETTINGS_CATEGORY_NETWORK,
+  SETTINGS_CATEGORY_PERFORMANCE
 };
 
 enum ui_action {
@@ -304,10 +376,15 @@ struct ui_state {
   enum ui_screen screen;
   enum ui_screen back_screen;
   enum ui_screen safe_back_screen;
+  enum ui_screen core_back_screen;
   size_t top_cursor;
   size_t rom_cursor;
   size_t menu_cursor;
   size_t settings_cursor;
+  enum settings_category settings_category;
+  size_t settings_blink_cursor;
+  int settings_blink_direction;
+  long long settings_blink_until_ms;
   size_t safe_cursor;
   struct top_entry top_entries[UI_MAX_TOP];
   size_t top_count;
@@ -320,7 +397,14 @@ struct ui_state {
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
+  int input_event_fd;
+  long long ignore_input_until_ms;
+  enum ui_action repeat_action;
+  unsigned int repeat_key_code;
+  long long repeat_next_ms;
   char mali_rotation[16];
+  char mali_style[16];
+  char mali_tty_entry_scale[8];
   char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t render_line_count;
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
@@ -328,19 +412,60 @@ struct ui_state {
 #endif
   char current_system_id[64];
   char current_system_name[128];
+  char fb_path[PATH_MAX];
+  char egl_path[PATH_MAX];
+  char gles_path[PATH_MAX];
+  char mali_font_path[PATH_MAX];
+  int renderer_active;
+  char core_target_system_id[64];
+  char core_target_relative_path[UI_PATH_MAX];
+  char core_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
+  size_t core_line_count;
   char safe_target_system_id[64];
   char safe_target_relative_path[UI_PATH_MAX];
   char safe_target_launch_profile[128];
+  char performance_system_id[64];
+  char performance_system_name[128];
+  char performance_cpu_policy[32];
+  char performance_cpu_label[64];
+  char performance_cpu_source[64];
+  char performance_cpu_cores_source[64];
+  long performance_cpu_freq_khz;
+  long performance_cpu_cores;
   char status[256];
 };
 
+static int load_top_entries(struct ui_state *ui);
+
 static const struct safe_entry SAFE_ENTRIES[] = {
-    {"sleep", "Sleep", "pause gameplay, flush saves, keep resume candidate"},
+    {"sleep", "Sleep", "save state, flush SRAM, sync, enter sleep"},
     {"shutdown", "Shutdown", "save state, flush SRAM, sync, power off"},
     {"cancel", "Cancel", "return without changing state"},
 };
 
 static const size_t SAFE_ENTRY_COUNT = sizeof(SAFE_ENTRIES) / sizeof(SAFE_ENTRIES[0]);
+
+static const struct performance_cpu_preset PERFORMANCE_CPU_PRESETS[] = {
+    {"648 MHz", "fixed", 648000},
+    {"816 MHz", "fixed", 816000},
+    {"1200 MHz", "fixed", 1200000},
+    {"1344 MHz", "fixed", 1344000},
+};
+
+static const size_t PERFORMANCE_CPU_PRESET_COUNT =
+    sizeof(PERFORMANCE_CPU_PRESETS) / sizeof(PERFORMANCE_CPU_PRESETS[0]);
+
+static const long PERFORMANCE_CPU_CORE_PRESETS[] = {2, 4};
+static const size_t PERFORMANCE_CPU_CORE_PRESET_COUNT =
+    sizeof(PERFORMANCE_CPU_CORE_PRESETS) / sizeof(PERFORMANCE_CPU_CORE_PRESETS[0]);
+
+static long long current_time_ms(void) {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0) {
+    return (long long)time(NULL) * 1000LL;
+  }
+  return (long long)tv.tv_sec * 1000LL + (long long)(tv.tv_usec / 1000);
+}
 
 static int copy_string(char *out, size_t out_size, const char *in) {
   size_t len;
@@ -425,27 +550,32 @@ static int join_path(char *out, size_t out_size, const char *a, const char *b) {
   return append_string(out, out_size, &pos, b);
 }
 
+static int dirname_path(char *out, size_t out_size, const char *path) {
+  const char *slash;
+  size_t len;
+
+  if (!out || out_size == 0 || !path || !path[0]) {
+    return 0;
+  }
+  slash = strrchr(path, '/');
+  if (!slash) {
+    return copy_string(out, out_size, ".");
+  }
+  if (slash == path) {
+    return copy_string(out, out_size, "/");
+  }
+  len = (size_t)(slash - path);
+  if (len + 1 > out_size) {
+    return 0;
+  }
+  memcpy(out, path, len);
+  out[len] = '\0';
+  return 1;
+}
+
 static int file_exists(const char *path) {
   struct stat st;
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
-}
-
-static int dir_has_entries(const char *path) {
-  DIR *dir;
-  struct dirent *entry;
-
-  dir = opendir(path);
-  if (!dir) {
-    return 0;
-  }
-  while ((entry = readdir(dir)) != NULL) {
-    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-      closedir(dir);
-      return 1;
-    }
-  }
-  closedir(dir);
-  return 0;
 }
 
 static int valid_system_id(const char *s) {
@@ -533,6 +663,94 @@ static int read_key_value_file(const char *path, const char *key, char *out, siz
   }
   free(text);
   return 0;
+}
+
+static int read_first_line_file(const char *path, char *out, size_t out_size) {
+  FILE *f;
+  size_t len;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (!path || !path[0]) {
+    return 0;
+  }
+  f = fopen(path, "rb");
+  if (!f) {
+    return 0;
+  }
+  if (!fgets(out, (int)out_size, f)) {
+    fclose(f);
+    out[0] = '\0';
+    return 0;
+  }
+  fclose(f);
+  len = strlen(out);
+  while (len > 0 && (out[len - 1] == '\n' || out[len - 1] == '\r' ||
+                     isspace((unsigned char)out[len - 1]))) {
+    out[--len] = '\0';
+  }
+  return out[0] != '\0';
+}
+
+static int write_text_file(const char *path, const char *text) {
+  int fd;
+  size_t len;
+  ssize_t written;
+
+  if (!path || !path[0] || !text) {
+    return 0;
+  }
+  fd = open(path, O_WRONLY);
+  if (fd < 0) {
+    return 0;
+  }
+  len = strlen(text);
+  written = write(fd, text, len);
+  if (close(fd) != 0) {
+    return 0;
+  }
+  return written == (ssize_t)len;
+}
+
+static void apply_frontend_cpu_default(void) {
+  const char *disabled = getenv("PLUMOS_CONTROLLER_CPU_DEFAULT");
+  const char *freq = "648000\n";
+
+  if (disabled && (strcmp(disabled, "0") == 0 || strcmp(disabled, "off") == 0 ||
+                   strcmp(disabled, "false") == 0)) {
+    return;
+  }
+
+  write_text_file("/sys/devices/system/cpu/cpu1/online", "1\n");
+  write_text_file("/sys/devices/system/cpu/cpu2/online", "0\n");
+  write_text_file("/sys/devices/system/cpu/cpu3/online", "0\n");
+
+  write_text_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq", freq);
+  write_text_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq", freq);
+  write_text_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "userspace\n");
+  write_text_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed", freq);
+}
+
+static void format_storage_status(const char *path, char *out, size_t out_size) {
+  struct statvfs st;
+  unsigned long long total_mb;
+  unsigned long long free_mb;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!path || !path[0] || statvfs(path, &st) != 0 || st.f_frsize == 0) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  total_mb = ((unsigned long long)st.f_blocks * (unsigned long long)st.f_frsize) /
+             (1024ULL * 1024ULL);
+  free_mb = ((unsigned long long)st.f_bavail * (unsigned long long)st.f_frsize) /
+            (1024ULL * 1024ULL);
+  snprintf(out, out_size, "%lluMB free / %lluMB total", free_mb, total_mb);
 }
 
 static const char *skip_ws_range(const char *p, const char *end) {
@@ -807,12 +1025,27 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
   return rc == 0;
 }
 
+static void init_frontend_settings(struct frontend_settings *settings) {
+  memset(settings, 0, sizeof(*settings));
+  settings->show_favorites_on_top = 1;
+  settings->show_recent_on_top = 1;
+  settings->rom_scan_slow_threshold_ms = 500;
+  settings->rom_scan_test_file_count = 1000;
+  copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
+  copy_string(settings->ui_mode, sizeof(settings->ui_mode), "text");
+  copy_string(settings->top_mode, sizeof(settings->top_mode), "text");
+  copy_string(settings->rom_mode, sizeof(settings->rom_mode), "text");
+  copy_string(settings->theme_id, sizeof(settings->theme_id), "default");
+  copy_string(settings->sort_systems, sizeof(settings->sort_systems), "sort_order");
+  copy_string(settings->sort_roms, sizeof(settings->sort_roms), "name");
+  copy_string(settings->rom_scan_policy, sizeof(settings->rom_scan_policy), "on_enter");
+}
+
 static int load_settings(const char *path, struct frontend_settings *settings) {
   char *json;
   size_t json_size;
 
-  memset(settings, 0, sizeof(*settings));
-  copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
+  init_frontend_settings(settings);
   if (!file_exists(path)) {
     return 1;
   }
@@ -822,7 +1055,9 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
   }
   settings->show_empty_systems = json_get_bool(json, json + json_size, "show_empty_systems", 0);
   settings->show_favorites_on_top =
-      json_get_bool(json, json + json_size, "show_favorites_on_top", 0);
+      json_get_bool(json, json + json_size, "show_favorites_on_top", 1);
+  settings->show_recent_on_top =
+      json_get_bool(json, json + json_size, "show_recent_on_top", 1);
   json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
                   sizeof(settings->boot_resume_mode));
   json_get_string(json, json + json_size, "ui_mode", settings->ui_mode,
@@ -839,30 +1074,354 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
                   sizeof(settings->sort_roms));
   json_get_string(json, json + json_size, "rom_scan_policy", settings->rom_scan_policy,
                   sizeof(settings->rom_scan_policy));
+  settings->rom_scan_slow_threshold_ms =
+      json_get_long(json, json + json_size, "rom_scan_slow_threshold_ms", 500);
+  settings->rom_scan_test_file_count =
+      json_get_long(json, json + json_size, "rom_scan_test_file_count", 1000);
+  json_get_string(json, json + json_size, "last_system_id", settings->last_system_id,
+                  sizeof(settings->last_system_id));
   free(json);
   return 1;
 }
 
+static void fprint_json_string(FILE *f, const char *s) {
+  const unsigned char *p = (const unsigned char *)(s ? s : "");
+
+  fputc('"', f);
+  while (*p) {
+    if (*p == '"' || *p == '\\') {
+      fputc('\\', f);
+      fputc(*p, f);
+    } else if (*p == '\n') {
+      fputs("\\n", f);
+    } else if (*p == '\r') {
+      fputs("\\r", f);
+    } else if (*p == '\t') {
+      fputs("\\t", f);
+    } else if (*p < 0x20) {
+      fprintf(f, "\\u%04x", (unsigned int)*p);
+    } else {
+      fputc(*p, f);
+    }
+    p++;
+  }
+  fputc('"', f);
+}
+
+static int append_json_string_literal(char *out, size_t out_size, const char *s) {
+  const unsigned char *p = (const unsigned char *)(s ? s : "");
+  size_t pos = 0;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (!append_string(out, out_size, &pos, "\"")) {
+    return 0;
+  }
+  while (*p) {
+    char escaped[8];
+    if (*p == '"' || *p == '\\') {
+      escaped[0] = '\\';
+      escaped[1] = (char)*p;
+      escaped[2] = '\0';
+      if (!append_string(out, out_size, &pos, escaped)) {
+        return 0;
+      }
+    } else if (*p == '\n') {
+      if (!append_string(out, out_size, &pos, "\\n")) {
+        return 0;
+      }
+    } else if (*p == '\r') {
+      if (!append_string(out, out_size, &pos, "\\r")) {
+        return 0;
+      }
+    } else if (*p == '\t') {
+      if (!append_string(out, out_size, &pos, "\\t")) {
+        return 0;
+      }
+    } else if (*p < 0x20) {
+      snprintf(escaped, sizeof(escaped), "\\u%04x", (unsigned int)*p);
+      if (!append_string(out, out_size, &pos, escaped)) {
+        return 0;
+      }
+    } else {
+      if (pos + 2 > out_size) {
+        return 0;
+      }
+      out[pos++] = (char)*p;
+      out[pos] = '\0';
+    }
+    p++;
+  }
+  return append_string(out, out_size, &pos, "\"");
+}
+
+static int save_settings(const char *path, const struct frontend_settings *settings) {
+  char tmp_path[PATH_MAX];
+  FILE *f;
+  int fd;
+
+  if (!path || !settings ||
+      snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path) >= (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+  fprintf(f, "{\n  \"version\": 1,\n");
+  fprintf(f, "  \"ui_mode\": ");
+  fprint_json_string(f, settings->ui_mode);
+  fprintf(f, ",\n  \"top_mode\": ");
+  fprint_json_string(f, settings->top_mode);
+  fprintf(f, ",\n  \"rom_mode\": ");
+  fprint_json_string(f, settings->rom_mode);
+  fprintf(f, ",\n  \"show_empty_systems\": %s,\n",
+          settings->show_empty_systems ? "true" : "false");
+  fprintf(f, "  \"show_favorites_on_top\": %s,\n",
+          settings->show_favorites_on_top ? "true" : "false");
+  fprintf(f, "  \"show_recent_on_top\": %s,\n",
+          settings->show_recent_on_top ? "true" : "false");
+  fprintf(f, "  \"boot_resume_mode\": ");
+  fprint_json_string(f, settings->boot_resume_mode);
+  fprintf(f, ",\n  \"sort_systems\": ");
+  fprint_json_string(f, settings->sort_systems);
+  fprintf(f, ",\n  \"sort_roms\": ");
+  fprint_json_string(f, settings->sort_roms);
+  fprintf(f, ",\n  \"rom_scan_policy\": ");
+  fprint_json_string(f, settings->rom_scan_policy);
+  fprintf(f, ",\n  \"rom_scan_slow_threshold_ms\": %ld,\n",
+          settings->rom_scan_slow_threshold_ms);
+  fprintf(f, "  \"rom_scan_test_file_count\": %ld,\n",
+          settings->rom_scan_test_file_count);
+  fprintf(f, "  \"theme_id\": ");
+  fprint_json_string(f, settings->theme_id);
+  fprintf(f, ",\n  \"last_system_id\": ");
+  fprint_json_string(f, settings->last_system_id);
+  fprintf(f, "\n}\n");
+
+  fd = fileno(f);
+  if (fflush(f) != 0 || (fd >= 0 && fsync(fd) != 0) || fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  sync();
+  return 1;
+}
+
+static const char *json_value_end(const char *value, const char *end) {
+  const char *p;
+  const char *body_start;
+  const char *body_end;
+  const char *after;
+  int escape = 0;
+
+  if (!value || value >= end) {
+    return NULL;
+  }
+  p = skip_ws_range(value, end);
+  if (p >= end) {
+    return NULL;
+  }
+  if (*p == '"') {
+    p++;
+    while (p < end) {
+      if (escape) {
+        escape = 0;
+        p++;
+        continue;
+      }
+      if (*p == '\\') {
+        escape = 1;
+        p++;
+        continue;
+      }
+      if (*p == '"') {
+        return p + 1;
+      }
+      p++;
+    }
+    return NULL;
+  }
+  if (*p == '{') {
+    if (json_match_container(p, end, '{', '}', &body_start, &body_end, &after)) {
+      (void)body_start;
+      (void)body_end;
+      return after;
+    }
+    return NULL;
+  }
+  if (*p == '[') {
+    if (json_match_container(p, end, '[', ']', &body_start, &body_end, &after)) {
+      (void)body_start;
+      (void)body_end;
+      return after;
+    }
+    return NULL;
+  }
+  while (p < end && *p != ',' && *p != '}' && *p != ']') {
+    p++;
+  }
+  while (p > value && isspace((unsigned char)p[-1])) {
+    p--;
+  }
+  return p > value ? p : NULL;
+}
+
+static int write_buffer_atomic(const char *path, const char *tmp_path,
+                               const char *data, size_t data_size) {
+  FILE *f;
+  int fd;
+
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+  if (data_size > 0 && fwrite(data, 1, data_size, f) != data_size) {
+    fclose(f);
+    unlink(tmp_path);
+    return 0;
+  }
+  fd = fileno(f);
+  if (fflush(f) != 0 || (fd >= 0 && fsync(fd) != 0) || fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  sync();
+  return 1;
+}
+
+static int ensure_system_config_backup(const char *path, const char *data, size_t data_size) {
+  char backup_path[PATH_MAX];
+  char backup_tmp_path[PATH_MAX];
+
+  if (!path || !data ||
+      snprintf(backup_path, sizeof(backup_path), "%s.plumos.bak", path) >=
+          (int)sizeof(backup_path) ||
+      snprintf(backup_tmp_path, sizeof(backup_tmp_path), "%s.tmp", backup_path) >=
+          (int)sizeof(backup_tmp_path)) {
+    return 0;
+  }
+  if (file_exists(backup_path)) {
+    return 1;
+  }
+  return write_buffer_atomic(backup_path, backup_tmp_path, data, data_size);
+}
+
+static int replace_json_key_value_atomic(const char *path, const char *key,
+                                         const char *literal) {
+  char *json;
+  char tmp_path[PATH_MAX];
+  size_t json_size;
+  const char *json_end;
+  const char *value;
+  const char *end_value;
+  FILE *f;
+  int fd;
+  int ok = 0;
+
+  if (!path || !key || !key[0] || !literal ||
+      snprintf(tmp_path, sizeof(tmp_path), "%s.plumos.tmp", path) >=
+          (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  json_end = json + json_size;
+  if (!json_find_key_value(json, json_end, key, &value)) {
+    free(json);
+    return 0;
+  }
+  value = skip_ws_range(value, json_end);
+  end_value = json_value_end(value, json_end);
+  if (!end_value || end_value < value || !ensure_system_config_backup(path, json, json_size)) {
+    free(json);
+    return 0;
+  }
+
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    free(json);
+    return 0;
+  }
+  if (fwrite(json, 1, (size_t)(value - json), f) == (size_t)(value - json) &&
+      fputs(literal, f) >= 0 &&
+      fwrite(end_value, 1, (size_t)(json_end - end_value), f) ==
+          (size_t)(json_end - end_value)) {
+    fd = fileno(f);
+    if (fflush(f) == 0 && (fd < 0 || fsync(fd) == 0)) {
+      int close_ok = fclose(f) == 0;
+      f = NULL;
+      if (close_ok && rename(tmp_path, path) == 0) {
+        sync();
+        ok = 1;
+      }
+    }
+  }
+  if (f) {
+    fclose(f);
+  }
+  if (!ok) {
+    unlink(tmp_path);
+  }
+  free(json);
+  return ok;
+}
+
+static int save_system_config_number(struct ui_state *ui, const char *key, long value) {
+  char literal[64];
+
+  snprintf(literal, sizeof(literal), "%ld", value);
+  return replace_json_key_value_atomic(ui->system_config_path, key, literal);
+}
+
+static int save_system_config_string(struct ui_state *ui, const char *key,
+                                     const char *value) {
+  char literal[512];
+
+  if (!append_json_string_literal(literal, sizeof(literal), value)) {
+    return 0;
+  }
+  return replace_json_key_value_atomic(ui->system_config_path, key, literal);
+}
+
 static void init_device_settings(struct device_settings *device) {
   memset(device, 0, sizeof(*device));
-  device->volume = -1;
-  device->mute = -1;
-  device->bgm_volume = -1;
-  device->brightness = -1;
-  device->lumination = -1;
-  device->contrast = -1;
-  device->hue = -1;
-  device->saturation = -1;
-  device->wifi_enabled = -1;
-  device->cpu_freq_mode = -1;
-  copy_string(device->brightness_backend, sizeof(device->brightness_backend), "unresolved");
-  copy_string(device->volume_backend, sizeof(device->volume_backend), "unresolved");
-  copy_string(device->status, sizeof(device->status), "read-only inventory");
+  device->volume = 14;
+  device->brightness = 10;
+  device->lumination = 5;
+  device->contrast = 10;
+  device->hue = 10;
+  device->saturation = 10;
+  copy_string(device->language, sizeof(device->language), "en.lang");
+  copy_string(device->theme, sizeof(device->theme), "default");
+  copy_string(device->model, sizeof(device->model), "Miyoo A30");
+  copy_string(device->kernel_version, sizeof(device->kernel_version), "unknown");
+  copy_string(device->sdcard_storage, sizeof(device->sdcard_storage), "unavailable");
+  copy_string(device->network_status_source, sizeof(device->network_status_source),
+              "runtime status missing");
+  copy_string(device->ssh_status, sizeof(device->ssh_status), "Dropbear port 2222");
+  copy_string(device->brightness_backend, sizeof(device->brightness_backend), "plumOS config");
+  copy_string(device->volume_backend, sizeof(device->volume_backend), "plumOS config");
+  copy_string(device->status, sizeof(device->status), "plumOS defaults");
 }
 
 static void load_device_runtime_status(struct ui_state *ui) {
   struct device_settings *device = &ui->device;
 
+  copy_string(device->network_status_source, sizeof(device->network_status_source),
+              file_exists(ui->wpa_status_path) ? ui->wpa_status_path : "runtime status missing");
   if (read_key_value_file(ui->wpa_status_path, "wpa_state", device->wifi_state,
                           sizeof(device->wifi_state))) {
     device->wpa_loaded = 1;
@@ -885,52 +1444,37 @@ static int load_device_settings(struct ui_state *ui) {
   const char *json_end;
 
   init_device_settings(&ui->device);
+  read_first_line_file("/proc/sys/kernel/osrelease", ui->device.kernel_version,
+                       sizeof(ui->device.kernel_version));
+  format_storage_status(ui->sdcard_root, ui->device.sdcard_storage,
+                        sizeof(ui->device.sdcard_storage));
 
-  if (file_exists("/usr/bin/amixer") || file_exists("/bin/amixer")) {
-    copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
-                "system.json + amixer candidate");
-  } else {
-    copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
-                "system.json only");
-  }
-
-  if (dir_has_entries("/sys/class/backlight")) {
-    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
-                "sysfs backlight candidate");
-  } else if (dir_has_entries("/sys/class/lcd")) {
-    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
-                "system.json + lcd sysfs candidate");
-  } else {
-    copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
-                "system.json only");
-  }
+  copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
+              "plumOS config only");
+  copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
+              "plumOS config only");
 
   load_device_runtime_status(ui);
 
   json = read_file(ui->system_config_path, &json_size);
   if (!json) {
-    copy_string(ui->device.status, sizeof(ui->device.status), "system config missing");
+    copy_string(ui->device.status, sizeof(ui->device.status), "plumOS config missing; defaults active");
     return 1;
   }
 
   json_end = json + json_size;
   ui->device.loaded = 1;
-  ui->device.volume = json_get_long(json, json_end, "vol", -1);
-  ui->device.mute = json_get_long(json, json_end, "mute", -1);
-  ui->device.bgm_volume = json_get_long(json, json_end, "bgmvol", -1);
-  ui->device.brightness = json_get_long(json, json_end, "brightness", -1);
-  ui->device.lumination = json_get_long(json, json_end, "lumination", -1);
-  ui->device.contrast = json_get_long(json, json_end, "contrast", -1);
-  ui->device.hue = json_get_long(json, json_end, "hue", -1);
-  ui->device.saturation = json_get_long(json, json_end, "saturation", -1);
-  ui->device.wifi_enabled = json_get_long(json, json_end, "wifi", -1);
-  ui->device.cpu_freq_mode = json_get_long(json, json_end, "cpufreq", -1);
-  json_get_string(json, json_end, "keymap", ui->device.keymap,
-                  sizeof(ui->device.keymap));
+  ui->device.volume = json_get_long(json, json_end, "volume", ui->device.volume);
+  ui->device.brightness = json_get_long(json, json_end, "brightness", ui->device.brightness);
+  ui->device.lumination = json_get_long(json, json_end, "lumination", ui->device.lumination);
+  ui->device.contrast = json_get_long(json, json_end, "contrast", ui->device.contrast);
+  ui->device.hue = json_get_long(json, json_end, "hue", ui->device.hue);
+  ui->device.saturation = json_get_long(json, json_end, "saturation", ui->device.saturation);
   json_get_string(json, json_end, "language", ui->device.language,
                   sizeof(ui->device.language));
-  json_get_string(json, json_end, "theme", ui->device.stock_theme,
-                  sizeof(ui->device.stock_theme));
+  json_get_string(json, json_end, "theme", ui->device.theme,
+                  sizeof(ui->device.theme));
+  copy_string(ui->device.status, sizeof(ui->device.status), "plumOS config loaded");
   free(json);
   return 1;
 }
@@ -1064,6 +1608,67 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
   return 1;
 }
 
+static int resolve_theme_font_path(const struct theme_state *theme, char *out,
+                                   size_t out_size) {
+  char theme_dir[PATH_MAX];
+  char candidate[PATH_MAX];
+
+  if (!theme || !theme->font_ui[0] || !out || out_size == 0) {
+    return 0;
+  }
+  if (theme->font_ui[0] == '/') {
+    if (file_exists(theme->font_ui)) {
+      return copy_string(out, out_size, theme->font_ui);
+    }
+    return 0;
+  }
+  if (!dirname_path(theme_dir, sizeof(theme_dir), theme->path)) {
+    return 0;
+  }
+  if (join_path(candidate, sizeof(candidate), theme_dir, theme->font_ui) &&
+      file_exists(candidate)) {
+    return copy_string(out, out_size, candidate);
+  }
+  return 0;
+}
+
+static int choose_mali_font_path(struct ui_state *ui, const char *requested,
+                                 char *out, size_t out_size) {
+  static const char *rel_candidates[] = {
+      "plumos/fonts/ui.ttf",
+      "plumos/fonts/default.ttf",
+      "plumos/fonts/default.otf",
+      "plumos/fonts/default.bdf",
+      "RetroArch/.retroarch/assets/pkg/chinese-fallback-font.ttf",
+      "RetroArch/.retroarch/system/msyh.ttf",
+      "miyoo/res/MicrosoftYaHeiGB.ttf",
+      "Themes/MakoVII/wqy-microhei.ttf",
+  };
+  size_t i;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (requested && requested[0]) {
+    if (file_exists(requested)) {
+      return copy_string(out, out_size, requested);
+    }
+    return copy_string(out, out_size, requested);
+  }
+  if (resolve_theme_font_path(&ui->theme, out, out_size)) {
+    return 1;
+  }
+  for (i = 0; i < sizeof(rel_candidates) / sizeof(rel_candidates[0]); i++) {
+    char candidate[PATH_MAX];
+    if (join_path(candidate, sizeof(candidate), ui->sdcard_root, rel_candidates[i]) &&
+        file_exists(candidate)) {
+      return copy_string(out, out_size, candidate);
+    }
+  }
+  return 0;
+}
+
 static void add_setting_entry(struct ui_state *ui, const char *id, const char *name,
                               const char *value) {
   struct setting_entry *entry;
@@ -1082,51 +1687,688 @@ static void add_bool_setting_entry(struct ui_state *ui, const char *id, const ch
   add_setting_entry(ui, id, name, value ? "true" : "false");
 }
 
-static void add_device_settings_entries(struct ui_state *ui) {
+static const struct setting_choice UI_MODE_CHOICES[] = {
+    {"text", "Text"},
+    {"graphic", "Graphic"},
+};
+
+static const struct setting_choice BOOT_RESUME_CHOICES[] = {
+    {"off", "Off"},
+    {"last", "Last"},
+    {"picker", "Picker"},
+};
+
+static const struct setting_choice SORT_SYSTEMS_CHOICES[] = {
+    {"sort_order", "Sort Order"},
+    {"name", "Name"},
+};
+
+static const struct setting_choice SORT_ROMS_CHOICES[] = {
+    {"name", "Name"},
+    {"path", "Path"},
+};
+
+static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
+    {"en.lang", "English"},
+    {"ja.lang", "Japanese"},
+    {"ch.lang", "Chinese"},
+    {"cht.lang", "Traditional Chinese"},
+    {"ko.lang", "Korean"},
+    {"es.lang", "Spanish"},
+    {"pt.lang", "Portuguese"},
+};
+
+enum setting_control_type {
+  SETTING_CONTROL_READONLY = 0,
+  SETTING_CONTROL_CHECKBOX,
+  SETTING_CONTROL_CHOICE,
+  SETTING_CONTROL_NUMBER,
+  SETTING_CONTROL_ACTION
+};
+
+static const struct setting_choice *setting_choices(const char *id, size_t *count_out) {
+  if (count_out) {
+    *count_out = 0;
+  }
+  if (!id) {
+    return NULL;
+  }
+  if (strcmp(id, "ui_mode") == 0) {
+    if (count_out) {
+      *count_out = sizeof(UI_MODE_CHOICES) / sizeof(UI_MODE_CHOICES[0]);
+    }
+    return UI_MODE_CHOICES;
+  }
+  if (strcmp(id, "boot_resume_mode") == 0) {
+    if (count_out) {
+      *count_out = sizeof(BOOT_RESUME_CHOICES) / sizeof(BOOT_RESUME_CHOICES[0]);
+    }
+    return BOOT_RESUME_CHOICES;
+  }
+  if (strcmp(id, "sort_systems") == 0) {
+    if (count_out) {
+      *count_out = sizeof(SORT_SYSTEMS_CHOICES) / sizeof(SORT_SYSTEMS_CHOICES[0]);
+    }
+    return SORT_SYSTEMS_CHOICES;
+  }
+  if (strcmp(id, "sort_roms") == 0) {
+    if (count_out) {
+      *count_out = sizeof(SORT_ROMS_CHOICES) / sizeof(SORT_ROMS_CHOICES[0]);
+    }
+    return SORT_ROMS_CHOICES;
+  }
+  if (strcmp(id, "system_language") == 0) {
+    if (count_out) {
+      *count_out = sizeof(SYSTEM_LANGUAGE_CHOICES) / sizeof(SYSTEM_LANGUAGE_CHOICES[0]);
+    }
+    return SYSTEM_LANGUAGE_CHOICES;
+  }
+  return NULL;
+}
+
+static const char *setting_choice_display_value(const char *id, const char *raw_value) {
+  size_t count = 0;
+  size_t i;
+  const struct setting_choice *choices = setting_choices(id, &count);
+
+  if (!raw_value || !raw_value[0]) {
+    raw_value = "";
+  }
+  for (i = 0; i < count; i++) {
+    if (strcmp(raw_value, choices[i].raw) == 0 ||
+        strcmp(raw_value, choices[i].display) == 0) {
+      return choices[i].display;
+    }
+  }
+  return raw_value[0] ? raw_value : "-";
+}
+
+static int rom_scan_policy_is_on_enter(const char *policy) {
+  return !policy || !policy[0] || strcmp(policy, "on_enter") == 0 ||
+         strcmp(policy, "On Enter") == 0;
+}
+
+static int compare_text_ci(const char *a, const char *b) {
+  const unsigned char *pa = (const unsigned char *)(a ? a : "");
+  const unsigned char *pb = (const unsigned char *)(b ? b : "");
+
+  while (*pa && *pb) {
+    int ca = tolower(*pa);
+    int cb = tolower(*pb);
+    if (ca != cb) {
+      return ca - cb;
+    }
+    pa++;
+    pb++;
+  }
+  return (int)*pa - (int)*pb;
+}
+
+static int cmp_top_entry_name(const void *a, const void *b) {
+  const struct top_entry *ea = (const struct top_entry *)a;
+  const struct top_entry *eb = (const struct top_entry *)b;
+  int cmp = compare_text_ci(ea->display_name, eb->display_name);
+
+  if (cmp != 0) {
+    return cmp;
+  }
+  return compare_text_ci(ea->id, eb->id);
+}
+
+static int cmp_rom_entry_name(const void *a, const void *b) {
+  const struct rom_entry *ea = (const struct rom_entry *)a;
+  const struct rom_entry *eb = (const struct rom_entry *)b;
+  int cmp = compare_text_ci(ea->title, eb->title);
+
+  if (cmp != 0) {
+    return cmp;
+  }
+  return compare_text_ci(ea->relative_path, eb->relative_path);
+}
+
+static int cmp_rom_entry_path(const void *a, const void *b) {
+  const struct rom_entry *ea = (const struct rom_entry *)a;
+  const struct rom_entry *eb = (const struct rom_entry *)b;
+  int cmp = compare_text_ci(ea->relative_path, eb->relative_path);
+
+  if (cmp != 0) {
+    return cmp;
+  }
+  return compare_text_ci(ea->title, eb->title);
+}
+
+static enum setting_control_type setting_control_type_for_id(const char *id) {
+  if (!id) {
+    return SETTING_CONTROL_READONLY;
+  }
+  if (strcmp(id, "network_rescue") == 0 ||
+      strcmp(id, "system_display_color") == 0 ||
+      strcmp(id, "system_information") == 0 ||
+      strcmp(id, "performance_clear_cpu_override") == 0 ||
+      strcmp(id, "performance_core_details") == 0) {
+    return SETTING_CONTROL_ACTION;
+  }
+  if (strcmp(id, "show_empty_systems") == 0 ||
+      strcmp(id, "show_favorites_on_top") == 0 ||
+      strcmp(id, "show_recent_on_top") == 0 ||
+      strcmp(id, "rom_scan_policy") == 0) {
+    return SETTING_CONTROL_CHECKBOX;
+  }
+  if (setting_choices(id, NULL)) {
+    return SETTING_CONTROL_CHOICE;
+  }
+  if (strcmp(id, "performance_system") == 0 ||
+      strcmp(id, "performance_cpu_policy") == 0 ||
+      strcmp(id, "performance_cpu_cores") == 0) {
+    return SETTING_CONTROL_CHOICE;
+  }
+  if (strcmp(id, "rom_scan_slow_threshold_ms") == 0 ||
+      strcmp(id, "rom_scan_test_file_count") == 0 ||
+      strcmp(id, "system_volume") == 0 ||
+      strcmp(id, "system_brightness") == 0 ||
+      strcmp(id, "system_lumination") == 0 ||
+      strcmp(id, "system_contrast") == 0 ||
+      strcmp(id, "system_hue") == 0 ||
+      strcmp(id, "system_saturation") == 0) {
+    return SETTING_CONTROL_NUMBER;
+  }
+  return SETTING_CONTROL_READONLY;
+}
+
+static int setting_is_writable(const char *id) {
+  return id && (strcmp(id, "ui_mode") == 0 ||
+                strcmp(id, "show_empty_systems") == 0 ||
+                strcmp(id, "show_favorites_on_top") == 0 ||
+                strcmp(id, "show_recent_on_top") == 0 ||
+                strcmp(id, "boot_resume_mode") == 0 ||
+                strcmp(id, "sort_systems") == 0 ||
+                strcmp(id, "sort_roms") == 0 ||
+                strcmp(id, "rom_scan_policy") == 0 ||
+                strcmp(id, "rom_scan_slow_threshold_ms") == 0 ||
+                strcmp(id, "rom_scan_test_file_count") == 0 ||
+                strcmp(id, "system_volume") == 0 ||
+                strcmp(id, "system_brightness") == 0 ||
+                strcmp(id, "system_lumination") == 0 ||
+                strcmp(id, "system_contrast") == 0 ||
+                strcmp(id, "system_hue") == 0 ||
+                strcmp(id, "system_saturation") == 0 ||
+                strcmp(id, "system_language") == 0 ||
+                strcmp(id, "performance_system") == 0 ||
+                strcmp(id, "performance_cpu_policy") == 0 ||
+                strcmp(id, "performance_cpu_cores") == 0);
+}
+
+static const char *settings_category_title(enum settings_category category) {
+  switch (category) {
+  case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
+    return "System Settings - Display Color";
+  case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
+    return "System Settings - INFORMATION";
+  case SETTINGS_CATEGORY_SYSTEM:
+    return "System Settings";
+  case SETTINGS_CATEGORY_NETWORK:
+    return "Network Settings";
+  case SETTINGS_CATEGORY_PERFORMANCE:
+    return "Performance Settings";
+  case SETTINGS_CATEGORY_UI:
+  default:
+    return "UI Settings";
+  }
+}
+
+static void add_ui_settings_entries(struct ui_state *ui,
+                                    const struct frontend_settings *settings) {
+  add_setting_entry(ui, "ui_mode", "UI Mode",
+                    setting_choice_display_value("ui_mode", settings->ui_mode));
+  add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
+                         settings->show_empty_systems);
+  add_bool_setting_entry(ui, "show_favorites_on_top", "Favorites On TOP",
+                         settings->show_favorites_on_top);
+  add_bool_setting_entry(ui, "show_recent_on_top", "Recent On TOP",
+                         settings->show_recent_on_top);
+  add_setting_entry(ui, "boot_resume_mode", "Boot Resume Mode",
+                    setting_choice_display_value("boot_resume_mode",
+                                                 settings->boot_resume_mode));
+  add_setting_entry(ui, "sort_systems", "Sort Systems",
+                    setting_choice_display_value("sort_systems", settings->sort_systems));
+  add_setting_entry(ui, "sort_roms", "Sort ROMs",
+                    setting_choice_display_value("sort_roms", settings->sort_roms));
+  add_bool_setting_entry(ui, "rom_scan_policy", "Scan On Enter",
+                         rom_scan_policy_is_on_enter(settings->rom_scan_policy));
+  add_setting_entry(ui, "theme_id", "Theme", settings->theme_id);
+  add_setting_entry(ui, "theme_name", "Theme Name", ui->theme.display_name);
+  add_setting_entry(ui, "theme_status", "Theme Status", ui->theme.status);
+  add_setting_entry(ui, "theme_layout", "Theme Layout", ui->theme.layout_preset);
+  add_setting_entry(ui, "theme_font", "Theme Font",
+                    ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
+  add_bool_setting_entry(ui, "theme_force_no_icons", "Text Force No Icons",
+                         ui->theme.force_no_icons);
+}
+
+static void add_system_settings_entries(struct ui_state *ui) {
   char value[256];
   const struct device_settings *device = &ui->device;
 
-  add_setting_entry(ui, "a30_policy", "A30 Policy", "read-only inventory");
-  add_setting_entry(ui, "a30_write_policy", "A30 Write Policy",
-                    "defer writes until backend validation");
-  add_setting_entry(ui, "a30_config", "A30 Config",
-                    device->loaded ? ui->system_config_path : device->status);
+  snprintf(value, sizeof(value), "%ld", device->volume);
+  add_setting_entry(ui, "system_volume", "Volume", value);
 
-  snprintf(value, sizeof(value), "vol=%ld mute=%ld bgm=%ld",
-           device->volume, device->mute, device->bgm_volume);
-  add_setting_entry(ui, "a30_volume", "A30 Volume", value);
-  add_setting_entry(ui, "a30_volume_backend", "A30 Volume Backend",
-                    device->volume_backend);
-
-  snprintf(value, sizeof(value), "brightness=%ld lumination=%ld",
-           device->brightness, device->lumination);
-  add_setting_entry(ui, "a30_brightness", "A30 Brightness", value);
-  snprintf(value, sizeof(value), "contrast=%ld hue=%ld saturation=%ld",
+  snprintf(value, sizeof(value), "%ld", device->brightness);
+  add_setting_entry(ui, "system_brightness", "Brightness", value);
+  snprintf(value, sizeof(value), "%ld", device->lumination);
+  add_setting_entry(ui, "system_lumination", "Lumination", value);
+  snprintf(value, sizeof(value), "C=%ld H=%ld S=%ld",
            device->contrast, device->hue, device->saturation);
-  add_setting_entry(ui, "a30_display_color", "A30 Display Color", value);
-  add_setting_entry(ui, "a30_brightness_backend", "A30 Brightness Backend",
+  add_setting_entry(ui, "system_display_color", "Display Color", value);
+
+  add_setting_entry(ui, "system_language", "Language",
+                    setting_choice_display_value("system_language", device->language));
+  add_setting_entry(ui, "system_theme", "Theme",
+                    device->theme[0] ? device->theme : "-");
+  add_setting_entry(ui, "system_information", "INFORMATION", "");
+}
+
+static void add_system_display_color_entries(struct ui_state *ui) {
+  char value[256];
+  const struct device_settings *device = &ui->device;
+
+  snprintf(value, sizeof(value), "%ld", device->contrast);
+  add_setting_entry(ui, "system_contrast", "Contrast", value);
+  snprintf(value, sizeof(value), "%ld", device->hue);
+  add_setting_entry(ui, "system_hue", "Hue", value);
+  snprintf(value, sizeof(value), "%ld", device->saturation);
+  add_setting_entry(ui, "system_saturation", "Saturation", value);
+}
+
+static void add_system_information_entries(struct ui_state *ui) {
+  const struct device_settings *device = &ui->device;
+
+  add_setting_entry(ui, "system_model", "Device Model", device->model);
+  add_setting_entry(ui, "system_kernel", "Linux Kernel", device->kernel_version);
+  add_setting_entry(ui, "system_sdcard", "SD Card", device->sdcard_storage);
+  add_setting_entry(ui, "system_config", "plumOS System Config",
+                    device->loaded ? ui->system_config_path : device->status);
+  add_setting_entry(ui, "system_input_device", "Input Device", ui->input_event_path);
+  add_setting_entry(ui, "system_theme_source", "Theme Source", device->theme);
+  add_setting_entry(ui, "system_audio_backend", "Audio Backend", device->volume_backend);
+  add_setting_entry(ui, "system_display_backend", "Display Backend",
                     device->brightness_backend);
+  add_setting_entry(ui, "system_write_policy", "Write Policy",
+                    "plumOS-only config; stockOS untouched");
+}
 
-  snprintf(value, sizeof(value), "enabled=%ld", device->wifi_enabled);
-  add_setting_entry(ui, "a30_wifi_config", "A30 Wi-Fi Config", value);
-  if (device->wpa_loaded) {
-    snprintf(value, sizeof(value), "%.32s ip=%.48s rssi=%.16s speed=%.16s freq=%.16s",
-             device->wifi_state[0] ? device->wifi_state : "-",
-             device->wifi_ip[0] ? device->wifi_ip : "-",
-             device->wifi_rssi[0] ? device->wifi_rssi : "-",
-             device->wifi_linkspeed[0] ? device->wifi_linkspeed : "-",
-             device->wifi_frequency[0] ? device->wifi_frequency : "-");
+static void add_network_settings_entries(struct ui_state *ui) {
+  char value[256];
+  const struct device_settings *device = &ui->device;
+
+  add_setting_entry(ui, "network_wifi_enabled", "Wi-Fi", "plumOS runtime");
+  add_setting_entry(ui, "network_connection", "Connection",
+                    device->wifi_state[0] ? device->wifi_state : "No Runtime Status");
+  add_setting_entry(ui, "network_ip_address", "IP Address",
+                    device->wifi_ip[0] ? device->wifi_ip : "-");
+  if (device->wifi_rssi[0]) {
+    snprintf(value, sizeof(value), "%s dBm", device->wifi_rssi);
   } else {
-    copy_string(value, sizeof(value), "no redacted runtime status");
+    copy_string(value, sizeof(value), "-");
   }
-  add_setting_entry(ui, "a30_wifi_runtime", "A30 Wi-Fi Runtime", value);
+  add_setting_entry(ui, "network_signal", "Signal", value);
+  if (device->wifi_linkspeed[0]) {
+    snprintf(value, sizeof(value), "%s Mbps", device->wifi_linkspeed);
+  } else {
+    copy_string(value, sizeof(value), "-");
+  }
+  add_setting_entry(ui, "network_link_speed", "Link Speed", value);
+  if (device->wifi_frequency[0]) {
+    snprintf(value, sizeof(value), "%s MHz", device->wifi_frequency);
+  } else {
+    copy_string(value, sizeof(value), "-");
+  }
+  add_setting_entry(ui, "network_frequency", "Frequency", value);
+  add_setting_entry(ui, "network_ssh", "SSH", device->ssh_status);
+  add_setting_entry(ui, "network_status_source", "Status Source",
+                    device->network_status_source);
+  add_setting_entry(ui, "network_config_source", "Config Source",
+                    "plumOS network runtime");
+  add_setting_entry(ui, "network_credentials", "Credentials", "hidden");
+  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
+                    "Wi-Fi + DHCP + SSH");
+  add_setting_entry(ui, "network_write_policy", "Write Policy",
+                    "read-only until safe Wi-Fi editor");
+}
 
-  add_setting_entry(ui, "a30_keymap", "A30 Keymap", device->keymap);
-  add_setting_entry(ui, "a30_input_event", "A30 Input Event", ui->input_event_path);
-  add_setting_entry(ui, "a30_language", "A30 Language", device->language);
-  add_setting_entry(ui, "a30_stock_theme", "A30 Stock Theme", device->stock_theme);
-  snprintf(value, sizeof(value), "cpufreq=%ld", device->cpu_freq_mode);
-  add_setting_entry(ui, "a30_cpu_mode", "A30 CPU Mode", value);
+static int performance_top_entry_is_real(const struct top_entry *entry) {
+  return entry && !entry->virtual_entry && valid_system_id(entry->id);
+}
+
+static int performance_find_top_entry_index(const struct ui_state *ui,
+                                            const char *system_id) {
+  size_t i;
+
+  if (!ui || !system_id || !system_id[0]) {
+    return -1;
+  }
+  for (i = 0; i < ui->top_count; i++) {
+    if (performance_top_entry_is_real(&ui->top_entries[i]) &&
+        strcmp(ui->top_entries[i].id, system_id) == 0) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static int performance_first_top_entry_index(const struct ui_state *ui) {
+  size_t i;
+
+  if (!ui) {
+    return -1;
+  }
+  for (i = 0; i < ui->top_count; i++) {
+    if (performance_top_entry_is_real(&ui->top_entries[i])) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static void performance_select_top_entry(struct ui_state *ui, size_t index) {
+  const struct top_entry *entry;
+
+  if (!ui || index >= ui->top_count) {
+    return;
+  }
+  entry = &ui->top_entries[index];
+  copy_string(ui->performance_system_id, sizeof(ui->performance_system_id), entry->id);
+  copy_string(ui->performance_system_name, sizeof(ui->performance_system_name),
+              entry->display_name[0] ? entry->display_name : entry->id);
+}
+
+static int performance_ensure_system(struct ui_state *ui) {
+  int index;
+  int old_show_all;
+
+  if (!ui) {
+    return 0;
+  }
+  if (ui->top_count == 0) {
+    load_top_entries(ui);
+  }
+  index = performance_find_top_entry_index(ui, ui->performance_system_id);
+  if (index < 0) {
+    index = performance_find_top_entry_index(ui, ui->current_system_id);
+  }
+  if (index < 0) {
+    index = performance_first_top_entry_index(ui);
+  }
+  if (index < 0) {
+    old_show_all = ui->show_all;
+    ui->show_all = 1;
+    load_top_entries(ui);
+    ui->show_all = old_show_all;
+    index = performance_first_top_entry_index(ui);
+  }
+  if (index < 0) {
+    ui->performance_system_id[0] = '\0';
+    ui->performance_system_name[0] = '\0';
+    return 0;
+  }
+  performance_select_top_entry(ui, (size_t)index);
+  return 1;
+}
+
+static int performance_cycle_system(struct ui_state *ui, int direction) {
+  int index;
+  size_t step;
+
+  if (!ui || direction == 0 || !performance_ensure_system(ui)) {
+    return 0;
+  }
+  index = performance_find_top_entry_index(ui, ui->performance_system_id);
+  if (index < 0) {
+    index = performance_first_top_entry_index(ui);
+  }
+  if (index < 0 || ui->top_count == 0) {
+    return 0;
+  }
+  for (step = 1; step <= ui->top_count; step++) {
+    int next = direction > 0
+                   ? (int)(((size_t)index + step) % ui->top_count)
+                   : (int)(((size_t)index + ui->top_count - (step % ui->top_count)) %
+                           ui->top_count);
+    if (performance_top_entry_is_real(&ui->top_entries[next])) {
+      performance_select_top_entry(ui, (size_t)next);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void copy_trimmed_range(char *out, size_t out_size, const char *start,
+                               size_t len) {
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!start) {
+    return;
+  }
+  while (len > 0 && isspace((unsigned char)*start)) {
+    start++;
+    len--;
+  }
+  while (len > 0 && isspace((unsigned char)start[len - 1])) {
+    len--;
+  }
+  if (len >= out_size) {
+    len = out_size - 1;
+  }
+  memcpy(out, start, len);
+  out[len] = '\0';
+}
+
+static void copy_parenthesized_source(char *out, size_t out_size, const char *source_start) {
+  const char *end;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!source_start) {
+    return;
+  }
+  source_start += 2;
+  end = strchr(source_start, ')');
+  if (!end) {
+    return;
+  }
+  copy_trimmed_range(out, out_size, source_start, (size_t)(end - source_start));
+}
+
+static void performance_format_cpu_label(char *out, size_t out_size,
+                                         const char *policy, long freq_khz) {
+  if (!out || out_size == 0) {
+    return;
+  }
+  if (!policy || !policy[0]) {
+    copy_string(out, out_size, "launcher default");
+  } else if (strcmp(policy, "fixed") == 0 && freq_khz > 0) {
+    if (freq_khz % 1000 == 0) {
+      snprintf(out, out_size, "%ld MHz", freq_khz / 1000);
+    } else {
+      snprintf(out, out_size, "%ld kHz", freq_khz);
+    }
+  } else {
+    copy_string(out, out_size, policy);
+  }
+}
+
+static int performance_cpu_preset_index(const char *policy, long freq_khz) {
+  size_t i;
+
+  if (!policy || !policy[0]) {
+    return 0;
+  }
+  for (i = 0; i < PERFORMANCE_CPU_PRESET_COUNT; i++) {
+    const struct performance_cpu_preset *preset = &PERFORMANCE_CPU_PRESETS[i];
+    if (strcmp(policy, preset->policy) != 0) {
+      continue;
+    }
+    if (strcmp(policy, "fixed") == 0 && freq_khz != preset->freq_khz) {
+      continue;
+    }
+    return (int)i;
+  }
+  return 0;
+}
+
+static void performance_parse_current_cpu(struct ui_state *ui, const char *line) {
+  const char *value;
+  const char *source;
+  char label[96];
+  char *endptr = NULL;
+  long freq;
+
+  if (!ui || !line || strncmp(line, "current_cpu: ", 13) != 0) {
+    return;
+  }
+  value = line + 13;
+  source = strstr(value, " (");
+  copy_trimmed_range(label, sizeof(label), value,
+                     source ? (size_t)(source - value) : strlen(value));
+  if (source) {
+    copy_parenthesized_source(ui->performance_cpu_source,
+                              sizeof(ui->performance_cpu_source), source);
+  }
+
+  ui->performance_cpu_policy[0] = '\0';
+  ui->performance_cpu_freq_khz = 0;
+  if (strncmp(label, "fixed ", 6) == 0) {
+    errno = 0;
+    freq = strtol(label + 6, &endptr, 10);
+    if (errno == 0 && endptr && freq > 0) {
+      copy_string(ui->performance_cpu_policy, sizeof(ui->performance_cpu_policy), "fixed");
+      ui->performance_cpu_freq_khz = freq;
+    }
+  } else if (strcmp(label, "performance") == 0) {
+    copy_string(ui->performance_cpu_policy, sizeof(ui->performance_cpu_policy), label);
+  }
+  performance_format_cpu_label(ui->performance_cpu_label,
+                               sizeof(ui->performance_cpu_label),
+                               ui->performance_cpu_policy,
+                               ui->performance_cpu_freq_khz);
+}
+
+static void performance_parse_current_cpu_cores(struct ui_state *ui, const char *line) {
+  const char *value;
+  const char *source;
+  char label[96];
+  char *endptr = NULL;
+  long cores;
+
+  if (!ui || !line || strncmp(line, "current_cpu_cores: ", 19) != 0) {
+    return;
+  }
+  value = line + 19;
+  source = strstr(value, " (");
+  copy_trimmed_range(label, sizeof(label), value,
+                     source ? (size_t)(source - value) : strlen(value));
+  if (source) {
+    copy_parenthesized_source(ui->performance_cpu_cores_source,
+                              sizeof(ui->performance_cpu_cores_source), source);
+  }
+  errno = 0;
+  cores = strtol(label, &endptr, 10);
+  if (errno == 0 && endptr && endptr != label &&
+      (*endptr == '\0' || isspace((unsigned char)*endptr))) {
+    ui->performance_cpu_cores = cores;
+  }
+}
+
+static int load_performance_core_state(struct ui_state *ui) {
+  char text_ui[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char line[512];
+  FILE *pipe;
+  size_t pos = 0;
+  int rc;
+
+  if (!ui) {
+    return 0;
+  }
+  ui->performance_cpu_policy[0] = '\0';
+  ui->performance_cpu_freq_khz = 0;
+  ui->performance_cpu_cores = 0;
+  copy_string(ui->performance_cpu_label, sizeof(ui->performance_cpu_label),
+              "launcher default");
+  copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+              "unavailable");
+  copy_string(ui->performance_cpu_cores_source,
+              sizeof(ui->performance_cpu_cores_source), "unavailable");
+
+  if (!performance_ensure_system(ui)) {
+    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+                "no system");
+    copy_string(ui->performance_cpu_cores_source,
+                sizeof(ui->performance_cpu_cores_source), "no system");
+    return 0;
+  }
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
+    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+                "text-ui path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+                "plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, " core system ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->performance_system_id) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+                "core command too long");
+    return 0;
+  }
+
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
+                "cannot run plumos-text-ui");
+    return 0;
+  }
+  while (fgets(line, sizeof(line), pipe)) {
+    performance_parse_current_cpu(ui, line);
+    performance_parse_current_cpu_cores(ui, line);
+  }
+  rc = pclose(pipe);
+  return rc == 0;
+}
+
+static void add_performance_settings_entries(struct ui_state *ui) {
+  char value[256];
+
+  load_performance_core_state(ui);
+  add_setting_entry(ui, "performance_system", "System",
+                    ui->performance_system_name[0] ? ui->performance_system_name : "-");
+  add_setting_entry(ui, "performance_cpu_policy", "CPU freq",
+                    ui->performance_cpu_label);
+  if (ui->performance_cpu_cores > 0) {
+    snprintf(value, sizeof(value), "%ld", ui->performance_cpu_cores);
+  } else {
+    copy_string(value, sizeof(value), "launcher default");
+  }
+  add_setting_entry(ui, "performance_cpu_cores", "CPU Cores", value);
+  add_setting_entry(ui, "performance_cpu_source", "CPU Source",
+                    ui->performance_cpu_source);
+  add_setting_entry(ui, "performance_cpu_cores_source", "Core Source",
+                    ui->performance_cpu_cores_source);
+  add_setting_entry(ui, "performance_clear_cpu_override", "Reset to Default", "");
 }
 
 static int load_settings_entries(struct ui_state *ui) {
@@ -1138,31 +2380,47 @@ static int load_settings_entries(struct ui_state *ui) {
     return 0;
   }
   load_theme_state(ui, settings.theme_id);
-  add_setting_entry(ui, "help", "HELP", "controls");
-  add_setting_entry(ui, "ui_mode", "UI Mode", settings.ui_mode);
-  add_setting_entry(ui, "top_mode", "TOP Mode", settings.top_mode);
-  add_setting_entry(ui, "rom_mode", "ROM Mode", settings.rom_mode);
-  add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
-                         settings.show_empty_systems);
-  add_bool_setting_entry(ui, "show_favorites_on_top", "Favorites On TOP",
-                         settings.show_favorites_on_top);
-  add_setting_entry(ui, "boot_resume_mode", "Boot Resume Mode",
-                    settings.boot_resume_mode);
-  add_setting_entry(ui, "sort_systems", "Sort Systems", settings.sort_systems);
-  add_setting_entry(ui, "sort_roms", "Sort ROMs", settings.sort_roms);
-  add_setting_entry(ui, "rom_scan_policy", "ROM Scan Policy",
-                    settings.rom_scan_policy);
-  add_setting_entry(ui, "theme_id", "Theme", settings.theme_id);
-  add_setting_entry(ui, "theme_name", "Theme Name", ui->theme.display_name);
-  add_setting_entry(ui, "theme_status", "Theme Status", ui->theme.status);
-  add_setting_entry(ui, "theme_layout", "Theme Layout", ui->theme.layout_preset);
-  add_setting_entry(ui, "theme_font", "Theme Font",
-                    ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
-  add_bool_setting_entry(ui, "theme_force_no_icons", "Text Force No Icons",
-                         ui->theme.force_no_icons);
-  load_device_settings(ui);
-  add_device_settings_entries(ui);
+  switch (ui->settings_category) {
+  case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
+    load_device_settings(ui);
+    add_system_display_color_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
+    load_device_settings(ui);
+    add_system_information_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM:
+    load_device_settings(ui);
+    add_system_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_NETWORK:
+    load_device_settings(ui);
+    add_network_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_PERFORMANCE:
+    load_device_settings(ui);
+    add_performance_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_UI:
+  default:
+    add_ui_settings_entries(ui, &settings);
+    break;
+  }
   return 1;
+}
+
+static void select_setting_entry_by_id(struct ui_state *ui, const char *id) {
+  size_t i;
+
+  if (!ui || !id) {
+    return;
+  }
+  for (i = 0; i < ui->setting_count; i++) {
+    if (strcmp(ui->setting_entries[i].id, id) == 0) {
+      ui->settings_cursor = i;
+      return;
+    }
+  }
 }
 
 static int load_top_entries(struct ui_state *ui) {
@@ -1228,6 +2486,21 @@ static int load_top_entries(struct ui_state *ui) {
     fav.pinned = 1;
     fav.virtual_entry = 1;
     ui->top_entries[ui->top_count++] = fav;
+  }
+  if (settings.show_recent_on_top && ui->top_count < UI_MAX_TOP) {
+    struct top_entry recent;
+    memset(&recent, 0, sizeof(recent));
+    copy_string(recent.id, sizeof(recent.id), "recent");
+    copy_string(recent.display_name, sizeof(recent.display_name), "Recent");
+    copy_string(recent.default_launch_profile, sizeof(recent.default_launch_profile),
+                "internal:recent");
+    recent.rom_count = count_json_array_objects(ui->recent_path, "recents");
+    recent.pinned = 1;
+    recent.virtual_entry = 1;
+    ui->top_entries[ui->top_count++] = recent;
+  }
+  if (strcmp(settings.sort_systems, "name") == 0 && ui->top_count > 1) {
+    qsort(ui->top_entries, ui->top_count, sizeof(ui->top_entries[0]), cmp_top_entry_name);
   }
   if (ui->top_cursor >= ui->top_count) {
     ui->top_cursor = ui->top_count ? ui->top_count - 1 : 0;
@@ -1434,6 +2707,9 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   const char *start;
   const char *end;
   const char *cursor;
+  struct frontend_settings settings;
+  int cache_exists;
+  int scan_on_enter;
 
   ui->rom_count = 0;
   ui->rom_cursor = 0;
@@ -1443,7 +2719,13 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   if (!build_system_cache_path(path, sizeof(path), ui->plumos_root, system_id)) {
     return 0;
   }
-  if (!run_scanner(ui->plumos_root, ui->sdcard_root, system_id) && !file_exists(path)) {
+  if (!load_settings(ui->settings_path, &settings)) {
+    copy_string(ui->status, sizeof(ui->status), "settings read failed; using scan defaults");
+  }
+  cache_exists = file_exists(path);
+  scan_on_enter = rom_scan_policy_is_on_enter(settings.rom_scan_policy);
+  if ((scan_on_enter || !cache_exists || ui->refresh) &&
+      !run_scanner(ui->plumos_root, ui->sdcard_root, system_id) && !cache_exists) {
     return 0;
   }
   json = read_file(path, &json_size);
@@ -1476,6 +2758,13 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
     ui->rom_entries[ui->rom_count++] = entry;
   }
   free(json);
+  if (ui->rom_count > 1) {
+    if (strcmp(settings.sort_roms, "path") == 0) {
+      qsort(ui->rom_entries, ui->rom_count, sizeof(ui->rom_entries[0]), cmp_rom_entry_path);
+    } else {
+      qsort(ui->rom_entries, ui->rom_count, sizeof(ui->rom_entries[0]), cmp_rom_entry_name);
+    }
+  }
   return 1;
 }
 
@@ -1489,6 +2778,23 @@ static void ui_append_render_line(struct ui_state *ui, const char *line, size_t 
   memcpy(ui->render_lines[ui->render_line_count], line, len);
   ui->render_lines[ui->render_line_count][len] = '\0';
   ui->render_line_count++;
+}
+
+static void core_append_line(struct ui_state *ui, const char *line) {
+  size_t len;
+  if (ui->core_line_count >= UI_RENDER_MAX_LINES || !line) {
+    return;
+  }
+  len = strlen(line);
+  while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+    len--;
+  }
+  if (len >= UI_RENDER_LINE_MAX) {
+    len = UI_RENDER_LINE_MAX - 1;
+  }
+  memcpy(ui->core_lines[ui->core_line_count], line, len);
+  ui->core_lines[ui->core_line_count][len] = '\0';
+  ui->core_line_count++;
 }
 
 static void ui_vprintf(struct ui_state *ui, const char *fmt, va_list ap) {
@@ -1534,25 +2840,67 @@ static void clear_screen(struct ui_state *ui) {
   }
 }
 
+static size_t ui_list_window_size(const struct ui_state *ui) {
+  if (ui && ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
+    if (strcmp(ui->mali_tty_entry_scale, "2") == 0 ||
+        strcmp(ui->mali_tty_entry_scale, "2.0") == 0 ||
+        strcmp(ui->mali_tty_entry_scale, "20") == 0) {
+      return 8;
+    }
+    if (strcmp(ui->mali_tty_entry_scale, "1.5") == 0 ||
+        strcmp(ui->mali_tty_entry_scale, "15") == 0) {
+      return 10;
+    }
+    return 15;
+  }
+  return 10;
+}
+
+static void ui_cursor_page_down(size_t *cursor, size_t count, size_t page_size) {
+  if (!cursor || count == 0) {
+    return;
+  }
+  if (page_size == 0) {
+    page_size = 1;
+  }
+  if (*cursor + page_size >= count) {
+    *cursor = count - 1;
+  } else {
+    *cursor += page_size;
+  }
+}
+
+static void ui_cursor_page_up(size_t *cursor, size_t page_size) {
+  if (!cursor) {
+    return;
+  }
+  if (page_size == 0) {
+    page_size = 1;
+  }
+  if (*cursor <= page_size) {
+    *cursor = 0;
+  } else {
+    *cursor -= page_size;
+  }
+}
+
 static void render_top(struct ui_state *ui) {
   size_t i;
-  size_t window = 10;
+  size_t window = ui_list_window_size(ui);
   size_t start = 0;
   size_t end;
 
-  if (ui->top_cursor >= window / 2) {
-    start = ui->top_cursor - window / 2;
+  if (window == 0) {
+    window = 1;
   }
-  if (start + window > ui->top_count) {
-    start = ui->top_count > window ? ui->top_count - window : 0;
-  }
+  start = (ui->top_cursor / window) * window;
   end = start + window;
   if (end > ui->top_count) {
     end = ui->top_count;
   }
 
   ui_printf(ui, "plumOS controller UI - TOP\n");
-  ui_printf(ui, "A: open  B: back  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit\n");
+  ui_printf(ui, "A: open  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
   ui_printf(ui, "\n");
   for (i = start; i < end; i++) {
@@ -1571,19 +2919,17 @@ static void render_top(struct ui_state *ui) {
 
 static void render_roms(struct ui_state *ui) {
   size_t i;
-  size_t window = 10;
+  size_t window = ui_list_window_size(ui);
   size_t start = 0;
   size_t end;
   const char *title = "ROMS";
   const char *subtitle =
-      "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
+      "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
 
-  if (ui->rom_cursor >= window / 2) {
-    start = ui->rom_cursor - window / 2;
+  if (window == 0) {
+    window = 1;
   }
-  if (start + window > ui->rom_count) {
-    start = ui->rom_count > window ? ui->rom_count - window : 0;
-  }
+  start = (ui->rom_cursor / window) * window;
   end = start + window;
   if (end > ui->rom_count) {
     end = ui->rom_count;
@@ -1592,16 +2938,22 @@ static void render_roms(struct ui_state *ui) {
   if (ui->screen == SCREEN_FAVORITES) {
     title = "FAVORITES";
     subtitle =
-        "A: launch preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
+        "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
   } else if (ui->screen == SCREEN_RECENT) {
     title = "RECENT";
     subtitle =
-        "A: resume preview  B/LEFT: TOP  START: menu  SELECT: core preview  FUNCTION: safe menu  Q: quit";
+        "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
   }
 
   ui_printf(ui, "plumOS controller UI - %s\n", title);
   if (ui->screen == SCREEN_ROMS) {
+    char prompt_path[PATH_MAX];
     ui_printf(ui, "system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
+    if (ui->renderer_mali && ui->rom_count > 0 &&
+        rom_entry_alias_root_path(&ui->rom_entries[ui->rom_cursor],
+                                  prompt_path, sizeof(prompt_path))) {
+      ui_printf(ui, "prompt_path=%s\n", prompt_path);
+    }
   }
   ui_printf(ui, "%s\n", subtitle);
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->rom_count,
@@ -1610,8 +2962,13 @@ static void render_roms(struct ui_state *ui) {
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
     const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
-    ui_printf(ui, "%c %3zu  %-30s %s\n",
-              i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
+    if (ui->renderer_mali) {
+      ui_printf(ui, "%c %3zu  %s\n",
+                i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title);
+    } else {
+      ui_printf(ui, "%c %3zu  %-30s %s\n",
+                i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
+    }
   }
   if (ui->rom_count == 0) {
     ui_printf(ui, "(entry is empty)\n");
@@ -1630,28 +2987,16 @@ static void render_start_menu(struct ui_state *ui) {
   size_t i;
 
   ui_printf(ui, "plumOS controller UI - START\n");
-  ui_printf(ui, "A: open/preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  ui_printf(ui, "A: open/run  B: back  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->menu_count,
             ui->menu_count ? ui->menu_cursor + 1 : 0);
   ui_printf(ui, "\n");
   for (i = 0; i < ui->menu_count; i++) {
     const struct menu_entry *entry = &ui->menu_entries[i];
     if (ui->renderer_mali) {
-      const char *role = entry->kind[0] ? entry->kind : "-";
-      if (strcmp(entry->action, "internal:settings") == 0 ||
-          strcmp(entry->action, "internal:favorites") == 0 ||
-          strcmp(entry->action, "internal:recent") == 0) {
-        role = "screen";
-      } else if (strcmp(entry->action, "internal:network") == 0) {
-        role = "rescue";
-      } else if (strcmp(entry->action, "scan:current") == 0) {
-        role = "scan";
-      } else if (strcmp(entry->action, "system:shutdown") == 0) {
-        role = "power";
-      }
-      ui_printf(ui, "%c %2zu  %-30s %-8s %s\n",
-                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name, role,
-                entry->confirm ? "confirm" : "");
+      ui_printf(ui, "%c %2zu  %s%s\n",
+                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
+                entry->confirm ? " confirm" : "");
     } else {
       ui_printf(ui, "%c %3zu  %-24s %-10s %-24s %s\n",
                 i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
@@ -1667,18 +3012,267 @@ static void render_start_menu(struct ui_state *ui) {
   }
 }
 
+static int setting_value_is_true(const char *value) {
+  return value && (strcmp(value, "true") == 0 || strcmp(value, "1") == 0 ||
+                   strcmp(value, "on") == 0 || strcmp(value, "enabled") == 0 ||
+                   strcmp(value, "Enable") == 0 || strcmp(value, "Enabled") == 0);
+}
+
+static int settings_blink_arrow_active(const struct ui_state *ui, size_t row,
+                                       int direction) {
+  long long now;
+
+  if (!ui || ui->settings_blink_direction != direction ||
+      ui->settings_blink_cursor != row) {
+    return 0;
+  }
+  now = current_time_ms();
+  if (now >= ui->settings_blink_until_ms) {
+    return 0;
+  }
+  return 1;
+}
+
+static void format_setting_row_mali(const struct ui_state *ui, const struct setting_entry *entry,
+                                    size_t row, char *out, size_t out_size) {
+  enum setting_control_type control = setting_control_type_for_id(entry ? entry->id : NULL);
+  int flash_direction = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!entry) {
+    return;
+  }
+  if (control == SETTING_CONTROL_CHECKBOX) {
+    snprintf(out, out_size, "[%c] %s",
+             setting_value_is_true(entry->value) ? 'x' : ' ', entry->display_name);
+    return;
+  }
+  if (control == SETTING_CONTROL_CHOICE || control == SETTING_CONTROL_NUMBER) {
+    if (settings_blink_arrow_active(ui, row, -1)) {
+      flash_direction = -1;
+    } else if (settings_blink_arrow_active(ui, row, 1)) {
+      flash_direction = 1;
+    }
+    if (flash_direction != 0) {
+      snprintf(out, out_size, "%s < %s >%s%c}", entry->display_name, entry->value,
+               PLUMOS_MALI_SETTING_FLASH_MARKER, flash_direction < 0 ? 'L' : 'R');
+    } else {
+      snprintf(out, out_size, "%s < %s >", entry->display_name, entry->value);
+    }
+    return;
+  }
+  if (control == SETTING_CONTROL_ACTION) {
+    snprintf(out, out_size, "%s", entry->display_name);
+    return;
+  }
+  if (entry->value[0] && strlen(entry->display_name) + 2 + strlen(entry->value) <= 33) {
+    snprintf(out, out_size, "%s: %s", entry->display_name, entry->value);
+  } else {
+    snprintf(out, out_size, "%s", entry->display_name);
+  }
+}
+
+static void setting_help_lines(const struct setting_entry *entry,
+                               char *line1, size_t line1_size,
+                               char *line2, size_t line2_size) {
+  const char *id = entry ? entry->id : "";
+  enum setting_control_type control = setting_control_type_for_id(id);
+
+  if (line1 && line1_size > 0) {
+    line1[0] = '\0';
+  }
+  if (line2 && line2_size > 0) {
+    line2[0] = '\0';
+  }
+  if (!entry) {
+    return;
+  }
+
+  if (strcmp(id, "ui_mode") == 0) {
+    copy_string(line1, line1_size, "Switch all screens: Text or Graphic.");
+    copy_string(line2, line2_size, "Text is console-style; Graphic is artwork-focused.");
+  } else if (strcmp(id, "show_empty_systems") == 0) {
+    copy_string(line1, line1_size, "Show systems with no ROMs.");
+    copy_string(line2, line2_size, "Useful while preparing folders or testing aliases.");
+  } else if (strcmp(id, "show_favorites_on_top") == 0) {
+    copy_string(line1, line1_size, "Show Favorites on the TOP list.");
+    copy_string(line2, line2_size, "Favorites behave like a virtual system.");
+  } else if (strcmp(id, "show_recent_on_top") == 0) {
+    copy_string(line1, line1_size, "Show Recent on the TOP list.");
+    copy_string(line2, line2_size, "Recent behaves like a virtual system.");
+  } else if (strcmp(id, "boot_resume_mode") == 0) {
+    copy_string(line1, line1_size, "Choose startup resume behavior.");
+    copy_string(line2, line2_size, "Off ignores; Last resumes; Picker asks.");
+  } else if (strcmp(id, "sort_systems") == 0) {
+    copy_string(line1, line1_size, "Choose TOP system ordering.");
+    copy_string(line2, line2_size, "Sort Order follows config; Name sorts A-Z.");
+  } else if (strcmp(id, "sort_roms") == 0) {
+    copy_string(line1, line1_size, "Choose ROM list ordering.");
+    copy_string(line2, line2_size, "Affects each system's ROM list.");
+  } else if (strcmp(id, "rom_scan_policy") == 0) {
+    copy_string(line1, line1_size, "Scan ROM folders when entering a system.");
+    copy_string(line2, line2_size, "Off keeps cached lists until refresh.");
+  } else if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
+    copy_string(line1, line1_size, "Slow scan warning threshold.");
+    copy_string(line2, line2_size, "Higher values make warnings less sensitive.");
+  } else if (strcmp(id, "rom_scan_test_file_count") == 0) {
+    copy_string(line1, line1_size, "Synthetic scan test count.");
+    copy_string(line2, line2_size, "Used by scan performance checks.");
+  } else if (strcmp(id, "network_rescue") == 0) {
+    copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
+    copy_string(line2, line2_size, "Restores the usual remote access path.");
+  } else if (strncmp(id, "network_", 8) == 0) {
+    if (strcmp(id, "network_wifi_enabled") == 0 ||
+        strcmp(id, "network_config_source") == 0) {
+      copy_string(line1, line1_size, "Read-only Wi-Fi config inventory.");
+      copy_string(line2, line2_size, "Wi-Fi editing waits for backup and rollback.");
+    } else if (strcmp(id, "network_connection") == 0 ||
+               strcmp(id, "network_ip_address") == 0 ||
+               strcmp(id, "network_signal") == 0 ||
+               strcmp(id, "network_link_speed") == 0 ||
+               strcmp(id, "network_frequency") == 0 ||
+               strcmp(id, "network_status_source") == 0) {
+      copy_string(line1, line1_size, "Read-only redacted Wi-Fi runtime status.");
+      copy_string(line2, line2_size, "SSID and PSK are never shown here.");
+    } else if (strcmp(id, "network_ssh") == 0) {
+      copy_string(line1, line1_size, "Remote access path used for development.");
+      copy_string(line2, line2_size, "Network recovery restarts Wi-Fi, DHCP, and SSH.");
+    } else if (strcmp(id, "network_credentials") == 0) {
+      copy_string(line1, line1_size, "Wi-Fi credentials are intentionally hidden.");
+      copy_string(line2, line2_size, "Do not expose SSID or PSK in UI/logs/git.");
+    } else {
+      copy_string(line1, line1_size, "Read-only network setting.");
+      copy_string(line2, line2_size, "Write support needs safe Wi-Fi editor flow.");
+    }
+  } else if (strncmp(id, "performance_", 12) == 0) {
+    if (strcmp(id, "performance_system") == 0) {
+      copy_string(line1, line1_size, "Choose the system CPU setting to edit.");
+      copy_string(line2, line2_size, "Values are saved as plumOS core overrides.");
+    } else if (strcmp(id, "performance_cpu_policy") == 0) {
+      copy_string(line1, line1_size, "Set the fixed CPU frequency for this system.");
+      copy_string(line2, line2_size, "Predictable presets: 648, 816, 1200, or 1344 MHz.");
+    } else if (strcmp(id, "performance_cpu_cores") == 0) {
+      copy_string(line1, line1_size, "Set the CPU core count for this system.");
+      copy_string(line2, line2_size, "A30 presets are 2 cores or 4 cores.");
+    } else if (strcmp(id, "performance_clear_cpu_override") == 0) {
+      copy_string(line1, line1_size, "Reset this system to the plumOS default.");
+      copy_string(line2, line2_size, "Default is 648 MHz and 2 cores.");
+    } else {
+      copy_string(line1, line1_size, "Read-only performance source information.");
+      copy_string(line2, line2_size, "Shows whether defaults or overrides are active.");
+    }
+  } else if (strcmp(id, "system_information") == 0) {
+    copy_string(line1, line1_size, "Open read-only device information.");
+    copy_string(line2, line2_size, "Kernel, storage, input, backend, and policy details.");
+  } else if (strncmp(id, "system_", 7) == 0) {
+    if (strcmp(id, "system_volume") == 0) {
+      copy_string(line1, line1_size, "System-wide volume setting.");
+      copy_string(line2, line2_size, "Saves volume to plumOS config; physical buttons come later.");
+    } else if (strcmp(id, "system_brightness") == 0) {
+      copy_string(line1, line1_size, "Screen brightness setting.");
+      copy_string(line2, line2_size, "Saves brightness to plumOS config; hotkey comes later.");
+    } else if (strcmp(id, "system_lumination") == 0) {
+      copy_string(line1, line1_size, "Display lumination value from plumOS config.");
+      copy_string(line2, line2_size, "Saves lumination to plumOS config.");
+    } else if (strcmp(id, "system_display_color") == 0) {
+      copy_string(line1, line1_size, "Open display color tuning.");
+      copy_string(line2, line2_size, "Contrast, hue, and saturation are changed inside.");
+    } else if (strcmp(id, "system_contrast") == 0) {
+      copy_string(line1, line1_size, "Display contrast setting.");
+      copy_string(line2, line2_size, "Saves contrast to plumOS config.");
+    } else if (strcmp(id, "system_hue") == 0) {
+      copy_string(line1, line1_size, "Display hue setting.");
+      copy_string(line2, line2_size, "Saves hue to plumOS config.");
+    } else if (strcmp(id, "system_saturation") == 0) {
+      copy_string(line1, line1_size, "Display saturation setting.");
+      copy_string(line2, line2_size, "Saves saturation to plumOS config.");
+    } else if (strcmp(id, "system_language") == 0) {
+      copy_string(line1, line1_size, "Frontend language setting.");
+      copy_string(line2, line2_size, "Saves language to plumOS config.");
+    } else if (strcmp(id, "system_theme") == 0) {
+      copy_string(line1, line1_size, "Theme setting for graphical presentation.");
+      copy_string(line2, line2_size, "Text mode remains usable without graphical assets.");
+    } else if (strcmp(id, "system_model") == 0 || strcmp(id, "system_kernel") == 0 ||
+        strcmp(id, "system_sdcard") == 0 || strcmp(id, "system_config") == 0) {
+      copy_string(line1, line1_size, "Read-only device and runtime information.");
+      copy_string(line2, line2_size, "Used to confirm the active A30 environment.");
+    } else if (strcmp(id, "system_audio_backend") == 0) {
+      copy_string(line1, line1_size, "Audio backend policy for plumOS.");
+      copy_string(line2, line2_size, "Volume writes wait for mixer backend validation.");
+    } else if (strcmp(id, "system_brightness") == 0 ||
+               strcmp(id, "system_lumination") == 0 ||
+               strcmp(id, "system_display_color") == 0 ||
+               strcmp(id, "system_display_backend") == 0) {
+      copy_string(line1, line1_size, "Display backend policy for plumOS.");
+      copy_string(line2, line2_size, "Brightness writes wait for backend validation.");
+    } else if (strcmp(id, "system_language") == 0 ||
+               strcmp(id, "system_input_device") == 0 ||
+               strcmp(id, "system_theme_source") == 0) {
+      copy_string(line1, line1_size, "plumOS-owned system preference inventory.");
+      copy_string(line2, line2_size, "stockOS settings are intentionally separate.");
+    } else {
+      copy_string(line1, line1_size, "Read-only A30 system setting.");
+      copy_string(line2, line2_size, "Write support needs backup and rollback.");
+    }
+  } else if (control == SETTING_CONTROL_CHECKBOX && !setting_is_writable(id)) {
+    copy_string(line1, line1_size, "Read-only checkbox from theme/system.");
+    copy_string(line2, line2_size, "Needs a validated write backend.");
+  } else {
+    copy_string(line1, line1_size, "Read-only information for this screen.");
+    copy_string(line2, line2_size, "Write support will be added after backend checks.");
+  }
+}
+
 static void render_settings(struct ui_state *ui) {
   size_t i;
+  size_t window = ui_list_window_size(ui);
+  size_t start = 0;
+  size_t end;
+  char help1[128];
+  char help2[128];
 
-  ui_printf(ui, "plumOS controller UI - SETTINGS\n");
-  ui_printf(ui, "A: edit preview  B/LEFT: back  UP/DOWN: move  Q: quit\n");
+  if (window == 0) {
+    window = 1;
+  }
+  start = (ui->settings_cursor / window) * window;
+  end = start + window;
+  if (end > ui->setting_count) {
+    end = ui->setting_count;
+  }
+
+  ui_printf(ui, "plumOS controller UI - %s\n", settings_category_title(ui->settings_category));
+  ui_printf(ui, "A: toggle/run  B: back  LEFT/RIGHT: change  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
             ui->setting_count ? ui->settings_cursor + 1 : 0);
   ui_printf(ui, "\n");
-  for (i = 0; i < ui->setting_count; i++) {
+  for (i = start; i < end; i++) {
     const struct setting_entry *entry = &ui->setting_entries[i];
-    ui_printf(ui, "%c %3zu  %-24s %s\n",
-              i == ui->settings_cursor ? '>' : ' ', i + 1, entry->display_name, entry->value);
+    if (ui->renderer_mali) {
+      char row[256];
+      format_setting_row_mali(ui, entry, i, row, sizeof(row));
+      ui_printf(ui, "%c %3zu  %s\n",
+                i == ui->settings_cursor ? '>' : ' ', i + 1, row);
+    } else {
+      enum setting_control_type control = setting_control_type_for_id(entry->id);
+      if (control == SETTING_CONTROL_ACTION) {
+        ui_printf(ui, "%c %3zu  %s\n",
+                  i == ui->settings_cursor ? '>' : ' ', i + 1,
+                  entry->display_name);
+      } else {
+        ui_printf(ui, "%c %3zu  %-24s %s\n",
+                  i == ui->settings_cursor ? '>' : ' ', i + 1,
+                  entry->display_name, entry->value);
+      }
+    }
+  }
+  if (ui->renderer_mali && ui->setting_count > 0) {
+    const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
+    setting_help_lines(entry, help1, sizeof(help1), help2, sizeof(help2));
+    ui_printf(ui, "footer1=%s\n", help1);
+    ui_printf(ui, "footer2=%s\n", help2);
   }
   ui_printf(ui, "\nsource: %s\n", ui->settings_path);
   if (ui->status[0]) {
@@ -1690,7 +3284,7 @@ static void render_safe_menu(struct ui_state *ui) {
   size_t i;
 
   ui_printf(ui, "plumOS controller UI - SAFE\n");
-  ui_printf(ui, "A/RIGHT: preview  B/LEFT/FUNCTION: cancel  UP/DOWN: move  Q: quit\n");
+  ui_printf(ui, "A: run  B: cancel  UP/DOWN: move  Q: quit\n");
   if (ui->safe_target_relative_path[0]) {
     ui_printf(ui, "target=%s / %s\n", ui->safe_target_system_id,
               ui->safe_target_relative_path);
@@ -1714,12 +3308,12 @@ static void render_safe_menu(struct ui_state *ui) {
 
 static void render_help(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - HELP\n");
-  ui_printf(ui, "B/LEFT: back  Q: quit\n");
+  ui_printf(ui, "B: back  Q: quit\n");
   ui_printf(ui, "entries=9 cursor=0\n");
   ui_printf(ui, "\n");
   ui_printf(ui, "1. Up / Down: Move cursor\n");
-  ui_printf(ui, "2. A / Right: Open or preview\n");
-  ui_printf(ui, "3. B / Left: Back\n");
+  ui_printf(ui, "2. A: Open or run\n");
+  ui_printf(ui, "3. B: Back or cancel\n");
   ui_printf(ui, "4. START: Open START menu\n");
   ui_printf(ui, "5. SELECT: Core menu\n");
   ui_printf(ui, "6. Function: SAFE menu\n");
@@ -1731,8 +3325,29 @@ static void render_help(struct ui_state *ui) {
   }
 }
 
+static void render_core_select(struct ui_state *ui) {
+  size_t i;
+
+  ui_printf(ui, "plumOS controller UI - CORE\n");
+  ui_printf(ui, "B: back  SELECT: refresh  Q: quit\n");
+  ui_printf(ui, "target=%s", ui->core_target_system_id[0] ? ui->core_target_system_id : "-");
+  if (ui->core_target_relative_path[0]) {
+    ui_printf(ui, " / %s", ui->core_target_relative_path);
+  }
+  ui_printf(ui, "\n\n");
+  for (i = 0; i < ui->core_line_count; i++) {
+    ui_printf(ui, "%s\n", ui->core_lines[i]);
+  }
+  if (ui->core_line_count == 0) {
+    ui_printf(ui, "(core selection output is empty)\n");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_network_rescue(struct ui_state *ui) {
-  ui_printf(ui, "plumOS controller UI - NETWORK\n");
+  ui_printf(ui, "plumOS controller UI - Network Recovery\n");
   ui_printf(ui, "A: start Wi-Fi and SSH  Q: quit\n");
   ui_printf(ui, "target=/mnt/SDCARD/plumos/bin/plumos-network-rescue\n");
   ui_printf(ui, "\n");
@@ -1759,11 +3374,19 @@ static void render_ui(struct ui_state *ui) {
     render_safe_menu(ui);
   } else if (ui->screen == SCREEN_HELP) {
     render_help(ui);
+  } else if (ui->screen == SCREEN_CORE_SELECT) {
+    render_core_select(ui);
+  } else if (ui->screen == SCREEN_NETWORK_RESCUE) {
+    render_network_rescue(ui);
   } else {
     render_top(ui);
   }
   if (ui->renderer_mali) {
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
+    if (!ui->renderer_active) {
+      ui->render_failed = 1;
+      return;
+    }
     if (!plumos_mali_render_lines(&ui->mali_renderer, ui->render_lines,
                                   ui->render_line_count)) {
       copy_string(ui->status, sizeof(ui->status), "Mali renderer swap failed");
@@ -1777,6 +3400,75 @@ static void render_ui(struct ui_state *ui) {
 
 static void set_status(struct ui_state *ui, const char *text) {
   copy_string(ui->status, sizeof(ui->status), text);
+}
+
+static void reset_marquee(struct ui_state *ui) {
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+  if (ui && ui->renderer_mali && ui->renderer_active) {
+    plumos_mali_renderer_reset_marquee(&ui->mali_renderer);
+  }
+#else
+  (void)ui;
+#endif
+}
+
+static void settle_input_after_child(struct ui_state *ui);
+
+static int init_ui_renderer(struct ui_state *ui) {
+  if (!ui->renderer_mali) {
+    return 1;
+  }
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+  if (ui->renderer_active) {
+    return 1;
+  }
+  {
+    char render_error[256];
+    render_error[0] = '\0';
+    if (!plumos_mali_renderer_init(&ui->mali_renderer,
+                                   ui->fb_path[0] ? ui->fb_path : "/dev/fb0",
+                                   ui->egl_path[0] ? ui->egl_path : "/usr/lib/libEGL.so",
+                                   ui->gles_path[0] ? ui->gles_path : "/usr/lib/libGLESv2.so",
+                                   ui->mali_rotation, render_error, sizeof(render_error))) {
+      snprintf(ui->status, sizeof(ui->status), "Mali renderer init failed: %.200s",
+               render_error[0] ? render_error : "-");
+      return 0;
+    }
+    plumos_mali_renderer_set_style(&ui->mali_renderer, ui->mali_style);
+    plumos_mali_renderer_set_tty_entry_scale(&ui->mali_renderer,
+                                             ui->mali_tty_entry_scale);
+    plumos_mali_renderer_reset_marquee(&ui->mali_renderer);
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+    if (ui->mali_font_path[0]) {
+      render_error[0] = '\0';
+      if (plumos_mali_renderer_load_font(&ui->mali_renderer, ui->mali_font_path,
+                                         render_error, sizeof(render_error))) {
+        snprintf(ui->status, sizeof(ui->status), "Mali renderer ready font=%.160s",
+                 ui->mali_font_path);
+      } else {
+        snprintf(ui->status, sizeof(ui->status), "Mali font failed: %.180s",
+                 render_error[0] ? render_error : ui->mali_font_path);
+      }
+    }
+#endif
+  }
+  ui->renderer_active = 1;
+  return 1;
+#else
+  set_status(ui, "Mali renderer unavailable in this build");
+  return 0;
+#endif
+}
+
+static void shutdown_ui_renderer(struct ui_state *ui) {
+#ifdef PLUMOS_ENABLE_MALI_RENDERER
+  if (ui->renderer_mali && ui->renderer_active) {
+    plumos_mali_renderer_shutdown(&ui->mali_renderer);
+    ui->renderer_active = 0;
+  }
+#else
+  (void)ui;
+#endif
 }
 
 static void open_start_menu(struct ui_state *ui) {
@@ -1829,6 +3521,7 @@ static void open_favorites_screen(struct ui_state *ui) {
   } else {
     set_status(ui, "Favorites ready");
   }
+  reset_marquee(ui);
 }
 
 static void open_recent_screen(struct ui_state *ui) {
@@ -1840,14 +3533,19 @@ static void open_recent_screen(struct ui_state *ui) {
   } else {
     set_status(ui, "Recent ready");
   }
+  reset_marquee(ui);
 }
 
-static void open_settings_screen(struct ui_state *ui) {
+static void open_settings_screen(struct ui_state *ui, enum settings_category category) {
+  const char *title;
+
+  ui->settings_category = category;
   ui->screen = SCREEN_SETTINGS;
+  title = settings_category_title(ui->settings_category);
   if (!load_settings_entries(ui)) {
-    set_status(ui, "cannot load Settings");
+    snprintf(ui->status, sizeof(ui->status), "cannot load %s", title);
   } else {
-    set_status(ui, "Settings ready");
+    snprintf(ui->status, sizeof(ui->status), "%s ready", title);
   }
 }
 
@@ -1856,11 +3554,92 @@ static void open_help_screen(struct ui_state *ui) {
   set_status(ui, "help ready");
 }
 
+static int load_core_select_lines(struct ui_state *ui, const char *system_id,
+                                  const char *relative_path) {
+  char text_ui[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char line[512];
+  FILE *pipe;
+  size_t pos = 0;
+  int rc;
+
+  ui->core_line_count = 0;
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
+    core_append_line(ui, "error: plumos-text-ui path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    core_append_line(ui, "error: plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, relative_path && relative_path[0]
+                                             ? " core rom "
+                                             : " core system ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, system_id)) {
+    core_append_line(ui, "error: core command too long");
+    return 0;
+  }
+  if (relative_path && relative_path[0]) {
+    if (!append_string(cmd, sizeof(cmd), &pos, " ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, relative_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, " --no-scan")) {
+      core_append_line(ui, "error: core command too long");
+      return 0;
+    }
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    core_append_line(ui, "error: core command too long");
+    return 0;
+  }
+
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    core_append_line(ui, "error: cannot run plumos-text-ui core");
+    return 0;
+  }
+  while (fgets(line, sizeof(line), pipe)) {
+    core_append_line(ui, line);
+  }
+  rc = pclose(pipe);
+  return rc == 0;
+}
+
+static void open_core_select_screen(struct ui_state *ui, const char *system_id,
+                                    const char *relative_path) {
+  ui->core_back_screen = ui->screen;
+  ui->screen = SCREEN_CORE_SELECT;
+  copy_string(ui->core_target_system_id, sizeof(ui->core_target_system_id), system_id);
+  copy_string(ui->core_target_relative_path, sizeof(ui->core_target_relative_path),
+              relative_path ? relative_path : "");
+  if (!load_core_select_lines(ui, system_id, relative_path)) {
+    set_status(ui, "cannot load core selection");
+  } else {
+    set_status(ui, "core selection ready");
+  }
+}
+
+static void open_network_rescue_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_NETWORK_RESCUE;
+  set_status(ui, "network recovery ready");
+}
+
 static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) {
   copy_string(ui->current_system_id, sizeof(ui->current_system_id), entry->id);
   copy_string(ui->current_system_name, sizeof(ui->current_system_name), entry->display_name);
   if (strcmp(entry->id, "favorites") == 0) {
     open_favorites_screen(ui);
+    return;
+  }
+  if (strcmp(entry->id, "recent") == 0) {
+    open_recent_screen(ui);
     return;
   }
   ui->screen = SCREEN_ROMS;
@@ -1872,6 +3651,7 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   } else {
     set_status(ui, "ROM list ready");
   }
+  reset_marquee(ui);
 }
 
 static int run_network_rescue(struct ui_state *ui) {
@@ -1913,9 +3693,741 @@ static int run_network_rescue(struct ui_state *ui) {
   return 0;
 }
 
+static int run_safe_shutdown(struct ui_state *ui, const char *action, int poweroff) {
+  char script[PATH_MAX];
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  const char *dry_run;
+  const char *sleep_backend;
+  const char *sleep_wakeup_sec;
+  const char *power_backend;
+  size_t pos = 0;
+  int rc;
+
+  if (!action || (strcmp(action, "shutdown") != 0 && strcmp(action, "sleep") != 0)) {
+    set_status(ui, "safe action is invalid");
+    return 0;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-safe-shutdown") ||
+      !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-safe-shutdown.log")) {
+    set_status(ui, "safe shutdown path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "safe shutdown script missing");
+    return 0;
+  }
+
+  dry_run = getenv("PLUMOS_CONTROLLER_SAFE_DRY_RUN");
+  sleep_backend = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_BACKEND");
+  sleep_wakeup_sec = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_WAKEUP_SEC");
+  power_backend = getenv("PLUMOS_CONTROLLER_SAFE_POWER_BACKEND");
+  if (!sleep_backend || !sleep_backend[0]) {
+    sleep_backend = "mem";
+  }
+  if (!sleep_wakeup_sec) {
+    sleep_wakeup_sec = "";
+  }
+  if (!power_backend || !power_backend[0]) {
+    power_backend = "auto";
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " --") ||
+      !append_string(cmd, sizeof(cmd), &pos, action)) {
+    set_status(ui, "safe shutdown command too long");
+    return 0;
+  }
+  if (strcmp(action, "sleep") == 0) {
+    if (!append_string(cmd, sizeof(cmd), &pos, " --sleep-backend ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, sleep_backend) ||
+        !append_string(cmd, sizeof(cmd), &pos, " --no-poweroff")) {
+      set_status(ui, "safe shutdown command too long");
+      return 0;
+    }
+    if (sleep_wakeup_sec[0] &&
+        (!append_string(cmd, sizeof(cmd), &pos, " --wakeup-sec ") ||
+         !append_shell_quoted(cmd, sizeof(cmd), &pos, sleep_wakeup_sec))) {
+      set_status(ui, "safe shutdown command too long");
+      return 0;
+    }
+  } else if (poweroff) {
+    if (!append_string(cmd, sizeof(cmd), &pos, " --poweroff --power-backend ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, power_backend)) {
+      set_status(ui, "safe shutdown command too long");
+      return 0;
+    }
+  } else if (!append_string(cmd, sizeof(cmd), &pos, " --no-poweroff")) {
+    set_status(ui, "safe shutdown command too long");
+    return 0;
+  }
+  if (dry_run && dry_run[0] && strcmp(dry_run, "0") != 0 &&
+      strcmp(dry_run, "false") != 0 && strcmp(dry_run, "off") != 0 &&
+      !append_string(cmd, sizeof(cmd), &pos, " --dry-run")) {
+    set_status(ui, "safe shutdown command too long");
+    return 0;
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, " >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "safe shutdown command too long");
+    return 0;
+  }
+
+  snprintf(ui->status, sizeof(ui->status), "safe %s running", action);
+  render_ui(ui);
+  rc = system(cmd);
+  if (rc == -1) {
+    set_status(ui, "safe shutdown system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    if (strcmp(action, "sleep") == 0) {
+      snprintf(ui->status, sizeof(ui->status), "safe sleep complete backend=%s", sleep_backend);
+    } else {
+      snprintf(ui->status, sizeof(ui->status), "safe shutdown complete%s",
+               poweroff ? " poweroff" : " (no poweroff)");
+    }
+    return 1;
+  }
+  set_status(ui, "safe shutdown returned non-zero; see frontend-safe-shutdown.log");
+  return 0;
+}
+
+static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) {
+  char text_ui[PATH_MAX];
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  const char *system_id;
+  size_t pos = 0;
+  int rc;
+
+  if (!entry || !entry->relative_path[0]) {
+    set_status(ui, "launch target is empty");
+    return 0;
+  }
+  system_id = entry->system_id[0] ? entry->system_id : ui->current_system_id;
+  if (!valid_system_id(system_id)) {
+    set_status(ui, "launch system id is invalid");
+    return 0;
+  }
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui") ||
+      !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-launch.log")) {
+    set_status(ui, "launch path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    set_status(ui, "plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, " launch ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, system_id) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->relative_path)) {
+    set_status(ui, "launch command too long");
+    return 0;
+  }
+  if (ui->screen == SCREEN_RECENT && entry->launch_profile[0]) {
+    if (!append_string(cmd, sizeof(cmd), &pos, " --profile ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->launch_profile)) {
+      set_status(ui, "launch command too long");
+      return 0;
+    }
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, " --execute --no-scan >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "launch command too long");
+    return 0;
+  }
+
+  snprintf(ui->status, sizeof(ui->status), "launching %.32s / %.120s", system_id,
+           entry->relative_path);
+  render_ui(ui);
+  shutdown_ui_renderer(ui);
+  rc = system(cmd);
+  if (ui->renderer_mali && !init_ui_renderer(ui)) {
+    ui->renderer_mali = 0;
+  }
+  settle_input_after_child(ui);
+  if (ui->screen == SCREEN_RECENT) {
+    load_recent_entries(ui);
+  }
+  if (rc == -1) {
+    set_status(ui, "launch system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    set_status(ui, "launch finished; FE resumed");
+    return 1;
+  }
+  set_status(ui, "launch returned non-zero; see frontend-launch.log");
+  return 0;
+}
+
+static int bool_from_setting_value(const char *value) {
+  return setting_value_is_true(value);
+}
+
+static void settings_start_arrow_blink(struct ui_state *ui, int direction) {
+  if (!ui || direction == 0) {
+    return;
+  }
+  ui->settings_blink_cursor = ui->settings_cursor;
+  ui->settings_blink_direction = direction < 0 ? -1 : 1;
+  ui->settings_blink_until_ms = current_time_ms() + 240;
+}
+
+static long clamp_long(long value, long min_value, long max_value) {
+  if (value < min_value) {
+    return min_value;
+  }
+  if (value > max_value) {
+    return max_value;
+  }
+  return value;
+}
+
+static int update_settings_entries_after_save(struct ui_state *ui) {
+  size_t cursor;
+
+  if (!ui) {
+    return 0;
+  }
+  cursor = ui->settings_cursor;
+  if (!load_settings_entries(ui)) {
+    set_status(ui, "settings saved; reload failed");
+    return 0;
+  }
+  if (ui->setting_count == 0) {
+    ui->settings_cursor = 0;
+  } else if (cursor >= ui->setting_count) {
+    ui->settings_cursor = ui->setting_count - 1;
+  } else {
+    ui->settings_cursor = cursor;
+  }
+  return 1;
+}
+
+static void refresh_top_entries_preserve_cursor(struct ui_state *ui) {
+  char selected_id[64] = "";
+  size_t i;
+
+  if (!ui) {
+    return;
+  }
+  if (ui->top_count > 0 && ui->top_cursor < ui->top_count) {
+    copy_string(selected_id, sizeof(selected_id), ui->top_entries[ui->top_cursor].id);
+  }
+  if (!load_top_entries(ui)) {
+    return;
+  }
+  if (!selected_id[0]) {
+    return;
+  }
+  for (i = 0; i < ui->top_count; i++) {
+    if (strcmp(ui->top_entries[i].id, selected_id) == 0) {
+      ui->top_cursor = i;
+      return;
+    }
+  }
+}
+
+static void refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
+  char selected_relative_path[UI_PATH_MAX] = "";
+  char system_id[64] = "";
+  size_t i;
+
+  if (!ui || !ui->current_system_id[0] ||
+      strcmp(ui->current_system_id, "favorites") == 0 ||
+      strcmp(ui->current_system_id, "recent") == 0) {
+    return;
+  }
+  copy_string(system_id, sizeof(system_id), ui->current_system_id);
+  if (ui->rom_count > 0 && ui->rom_cursor < ui->rom_count) {
+    copy_string(selected_relative_path, sizeof(selected_relative_path),
+                ui->rom_entries[ui->rom_cursor].relative_path);
+  }
+  if (!load_rom_entries(ui, system_id)) {
+    return;
+  }
+  if (!selected_relative_path[0]) {
+    reset_marquee(ui);
+    return;
+  }
+  for (i = 0; i < ui->rom_count; i++) {
+    if (strcmp(ui->rom_entries[i].relative_path, selected_relative_path) == 0) {
+      ui->rom_cursor = i;
+      break;
+    }
+  }
+  reset_marquee(ui);
+}
+
+static void refresh_runtime_after_setting_save(struct ui_state *ui, const char *id) {
+  if (!ui || !id) {
+    return;
+  }
+  if (strcmp(id, "show_empty_systems") == 0 ||
+      strcmp(id, "show_favorites_on_top") == 0 ||
+      strcmp(id, "show_recent_on_top") == 0 ||
+      strcmp(id, "sort_systems") == 0) {
+    refresh_top_entries_preserve_cursor(ui);
+  }
+  if (strcmp(id, "sort_roms") == 0) {
+    refresh_current_rom_entries_preserve_cursor(ui);
+  }
+}
+
+static int run_performance_text_ui_core_system(struct ui_state *ui, const char *extra_args) {
+  char text_ui[PATH_MAX];
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui || !performance_ensure_system(ui)) {
+    set_status(ui, "no performance system selected");
+    return 0;
+  }
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui") ||
+      !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-performance.log")) {
+    set_status(ui, "performance command path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    set_status(ui, "plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, " core system ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->performance_system_id) ||
+      !append_string(cmd, sizeof(cmd), &pos, extra_args ? extra_args : "") ||
+      !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "performance command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (rc == -1) {
+    set_status(ui, "performance command failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    return 1;
+  }
+  set_status(ui, "performance command returned non-zero");
+  return 0;
+}
+
+static int save_performance_system_choice(struct ui_state *ui, int direction) {
+  char selected[128];
+
+  if (!ui || direction == 0) {
+    return 0;
+  }
+  if (!performance_cycle_system(ui, direction)) {
+    set_status(ui, "no performance system available");
+    return 0;
+  }
+  copy_string(selected, sizeof(selected),
+              ui->performance_system_name[0] ? ui->performance_system_name
+                                             : ui->performance_system_id);
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "selected system=%s", selected);
+  return 1;
+}
+
+static int save_performance_cpu_policy_choice(struct ui_state *ui, int direction) {
+  const struct performance_cpu_preset *preset;
+  char extra[128];
+  int index;
+
+  if (!ui || direction == 0) {
+    return 0;
+  }
+  load_performance_core_state(ui);
+  index = performance_cpu_preset_index(ui->performance_cpu_policy,
+                                       ui->performance_cpu_freq_khz);
+  index += direction > 0 ? 1 : -1;
+  if (index < 0) {
+    index = (int)PERFORMANCE_CPU_PRESET_COUNT - 1;
+  } else if ((size_t)index >= PERFORMANCE_CPU_PRESET_COUNT) {
+    index = 0;
+  }
+  preset = &PERFORMANCE_CPU_PRESETS[index];
+  if (strcmp(preset->policy, "fixed") == 0) {
+    snprintf(extra, sizeof(extra), " --cpu fixed --freq %ld", preset->freq_khz);
+  } else {
+    snprintf(extra, sizeof(extra), " --cpu %s", preset->policy);
+  }
+  if (!run_performance_text_ui_core_system(ui, extra)) {
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved CPU freq=%s", preset->label);
+  return 1;
+}
+
+static int save_performance_cpu_cores_choice(struct ui_state *ui, int direction) {
+  size_t i;
+  size_t index = 0;
+  char extra[64];
+  long cores;
+
+  if (!ui || direction == 0) {
+    return 0;
+  }
+  load_performance_core_state(ui);
+  for (i = 0; i < PERFORMANCE_CPU_CORE_PRESET_COUNT; i++) {
+    if (ui->performance_cpu_cores == PERFORMANCE_CPU_CORE_PRESETS[i]) {
+      index = i;
+      break;
+    }
+  }
+  if (direction > 0) {
+    index = (index + 1) % PERFORMANCE_CPU_CORE_PRESET_COUNT;
+  } else if (index == 0) {
+    index = PERFORMANCE_CPU_CORE_PRESET_COUNT - 1;
+  } else {
+    index--;
+  }
+  cores = PERFORMANCE_CPU_CORE_PRESETS[index];
+  snprintf(extra, sizeof(extra), " --cores %ld", cores);
+  if (!run_performance_text_ui_core_system(ui, extra)) {
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved CPU Cores=%ld", cores);
+  return 1;
+}
+
+static int save_performance_setting_choice(struct ui_state *ui, const char *id,
+                                           int direction) {
+  if (!id) {
+    return 0;
+  }
+  if (strcmp(id, "performance_system") == 0) {
+    return save_performance_system_choice(ui, direction);
+  }
+  if (strcmp(id, "performance_cpu_policy") == 0) {
+    return save_performance_cpu_policy_choice(ui, direction);
+  }
+  if (strcmp(id, "performance_cpu_cores") == 0) {
+    return save_performance_cpu_cores_choice(ui, direction);
+  }
+  return 0;
+}
+
+static int clear_performance_cpu_override(struct ui_state *ui) {
+  if (!run_performance_text_ui_core_system(ui, " --clear-cpu")) {
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  set_status(ui, "reset CPU defaults");
+  return 1;
+}
+
+static int save_setting_bool(struct ui_state *ui, const char *id, int value) {
+  struct frontend_settings settings;
+
+  if (!load_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings read failed");
+    return 0;
+  }
+  if (strcmp(id, "show_empty_systems") == 0) {
+    settings.show_empty_systems = value ? 1 : 0;
+  } else if (strcmp(id, "show_favorites_on_top") == 0) {
+    settings.show_favorites_on_top = value ? 1 : 0;
+  } else if (strcmp(id, "show_recent_on_top") == 0) {
+    settings.show_recent_on_top = value ? 1 : 0;
+  } else if (strcmp(id, "rom_scan_policy") == 0) {
+    copy_string(settings.rom_scan_policy, sizeof(settings.rom_scan_policy),
+                value ? "on_enter" : "manual");
+  } else {
+    set_status(ui, "setting is read-only");
+    return 0;
+  }
+  if (!save_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings write failed");
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  refresh_runtime_after_setting_save(ui, id);
+  snprintf(ui->status, sizeof(ui->status), "saved %s=%s", id, value ? "true" : "false");
+  return 1;
+}
+
+static int choice_index_from_value(const struct setting_choice *choices, size_t count,
+                                   const char *value) {
+  size_t i;
+
+  for (i = 0; i < count; i++) {
+    if (strcmp(value, choices[i].raw) == 0 || strcmp(value, choices[i].display) == 0) {
+      return (int)i;
+    }
+  }
+  return 0;
+}
+
+static int save_setting_choice(struct ui_state *ui, const char *id,
+                               const char *display_value, int direction) {
+  struct frontend_settings settings;
+  const struct setting_choice *choices;
+  size_t count = 0;
+  int index;
+  const char *raw;
+
+  choices = setting_choices(id, &count);
+  if (!choices || count == 0 || direction == 0) {
+    set_status(ui, "setting is not a choice");
+    return 0;
+  }
+  index = choice_index_from_value(choices, count, display_value);
+  index += direction > 0 ? 1 : -1;
+  if (index < 0) {
+    index = (int)count - 1;
+  } else if ((size_t)index >= count) {
+    index = 0;
+  }
+  raw = choices[index].raw;
+
+  if (strcmp(id, "system_language") == 0) {
+    if (!save_system_config_string(ui, "language", raw)) {
+      set_status(ui, "plumOS system config write failed");
+      return 0;
+    }
+    update_settings_entries_after_save(ui);
+    settings_start_arrow_blink(ui, direction);
+    snprintf(ui->status, sizeof(ui->status), "saved %s=%s", id, choices[index].display);
+    return 1;
+  }
+
+  if (!load_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings read failed");
+    return 0;
+  }
+  if (strcmp(id, "ui_mode") == 0) {
+    copy_string(settings.ui_mode, sizeof(settings.ui_mode), raw);
+    copy_string(settings.top_mode, sizeof(settings.top_mode), raw);
+    copy_string(settings.rom_mode, sizeof(settings.rom_mode), raw);
+  } else if (strcmp(id, "boot_resume_mode") == 0) {
+    copy_string(settings.boot_resume_mode, sizeof(settings.boot_resume_mode), raw);
+  } else if (strcmp(id, "sort_systems") == 0) {
+    copy_string(settings.sort_systems, sizeof(settings.sort_systems), raw);
+  } else if (strcmp(id, "sort_roms") == 0) {
+    copy_string(settings.sort_roms, sizeof(settings.sort_roms), raw);
+  } else {
+    set_status(ui, "setting is read-only");
+    return 0;
+  }
+  if (!save_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings write failed");
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  refresh_runtime_after_setting_save(ui, id);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved %s=%s", id, choices[index].display);
+  return 1;
+}
+
+static int save_setting_number(struct ui_state *ui, const char *id,
+                               const char *display_value, int direction) {
+  struct frontend_settings settings;
+  long value;
+  long step = 1;
+  long min_value = 0;
+  long max_value = 9999;
+  const char *system_key = NULL;
+
+  if (direction == 0) {
+    set_status(ui, "setting needs LEFT/RIGHT");
+    return 0;
+  }
+  value = strtol(display_value ? display_value : "0", NULL, 10);
+  if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
+    step = 100;
+    min_value = 100;
+    max_value = 5000;
+  } else if (strcmp(id, "rom_scan_test_file_count") == 0) {
+    step = 100;
+    min_value = 100;
+    max_value = 5000;
+  } else if (strcmp(id, "system_volume") == 0) {
+    system_key = "volume";
+    min_value = 0;
+    max_value = 20;
+  } else if (strcmp(id, "system_brightness") == 0) {
+    system_key = "brightness";
+    min_value = 0;
+    max_value = 10;
+  } else if (strcmp(id, "system_lumination") == 0) {
+    system_key = "lumination";
+    min_value = 0;
+    max_value = 10;
+  } else if (strcmp(id, "system_contrast") == 0) {
+    system_key = "contrast";
+    min_value = 0;
+    max_value = 20;
+  } else if (strcmp(id, "system_hue") == 0) {
+    system_key = "hue";
+    min_value = 0;
+    max_value = 20;
+  } else if (strcmp(id, "system_saturation") == 0) {
+    system_key = "saturation";
+    min_value = 0;
+    max_value = 20;
+  } else {
+    set_status(ui, "setting is read-only");
+    return 0;
+  }
+  value = clamp_long(value + (direction > 0 ? step : -step), min_value, max_value);
+  if (system_key) {
+    if (!save_system_config_number(ui, system_key, value)) {
+      set_status(ui, "plumOS system config write failed");
+      return 0;
+    }
+    update_settings_entries_after_save(ui);
+    settings_start_arrow_blink(ui, direction);
+    snprintf(ui->status, sizeof(ui->status), "saved %s=%ld", id, value);
+    return 1;
+  }
+
+  if (!load_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings read failed");
+    return 0;
+  }
+  if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
+    settings.rom_scan_slow_threshold_ms = value;
+  } else {
+    settings.rom_scan_test_file_count = value;
+  }
+  if (!save_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings write failed");
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  refresh_runtime_after_setting_save(ui, id);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved %s=%ld", id, value);
+  return 1;
+}
+
+static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
+  const struct setting_entry *entry;
+  enum setting_control_type control;
+  char id[64];
+  char value[256];
+  int direction = 0;
+
+  if (!ui || ui->setting_count == 0 || ui->settings_cursor >= ui->setting_count) {
+    return 0;
+  }
+  entry = &ui->setting_entries[ui->settings_cursor];
+  copy_string(id, sizeof(id), entry->id);
+  copy_string(value, sizeof(value), entry->value);
+  control = setting_control_type_for_id(id);
+  if (action == ACTION_LEFT) {
+    direction = -1;
+  } else if (action == ACTION_RIGHT) {
+    direction = 1;
+  }
+
+  if (control == SETTING_CONTROL_CHECKBOX) {
+    int current = bool_from_setting_value(value);
+    int next = current;
+    if (!setting_is_writable(id)) {
+      set_status(ui, "setting is read-only");
+      return 1;
+    }
+    if (action == ACTION_A) {
+      next = !current;
+    } else if (action == ACTION_LEFT) {
+      next = 0;
+    } else if (action == ACTION_RIGHT) {
+      next = 1;
+    } else {
+      return 0;
+    }
+    save_setting_bool(ui, id, next);
+    return 1;
+  }
+  if (control == SETTING_CONTROL_CHOICE && direction != 0) {
+    if (!setting_is_writable(id)) {
+      set_status(ui, "setting is read-only");
+      return 1;
+    }
+    if (strncmp(id, "performance_", 12) == 0) {
+      save_performance_setting_choice(ui, id, direction);
+      return 1;
+    }
+    save_setting_choice(ui, id, value, direction);
+    return 1;
+  }
+  if (control == SETTING_CONTROL_NUMBER && direction != 0) {
+    if (!setting_is_writable(id)) {
+      set_status(ui, "setting is read-only");
+      return 1;
+    }
+    save_setting_number(ui, id, value, direction);
+    return 1;
+  }
+  if ((action == ACTION_LEFT || action == ACTION_RIGHT) && control != SETTING_CONTROL_ACTION) {
+    set_status(ui, "setting is read-only");
+    return 1;
+  }
+  return 0;
+}
+
 static int is_network_setting_entry(const struct setting_entry *entry) {
-  return entry && (strcmp(entry->id, "a30_wifi_config") == 0 ||
-                   strcmp(entry->id, "a30_wifi_runtime") == 0);
+  return entry && strcmp(entry->id, "network_rescue") == 0;
+}
+
+static int is_system_display_color_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_display_color") == 0;
+}
+
+static int is_system_information_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_information") == 0;
 }
 
 static int is_help_setting_entry(const struct setting_entry *entry) {
@@ -1931,17 +4443,15 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
   if (ui->rescue_network) {
-    if (action == ACTION_A || action == ACTION_RIGHT) {
+    if (action == ACTION_A) {
       run_network_rescue(ui);
-    } else if (action == ACTION_B || action == ACTION_LEFT) {
+    } else if (action == ACTION_B) {
       set_status(ui, "network rescue ready");
     }
     return;
   }
   if (action == ACTION_FUNCTION) {
-    if (ui->screen == SCREEN_SAFE_MENU) {
-      close_safe_menu(ui, "safe menu cancelled");
-    } else {
+    if (ui->screen != SCREEN_SAFE_MENU) {
       open_safe_menu(ui);
     }
     return;
@@ -1960,27 +4470,55 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       return;
     }
-    if (action == ACTION_B || action == ACTION_LEFT) {
+    if (action == ACTION_B) {
       close_safe_menu(ui, "safe menu cancelled");
       return;
     }
-    if ((action == ACTION_A || action == ACTION_RIGHT) && ui->safe_cursor < SAFE_ENTRY_COUNT) {
+    if (action == ACTION_A && ui->safe_cursor < SAFE_ENTRY_COUNT) {
       const struct safe_entry *entry = &SAFE_ENTRIES[ui->safe_cursor];
-      char msg[256];
       if (strcmp(entry->id, "cancel") == 0) {
         close_safe_menu(ui, "safe menu cancelled");
         return;
       }
-      if (strcmp(entry->id, "sleep") == 0) {
-        snprintf(msg, sizeof(msg), "safe sleep preview: flush saves, keep resume target=%.32s/%.120s",
-                 ui->safe_target_system_id[0] ? ui->safe_target_system_id : "-",
-                 ui->safe_target_relative_path[0] ? ui->safe_target_relative_path : "-");
+      run_safe_shutdown(ui, entry->id, strcmp(entry->id, "shutdown") == 0);
+      ui->screen = ui->safe_back_screen;
+      return;
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_CORE_SELECT) {
+    if (action == ACTION_B) {
+      ui->screen = ui->core_back_screen;
+      set_status(ui, "close CORE");
+      return;
+    }
+    if (action == ACTION_SELECT) {
+      if (!load_core_select_lines(ui, ui->core_target_system_id,
+                                  ui->core_target_relative_path[0]
+                                      ? ui->core_target_relative_path
+                                      : NULL)) {
+        set_status(ui, "cannot refresh core selection");
       } else {
-        snprintf(msg, sizeof(msg), "safe shutdown preview: save state, set resume=%.32s/%.120s, sync",
-                 ui->safe_target_system_id[0] ? ui->safe_target_system_id : "-",
-                 ui->safe_target_relative_path[0] ? ui->safe_target_relative_path : "-");
+        set_status(ui, "core selection refreshed");
       }
-      set_status(ui, msg);
+      return;
+    }
+    return;
+  }
+
+  if (ui->screen == SCREEN_NETWORK_RESCUE) {
+    if (action == ACTION_A) {
+      run_network_rescue(ui);
+      return;
+    }
+    if (action == ACTION_B) {
+      ui->screen = SCREEN_START_MENU;
+      set_status(ui, "back to START");
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
       return;
     }
     return;
@@ -1999,7 +4537,15 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       return;
     }
-    if ((action == ACTION_A || action == ACTION_RIGHT) && ui->top_count > 0) {
+    if (action == ACTION_RIGHT) {
+      ui_cursor_page_down(&ui->top_cursor, ui->top_count, ui_list_window_size(ui));
+      return;
+    }
+    if (action == ACTION_LEFT) {
+      ui_cursor_page_up(&ui->top_cursor, ui_list_window_size(ui));
+      return;
+    }
+    if (action == ACTION_A && ui->top_count > 0) {
       const struct top_entry *entry = &ui->top_entries[ui->top_cursor];
       open_rom_screen(ui, entry);
       return;
@@ -2010,10 +4556,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     if (action == ACTION_SELECT && ui->top_count > 0) {
       const struct top_entry *entry = &ui->top_entries[ui->top_cursor];
-      char msg[256];
-      snprintf(msg, sizeof(msg), "system core preview: %s profile=%s", entry->id,
-               entry->default_launch_profile[0] ? entry->default_launch_profile : "-");
-      set_status(ui, msg);
+      open_core_select_screen(ui, entry->id, NULL);
       return;
     }
     return;
@@ -2032,25 +4575,38 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       return;
     }
-    if (action == ACTION_B || action == ACTION_LEFT) {
+    if (action == ACTION_B) {
       ui->screen = ui->back_screen;
       set_status(ui, "close START menu");
       return;
     }
-    if (action == ACTION_A || action == ACTION_RIGHT) {
+    if (action == ACTION_A) {
       const struct menu_entry *entry;
       if (ui->menu_count == 0) {
         return;
       }
       entry = &ui->menu_entries[ui->menu_cursor];
-      if (strcmp(entry->action, "internal:settings") == 0) {
-        open_settings_screen(ui);
+      if (strcmp(entry->action, "internal:settings") == 0 ||
+          strcmp(entry->action, "internal:ui-settings") == 0) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_UI);
+      } else if (strcmp(entry->action, "internal:system-settings") == 0) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+      } else if (strcmp(entry->action, "internal:network-settings") == 0) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+      } else if (strcmp(entry->action, "internal:performance-settings") == 0) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_PERFORMANCE);
       } else if (strcmp(entry->action, "internal:favorites") == 0) {
         open_favorites_screen(ui);
       } else if (strcmp(entry->action, "internal:recent") == 0) {
         open_recent_screen(ui);
+      } else if (strcmp(entry->action, "internal:network-recovery") == 0) {
+        open_network_rescue_screen(ui);
       } else if (strcmp(entry->action, "internal:network") == 0) {
-        run_network_rescue(ui);
+        open_network_rescue_screen(ui);
+      } else if (strcmp(entry->action, "internal:help") == 0) {
+        open_help_screen(ui);
+      } else if (strcmp(entry->action, "system:shutdown") == 0) {
+        run_safe_shutdown(ui, "shutdown", 1);
       } else {
         char msg[256];
         snprintf(msg, sizeof(msg), "menu preview: %s action=%s", entry->display_name,
@@ -2066,32 +4622,67 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_UP) {
       if (ui->settings_cursor > 0) {
         ui->settings_cursor--;
+        ui->settings_blink_direction = 0;
+        ui->settings_blink_until_ms = 0;
       }
       return;
     }
     if (action == ACTION_DOWN) {
       if (ui->settings_cursor + 1 < ui->setting_count) {
         ui->settings_cursor++;
+        ui->settings_blink_direction = 0;
+        ui->settings_blink_until_ms = 0;
       }
       return;
     }
-    if (action == ACTION_B || action == ACTION_LEFT) {
-      ui->screen = SCREEN_TOP;
-      set_status(ui, "back to TOP");
+    if (action == ACTION_LEFT || action == ACTION_RIGHT) {
+      handle_setting_control(ui, action);
+      return;
+    }
+    if (action == ACTION_B) {
+      if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+        select_setting_entry_by_id(ui, "system_display_color");
+        set_status(ui, "back to System Settings");
+        return;
+      }
+      if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_INFORMATION) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+        select_setting_entry_by_id(ui, "system_information");
+        set_status(ui, "back to System Settings");
+        return;
+      }
+      ui->screen = SCREEN_START_MENU;
+      set_status(ui, "back to START");
       return;
     }
     if (action == ACTION_A && ui->setting_count > 0) {
       const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
       char msg[256];
+      if (handle_setting_control(ui, action)) {
+        return;
+      }
       if (is_network_setting_entry(entry)) {
         run_network_rescue(ui);
+        return;
+      }
+      if (is_system_display_color_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR);
+        return;
+      }
+      if (is_system_information_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_INFORMATION);
+        return;
+      }
+      if (strcmp(entry->id, "performance_clear_cpu_override") == 0) {
+        clear_performance_cpu_override(ui);
         return;
       }
       if (is_help_setting_entry(entry)) {
         open_help_screen(ui);
         return;
       }
-      snprintf(msg, sizeof(msg), "settings edit preview: %s=%s", entry->id, entry->value);
+      snprintf(msg, sizeof(msg), "read-only: %s", entry->display_name);
       set_status(ui, msg);
       return;
     }
@@ -2103,9 +4694,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (ui->screen == SCREEN_HELP) {
-    if (action == ACTION_B || action == ACTION_LEFT) {
-      ui->screen = SCREEN_SETTINGS;
-      set_status(ui, "back to Settings");
+    if (action == ACTION_B) {
+      ui->screen = SCREEN_START_MENU;
+      set_status(ui, "back to START");
       return;
     }
     if (action == ACTION_START) {
@@ -2116,30 +4707,49 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (action == ACTION_UP) {
+    size_t old_cursor = ui->rom_cursor;
     if (ui->rom_cursor > 0) {
       ui->rom_cursor--;
+    }
+    if (ui->rom_cursor != old_cursor) {
+      reset_marquee(ui);
     }
     return;
   }
   if (action == ACTION_DOWN) {
+    size_t old_cursor = ui->rom_cursor;
     if (ui->rom_cursor + 1 < ui->rom_count) {
       ui->rom_cursor++;
     }
+    if (ui->rom_cursor != old_cursor) {
+      reset_marquee(ui);
+    }
     return;
   }
-  if (action == ACTION_B || action == ACTION_LEFT) {
+  if (action == ACTION_RIGHT) {
+    size_t old_cursor = ui->rom_cursor;
+    ui_cursor_page_down(&ui->rom_cursor, ui->rom_count, ui_list_window_size(ui));
+    if (ui->rom_cursor != old_cursor) {
+      reset_marquee(ui);
+    }
+    return;
+  }
+  if (action == ACTION_LEFT) {
+    size_t old_cursor = ui->rom_cursor;
+    ui_cursor_page_up(&ui->rom_cursor, ui_list_window_size(ui));
+    if (ui->rom_cursor != old_cursor) {
+      reset_marquee(ui);
+    }
+    return;
+  }
+  if (action == ACTION_B) {
     ui->screen = SCREEN_TOP;
     set_status(ui, "back to TOP");
     return;
   }
   if (action == ACTION_A && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
-    char msg[256];
-    snprintf(msg, sizeof(msg), "%s preview: %s / %s",
-             ui->screen == SCREEN_RECENT ? "resume" : "launch",
-             entry->system_id[0] ? entry->system_id : ui->current_system_id,
-             entry->relative_path);
-    set_status(ui, msg);
+    launch_rom_entry(ui, entry);
     return;
   }
   if (action == ACTION_START) {
@@ -2148,11 +4758,8 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (action == ACTION_SELECT && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
-    char msg[256];
-    snprintf(msg, sizeof(msg), "per-ROM core preview: %s / %s",
-             entry->system_id[0] ? entry->system_id : ui->current_system_id,
-             entry->relative_path);
-    set_status(ui, msg);
+    open_core_select_screen(ui, entry->system_id[0] ? entry->system_id : ui->current_system_id,
+                            entry->relative_path);
     return;
   }
 }
@@ -2270,6 +4877,10 @@ static enum ui_action action_from_script_token(const char *token) {
   return ACTION_NONE;
 }
 
+static int action_repeats_while_held(enum ui_action action) {
+  return action == ACTION_UP || action == ACTION_DOWN;
+}
+
 static int discover_input_event(char *out, size_t out_size) {
   FILE *f;
   char line[512];
@@ -2338,6 +4949,57 @@ static void dump_input_events(const char *event_path, int timeout_sec) {
   close(fd);
 }
 
+static void drain_input_fd(int fd) {
+  struct input_event ev;
+  if (fd < 0) {
+    return;
+  }
+  while (read(fd, &ev, sizeof(ev)) == (ssize_t)sizeof(ev)) {
+  }
+}
+
+static void settle_input_after_child(struct ui_state *ui) {
+  long long deadline;
+  long long quiet_until;
+  long long now;
+  int fd;
+
+  if (!ui) {
+    return;
+  }
+  fd = ui->input_event_fd;
+  if (fd < 0) {
+    ui->ignore_input_until_ms = current_time_ms() + 750;
+    return;
+  }
+
+  drain_input_fd(fd);
+  now = current_time_ms();
+  deadline = now + 1500;
+  quiet_until = now + 250;
+
+  while ((now = current_time_ms()) < deadline && now < quiet_until) {
+    struct pollfd pfd;
+    int timeout_ms = (int)(quiet_until - now);
+    long long remaining_ms = deadline - now;
+    if (timeout_ms > remaining_ms) {
+      timeout_ms = (int)remaining_ms;
+    }
+    if (timeout_ms < 0) {
+      timeout_ms = 0;
+    }
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    if (poll(&pfd, 1, timeout_ms) > 0 && (pfd.revents & POLLIN)) {
+      drain_input_fd(fd);
+      quiet_until = current_time_ms() + 250;
+    }
+  }
+
+  ui->ignore_input_until_ms = current_time_ms() + 750;
+}
+
 static int run_script(struct ui_state *ui, const char *script) {
   char *copy;
   char *token;
@@ -2364,11 +5026,30 @@ static int run_script(struct ui_state *ui, const char *script) {
   return ui->render_failed ? 0 : 1;
 }
 
+static int ui_needs_periodic_refresh(const struct ui_state *ui) {
+  return ui && (ui->rescue_network ||
+                (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0));
+}
+
+static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
+  if (!ui) {
+    return 0;
+  }
+  if (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
+    return 100;
+  }
+  if (ui->rescue_network) {
+    return 1000;
+  }
+  return 0;
+}
+
 static int run_event_loop(struct ui_state *ui, const char *event_path) {
   int event_fd = -1;
   int stdin_fd = STDIN_FILENO;
   int old_flags = -1;
   time_t deadline = 0;
+  long long next_refresh_ms = 0;
 
   if (event_path && event_path[0]) {
     event_fd = open(event_path, O_RDONLY | O_NONBLOCK);
@@ -2376,6 +5057,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       snprintf(ui->status, sizeof(ui->status), "input open failed: %s", strerror(errno));
     }
   }
+  ui->input_event_fd = event_fd;
   old_flags = fcntl(stdin_fd, F_GETFL, 0);
   if (old_flags >= 0) {
     fcntl(stdin_fd, F_SETFL, old_flags | O_NONBLOCK);
@@ -2385,11 +5067,17 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   }
 
   render_ui(ui);
+  if (ui_needs_periodic_refresh(ui)) {
+    next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
+  }
   while (1) {
     struct pollfd pfds[2];
     nfds_t count = 0;
     int rc;
     enum ui_action action = ACTION_NONE;
+    long long now_ms;
+    int poll_timeout = ui->repeat_action != ACTION_NONE ? 50 :
+                       (ui_needs_periodic_refresh(ui) ? 60 : 250);
 
     if (event_fd >= 0) {
       pfds[count].fd = event_fd;
@@ -2405,20 +5093,72 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     if (ui->timeout_sec > 0 && time(NULL) >= deadline) {
       break;
     }
-    rc = poll(pfds, count, 250);
+    rc = poll(pfds, count, poll_timeout);
     if (rc < 0 && errno != EINTR) {
       break;
     }
     if (rc <= 0) {
+      if (ui->repeat_action != ACTION_NONE &&
+          current_time_ms() >= ui->repeat_next_ms) {
+        action = ui->repeat_action;
+        ui->repeat_next_ms = current_time_ms() + UI_KEY_REPEAT_INTERVAL_MS;
+      }
+      if (action != ACTION_NONE) {
+        handle_action(ui, action);
+        render_ui(ui);
+        if (ui_needs_periodic_refresh(ui)) {
+          next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
+        }
+        continue;
+      }
+      if (ui_needs_periodic_refresh(ui)) {
+        now_ms = current_time_ms();
+        if (next_refresh_ms <= 0 || now_ms >= next_refresh_ms) {
+          render_ui(ui);
+          next_refresh_ms = now_ms + ui_periodic_refresh_interval_ms(ui);
+        }
+      }
+      continue;
+    }
+
+    if (ui->ignore_input_until_ms > current_time_ms()) {
+      if (event_fd >= 0 && (pfds[0].revents & POLLIN)) {
+        drain_input_fd(event_fd);
+      }
+      if (ui_needs_periodic_refresh(ui)) {
+        now_ms = current_time_ms();
+        if (next_refresh_ms <= 0 || now_ms >= next_refresh_ms) {
+          render_ui(ui);
+          next_refresh_ms = now_ms + ui_periodic_refresh_interval_ms(ui);
+        }
+      }
       continue;
     }
 
     if (event_fd >= 0 && (pfds[0].revents & POLLIN)) {
       struct input_event ev;
       while (read(event_fd, &ev, sizeof(ev)) == (ssize_t)sizeof(ev)) {
-        if (ev.type == EV_KEY && (ev.value == 1 || ev.value == 2)) {
-          action = action_from_key_code(ev.code);
-          if (action == ACTION_NONE) {
+        if (ev.type == EV_KEY) {
+          enum ui_action event_action = action_from_key_code(ev.code);
+          if (ev.value == 0) {
+            if (ui->repeat_action != ACTION_NONE && ui->repeat_key_code == ev.code) {
+              ui->repeat_action = ACTION_NONE;
+              ui->repeat_key_code = 0;
+              ui->repeat_next_ms = 0;
+            }
+            continue;
+          }
+          if (ev.value == 1 || ev.value == 2) {
+            action = event_action;
+            if (action_repeats_while_held(event_action)) {
+              ui->repeat_action = event_action;
+              ui->repeat_key_code = ev.code;
+              ui->repeat_next_ms = current_time_ms() +
+                                   (ev.value == 1 ? UI_KEY_REPEAT_DELAY_MS
+                                                  : UI_KEY_REPEAT_INTERVAL_MS);
+            }
+          }
+          if (event_action == ACTION_NONE && ev.value == 1) {
             snprintf(ui->status, sizeof(ui->status), "unmapped key code=%u value=%d", ev.code,
                      ev.value);
           }
@@ -2437,9 +5177,26 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       }
     }
 
+    if (action == ACTION_NONE && ui->repeat_action != ACTION_NONE &&
+        current_time_ms() >= ui->repeat_next_ms) {
+      action = ui->repeat_action;
+      ui->repeat_next_ms = current_time_ms() + UI_KEY_REPEAT_INTERVAL_MS;
+    }
+
+    if (action == ACTION_NONE && ui_needs_periodic_refresh(ui)) {
+      now_ms = current_time_ms();
+      if (next_refresh_ms <= 0 || now_ms >= next_refresh_ms) {
+        render_ui(ui);
+        next_refresh_ms = now_ms + ui_periodic_refresh_interval_ms(ui);
+      }
+    }
+
     if (action != ACTION_NONE) {
       handle_action(ui, action);
       render_ui(ui);
+      if (ui_needs_periodic_refresh(ui)) {
+        next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
+      }
       if (action == ACTION_QUIT) {
         break;
       }
@@ -2451,6 +5208,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   if (event_fd >= 0) {
     close(event_fd);
   }
+  ui->input_event_fd = -1;
   return ui->render_failed ? 1 : 0;
 }
 
@@ -2458,7 +5216,9 @@ static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
-  printf("     [--rotation auto|none|cw|ccw] [--rescue-network]\n");
+  printf("     [--rotation auto|none|cw|ccw] [--font PATH] [--ui-style classic|tty]\n");
+  printf("     [--tty-entry-scale 1|1.5|2]\n");
+  printf("     [--rescue-network]\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
@@ -2472,9 +5232,74 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_EGL_LIB      Default for Mali renderer: /usr/lib/libEGL.so\n");
   printf("  PLUMOS_GLES_LIB     Default for Mali renderer: /usr/lib/libGLESv2.so\n");
   printf("  PLUMOS_MALI_ROTATION auto, none, cw, or ccw. Default: auto\n");
+  printf("  PLUMOS_MALI_FONT    Optional FreeType font for non-ASCII Mali text\n");
+  printf("  PLUMOS_MALI_STYLE   classic or tty. Default: classic\n");
+  printf("  PLUMOS_MALI_TTY_ENTRY_SCALE  1, 1.5, or 2. Default: 1\n");
   printf("  PLUMOS_CONTROLLER_RESCUE network enables A-button Wi-Fi/SSH rescue\n");
-  printf("  PLUMOS_A30_SYSTEM_JSON  Default: /config/system.json\n");
+  printf("  PLUMOS_SYSTEM_SETTINGS_JSON  Default: $PLUMOS_ROOT/config/system/settings.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
+  printf("  PLUMOS_CONTROLLER_CPU_DEFAULT  648MHz/2-core FE default; set 0 to skip\n");
+}
+
+static int run_boot_resume_if_needed(struct ui_state *ui,
+                                     const struct frontend_settings *settings) {
+  char text_ui[PATH_MAX];
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  const char *frontend_mode;
+  size_t pos = 0;
+  int rc;
+
+  if (!ui || !settings) {
+    return 0;
+  }
+  frontend_mode = getenv("PLUMOS_FRONTEND_MODE");
+  if ((frontend_mode && strcmp(frontend_mode, "manual") == 0) ||
+      strcmp(settings->boot_resume_mode, "off") == 0) {
+    return 0;
+  }
+  if (strcmp(settings->boot_resume_mode, "last") != 0) {
+    return 0;
+  }
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui") ||
+      !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-boot-resume.log")) {
+    set_status(ui, "boot resume path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    set_status(ui, "boot resume skipped; plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos, " boot --execute >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "boot resume command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (rc == -1) {
+    set_status(ui, "boot resume system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    set_status(ui, "boot resume checked; TOP ready");
+    return 1;
+  }
+  set_status(ui, "boot resume failed; see frontend-boot-resume.log");
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -2487,13 +5312,20 @@ int main(int argc, char **argv) {
   const char *egl_path;
   const char *gles_path;
   const char *rotation_env;
+  const char *mali_font_env;
+  const char *mali_style_env;
+  const char *mali_tty_entry_scale_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
+  struct frontend_settings initial_settings;
+  int initial_settings_loaded = 0;
+  int startup_resume_allowed = 0;
   int dump_events = 0;
   int exit_code = 0;
   int i;
 
   memset(&ui, 0, sizeof(ui));
+  ui.input_event_fd = -1;
   ui.sdcard_root = getenv("PLUMOS_SDCARD_ROOT");
   if (!ui.sdcard_root || !ui.sdcard_root[0]) {
     ui.sdcard_root = "/mnt/SDCARD";
@@ -2515,11 +5347,10 @@ int main(int argc, char **argv) {
   if (getenv("PLUMOS_INPUT_EVENT") && getenv("PLUMOS_INPUT_EVENT")[0]) {
     copy_string(event_path, sizeof(event_path), getenv("PLUMOS_INPUT_EVENT"));
   }
-  system_config_env = getenv("PLUMOS_A30_SYSTEM_JSON");
-  if (!copy_string(ui.system_config_path, sizeof(ui.system_config_path),
-                   system_config_env && system_config_env[0] ? system_config_env
-                                                             : "/config/system.json")) {
-    fprintf(stderr, "error: A30 system config path is too long\n");
+  system_config_env = getenv("PLUMOS_SYSTEM_SETTINGS_JSON");
+  if (system_config_env && system_config_env[0] &&
+      !copy_string(ui.system_config_path, sizeof(ui.system_config_path), system_config_env)) {
+    fprintf(stderr, "error: plumOS system settings path is too long\n");
     return 1;
   }
   wpa_status_env = getenv("PLUMOS_A30_WPA_STATUS");
@@ -2533,8 +5364,17 @@ int main(int argc, char **argv) {
   egl_path = getenv("PLUMOS_EGL_LIB");
   gles_path = getenv("PLUMOS_GLES_LIB");
   rotation_env = getenv("PLUMOS_MALI_ROTATION");
+  mali_font_env = getenv("PLUMOS_MALI_FONT");
+  mali_style_env = getenv("PLUMOS_MALI_STYLE");
+  mali_tty_entry_scale_env = getenv("PLUMOS_MALI_TTY_ENTRY_SCALE");
   copy_string(ui.mali_rotation, sizeof(ui.mali_rotation),
               rotation_env && rotation_env[0] ? rotation_env : "auto");
+  copy_string(ui.mali_style, sizeof(ui.mali_style),
+              mali_style_env && mali_style_env[0] ? mali_style_env : "classic");
+  copy_string(ui.mali_tty_entry_scale, sizeof(ui.mali_tty_entry_scale),
+              mali_tty_entry_scale_env && mali_tty_entry_scale_env[0]
+                  ? mali_tty_entry_scale_env
+                  : "1");
   if (getenv("PLUMOS_CONTROLLER_RESCUE") &&
       strcmp(getenv("PLUMOS_CONTROLLER_RESCUE"), "network") == 0) {
     ui.rescue_network = 1;
@@ -2582,6 +5422,25 @@ int main(int argc, char **argv) {
         return 2;
       }
       copy_string(ui.mali_rotation, sizeof(ui.mali_rotation), rotation);
+    } else if (strcmp(argv[i], "--font") == 0 && i + 1 < argc) {
+      mali_font_env = argv[++i];
+    } else if (strcmp(argv[i], "--ui-style") == 0 && i + 1 < argc) {
+      const char *style = argv[++i];
+      if (strcmp(style, "classic") != 0 && strcmp(style, "default") != 0 &&
+          strcmp(style, "tty") != 0 && strcmp(style, "console") != 0) {
+        fprintf(stderr, "error: unknown UI style: %s\n", style);
+        return 2;
+      }
+      copy_string(ui.mali_style, sizeof(ui.mali_style), style);
+    } else if (strcmp(argv[i], "--tty-entry-scale") == 0 && i + 1 < argc) {
+      const char *scale = argv[++i];
+      if (strcmp(scale, "1") != 0 && strcmp(scale, "1.0") != 0 &&
+          strcmp(scale, "default") != 0 && strcmp(scale, "1.5") != 0 &&
+          strcmp(scale, "2") != 0 && strcmp(scale, "2.0") != 0) {
+        fprintf(stderr, "error: unknown TTY entry scale: %s\n", scale);
+        return 2;
+      }
+      copy_string(ui.mali_tty_entry_scale, sizeof(ui.mali_tty_entry_scale), scale);
     } else if (strcmp(argv[i], "--rescue-network") == 0) {
       ui.rescue_network = 1;
       copy_string(ui.status, sizeof(ui.status), "network rescue ready");
@@ -2605,6 +5464,13 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (!ui.system_config_path[0] &&
+      !join_path(ui.system_config_path, sizeof(ui.system_config_path), ui.plumos_root,
+                 "config/system/settings.json")) {
+    fprintf(stderr, "error: plumOS system settings path is too long\n");
+    return 1;
+  }
+
   if (!join_path(ui.top_cache_path, sizeof(ui.top_cache_path), ui.plumos_root,
                  "state/frontend/library-index.json") ||
       !join_path(ui.settings_path, sizeof(ui.settings_path), ui.plumos_root,
@@ -2619,9 +5485,28 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  apply_frontend_cpu_default();
+
+  memset(&initial_settings, 0, sizeof(initial_settings));
+  initial_settings_loaded = load_settings(ui.settings_path, &initial_settings);
+  load_theme_state(&ui, initial_settings_loaded ? initial_settings.theme_id : "default");
+  choose_mali_font_path(&ui, mali_font_env, ui.mali_font_path, sizeof(ui.mali_font_path));
+
+  startup_resume_allowed =
+      !ui.rescue_network && !script && !ui.once && initial_settings_loaded &&
+      (!getenv("PLUMOS_FRONTEND_MODE") ||
+       strcmp(getenv("PLUMOS_FRONTEND_MODE"), "manual") != 0);
+  if (startup_resume_allowed) {
+    run_boot_resume_if_needed(&ui, &initial_settings);
+  }
+
   if (!ui.rescue_network && !load_top_entries(&ui)) {
     fprintf(stderr, "error: cannot load TOP entries: %s\n", ui.top_cache_path);
     return 1;
+  }
+  if (startup_resume_allowed && strcmp(initial_settings.boot_resume_mode, "picker") == 0) {
+    open_recent_screen(&ui);
+    set_status(&ui, "boot resume picker ready");
   }
 
 #ifndef PLUMOS_ENABLE_MALI_RENDERER
@@ -2629,21 +5514,23 @@ int main(int argc, char **argv) {
   (void)egl_path;
   (void)gles_path;
 #endif
+  copy_string(ui.fb_path, sizeof(ui.fb_path),
+              fb_path && fb_path[0] ? fb_path : "/dev/fb0");
+  copy_string(ui.egl_path, sizeof(ui.egl_path),
+              egl_path && egl_path[0] ? egl_path : "/usr/lib/libEGL.so");
+  copy_string(ui.gles_path, sizeof(ui.gles_path),
+              gles_path && gles_path[0] ? gles_path : "/usr/lib/libGLESv2.so");
 
   if (ui.renderer_mali) {
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
-    char render_error[256];
-    render_error[0] = '\0';
-    if (!plumos_mali_renderer_init(&ui.mali_renderer,
-                                   fb_path && fb_path[0] ? fb_path : "/dev/fb0",
-                                   egl_path && egl_path[0] ? egl_path : "/usr/lib/libEGL.so",
-                                   gles_path && gles_path[0] ? gles_path : "/usr/lib/libGLESv2.so",
-                                   ui.mali_rotation, render_error, sizeof(render_error))) {
-      fprintf(stderr, "error: Mali renderer init failed: %s\n",
-              render_error[0] ? render_error : "-");
+    if (!init_ui_renderer(&ui)) {
+      fprintf(stderr, "error: %s\n", ui.status[0] ? ui.status : "Mali renderer init failed");
       return 1;
     }
-    copy_string(ui.status, sizeof(ui.status), "Mali renderer ready");
+    if (!ui.status[0] ||
+        strncmp(ui.status, "Mali renderer ready font=", 25) == 0) {
+      copy_string(ui.status, sizeof(ui.status), "Mali renderer ready");
+    }
     if (ui.rescue_network) {
       copy_string(ui.status, sizeof(ui.status), "network rescue ready");
     }
@@ -2669,7 +5556,7 @@ int main(int argc, char **argv) {
   }
 #ifdef PLUMOS_ENABLE_MALI_RENDERER
   if (ui.renderer_mali) {
-    plumos_mali_renderer_shutdown(&ui.mali_renderer);
+    shutdown_ui_renderer(&ui);
   }
 #endif
   return exit_code;

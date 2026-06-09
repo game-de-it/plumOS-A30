@@ -2,21 +2,20 @@
 
 The stock A30 boot flow runs `/mnt/SDCARD/miyoo/app/MainUI` directly. plumOS
 uses that path as a small wrapper and moves the actual frontend entry point to
-`/mnt/SDCARD/plumos/bin/plumos-frontend`.
+`/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali`.
 
 ## Policy
 
 - Back up stock MainUI to `/mnt/SDCARD/miyoo/app/MainUI.stock`.
 - Replace `/mnt/SDCARD/miyoo/app/MainUI` with a shell wrapper.
-- Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
+- Launch `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` as the normal FE.
 - Run `/mnt/SDCARD/plumos/bin/plumos-network-rescue` automatically for boot
   recovery.
 - Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
-- If `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` exists, launch it first
-  with `--rescue-network`; pressing A reruns the Wi-Fi start path, DHCP, and SSH
-  start.
-- Fall back to stock MainUI if the plumOS frontend is missing or exits with an
-  error.
+- Open `Network Recovery` from the START menu; pressing A there reruns Wi-Fi
+  init, DHCP, and dropbear SSH start.
+- Fall back to the legacy `plumos-frontend`, then stock MainUI, if the
+  controller UI is missing or exits with an error.
 - Write logs under `/mnt/SDCARD/plumos/logs/`.
 - Keep rollback possible through SD-card file changes only.
 
@@ -47,14 +46,13 @@ The install script:
 - Creates `/mnt/SDCARD/miyoo/app/MainUI.stock` if it does not exist.
 - Replaces `/mnt/SDCARD/miyoo/app/MainUI` with the wrapper.
 
-The bootstrap package does not include the `plumos-frontend` binary. Build and
-deploy the frontend separately with `./scripts/docker-build.sh frontend`. If the
-frontend is missing or exits non-zero, the wrapper falls back to stock MainUI.
-At this stage, reboot recovery takes priority: the wrapper automatically runs
-`plumos-network-rescue` at startup. When the Mali controller UI exists, the
-wrapper also shows its network rescue screen before `plumos-frontend`. Pressing
-A runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue` again, which retries Wi-Fi
-init, DHCP, and dropbear SSH start.
+The bootstrap package does not include the controller UI binary. Build and
+deploy the frontend package separately with `./scripts/docker-build.sh frontend`.
+At startup the wrapper runs `plumos-network-rescue` in the background, then
+shows the normal FE. The `Network Recovery` screen is reachable from the normal
+FE START menu and pressing A there reruns
+`/mnt/SDCARD/plumos/bin/plumos-network-rescue`. Left/Right are not used for
+confirm/run/back/cancel; A confirms/runs and B backs/cancels.
 
 ## Disable
 
@@ -89,5 +87,6 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 
 ```text
 /mnt/SDCARD/plumos/logs/mainui-wrapper.log
+/mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
 ```

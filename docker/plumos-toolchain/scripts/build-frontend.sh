@@ -6,6 +6,7 @@ FRONTEND_SRC="${ROOT_DIR}/src/frontend/plumos_frontend.c"
 SCAN_SRC="${ROOT_DIR}/src/frontend/plumos_library_scan.c"
 TEXT_UI_SRC="${ROOT_DIR}/src/frontend/plumos_text_ui.c"
 CONTROLLER_UI_SRC="${ROOT_DIR}/src/frontend/plumos_controller_ui.c"
+SAFE_HOTKEYD_SRC="${ROOT_DIR}/src/input/plumos_safe_hotkeyd.c"
 PACKAGE_DIR="${ROOT_DIR}/package/frontend/plumos"
 DIST_DIR="${ROOT_DIR}/dist/plumos-frontend"
 BIN_DIR="${DIST_DIR}/plumos/bin"
@@ -17,6 +18,7 @@ TEXT_UI_OUT="${BIN_DIR}/plumos-text-ui"
 CONTROLLER_UI_OUT="${BIN_DIR}/plumos-controller-ui"
 CONTROLLER_MALI_OUT="${BIN_DIR}/plumos-controller-ui-mali.bin"
 CONTROLLER_MALI_WRAPPER="${BIN_DIR}/plumos-controller-ui-mali"
+SAFE_HOTKEYD_OUT="${BIN_DIR}/plumos-safe-hotkeyd"
 MANIFEST="${DOC_DIR}/manifest.txt"
 
 CC="${CC:-arm-linux-gnueabihf-gcc}"
@@ -125,16 +127,31 @@ build_mali_controller() {
     -Wall \
     -Wextra \
     -DPLUMOS_ENABLE_MALI_RENDERER=1 \
+    -DPLUMOS_ENABLE_MALI_FREETYPE=1 \
+    -I/usr/include/freetype2 \
     "$CONTROLLER_UI_SRC" \
     -o "$CONTROLLER_MALI_OUT" \
-    -ldl
+    -ldl \
+    -lfreetype \
+    -lm
 
   "$STRIP" "$CONTROLLER_MALI_OUT" 2>/dev/null || true
   chmod 0755 "$CONTROLLER_MALI_OUT"
 
   copy_loader
   copy_deps "$CONTROLLER_MALI_OUT"
-  for dep in libc.so.6 libdl.so.2 libm.so.6 libpthread.so.0 librt.so.1 libgcc_s.so.1; do
+  for dep in \
+    libc.so.6 \
+    libdl.so.2 \
+    libm.so.6 \
+    libpthread.so.0 \
+    librt.so.1 \
+    libgcc_s.so.1 \
+    libfreetype.so.6 \
+    libz.so.1 \
+    libpng16.so.16 \
+    libbrotlidec.so.1 \
+    libbrotlicommon.so.1; do
     install_lib_by_soname "$dep"
   done
   chmod 0755 "$LIB_DIR/ld-linux-armhf.so.3"
@@ -154,6 +171,7 @@ build_one "$FRONTEND_SRC" "$FRONTEND_OUT"
 build_one "$SCAN_SRC" "$SCAN_OUT"
 build_one "$TEXT_UI_SRC" "$TEXT_UI_OUT"
 build_one "$CONTROLLER_UI_SRC" "$CONTROLLER_UI_OUT"
+build_one "$SAFE_HOTKEYD_SRC" "$SAFE_HOTKEYD_OUT"
 build_mali_controller
 
 sha256sum \
@@ -161,6 +179,7 @@ sha256sum \
   "$SCAN_OUT" \
   "$TEXT_UI_OUT" \
   "$CONTROLLER_UI_OUT" \
+  "$SAFE_HOTKEYD_OUT" \
   "$CONTROLLER_MALI_OUT" \
   "$CONTROLLER_MALI_WRAPPER" \
   "$LIB_DIR"/* > "${DOC_DIR}/plumos-frontend.sha256"
@@ -174,6 +193,7 @@ sha256sum \
   file "$SCAN_OUT"
   file "$TEXT_UI_OUT"
   file "$CONTROLLER_UI_OUT"
+  file "$SAFE_HOTKEYD_OUT"
   file "$CONTROLLER_MALI_OUT"
   echo
   echo "== plumOS frontend =="
@@ -187,6 +207,9 @@ sha256sum \
   echo
   echo "== plumOS controller UI =="
   "$READELF" -h "$CONTROLLER_UI_OUT"
+  echo
+  echo "== plumOS safe hotkey daemon =="
+  "$READELF" -h "$SAFE_HOTKEYD_OUT"
   echo
   echo "== plumOS controller UI Mali =="
   "$READELF" -h "$CONTROLLER_MALI_OUT"
@@ -205,6 +228,7 @@ printf 'Built %s\n' "$FRONTEND_OUT"
 printf 'Built %s\n' "$SCAN_OUT"
 printf 'Built %s\n' "$TEXT_UI_OUT"
 printf 'Built %s\n' "$CONTROLLER_UI_OUT"
+printf 'Built %s\n' "$SAFE_HOTKEYD_OUT"
 printf 'Built %s\n' "$CONTROLLER_MALI_OUT"
 printf 'Wrapper %s\n' "$CONTROLLER_MALI_WRAPPER"
 printf 'Manifest %s\n' "$MANIFEST"

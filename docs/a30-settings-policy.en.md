@@ -9,36 +9,74 @@ setting, then connects that backend to plumOS UI and services.
 
 ## Basic Policy
 
-- Keep plumOS frontend settings separate from A30 device settings.
-- Store plumOS frontend settings in
-  `/mnt/SDCARD/plumos/config/frontend/settings.json`.
-- Use `/config/system.json` and runtime status files as the first A30 device
-  observation sources.
-- Keep the first UI as a read-only inventory. Do not write A30 settings yet.
+- Keep persistent plumOS settings under `/mnt/SDCARD/plumos/`.
+- Follow `docs/plumos-config-layout.md` for the config layout.
+- Do not use stockOS-owned `/config/system.json` as normal plumOS configuration.
+- Make A30 write-enabled controls available only for entries that have backup,
+  atomic write, `sync`, and a recovery policy.
 - Confirm the reason and risk before adopting a stock behavior.
 - Never expose Wi-Fi SSID, PSK, or `/config/wpa_supplicant.conf` contents in
   git, logs, or UI.
 
 ## Current Values In Controller UI
 
-Opening Settings from the START menu in `plumos-controller-ui` shows plumOS
-frontend settings, theme state, and these A30 entries:
+Opening System Settings from the START menu in `plumos-controller-ui` shows the
+settings users should recognize as adjustment targets. As of 2026-06-09, the UI
+reads and writes `/mnt/SDCARD/plumos/config/system/settings.json`; it does not
+touch stockOS `/config/system.json`. It still does not directly apply
+unvalidated mixer or sysfs runtime backends.
 
-- `A30 Policy`: read-only inventory
-- `A30 Write Policy`: write support deferred until backend validation
-- `A30 Config`: read status for `/config/system.json`
-- `A30 Volume`: `vol`, `mute`, `bgmvol`
-- `A30 Volume Backend`: candidate based on whether `amixer` exists
-- `A30 Brightness`: `brightness`, `lumination`
-- `A30 Display Color`: `contrast`, `hue`, `saturation`
-- `A30 Brightness Backend`: backlight/lcd sysfs candidate
-- `A30 Wi-Fi Config`: `wifi` from `/config/system.json`
-- `A30 Wi-Fi Runtime`: `wpa_state`, IP, RSSI, link speed, frequency
-- `A30 Keymap`: `keymap` from `/config/system.json`
-- `A30 Input Event`: `/dev/input/event*` found from `gpio-keys-polled`
-- `A30 Language`: `language` from `/config/system.json`
-- `A30 Stock Theme`: stock theme path
-- `A30 CPU Mode`: `cpufreq` from `/config/system.json`
+- `Volume`: `volume`; Left/Right changes `0..20`. Later
+  this should track the physical volume buttons
+- `Brightness`: `brightness`; Left/Right changes `0..10`. Later this should
+  track a hotkey such as START + volume
+- `Lumination`: `lumination`; Left/Right changes `0..10`
+- `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
+  each change in the `0..20` range
+- `Language`: `language`; Left/Right selects `English`, `Japanese`, `Chinese`,
+  `Traditional Chinese`, `Korean`, `Spanish`, or `Portuguese`
+- `Theme`: theme setting candidate for graphical mode; read-only until candidate
+  names and paths are defined safely
+- `INFORMATION`: read-only subpage for current values, backend state, and policy
+
+The `INFORMATION` subpage owns these read-only entries:
+
+- `Device Model`: fixed `Miyoo A30`
+- `Linux Kernel`: `/proc/sys/kernel/osrelease`
+- `SD Card`: free/total capacity from `statvfs()`
+- `plumOS System Config`: read status for
+  `/mnt/SDCARD/plumos/config/system/settings.json`
+- `Input Device`: `/dev/input/event*` found from `gpio-keys-polled`
+- `Theme Source`: plumOS theme id
+- `Audio Backend`: plumOS config only
+- `Display Backend`: plumOS config only
+- `Write Policy`: save under plumOS only; stockOS remains untouched
+
+Network Settings owns these entries:
+
+- `Wi-Fi`: plumOS runtime
+- `Connection`: `wpa_state` from `/tmp/wpa_status.txt`
+- `IP Address`: `ip_address` from `/tmp/wpa_status.txt`
+- `Signal`: `RSSI` from `/tmp/wpa_status.txt`
+- `Link Speed`: `LINKSPEED` from `/tmp/wpa_status.txt`
+- `Frequency`: `FREQUENCY` from `/tmp/wpa_status.txt`
+- `SSH`: plumOS remote access path. Current value is Dropbear port 2222
+- `Status Source`: runtime status source
+- `Config Source`: plumOS network runtime
+- `Credentials`: `hidden`
+- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery
+- `Write Policy`: read-only until a safe Wi-Fi editor exists
+
+Pressing A on Wi-Fi status, IP, or signal rows does not run recovery.
+Performance Settings owns launcher/core-profile CPU policy. As of 2026-06-09,
+the user can choose a system and change `CPU freq` and `CPU Cores` with
+Left/Right. `CPU freq` exposes only fixed `648/816/1200/1344 MHz` values, and
+unpredictable `keep` is removed. Saves use the existing `plumos-text-ui core
+system ... --cpu --freq --cores` flow and write system overrides to
+`/mnt/SDCARD/plumos/state/frontend/core-overrides.json`. `Reset to Default`
+falls back to the `systems.json` `648 MHz` / `2 cores` plumOS defaults. The
+controller UI also sets `userspace 648 MHz` / `2 cores` as the FE runtime
+baseline on startup.
 
 Wi-Fi runtime reads only selected keys from `/tmp/wpa_status.txt`. It does not
 read SSID or PSK.
@@ -46,19 +84,23 @@ read SSID or PSK.
 ## Brightness
 
 On the observed A30, `/sys/class/backlight` does not expose usable brightness
-files. `/config/system.json` contains `brightness`, `lumination`, `contrast`,
-`hue`, and `saturation`.
+files. plumOS stores `brightness`, `lumination`, `contrast`, `hue`, and
+`saturation` in `/mnt/SDCARD/plumos/config/system/settings.json`.
 
-For now, the UI only displays current values. Write support should wait until
-we confirm which kernel, sysfs, or API path the stock frontend uses.
+The UI updates `brightness`, `lumination`, `contrast`, `hue`, and `saturation`
+in plumOS system settings using backed-up atomic writes. Direct runtime backend
+application still waits until we confirm which kernel, sysfs, or API path the
+stock frontend uses.
 
 ## Volume
 
-`/config/system.json` contains `vol`, `mute`, and `bgmvol`. The device also has
-`amixer`, so direct ALSA mixer control may be possible.
+plumOS stores `volume` in `/mnt/SDCARD/plumos/config/system/settings.json`. The
+device also has `amixer`, so direct ALSA mixer control may be possible.
 
-The mixer control mapping is not validated yet. Before write support, inspect
-`amixer contents` and verify which controls change the actual output volume.
+The UI updates `volume` in plumOS system settings using backed-up atomic writes. The
+mixer control mapping is not validated yet. Before connecting physical volume
+buttons or immediate volume application, inspect `amixer contents` and verify
+which controls change the actual output volume.
 
 ## Wi-Fi
 
@@ -76,8 +118,7 @@ Write support should meet at least these requirements:
 
 ## Keymap/Input
 
-The stock frontend uses `keymap` in `/config/system.json` and `keymon`. The
-plumOS controller prototype can also read `/dev/input/event*` for
+The plumOS controller prototype can read `/dev/input/event*` for
 `gpio-keys-polled` directly.
 
 `plumos-input-compare` confirmed that `/dev/input/event3` can be opened and
@@ -96,5 +137,8 @@ are met:
 - Runtime application can be verified after the change.
 - Rollback is available on failure.
 - SSH recovery remains possible during development.
+
+Only limited plumOS-owned keys that meet these requirements are write-enabled.
+Direct unvalidated runtime backends should be added later.
 
 Until then, the A button in Settings remains an edit preview.

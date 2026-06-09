@@ -86,6 +86,7 @@ The unit shown on the TOP screen.
     { "name": "megadrive", "source": "rocknix", "priority": 20 },
     { "name": "genesis", "source": "rocknix", "priority": 30 }
   ],
+  "scan_directories": false,
   "extensions": ["gen", "md", "smd", "32x", "bin", "chd", "zip", "7z"],
   "artwork": {
     "lookup": [
@@ -105,6 +106,9 @@ Important fields:
 - `display_name`: short UI label.
 - `short_name`: extra-short label for tight spaces.
 - `directory_aliases`: candidate ROM directory names.
+- `scan_directories`: when true, first-level directories under the alias root are
+  treated as ROM entries. This is for directory-based systems such as ScummVM and
+  EasyRPG.
 - `extensions`: ROM extensions without dots.
 - `artwork.lookup`: ordered thumbnail/cover lookup paths.
 - `launch_profiles`: launcher-side candidates; the frontend does not execute
@@ -283,7 +287,8 @@ font/color fallback even when theme assets or fonts are missing or broken.
   "top_mode": "text",
   "rom_mode": "text",
   "show_empty_systems": false,
-  "show_favorites_on_top": false,
+  "show_favorites_on_top": true,
+  "show_recent_on_top": true,
   "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",
@@ -503,11 +508,26 @@ Rules:
 - For `retroarch:<core>` launch profiles, the plan is executable only when the
   plumOS RetroArch binary and matching `<core>_libretro.so` exist. Missing
   runtime files keep the launch plan non-executable.
+- For `standalone:<emulator>` launch profiles, resolve to
+  `/mnt/SDCARD/plumos/bin/plumos-standalone-launch <emulator> <ROM>`.
+  `standalone:ppsspp`, `standalone:pcsx_rearmed`, `standalone:scummvm`, and
+  `standalone:easyrpg` are A30 first-pass validated candidates.
+- Pressing A in the ROM list calls `plumos-text-ui launch ... --execute`; it saves
+  pending resume state before launch and clears it after the emulator returns.
 - RetroArch Auto Save State / Auto Load State integration belongs to the later
   launcher/RetroArch implementation.
 - While RetroArch is running, prefer Function as the safe shutdown/resume menu
   trigger instead of the power button. The power button may be handled on the
   kernel side, so it must not be the only path.
+- While the frontend is blocked waiting for an emulator, `plumos-safe-hotkeyd`
+  should watch `/dev/input/event3` (`gpio-keys-polled`) non-exclusively and use
+  Function=`KEY_ESC` to run `plumos-safe-shutdown --shutdown --no-poweroff`. As
+  of 2026-06-08, `plumos-text-ui launch --execute` auto-starts
+  `plumos-safe-hotkeyd --oneshot` only during RetroArch/standalone launches, and
+  the same trigger path is verified with `SIGUSR1` while RetroArch is running.
+  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the
+  path. The physical Function press is verified as `trigger source=key`. Whether
+  to show an overlay menu still needs validation.
 
 ## SAFE Menu
 
@@ -535,11 +555,17 @@ Rules:
   shut down by accident.
 - `Sleep` flushes save RAM and keeps the resume candidate. If true suspend is
   not viable, fall back to pseudo-sleep.
-- `Shutdown` runs save state, save RAM flush, `resume-session.json` update,
-  RetroArch exit, `sync`, then poweroff.
+- `Shutdown` saves state to the dedicated safe state slot 999, flushes save RAM,
+  updates `resume-session.json`, exits RetroArch, runs `sync`, then powers off.
 - `Cancel`, B, LEFT, and Function return to the previous screen.
-- The initial prototype only previews the plan. Real actions are connected
-  later in the launcher/RetroArch implementation.
+- ROM-list A is connected to real launch. SAFE-menu sleep/shutdown actions are
+  wired through `plumos-safe-shutdown --no-poweroff` for launcher/RetroArch save,
+  exit, `sync`, and resume hold. `plumos-safe-shutdown` can select power and
+  sleep backends, but real poweroff/suspend still needs a live-fire check.
+- The direct in-emulator `plumos-safe-hotkeyd` safe-exit path is verified through
+  text-ui launch auto-start and `.state999` creation. The UX choice between
+  showing this SAFE menu over a running game and directly entering
+  shutdown/sleep-style safe exit from Function remains open.
 
 ## START Menu
 
@@ -595,13 +621,27 @@ Schema:
 {
   "version": 1,
   "system_overrides": [
-    { "system_id": "nes", "launch_profile": "retroarch:nestopia" }
+    {
+      "system_id": "nes",
+      "launch_profile": "retroarch:nestopia",
+      "cpu_policy": "fixed",
+      "cpu_freq_khz": 648000,
+      "cpu_cores": 2
+    }
   ],
   "rom_overrides": [
     {
-      "system_id": "nes",
-      "relative_path": "FC/example.nes",
-      "launch_profile": "retroarch:fceumm"
+      "system_id": "dos",
+      "relative_path": "DOS/DOSBOX_DIGGER.ZIP",
+      "launch_profile": "retroarch:dosbox_pure",
+      "cpu_policy": "fixed",
+      "cpu_freq_khz": 1344000,
+      "cpu_cores": 4,
+      "content_suffix": "#DIGGER.EXE",
+      "audio_driver": "oss",
+      "audio_latency_ms": 256,
+      "dosbox_pure_force60fps": "true",
+      "dosbox_pure_cycles": "max"
     }
   ]
 }
@@ -612,8 +652,8 @@ Priority:
 ```text
 1. ROM override
 2. system override
-3. SystemDefinition.default_launch_profile
-4. auto detect
+3. SystemDefinition.default_launch_profile / default_cpu_policy
+4. launcher default / auto detect
 ```
 
 Rules:
@@ -621,8 +661,28 @@ Rules:
 - Store a `launch_profile` id, not a direct core path.
 - Profile ids such as `retroarch:fceumm` are resolved by the launcher into the
   RetroArch binary, core `.so`, config overrides, and CPU policy.
+- Profile ids such as `standalone:ppsspp` are resolved into
+  `plumos-standalone-launch`, an emulator id, the ROM path, and CPU policy.
+- `cpu_policy` is `performance|fixed`; store `cpu_freq_khz` only for `fixed`.
+  The user-facing UI does not show or save unpredictable `keep`.
+- `cpu_cores` is `2|4`. On the A30, 2 cores means CPU0+CPU1 online, while
+  4 cores means CPU0-CPU3 online.
+- The SELECT core menu shows core candidates and CPU frequency presets together.
+- The SELECT core menu also shows CPU core presets. In the 2026-06-07 dummy-load
+  measurement, 4-core performance load averaged about 4x the power of 2-core
+  performance load, so core count is user-configurable.
+- CPU settings use the same priority as profile selection:
+  ROM override > system override > system default.
 - A per-ROM override is keyed by `system_id` plus the ROM `relative_path` from
   the ROM alias root.
+- For cores that select a startup file inside one content item, such as
+  DOSBox-Pure, a per-ROM override can store a `content_suffix` such as
+  `#DIGGER.EXE`. The launch plan appends it only at execution time, and direct
+  `ROM.zip#EXE` launch targets fall back to the base ROM override.
+- `audio_driver` and `audio_latency_ms` resolve to the RetroArch launcher's
+  `--audio` and `--audio-latency` options.
+- `dosbox_pure_force60fps` and `dosbox_pure_cycles` are written to the launcher's
+  temporary append config as DOSBox-Pure core options.
 - Moving or renaming a ROM does not automatically move its per-ROM override.
 - Clearing a ROM override falls back to the system override. Clearing the system
   override falls back to `default_launch_profile`.
@@ -652,10 +712,34 @@ Scan algorithm:
 1. Read `systems.json`.
 2. Resolve each `SystemDefinition.directory_aliases` against `rom_roots`.
 3. Scan existing directories.
-4. Create `RomEntry` objects only for matching extensions.
-5. Route shared directories by extension.
-6. Resolve artwork from each `RomEntry` representative path.
-7. Save generated output to `state/frontend/library-index.json`.
+4. Create `RomEntry` objects for files with matching extensions.
+5. For systems with `scan_directories=true`, also create a `RomEntry` for each
+   first-level directory under the alias root and do not recursively scan inside
+   that directory.
+6. Route shared directories by extension.
+7. Resolve artwork from each `RomEntry` representative path.
+8. Save generated output to `state/frontend/library-index.json`.
+
+### Directory ROM Sidecar
+
+For systems with `scan_directories=true`, a directory itself becomes a
+`RomEntry`. Some engines, such as ScummVM, also need an engine target id. Store
+that id in a sidecar inside or next to the ROM directory.
+
+Supported ScummVM sidecars:
+
+```text
+Roms/SCUMMVM/BASS-Floppy-1.3/.plumos-scummvm-target
+Roms/SCUMMVM/BASS-Floppy-1.3/scummvm-target.txt
+Roms/SCUMMVM/BASS-Floppy-1.3/.scummvm
+Roms/SCUMMVM/BASS-Floppy-1.3.scummvm
+Roms/SCUMMVM/BASS-Floppy-1.3.svm
+```
+
+The content may be `target=sky`, `gameid=sky`, `scummvm_target=sky`, or a
+single-line `sky`. Target ids are limited to ASCII letters, digits, `.`, `_`,
+and `-`. When no sidecar exists, the initial fallback remains `sky`, matching
+the current validation ROM.
 
 ## Initial System Seed
 

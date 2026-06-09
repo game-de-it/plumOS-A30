@@ -40,6 +40,7 @@ struct system_def {
   int sort_order;
   int enabled;
   int pinned;
+  int scan_directories;
   struct alias_def aliases[MAX_ALIASES];
   size_t alias_count;
   char extensions[MAX_EXTENSIONS][24];
@@ -805,6 +806,7 @@ static int load_systems(const char *path, struct system_def *systems, size_t *co
     system.sort_order = json_get_int(obj, obj + strlen(obj), "sort_order", system.sort_order);
     system.enabled = json_get_bool(obj, obj + strlen(obj), "enabled", 1);
     system.pinned = json_get_bool(obj, obj + strlen(obj), "pinned", 0);
+    system.scan_directories = json_get_bool(obj, obj + strlen(obj), "scan_directories", 0);
     parse_aliases(obj, obj + strlen(obj), &system);
     parse_extensions(obj, obj + strlen(obj), &system);
     parse_artwork(obj, obj + strlen(obj), &system);
@@ -1013,11 +1015,13 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
   char relative_path[PATH_MAX];
   struct stat st;
   int has_identity;
+  int is_dir_entry;
   size_t pos = 0;
 
   memset(&st, 0, sizeof(st));
   canonical_path(canonical_abs, sizeof(canonical_abs), abs_path);
   has_identity = stat(abs_path, &st) == 0;
+  is_dir_entry = has_identity && S_ISDIR(st.st_mode);
   if (rom_already_seen(&ctx->roms, system_index, canonical_abs, has_identity, st.st_dev,
                        st.st_ino)) {
     return;
@@ -1032,9 +1036,14 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
   }
   copy_string(entry.path, sizeof(entry.path), canonical_abs);
   copy_string(entry.file_name, sizeof(entry.file_name), path_basename(abs_path));
-  copy_string(entry.extension, sizeof(entry.extension), file_extension(entry.file_name));
-  lower_string(entry.extension);
-  stem_from_name(entry.title, sizeof(entry.title), entry.file_name);
+  if (is_dir_entry) {
+    copy_string(entry.extension, sizeof(entry.extension), "dir");
+    copy_string(entry.title, sizeof(entry.title), entry.file_name);
+  } else {
+    copy_string(entry.extension, sizeof(entry.extension), file_extension(entry.file_name));
+    lower_string(entry.extension);
+    stem_from_name(entry.title, sizeof(entry.title), entry.file_name);
+  }
   copy_string(entry.directory_alias, sizeof(entry.directory_alias), alias_name);
 
   relative_path[0] = '\0';
@@ -1043,8 +1052,13 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
   append_string(relative_path, sizeof(relative_path), &pos, rel_path);
   copy_string(entry.relative_path, sizeof(entry.relative_path), relative_path);
 
-  stem_from_relative_path(rel_stem, sizeof(rel_stem), rel_path);
-  stem_from_name(flat_stem, sizeof(flat_stem), entry.file_name);
+  if (is_dir_entry) {
+    copy_string(rel_stem, sizeof(rel_stem), rel_path);
+    copy_string(flat_stem, sizeof(flat_stem), entry.file_name);
+  } else {
+    stem_from_relative_path(rel_stem, sizeof(rel_stem), rel_path);
+    stem_from_name(flat_stem, sizeof(flat_stem), entry.file_name);
+  }
   if (ctx->resolve_thumbnails &&
       find_thumbnail(ctx, system, rel_stem, flat_stem, entry.thumbnail, sizeof(entry.thumbnail))) {
     ctx->thumbnails_found++;
@@ -1086,6 +1100,10 @@ static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const 
     }
 
     if (is_directory(child_path)) {
+      if (system->scan_directories && !rel_dir[0]) {
+        add_rom_entry(ctx, system_index, alias_name, child_path, child_rel);
+        continue;
+      }
       scan_dir_recursive(ctx, system_index, alias_name, child_path, child_rel);
       continue;
     }

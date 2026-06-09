@@ -23,7 +23,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
-      "default_launch_profile": "retroarch:fceumm"
+      "default_launch_profile": "retroarch:fceumm",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "fds",
@@ -48,7 +50,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
-      "default_launch_profile": "retroarch:fceumm"
+      "default_launch_profile": "retroarch:fceumm",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "sfc",
@@ -73,7 +77,9 @@
         ]
       },
       "launch_profiles": ["retroarch:snes9x2005_plus", "retroarch:snes9x"],
-      "default_launch_profile": "retroarch:snes9x2005_plus"
+      "default_launch_profile": "retroarch:snes9x2005_plus",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "gb",
@@ -96,7 +102,9 @@
         ]
       },
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
-      "default_launch_profile": "retroarch:gambatte"
+      "default_launch_profile": "retroarch:gambatte",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "gbc",
@@ -121,7 +129,9 @@
         ]
       },
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
-      "default_launch_profile": "retroarch:gambatte"
+      "default_launch_profile": "retroarch:gambatte",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "gba",
@@ -144,7 +154,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
-      "default_launch_profile": "retroarch:mgba"
+      "default_launch_profile": "retroarch:mgba",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "megadrive",
@@ -169,7 +181,9 @@
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
-      "default_launch_profile": "retroarch:genesis_plus_gx"
+      "default_launch_profile": "retroarch:genesis_plus_gx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "mastersystem",
@@ -193,7 +207,9 @@
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
-      "default_launch_profile": "retroarch:genesis_plus_gx"
+      "default_launch_profile": "retroarch:genesis_plus_gx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "gamegear",
@@ -219,7 +235,9 @@
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
-      "default_launch_profile": "retroarch:genesis_plus_gx"
+      "default_launch_profile": "retroarch:genesis_plus_gx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "sega32x",
@@ -243,7 +261,9 @@
         ]
       },
       "launch_profiles": ["retroarch:picodrive"],
-      "default_launch_profile": "retroarch:picodrive"
+      "default_launch_profile": "retroarch:picodrive",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "segacd",
@@ -268,7 +288,9 @@
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
-      "default_launch_profile": "retroarch:genesis_plus_gx"
+      "default_launch_profile": "retroarch:genesis_plus_gx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "pcengine",
@@ -293,7 +315,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
-      "default_launch_profile": "retroarch:mednafen_pce_fast"
+      "default_launch_profile": "retroarch:mednafen_pce_fast",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "pcenginecd",
@@ -318,7 +342,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
-      "default_launch_profile": "retroarch:mednafen_pce_fast"
+      "default_launch_profile": "retroarch:mednafen_pce_fast",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "psx",
@@ -342,8 +368,11 @@
           { "root": "sdcard", "path": "images/psx" }
         ]
       },
-      "launch_profiles": ["retroarch:pcsx_rearmed"],
-      "default_launch_profile": "retroarch:pcsx_rearmed"
+      "launch_profiles": ["standalone:pcsx_rearmed", "retroarch:pcsx_rearmed"],
+      "default_launch_profile": "standalone:pcsx_rearmed",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "default_cpu_cores": 2
     },
     {
       "id": "psp",
@@ -367,8 +396,11 @@
           { "root": "sdcard", "path": "images/psp" }
         ]
       },
-      "launch_profiles": ["retroarch:ppsspp"],
-      "default_launch_profile": "retroarch:ppsspp"
+      "launch_profiles": ["standalone:ppsspp", "retroarch:ppsspp"],
+      "default_launch_profile": "standalone:ppsspp",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "default_cpu_cores": 2
     },
     {
       "id": "n64",
@@ -391,7 +423,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mupen64plus_next", "retroarch:parallel_n64"],
-      "default_launch_profile": "retroarch:mupen64plus_next"
+      "default_launch_profile": "retroarch:mupen64plus_next",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "dreamcast",
@@ -414,7 +448,9 @@
         ]
       },
       "launch_profiles": ["retroarch:flycast"],
-      "default_launch_profile": "retroarch:flycast"
+      "default_launch_profile": "retroarch:flycast",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "saturn",
@@ -437,7 +473,9 @@
         ]
       },
       "launch_profiles": ["retroarch:yabasanshiro", "retroarch:beetle_saturn"],
-      "default_launch_profile": "retroarch:yabasanshiro"
+      "default_launch_profile": "retroarch:yabasanshiro",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "neogeo",
@@ -460,7 +498,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus"],
-      "default_launch_profile": "retroarch:fbneo"
+      "default_launch_profile": "retroarch:fbneo",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "ngp",
@@ -483,7 +523,9 @@
         ]
       },
       "launch_profiles": ["retroarch:race"],
-      "default_launch_profile": "retroarch:race"
+      "default_launch_profile": "retroarch:race",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "ngpc",
@@ -508,7 +550,9 @@
         ]
       },
       "launch_profiles": ["retroarch:race"],
-      "default_launch_profile": "retroarch:race"
+      "default_launch_profile": "retroarch:race",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "wonderswan",
@@ -532,7 +576,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
-      "default_launch_profile": "retroarch:mednafen_wswan"
+      "default_launch_profile": "retroarch:mednafen_wswan",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "wonderswancolor",
@@ -555,7 +601,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
-      "default_launch_profile": "retroarch:mednafen_wswan"
+      "default_launch_profile": "retroarch:mednafen_wswan",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "arcade",
@@ -578,7 +626,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo"],
-      "default_launch_profile": "retroarch:mame2003_plus"
+      "default_launch_profile": "retroarch:mame2003_plus",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "fbneo",
@@ -603,7 +653,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fbneo"],
-      "default_launch_profile": "retroarch:fbneo"
+      "default_launch_profile": "retroarch:fbneo",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "mame2003plus",
@@ -628,7 +680,9 @@
         ]
       },
       "launch_profiles": ["retroarch:mame2003_plus"],
-      "default_launch_profile": "retroarch:mame2003_plus"
+      "default_launch_profile": "retroarch:mame2003_plus",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "cps1",
@@ -653,7 +707,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps1"],
-      "default_launch_profile": "retroarch:fbneo"
+      "default_launch_profile": "retroarch:fbneo",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "cps2",
@@ -678,7 +734,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps2"],
-      "default_launch_profile": "retroarch:fbneo"
+      "default_launch_profile": "retroarch:fbneo",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "cps3",
@@ -703,7 +761,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fbneo"],
-      "default_launch_profile": "retroarch:fbneo"
+      "default_launch_profile": "retroarch:fbneo",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "dos",
@@ -726,7 +786,9 @@
         ]
       },
       "launch_profiles": ["retroarch:dosbox_pure"],
-      "default_launch_profile": "retroarch:dosbox_pure"
+      "default_launch_profile": "retroarch:dosbox_pure",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "easyrpg",
@@ -740,6 +802,7 @@
         { "name": "EASYRPG", "source": "miyoo", "priority": 10 },
         { "name": "easyrpg", "source": "rocknix", "priority": 20 }
       ],
+      "scan_directories": true,
       "extensions": ["easyrpg", "ldb", "zip"],
       "artwork": {
         "lookup": [
@@ -748,8 +811,10 @@
           { "root": "sdcard", "path": "images/easyrpg" }
         ]
       },
-      "launch_profiles": ["retroarch:easyrpg"],
-      "default_launch_profile": "retroarch:easyrpg"
+      "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
+      "default_launch_profile": "standalone:easyrpg",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "pico8",
@@ -774,7 +839,9 @@
         ]
       },
       "launch_profiles": ["retroarch:fake08"],
-      "default_launch_profile": "retroarch:fake08"
+      "default_launch_profile": "retroarch:fake08",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "scummvm",
@@ -788,6 +855,7 @@
         { "name": "SCUMMVM", "source": "miyoo", "priority": 10 },
         { "name": "scummvm", "source": "rocknix", "priority": 20 }
       ],
+      "scan_directories": true,
       "extensions": ["scummvm", "svm"],
       "artwork": {
         "lookup": [
@@ -796,8 +864,10 @@
           { "root": "sdcard", "path": "images/scummvm" }
         ]
       },
-      "launch_profiles": ["retroarch:scummvm"],
-      "default_launch_profile": "retroarch:scummvm"
+      "launch_profiles": ["standalone:scummvm", "retroarch:scummvm"],
+      "default_launch_profile": "standalone:scummvm",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "openbor",
@@ -867,7 +937,9 @@
         ]
       },
       "launch_profiles": ["retroarch:bluemsx", "retroarch:fmsx"],
-      "default_launch_profile": "retroarch:bluemsx"
+      "default_launch_profile": "retroarch:bluemsx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "pc88",
@@ -890,7 +962,9 @@
         ]
       },
       "launch_profiles": ["retroarch:quasi88"],
-      "default_launch_profile": "retroarch:quasi88"
+      "default_launch_profile": "retroarch:quasi88",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "pc98",
@@ -913,7 +987,9 @@
         ]
       },
       "launch_profiles": ["retroarch:np2kai"],
-      "default_launch_profile": "retroarch:np2kai"
+      "default_launch_profile": "retroarch:np2kai",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "x68000",
@@ -936,7 +1012,9 @@
         ]
       },
       "launch_profiles": ["retroarch:px68k"],
-      "default_launch_profile": "retroarch:px68k"
+      "default_launch_profile": "retroarch:px68k",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     },
     {
       "id": "tic80",
@@ -959,7 +1037,9 @@
         ]
       },
       "launch_profiles": ["retroarch:tic80"],
-      "default_launch_profile": "retroarch:tic80"
+      "default_launch_profile": "retroarch:tic80",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000
     }
   ]
 }

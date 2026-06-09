@@ -4,12 +4,31 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <linux/fb.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifndef PLUMOS_MALI_RENDER_LINE_MAX
+#define PLUMOS_MALI_RENDER_LINE_MAX 512
+#endif
+
+#define PLUMOS_MALI_SETTING_FLASH_MARKER "@{F:"
+
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+#ifndef PLUMOS_MALI_FT_ADVANCE_CACHE_SIZE
+#define PLUMOS_MALI_FT_ADVANCE_CACHE_SIZE 512
+#endif
+#endif
+
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#endif
 
 typedef int EGLint;
 typedef unsigned int EGLBoolean;
@@ -67,6 +86,20 @@ enum plumos_mali_rotation {
   PLUMOS_MALI_ROTATION_CW = 1,
   PLUMOS_MALI_ROTATION_CCW = 2
 };
+
+enum plumos_mali_style {
+  PLUMOS_MALI_STYLE_CLASSIC = 0,
+  PLUMOS_MALI_STYLE_TTY = 1
+};
+
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+struct plumos_mali_ft_advance_cache_entry {
+  unsigned int codepoint;
+  int scale;
+  int advance;
+  int valid;
+};
+#endif
 
 struct plumos_mali_egl_api {
   void *handle;
@@ -133,11 +166,22 @@ struct plumos_mali_renderer {
   int width;
   int height;
   enum plumos_mali_rotation rotation;
+  enum plumos_mali_style style;
+  int tty_entry_scale_x10;
+  long long marquee_focus_ms;
   EGLDisplay display;
   EGLSurface surface;
   EGLContext context;
   GLuint program;
   GLint color_uniform;
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+  FT_Library ft_library;
+  FT_Face ft_face;
+  int ft_ready;
+  int ft_pixel_size;
+  struct plumos_mali_ft_advance_cache_entry
+      ft_advance_cache[PLUMOS_MALI_FT_ADVANCE_CACHE_SIZE];
+#endif
 };
 
 static int plumos_mali_copy_string(char *out, size_t out_size, const char *in) {
@@ -173,6 +217,59 @@ static enum plumos_mali_rotation plumos_mali_parse_rotation(const char *mode,
     return PLUMOS_MALI_ROTATION_CCW;
   }
   return fb_height > fb_width ? PLUMOS_MALI_ROTATION_CCW : PLUMOS_MALI_ROTATION_NONE;
+}
+
+static enum plumos_mali_style plumos_mali_parse_style(const char *mode) {
+  if (!mode || !mode[0] || strcmp(mode, "classic") == 0 || strcmp(mode, "default") == 0) {
+    return PLUMOS_MALI_STYLE_CLASSIC;
+  }
+  if (strcmp(mode, "tty") == 0 || strcmp(mode, "console") == 0) {
+    return PLUMOS_MALI_STYLE_TTY;
+  }
+  return PLUMOS_MALI_STYLE_CLASSIC;
+}
+
+static void plumos_mali_renderer_set_style(struct plumos_mali_renderer *renderer,
+                                           const char *style_mode) {
+  if (!renderer) {
+    return;
+  }
+  renderer->style = plumos_mali_parse_style(style_mode);
+}
+
+static int plumos_mali_parse_tty_entry_scale(const char *scale) {
+  if (!scale || !scale[0] || strcmp(scale, "default") == 0 ||
+      strcmp(scale, "1") == 0 || strcmp(scale, "1.0") == 0) {
+    return 10;
+  }
+  if (strcmp(scale, "1.5") == 0 || strcmp(scale, "15") == 0) {
+    return 15;
+  }
+  if (strcmp(scale, "2") == 0 || strcmp(scale, "2.0") == 0 ||
+      strcmp(scale, "20") == 0) {
+    return 20;
+  }
+  return 10;
+}
+
+static void plumos_mali_renderer_set_tty_entry_scale(struct plumos_mali_renderer *renderer,
+                                                     const char *scale) {
+  if (!renderer) {
+    return;
+  }
+  renderer->tty_entry_scale_x10 = plumos_mali_parse_tty_entry_scale(scale);
+}
+
+static void plumos_mali_renderer_reset_marquee(struct plumos_mali_renderer *renderer) {
+  struct timeval tv;
+  if (!renderer) {
+    return;
+  }
+  if (gettimeofday(&tv, NULL) != 0) {
+    renderer->marquee_focus_ms = (long long)time(NULL) * 1000LL;
+    return;
+  }
+  renderer->marquee_focus_ms = (long long)tv.tv_sec * 1000LL + (long long)(tv.tv_usec / 1000);
 }
 
 static int plumos_mali_load_symbol(void *handle, const char *name, void *fn_out,
@@ -517,10 +614,60 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
   return 1;
 }
 
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+static int plumos_mali_renderer_load_font(struct plumos_mali_renderer *renderer,
+                                          const char *font_path, char *error,
+                                          size_t error_size) {
+  FT_Error ft_error;
+
+  if (!renderer || !font_path || !font_path[0]) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "font path is empty");
+    }
+    return 0;
+  }
+  if (!renderer->ft_library) {
+    ft_error = FT_Init_FreeType(&renderer->ft_library);
+    if (ft_error) {
+      if (error && error_size > 0) {
+        snprintf(error, error_size, "FT_Init_FreeType failed: %d", (int)ft_error);
+      }
+      return 0;
+    }
+  }
+  if (renderer->ft_face) {
+    FT_Done_Face(renderer->ft_face);
+    renderer->ft_face = NULL;
+    renderer->ft_ready = 0;
+  }
+  ft_error = FT_New_Face(renderer->ft_library, font_path, 0, &renderer->ft_face);
+  if (ft_error) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "FT_New_Face failed: %d", (int)ft_error);
+    }
+    return 0;
+  }
+  renderer->ft_ready = 1;
+  renderer->ft_pixel_size = 0;
+  memset(renderer->ft_advance_cache, 0, sizeof(renderer->ft_advance_cache));
+  return 1;
+}
+#endif
+
 static void plumos_mali_renderer_shutdown(struct plumos_mali_renderer *renderer) {
   if (!renderer) {
     return;
   }
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+  if (renderer->ft_face) {
+    FT_Done_Face(renderer->ft_face);
+    renderer->ft_face = NULL;
+  }
+  if (renderer->ft_library) {
+    FT_Done_FreeType(renderer->ft_library);
+    renderer->ft_library = NULL;
+  }
+#endif
   if (renderer->display != EGL_NO_DISPLAY) {
     if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle && renderer->program) {
       renderer->gl.DeleteProgram(renderer->program);
@@ -587,6 +734,32 @@ static const unsigned char *plumos_mali_glyph(char ch) {
   static const unsigned char glyph_x[7] = {17, 17, 10, 4, 10, 17, 17};
   static const unsigned char glyph_y[7] = {17, 17, 10, 4, 4, 4, 4};
   static const unsigned char glyph_z[7] = {31, 1, 2, 4, 8, 16, 31};
+  static const unsigned char glyph_lower_a[7] = {0, 0, 14, 1, 15, 17, 15};
+  static const unsigned char glyph_lower_b[7] = {16, 16, 22, 25, 17, 17, 30};
+  static const unsigned char glyph_lower_c[7] = {0, 0, 14, 16, 16, 17, 14};
+  static const unsigned char glyph_lower_d[7] = {1, 1, 13, 19, 17, 17, 15};
+  static const unsigned char glyph_lower_e[7] = {0, 0, 14, 17, 31, 16, 14};
+  static const unsigned char glyph_lower_f[7] = {6, 8, 8, 28, 8, 8, 8};
+  static const unsigned char glyph_lower_g[7] = {0, 0, 15, 17, 15, 1, 14};
+  static const unsigned char glyph_lower_h[7] = {16, 16, 22, 25, 17, 17, 17};
+  static const unsigned char glyph_lower_i[7] = {4, 0, 12, 4, 4, 4, 14};
+  static const unsigned char glyph_lower_j[7] = {2, 0, 6, 2, 2, 18, 12};
+  static const unsigned char glyph_lower_k[7] = {16, 16, 18, 20, 24, 20, 18};
+  static const unsigned char glyph_lower_l[7] = {12, 4, 4, 4, 4, 4, 14};
+  static const unsigned char glyph_lower_m[7] = {0, 0, 26, 21, 21, 21, 21};
+  static const unsigned char glyph_lower_n[7] = {0, 0, 22, 25, 17, 17, 17};
+  static const unsigned char glyph_lower_o[7] = {0, 0, 14, 17, 17, 17, 14};
+  static const unsigned char glyph_lower_p[7] = {0, 0, 30, 17, 30, 16, 16};
+  static const unsigned char glyph_lower_q[7] = {0, 0, 15, 17, 15, 1, 1};
+  static const unsigned char glyph_lower_r[7] = {0, 0, 22, 25, 16, 16, 16};
+  static const unsigned char glyph_lower_s[7] = {0, 0, 15, 16, 14, 1, 30};
+  static const unsigned char glyph_lower_t[7] = {8, 8, 28, 8, 8, 9, 6};
+  static const unsigned char glyph_lower_u[7] = {0, 0, 17, 17, 17, 19, 13};
+  static const unsigned char glyph_lower_v[7] = {0, 0, 17, 17, 17, 10, 4};
+  static const unsigned char glyph_lower_w[7] = {0, 0, 17, 17, 21, 21, 10};
+  static const unsigned char glyph_lower_x[7] = {0, 0, 17, 10, 4, 10, 17};
+  static const unsigned char glyph_lower_y[7] = {0, 0, 17, 17, 15, 1, 14};
+  static const unsigned char glyph_lower_z[7] = {0, 0, 31, 2, 4, 8, 31};
   static const unsigned char dash[7] = {0, 0, 0, 31, 0, 0, 0};
   static const unsigned char underscore[7] = {0, 0, 0, 0, 0, 0, 31};
   static const unsigned char colon[7] = {0, 4, 4, 0, 4, 4, 0};
@@ -607,10 +780,17 @@ static const unsigned char *plumos_mali_glyph(char ch) {
   static const unsigned char quote[7] = {10, 10, 0, 0, 0, 0, 0};
   static const unsigned char star[7] = {0, 21, 14, 31, 14, 21, 0};
   static const unsigned char tilde[7] = {0, 0, 8, 21, 2, 0, 0};
+  static const unsigned char at[7] = {14, 17, 23, 21, 23, 16, 14};
+  static const unsigned char hash[7] = {10, 31, 10, 10, 31, 10, 10};
+  static const unsigned char dollar[7] = {4, 15, 20, 14, 5, 30, 4};
+  static const unsigned char percent[7] = {17, 18, 2, 4, 8, 9, 17};
+  static const unsigned char amp[7] = {12, 18, 20, 8, 21, 18, 13};
+  static const unsigned char semicolon[7] = {0, 4, 4, 0, 4, 4, 8};
+  static const unsigned char grave[7] = {8, 4, 0, 0, 0, 0, 0};
+  static const unsigned char caret[7] = {4, 10, 17, 0, 0, 0, 0};
+  static const unsigned char lbrace[7] = {2, 4, 4, 8, 4, 4, 2};
+  static const unsigned char rbrace[7] = {8, 4, 4, 2, 4, 4, 8};
 
-  if (ch >= 'a' && ch <= 'z') {
-    ch = (char)(ch - 'a' + 'A');
-  }
   switch (ch) {
   case ' ':
     return blank;
@@ -686,6 +866,58 @@ static const unsigned char *plumos_mali_glyph(char ch) {
     return glyph_y;
   case 'Z':
     return glyph_z;
+  case 'a':
+    return glyph_lower_a;
+  case 'b':
+    return glyph_lower_b;
+  case 'c':
+    return glyph_lower_c;
+  case 'd':
+    return glyph_lower_d;
+  case 'e':
+    return glyph_lower_e;
+  case 'f':
+    return glyph_lower_f;
+  case 'g':
+    return glyph_lower_g;
+  case 'h':
+    return glyph_lower_h;
+  case 'i':
+    return glyph_lower_i;
+  case 'j':
+    return glyph_lower_j;
+  case 'k':
+    return glyph_lower_k;
+  case 'l':
+    return glyph_lower_l;
+  case 'm':
+    return glyph_lower_m;
+  case 'n':
+    return glyph_lower_n;
+  case 'o':
+    return glyph_lower_o;
+  case 'p':
+    return glyph_lower_p;
+  case 'q':
+    return glyph_lower_q;
+  case 'r':
+    return glyph_lower_r;
+  case 's':
+    return glyph_lower_s;
+  case 't':
+    return glyph_lower_t;
+  case 'u':
+    return glyph_lower_u;
+  case 'v':
+    return glyph_lower_v;
+  case 'w':
+    return glyph_lower_w;
+  case 'x':
+    return glyph_lower_x;
+  case 'y':
+    return glyph_lower_y;
+  case 'z':
+    return glyph_lower_z;
   case '-':
     return dash;
   case '_':
@@ -727,9 +959,249 @@ static const unsigned char *plumos_mali_glyph(char ch) {
     return star;
   case '~':
     return tilde;
+  case '@':
+    return at;
+  case '#':
+    return hash;
+  case '$':
+    return dollar;
+  case '%':
+    return percent;
+  case '&':
+    return amp;
+  case ';':
+    return semicolon;
+  case '`':
+    return grave;
+  case '^':
+    return caret;
+  case '{':
+    return lbrace;
+  case '}':
+    return rbrace;
+  case '?':
+    return unknown;
   default:
     return unknown;
   }
+}
+
+static const char *plumos_mali_utf8_next(const char *s, unsigned int *codepoint) {
+  const unsigned char *p = (const unsigned char *)s;
+  unsigned int cp;
+
+  if (!p || !*p) {
+    if (codepoint) {
+      *codepoint = 0;
+    }
+    return s;
+  }
+  if (p[0] < 0x80) {
+    if (codepoint) {
+      *codepoint = p[0];
+    }
+    return s + 1;
+  }
+  if ((p[0] & 0xe0) == 0xc0 && (p[1] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x1f) << 6) | (unsigned int)(p[1] & 0x3f);
+    if (cp >= 0x80) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 2;
+    }
+  } else if ((p[0] & 0xf0) == 0xe0 && (p[1] & 0xc0) == 0x80 &&
+             (p[2] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x0f) << 12) |
+         ((unsigned int)(p[1] & 0x3f) << 6) |
+         (unsigned int)(p[2] & 0x3f);
+    if (cp >= 0x800 && !(cp >= 0xd800 && cp <= 0xdfff)) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 3;
+    }
+  } else if ((p[0] & 0xf8) == 0xf0 && (p[1] & 0xc0) == 0x80 &&
+             (p[2] & 0xc0) == 0x80 && (p[3] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x07) << 18) |
+         ((unsigned int)(p[1] & 0x3f) << 12) |
+         ((unsigned int)(p[2] & 0x3f) << 6) |
+         (unsigned int)(p[3] & 0x3f);
+    if (cp >= 0x10000 && cp <= 0x10ffff) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 4;
+    }
+  }
+  if (codepoint) {
+    *codepoint = '?';
+  }
+  return s + 1;
+}
+
+static int plumos_mali_utf8_append_codepoint(char *out, size_t out_size,
+                                             size_t *pos, unsigned int codepoint) {
+  if (!out || !pos || *pos >= out_size) {
+    return 0;
+  }
+  if (codepoint <= 0x7f) {
+    if (*pos + 1 >= out_size) {
+      return 0;
+    }
+    out[(*pos)++] = (char)codepoint;
+  } else if (codepoint <= 0x7ff) {
+    if (*pos + 2 >= out_size) {
+      return 0;
+    }
+    out[(*pos)++] = (char)(0xc0 | (codepoint >> 6));
+    out[(*pos)++] = (char)(0x80 | (codepoint & 0x3f));
+  } else if (codepoint <= 0xffff) {
+    if (*pos + 3 >= out_size) {
+      return 0;
+    }
+    out[(*pos)++] = (char)(0xe0 | (codepoint >> 12));
+    out[(*pos)++] = (char)(0x80 | ((codepoint >> 6) & 0x3f));
+    out[(*pos)++] = (char)(0x80 | (codepoint & 0x3f));
+  } else if (codepoint <= 0x10ffff) {
+    if (*pos + 4 >= out_size) {
+      return 0;
+    }
+    out[(*pos)++] = (char)(0xf0 | (codepoint >> 18));
+    out[(*pos)++] = (char)(0x80 | ((codepoint >> 12) & 0x3f));
+    out[(*pos)++] = (char)(0x80 | ((codepoint >> 6) & 0x3f));
+    out[(*pos)++] = (char)(0x80 | (codepoint & 0x3f));
+  } else {
+    return 0;
+  }
+  out[*pos] = '\0';
+  return 1;
+}
+
+static unsigned int plumos_mali_compose_kana_mark(unsigned int base,
+                                                  unsigned int mark) {
+  if (mark == 0x3099) {
+    switch (base) {
+    case 0x3046:
+      return 0x3094;
+    case 0x30A6:
+      return 0x30F4;
+    case 0x30EF:
+      return 0x30F7;
+    case 0x30F0:
+      return 0x30F8;
+    case 0x30F1:
+      return 0x30F9;
+    case 0x30F2:
+      return 0x30FA;
+    default:
+      break;
+    }
+    if ((base >= 0x304B && base <= 0x3069 &&
+         (base == 0x304B || base == 0x304D || base == 0x304F ||
+          base == 0x3051 || base == 0x3053 || base == 0x3055 ||
+          base == 0x3057 || base == 0x3059 || base == 0x305B ||
+          base == 0x305D || base == 0x305F || base == 0x3061 ||
+          base == 0x3064 || base == 0x3066 || base == 0x3068)) ||
+        (base >= 0x30AB && base <= 0x30C8 &&
+         (base == 0x30AB || base == 0x30AD || base == 0x30AF ||
+          base == 0x30B1 || base == 0x30B3 || base == 0x30B5 ||
+          base == 0x30B7 || base == 0x30B9 || base == 0x30BB ||
+          base == 0x30BD || base == 0x30BF || base == 0x30C1 ||
+          base == 0x30C4 || base == 0x30C6 || base == 0x30C8))) {
+      return base + 1;
+    }
+    if ((base >= 0x306F && base <= 0x307B &&
+         (base == 0x306F || base == 0x3072 || base == 0x3075 ||
+          base == 0x3078 || base == 0x307B)) ||
+        (base >= 0x30CF && base <= 0x30DB &&
+         (base == 0x30CF || base == 0x30D2 || base == 0x30D5 ||
+          base == 0x30D8 || base == 0x30DB))) {
+      return base + 1;
+    }
+  } else if (mark == 0x309A) {
+    if ((base >= 0x306F && base <= 0x307B &&
+         (base == 0x306F || base == 0x3072 || base == 0x3075 ||
+          base == 0x3078 || base == 0x307B)) ||
+        (base >= 0x30CF && base <= 0x30DB &&
+         (base == 0x30CF || base == 0x30D2 || base == 0x30D5 ||
+          base == 0x30D8 || base == 0x30DB))) {
+      return base + 2;
+    }
+  }
+  return 0;
+}
+
+static void plumos_mali_normalize_kana_marks(const char *in, char *out,
+                                             size_t out_size) {
+  const char *p;
+  size_t n = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!in) {
+    return;
+  }
+  p = in;
+  while (*p) {
+    unsigned int cp;
+    unsigned int next_cp;
+    unsigned int composed = 0;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+    const char *after_next = next;
+
+    if (*next) {
+      after_next = plumos_mali_utf8_next(next, &next_cp);
+      composed = plumos_mali_compose_kana_mark(cp, next_cp);
+    }
+    if (composed) {
+      if (!plumos_mali_utf8_append_codepoint(out, out_size, &n, composed)) {
+        break;
+      }
+      p = after_next;
+    } else {
+      if (!plumos_mali_utf8_append_codepoint(out, out_size, &n, cp)) {
+        break;
+      }
+      p = next;
+    }
+  }
+}
+
+static int plumos_mali_utf8_cell_width(unsigned int codepoint) {
+  return codepoint >= 0x80 ? 2 : 1;
+}
+
+static void plumos_mali_copy_utf8_cells(const char *in, char *out, size_t out_size,
+                                        size_t max_cells) {
+  const char *p;
+  size_t n = 0;
+  size_t cells = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!in) {
+    return;
+  }
+  p = in;
+  while (*p) {
+    unsigned int cp;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+    size_t len = (size_t)(next - p);
+    size_t width = (size_t)plumos_mali_utf8_cell_width(cp);
+    if (cells + width > max_cells || n + len + 1 > out_size) {
+      break;
+    }
+    memcpy(out + n, p, len);
+    n += len;
+    cells += width;
+    p = next;
+  }
+  out[n] = '\0';
 }
 
 static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, float y,
@@ -767,41 +1239,426 @@ static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, flo
   renderer->gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+static void plumos_mali_rect_clipped_x(struct plumos_mali_renderer *renderer,
+                                       float x, float y, float w, float h,
+                                       float min_x, float max_x,
+                                       float red, float green, float blue,
+                                       float alpha) {
+  if (max_x <= min_x) {
+    return;
+  }
+  if (x < min_x) {
+    w -= min_x - x;
+    x = min_x;
+  }
+  if (x + w > max_x) {
+    w = max_x - x;
+  }
+  if (w <= 0.0f || h <= 0.0f) {
+    return;
+  }
+  plumos_mali_rect(renderer, x, y, w, h, red, green, blue, alpha);
+}
+
+static void plumos_mali_draw_builtin_char_clipped(struct plumos_mali_renderer *renderer,
+                                                  unsigned char ch, float x, float y,
+                                                  int scale, float min_x, float max_x,
+                                                  float red, float green, float blue,
+                                                  float alpha) {
+  const unsigned char *rows;
+  int row;
+
+  if (ch < 32 || ch > 126) {
+    ch = '?';
+  }
+  rows = plumos_mali_glyph((char)ch);
+  for (row = 0; row < 7; row++) {
+    int col;
+    for (col = 0; col < 5; col++) {
+      if (rows[row] & (1u << (4 - col))) {
+        plumos_mali_rect_clipped_x(renderer, x + (float)(col * scale),
+                                   y + (float)(row * scale),
+                                   (float)scale, (float)scale,
+                                   min_x, max_x, red, green, blue, alpha);
+      }
+    }
+  }
+}
+
+static void plumos_mali_draw_builtin_char(struct plumos_mali_renderer *renderer,
+                                          unsigned char ch, float x, float y, int scale,
+                                          float red, float green, float blue, float alpha) {
+  plumos_mali_draw_builtin_char_clipped(renderer, ch, x, y, scale, 0.0f,
+                                        (float)renderer->width, red, green, blue, alpha);
+}
+
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+static int plumos_mali_ft_set_size(struct plumos_mali_renderer *renderer, int scale) {
+  int pixel_size;
+
+  if (!renderer || !renderer->ft_ready || !renderer->ft_face) {
+    return 0;
+  }
+  pixel_size = scale > 0 ? 9 * scale : 9;
+  if (pixel_size < 12) {
+    pixel_size = 12;
+  }
+  if (renderer->ft_pixel_size == pixel_size) {
+    return 1;
+  }
+  if (FT_Set_Pixel_Sizes(renderer->ft_face, 0, (FT_UInt)pixel_size) != 0) {
+    return 0;
+  }
+  renderer->ft_pixel_size = pixel_size;
+  return 1;
+}
+
+static int plumos_mali_ft_advance(struct plumos_mali_renderer *renderer,
+                                  unsigned int codepoint, int scale) {
+  int fallback = 8 * scale;
+  int advance;
+  size_t cache_index;
+  struct plumos_mali_ft_advance_cache_entry *cached;
+
+  if (fallback < 8) {
+    fallback = 8;
+  }
+  if (!renderer || !renderer->ft_ready || !renderer->ft_face) {
+    return fallback;
+  }
+  cache_index = (((size_t)codepoint * 131u) + (size_t)scale) %
+                PLUMOS_MALI_FT_ADVANCE_CACHE_SIZE;
+  cached = &renderer->ft_advance_cache[cache_index];
+  if (cached->valid && cached->codepoint == codepoint && cached->scale == scale) {
+    return cached->advance;
+  }
+  if (!plumos_mali_ft_set_size(renderer, scale)) {
+    return fallback;
+  }
+  if (FT_Load_Char(renderer->ft_face, (FT_ULong)codepoint, FT_LOAD_DEFAULT) != 0) {
+    advance = fallback;
+  } else {
+    advance = (int)((renderer->ft_face->glyph->advance.x + 32) >> 6);
+    if (advance <= 0) {
+      advance = fallback;
+    }
+  }
+  cached->codepoint = codepoint;
+  cached->scale = scale;
+  cached->advance = advance;
+  cached->valid = 1;
+  return advance;
+}
+
+static int plumos_mali_draw_freetype_codepoint_clipped(struct plumos_mali_renderer *renderer,
+                                                       unsigned int codepoint,
+                                                       float x, float y, int scale,
+                                                       float min_x, float max_x,
+                                                       float red, float green,
+                                                       float blue, float alpha) {
+  FT_GlyphSlot slot;
+  FT_Bitmap *bitmap;
+  int pixel_size;
+  float baseline;
+  int row;
+
+  if (!plumos_mali_ft_set_size(renderer, scale)) {
+    return 0;
+  }
+  if (FT_Load_Char(renderer->ft_face, (FT_ULong)codepoint,
+                   FT_LOAD_RENDER | FT_LOAD_TARGET_LIGHT) != 0) {
+    return 0;
+  }
+  slot = renderer->ft_face->glyph;
+  bitmap = &slot->bitmap;
+  pixel_size = renderer->ft_pixel_size > 0 ? renderer->ft_pixel_size : 9 * scale;
+  baseline = y + (float)(pixel_size - 2);
+
+  for (row = 0; row < (int)bitmap->rows; row++) {
+    const unsigned char *row_data;
+    int col;
+    int span_start = -1;
+    float row_y = baseline - (float)slot->bitmap_top + (float)row;
+    if (bitmap->pitch < 0) {
+      row_data = bitmap->buffer + ((int)bitmap->rows - 1 - row) * (-bitmap->pitch);
+    } else {
+      row_data = bitmap->buffer + row * bitmap->pitch;
+    }
+    for (col = 0; col <= (int)bitmap->width; col++) {
+      unsigned char value = 0;
+      int lit = 0;
+      if (col < (int)bitmap->width) {
+        if (bitmap->pixel_mode == FT_PIXEL_MODE_MONO) {
+          value = (row_data[col >> 3] & (0x80u >> (col & 7))) ? 255 : 0;
+        } else {
+          value = row_data[col];
+        }
+        lit = value >= 80;
+      }
+      if (lit) {
+        if (span_start < 0) {
+          span_start = col;
+        }
+      } else if (span_start >= 0) {
+        plumos_mali_rect_clipped_x(renderer,
+                                   x + (float)slot->bitmap_left + (float)span_start,
+                                   row_y, (float)(col - span_start), 1.0f,
+                                   min_x, max_x,
+                                   red, green, blue, alpha);
+        span_start = -1;
+      }
+    }
+  }
+  return 1;
+}
+
+static int plumos_mali_draw_freetype_codepoint(struct plumos_mali_renderer *renderer,
+                                               unsigned int codepoint, float x, float y,
+                                               int scale, float red, float green,
+                                               float blue, float alpha) {
+  return plumos_mali_draw_freetype_codepoint_clipped(renderer, codepoint, x, y,
+                                                     scale, 0.0f,
+                                                     (float)renderer->width,
+                                                     red, green, blue, alpha);
+}
+#endif
+
+static int plumos_mali_codepoint_advance(struct plumos_mali_renderer *renderer,
+                                         unsigned int codepoint, int scale,
+                                         int prefer_freetype) {
+  int ascii_step = 6 * scale;
+
+  if (ascii_step < 6) {
+    ascii_step = 6;
+  }
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+  if (renderer && renderer->ft_ready && renderer->ft_face &&
+      (prefer_freetype || codepoint > 126)) {
+    return plumos_mali_ft_advance(renderer, codepoint, scale);
+  }
+#else
+  (void)renderer;
+  (void)prefer_freetype;
+#endif
+  return ascii_step;
+}
+
+static int plumos_mali_text_width_font(struct plumos_mali_renderer *renderer,
+                                       const char *text, int scale,
+                                       int prefer_freetype) {
+  const char *p;
+  int width = 0;
+
+  if (!text || scale <= 0) {
+    return 0;
+  }
+  p = text;
+  while (*p) {
+    unsigned int cp;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+    if (cp == '\t') {
+      cp = ' ';
+    }
+    if (cp >= 32) {
+      width += plumos_mali_codepoint_advance(renderer, cp, scale, prefer_freetype);
+    }
+    p = next;
+  }
+  return width;
+}
+
+static long long plumos_mali_time_ms(void) {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0) {
+    return (long long)time(NULL) * 1000LL;
+  }
+  return (long long)tv.tv_sec * 1000LL + (long long)(tv.tv_usec / 1000);
+}
+
+static int plumos_mali_marquee_offset(struct plumos_mali_renderer *renderer,
+                                      int text_width, int available_width,
+                                      int step_px) {
+  int overflow;
+  int scroll_ms;
+  int cycle_ms;
+  int phase_ms;
+  long long elapsed_ms;
+  const int hold_ms = 1000;
+  const int pixels_per_second = 80;
+
+  (void)step_px;
+  overflow = text_width - available_width;
+  if (overflow <= 0) {
+    return 0;
+  }
+  elapsed_ms = plumos_mali_time_ms() - (renderer ? renderer->marquee_focus_ms : 0);
+  if (elapsed_ms < hold_ms) {
+    return 0;
+  }
+  scroll_ms = (overflow * 1000 + pixels_per_second - 1) / pixels_per_second;
+  cycle_ms = scroll_ms + hold_ms;
+  phase_ms = (int)((elapsed_ms - hold_ms) % (long long)cycle_ms);
+  if (phase_ms >= scroll_ms) {
+    return overflow;
+  }
+  return (phase_ms * pixels_per_second) / 1000;
+}
+
+static void plumos_mali_text_limited(struct plumos_mali_renderer *renderer,
+                                     const char *text, float x, float y, int scale,
+                                     int prefer_freetype, float max_x,
+                                     float red, float green, float blue,
+                                     float alpha) {
+  const char *p;
+  float pen_x = 0.0f;
+  int ascii_step = 6 * scale;
+
+  if (!text || scale <= 0) {
+    return;
+  }
+  if (max_x <= 0.0f || max_x > (float)(renderer->width - 8)) {
+    max_x = (float)(renderer->width - 8);
+  }
+  if (x >= max_x) {
+    return;
+  }
+  p = text;
+  while (*p) {
+    unsigned int cp;
+    int advance = ascii_step;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+
+    if (cp == '\t') {
+      cp = ' ';
+    }
+    if (cp < 32) {
+      p = next;
+      continue;
+    }
+    if (cp <= 126) {
+      advance = ascii_step;
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+      if (prefer_freetype && renderer->ft_ready && renderer->ft_face) {
+        advance = plumos_mali_ft_advance(renderer, cp, scale);
+      }
+#endif
+      if (x + pen_x + (float)advance > max_x) {
+        break;
+      }
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+      if (prefer_freetype && renderer->ft_ready && renderer->ft_face) {
+        if (!plumos_mali_draw_freetype_codepoint(renderer, cp, x + pen_x, y, scale,
+                                                 red, green, blue, alpha)) {
+          plumos_mali_draw_builtin_char(renderer, (unsigned char)cp, x + pen_x, y, scale,
+                                        red, green, blue, alpha);
+          advance = ascii_step;
+        }
+      } else
+#endif
+      {
+        plumos_mali_draw_builtin_char(renderer, (unsigned char)cp, x + pen_x, y, scale,
+                                      red, green, blue, alpha);
+      }
+    } else {
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+      advance = plumos_mali_ft_advance(renderer, cp, scale);
+      if (x + pen_x + (float)advance > max_x) {
+        break;
+      }
+      if (!plumos_mali_draw_freetype_codepoint(renderer, cp, x + pen_x, y, scale,
+                                               red, green, blue, alpha)) {
+        plumos_mali_draw_builtin_char(renderer, '?', x + pen_x, y, scale,
+                                      red, green, blue, alpha);
+        advance = ascii_step;
+      }
+#else
+      if (x + pen_x + (float)ascii_step > max_x) {
+        break;
+      }
+      plumos_mali_draw_builtin_char(renderer, '?', x + pen_x, y, scale,
+                                    red, green, blue, alpha);
+      advance = ascii_step;
+#endif
+    }
+    pen_x += (float)advance;
+    p = next;
+  }
+}
+
+static void plumos_mali_text_clipped(struct plumos_mali_renderer *renderer,
+                                     const char *text, float x, float y, int scale,
+                                     int prefer_freetype, float min_x, float max_x,
+                                     float red, float green, float blue,
+                                     float alpha) {
+  const char *p;
+  float pen_x = 0.0f;
+
+  if (!text || scale <= 0 || max_x <= min_x) {
+    return;
+  }
+  if (max_x > (float)(renderer->width - 8)) {
+    max_x = (float)(renderer->width - 8);
+  }
+  p = text;
+  while (*p) {
+    unsigned int cp;
+    int advance;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+    float glyph_x = x + pen_x;
+
+    if (cp == '\t') {
+      cp = ' ';
+    }
+    if (cp < 32) {
+      p = next;
+      continue;
+    }
+    advance = plumos_mali_codepoint_advance(renderer, cp, scale, prefer_freetype);
+    if (glyph_x >= max_x) {
+      break;
+    }
+    if (glyph_x + (float)advance > min_x) {
+      if (cp <= 126) {
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+        if (prefer_freetype && renderer->ft_ready && renderer->ft_face) {
+          if (!plumos_mali_draw_freetype_codepoint_clipped(renderer, cp, glyph_x,
+                                                           y, scale, min_x, max_x,
+                                                           red, green, blue, alpha)) {
+            plumos_mali_draw_builtin_char_clipped(renderer, (unsigned char)cp,
+                                                  glyph_x, y, scale, min_x, max_x,
+                                                  red, green, blue, alpha);
+          }
+        } else
+#endif
+        {
+          plumos_mali_draw_builtin_char_clipped(renderer, (unsigned char)cp,
+                                                glyph_x, y, scale, min_x, max_x,
+                                                red, green, blue, alpha);
+        }
+      } else {
+#ifdef PLUMOS_ENABLE_MALI_FREETYPE
+        if (!plumos_mali_draw_freetype_codepoint_clipped(renderer, cp, glyph_x,
+                                                         y, scale, min_x, max_x,
+                                                         red, green, blue, alpha)) {
+          plumos_mali_draw_builtin_char_clipped(renderer, '?', glyph_x, y, scale,
+                                                min_x, max_x, red, green, blue, alpha);
+        }
+#else
+        plumos_mali_draw_builtin_char_clipped(renderer, '?', glyph_x, y, scale,
+                                              min_x, max_x, red, green, blue, alpha);
+#endif
+      }
+    }
+    pen_x += (float)advance;
+    p = next;
+  }
+}
+
 static void plumos_mali_text(struct plumos_mali_renderer *renderer, const char *text,
                              float x, float y, int scale, float red, float green,
                              float blue, float alpha) {
-  const unsigned char *rows;
-  int glyph_w = 5 * scale;
-  int step = 6 * scale;
-  int max_chars;
-  int i;
-
-  if (!text) {
-    return;
-  }
-  max_chars = (renderer->width - (int)x - 8) / step;
-  if (max_chars < 0) {
-    return;
-  }
-  for (i = 0; text[i] && i < max_chars; i++) {
-    int row;
-    unsigned char ch = (unsigned char)text[i];
-    if (ch < 32 || ch > 126) {
-      ch = '?';
-    }
-    rows = plumos_mali_glyph((char)ch);
-    for (row = 0; row < 7; row++) {
-      int col;
-      for (col = 0; col < 5; col++) {
-        if (rows[row] & (1u << (4 - col))) {
-          plumos_mali_rect(renderer, x + (float)(i * step + col * scale),
-                           y + (float)(row * scale), (float)scale, (float)scale,
+  plumos_mali_text_limited(renderer, text, x, y, scale, 0, 0.0f,
                            red, green, blue, alpha);
-        }
-      }
-    }
-    (void)glyph_w;
-  }
 }
 
 static int plumos_mali_text_width(const char *text, int scale) {
@@ -974,19 +1831,34 @@ static void plumos_mali_compact_spaces(const char *in, char *out, size_t out_siz
 }
 
 static void plumos_mali_truncate(char *s, size_t max_chars) {
-  size_t len;
+  const char *p;
+  size_t last_ok = 0;
+  size_t cells = 0;
 
   if (!s || max_chars == 0) {
     return;
   }
-  len = strlen(s);
-  if (len <= max_chars) {
+  p = s;
+  while (*p) {
+    unsigned int cp;
+    const char *next = plumos_mali_utf8_next(p, &cp);
+    size_t width = (size_t)plumos_mali_utf8_cell_width(cp);
+    if (cells + width > max_chars) {
+      break;
+    }
+    cells += width;
+    last_ok = (size_t)(next - s);
+    p = next;
+  }
+  if (s[last_ok] == '\0') {
     return;
   }
-  if (max_chars > 1) {
-    s[max_chars - 1] = '~';
+  if (max_chars > 1 && last_ok + 2 <= strlen(s) + 1) {
+    s[last_ok] = '~';
+    s[last_ok + 1] = '\0';
+  } else {
+    s[last_ok] = '\0';
   }
-  s[max_chars] = '\0';
 }
 
 static void plumos_mali_make_title(const char *line, char *out, size_t out_size) {
@@ -1015,6 +1887,20 @@ static void plumos_mali_trim_right(char *s) {
   len = strlen(s);
   while (len > 0 && s[len - 1] == ' ') {
     s[--len] = '\0';
+  }
+}
+
+static void plumos_mali_ascii_upper_inplace(char *s) {
+  unsigned char *p = (unsigned char *)s;
+
+  if (!p) {
+    return;
+  }
+  while (*p) {
+    if (*p >= 'a' && *p <= 'z') {
+      *p = (unsigned char)(*p - 'a' + 'A');
+    }
+    p++;
   }
 }
 
@@ -1049,24 +1935,19 @@ static int plumos_mali_entry_head(const char *line, char *marker, char *number,
 static int plumos_mali_make_rom_entry(const char *line, char *out, size_t out_size) {
   char marker;
   char number[16];
-  char title[48];
+  char title[128];
   const char *rest;
-  size_t i;
 
   if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest)) {
     return 0;
   }
   memset(title, 0, sizeof(title));
-  for (i = 0; i < 30 && rest[i] && i + 1 < sizeof(title); i++) {
-    title[i] = rest[i];
-  }
-  title[i] = '\0';
+  plumos_mali_copy_utf8_cells(rest, title, sizeof(title), 120);
   plumos_mali_trim_right(title);
   if (!title[0]) {
     return 0;
   }
   snprintf(out, out_size, "%c %s %s", marker, number, title);
-  plumos_mali_truncate(out, 38);
   return 1;
 }
 
@@ -1114,7 +1995,12 @@ static void plumos_mali_make_entry(const char *line, const char *screen_title,
     *profile = '\0';
   }
   snprintf(out, out_size, "%s", compact);
-  plumos_mali_truncate(out, 38);
+  if (strstr(screen_title, "START") || strstr(screen_title, "Settings") ||
+      strstr(screen_title, "SETTINGS") || strstr(screen_title, "HELP")) {
+    plumos_mali_truncate(out, 80);
+  } else {
+    plumos_mali_truncate(out, 38);
+  }
 }
 
 static void plumos_mali_make_meta(const char *line, char *out, size_t out_size) {
@@ -1128,30 +2014,78 @@ static void plumos_mali_make_meta(const char *line, char *out, size_t out_size) 
   plumos_mali_truncate(out, 38);
 }
 
-static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
-                                    const char lines[][160], size_t line_count) {
+static void plumos_mali_find_prompt_path(const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                         size_t line_count, char *out,
+                                         size_t out_size) {
   size_t i;
-  char title[80];
-  char meta[160];
-  char status[160];
-  char entries[18][160];
+  const char *prefix = "prompt_path=";
+  size_t prefix_len = strlen(prefix);
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  for (i = 0; i < line_count; i++) {
+    if (strncmp(lines[i], prefix, prefix_len) == 0 && lines[i][prefix_len]) {
+      snprintf(out, out_size, "%s", lines[i] + prefix_len);
+      return;
+    }
+  }
+}
+
+static void plumos_mali_find_footer_lines(const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                          size_t line_count,
+                                          char *line1, size_t line1_size,
+                                          char *line2, size_t line2_size) {
+  size_t i;
+  const char *prefix1 = "footer1=";
+  const char *prefix2 = "footer2=";
+  size_t prefix1_len = strlen(prefix1);
+  size_t prefix2_len = strlen(prefix2);
+
+  if (line1 && line1_size > 0) {
+    line1[0] = '\0';
+  }
+  if (line2 && line2_size > 0) {
+    line2[0] = '\0';
+  }
+  for (i = 0; i < line_count; i++) {
+    if (line1 && line1_size > 0 &&
+        strncmp(lines[i], prefix1, prefix1_len) == 0) {
+      snprintf(line1, line1_size, "%s", lines[i] + prefix1_len);
+      plumos_mali_truncate(line1, 50);
+    } else if (line2 && line2_size > 0 &&
+               strncmp(lines[i], prefix2, prefix2_len) == 0) {
+      snprintf(line2, line2_size, "%s", lines[i] + prefix2_len);
+      plumos_mali_truncate(line2, 50);
+    }
+  }
+}
+
+static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                      size_t line_count,
+                                      char *title, size_t title_size,
+                                      char *meta, size_t meta_size,
+                                      char *status, size_t status_size,
+                                      char entries[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                      size_t entry_capacity,
+                                      size_t *entry_count_out) {
+  size_t i;
   size_t entry_count = 0;
-  float margin = 14.0f;
-  float y;
-  float line_height = 28.0f;
 
-  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
-  renderer->gl.UseProgram(renderer->program);
-  renderer->gl.ClearColor(0.012f, 0.016f, 0.018f, 1.0f);
-  renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
-
-  title[0] = '\0';
-  meta[0] = '\0';
-  status[0] = '\0';
+  if (title && title_size > 0) {
+    title[0] = '\0';
+  }
+  if (meta && meta_size > 0) {
+    meta[0] = '\0';
+  }
+  if (status && status_size > 0) {
+    status[0] = '\0';
+  }
   if (line_count > 0) {
-    plumos_mali_make_title(lines[0], title, sizeof(title));
+    plumos_mali_make_title(lines[0], title, title_size);
   } else {
-    plumos_mali_make_title(NULL, title, sizeof(title));
+    plumos_mali_make_title(NULL, title, title_size);
   }
   for (i = 1; i < line_count; i++) {
     const char *line = lines[i];
@@ -1159,27 +2093,572 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
       continue;
     }
     if (plumos_mali_starts_with(line, "status:")) {
-      plumos_mali_make_meta(line, status, sizeof(status));
+      plumos_mali_make_meta(line, status, status_size);
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "prompt_path=")) {
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "footer1=") ||
+        plumos_mali_starts_with(line, "footer2=")) {
       continue;
     }
     if (plumos_mali_starts_with(line, "source:")) {
-      if (!status[0]) {
-        plumos_mali_make_meta(line, status, sizeof(status));
+      if (status && status_size > 0 && !status[0]) {
+        plumos_mali_make_meta(line, status, status_size);
       }
       continue;
     }
     if (plumos_mali_starts_with(line, "system=") || plumos_mali_starts_with(line, "entries=") ||
         plumos_mali_starts_with(line, "target=") || plumos_mali_starts_with(line, "profile=")) {
-      if (!meta[0]) {
-        plumos_mali_make_meta(line, meta, sizeof(meta));
+      if (meta && meta_size > 0 && !meta[0]) {
+        plumos_mali_make_meta(line, meta, meta_size);
       }
       continue;
     }
-    if (plumos_mali_is_entry_line(line) && entry_count < sizeof(entries) / sizeof(entries[0])) {
+    if (plumos_mali_is_entry_line(line) && entry_count < entry_capacity) {
       plumos_mali_make_entry(line, title, entries[entry_count], sizeof(entries[entry_count]));
       entry_count++;
     }
   }
+  if (entry_count_out) {
+    *entry_count_out = entry_count;
+  }
+}
+
+static void plumos_mali_tty_top_bar(struct plumos_mali_renderer *renderer) {
+  char time_label[16];
+  char wifi_label[16];
+  char battery_label[24];
+  char right[64];
+  int right_width;
+
+  plumos_mali_time_label(time_label, sizeof(time_label));
+  plumos_mali_wifi_label(wifi_label, sizeof(wifi_label));
+  plumos_mali_battery_label(battery_label, sizeof(battery_label));
+  snprintf(right, sizeof(right), "%s  %s  %s", time_label, wifi_label, battery_label);
+  right_width = plumos_mali_text_width(right, 2);
+
+  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 34.0f,
+                   0.000f, 0.020f, 0.015f, 1.0f);
+  plumos_mali_rect(renderer, 0.0f, 34.0f, (float)renderer->width, 2.0f,
+                   0.12f, 0.32f, 0.22f, 1.0f);
+  plumos_mali_text(renderer, "PLUMOS A30 TTY1", 14.0f, 10.0f, 2,
+                   0.62f, 1.0f, 0.78f, 1.0f);
+  plumos_mali_text(renderer, right, (float)(renderer->width - 14 - right_width),
+                   10.0f, 2, 0.70f, 0.92f, 0.86f, 1.0f);
+}
+
+static int plumos_mali_tty_entry_parts(const char *line, int *selected,
+                                       char *number, size_t number_size,
+                                       char *name, size_t name_size,
+                                       char *count, size_t count_size) {
+  char marker;
+  char raw_number[16];
+  const char *rest;
+  const char *roms;
+  size_t len;
+
+  if (selected) {
+    *selected = 0;
+  }
+  if (number && number_size > 0) {
+    number[0] = '\0';
+  }
+  if (name && name_size > 0) {
+    name[0] = '\0';
+  }
+  if (count && count_size > 0) {
+    count[0] = '\0';
+  }
+  if (!plumos_mali_entry_head(line, &marker, raw_number, sizeof(raw_number), &rest)) {
+    return 0;
+  }
+  if (selected) {
+    *selected = marker == '>';
+  }
+  if (number && number_size > 0) {
+    if (strlen(raw_number) == 1) {
+      snprintf(number, number_size, "0%s", raw_number);
+    } else {
+      snprintf(number, number_size, "%s", raw_number);
+    }
+  }
+
+  roms = strstr(rest, " ROMS=");
+  if (!roms) {
+    roms = strstr(rest, " ROMs=");
+  }
+  if (roms) {
+    len = (size_t)(roms - rest);
+    if (name && name_size > 0) {
+      if (len >= name_size) {
+        len = name_size - 1;
+      }
+      memcpy(name, rest, len);
+      name[len] = '\0';
+      plumos_mali_trim_right(name);
+    }
+    if (count && count_size > 0) {
+      snprintf(count, count_size, "%s ROMS", roms + 6);
+      plumos_mali_truncate(count, 9);
+    }
+  } else {
+    if (name && name_size > 0) {
+      plumos_mali_copy_utf8_cells(rest, name, name_size, 240);
+    }
+  }
+  return 1;
+}
+
+static int plumos_mali_tty_font_scale(const struct plumos_mali_renderer *renderer) {
+  if (renderer && renderer->tty_entry_scale_x10 >= 20) {
+    return 4;
+  }
+  if (renderer && renderer->tty_entry_scale_x10 >= 15) {
+    return 3;
+  }
+  return 2;
+}
+
+static size_t plumos_mali_tty_name_cells(int entry_scale) {
+  if (entry_scale >= 4) {
+    return 14;
+  }
+  if (entry_scale == 3) {
+    return 18;
+  }
+  return 24;
+}
+
+static int plumos_mali_split_setting_control(const char *in,
+                                             char *label, size_t label_size,
+                                             char *control, size_t control_size,
+                                             int *flash_direction) {
+  const char *choice;
+  char *marker;
+  size_t label_len;
+
+  if (flash_direction) {
+    *flash_direction = 0;
+  }
+  if (!in || !label || label_size == 0 || !control || control_size == 0) {
+    return 0;
+  }
+  label[0] = '\0';
+  control[0] = '\0';
+  if ((strncmp(in, "[x] ", 4) == 0 || strncmp(in, "[ ] ", 4) == 0) && in[4]) {
+    snprintf(control, control_size, "%.3s", in);
+    snprintf(label, label_size, "%s", in + 4);
+    plumos_mali_trim_right(label);
+    return label[0] != '\0';
+  }
+
+  choice = strstr(in, " < ");
+  if (!choice || !strstr(choice + 1, " >")) {
+    return 0;
+  }
+  label_len = (size_t)(choice - in);
+  if (label_len >= label_size) {
+    label_len = label_size - 1;
+  }
+  memcpy(label, in, label_len);
+  label[label_len] = '\0';
+  plumos_mali_trim_right(label);
+  snprintf(control, control_size, "%s", choice + 1);
+  marker = strstr(control, PLUMOS_MALI_SETTING_FLASH_MARKER);
+  if (marker) {
+    char direction = marker[strlen(PLUMOS_MALI_SETTING_FLASH_MARKER)];
+    if (flash_direction && direction == 'L') {
+      *flash_direction = -1;
+    } else if (flash_direction && direction == 'R') {
+      *flash_direction = 1;
+    }
+    *marker = '\0';
+  }
+  plumos_mali_trim_right(control);
+  return label[0] != '\0' && control[0] != '\0';
+}
+
+static void plumos_mali_text_setting_control(struct plumos_mali_renderer *renderer,
+                                             const char *control, float x, float y,
+                                             int scale, int flash_direction,
+                                             float red, float green, float blue,
+                                             float alpha) {
+  const char *arrow;
+  char before[80];
+  char after[80];
+  size_t before_len;
+  int before_width;
+  int arrow_width;
+
+  if (!control || flash_direction == 0) {
+    plumos_mali_text(renderer, control, x, y, scale, red, green, blue, alpha);
+    return;
+  }
+
+  arrow = flash_direction < 0 ? strchr(control, '<') : strrchr(control, '>');
+  if (!arrow) {
+    plumos_mali_text(renderer, control, x, y, scale, red, green, blue, alpha);
+    return;
+  }
+
+  before_len = (size_t)(arrow - control);
+  if (before_len >= sizeof(before)) {
+    before_len = sizeof(before) - 1;
+  }
+  memcpy(before, control, before_len);
+  before[before_len] = '\0';
+  snprintf(after, sizeof(after), "%s", arrow + 1);
+
+  before_width = plumos_mali_text_width(before, scale);
+  arrow_width = plumos_mali_text_width("<", scale);
+  plumos_mali_text(renderer, before, x, y, scale, red, green, blue, alpha);
+  plumos_mali_text(renderer, flash_direction < 0 ? "<" : ">",
+                   x + (float)before_width, y, scale,
+                   1.0f, 0.08f, 0.04f, alpha);
+  plumos_mali_text(renderer, after, x + (float)(before_width + arrow_width), y,
+                   scale, red, green, blue, alpha);
+}
+
+static int plumos_mali_title_is_rom_list(const char *title) {
+  return title && (strstr(title, "ROMS") || strstr(title, "FAVORITES") ||
+                   strstr(title, "RECENT"));
+}
+
+static int plumos_mali_title_is_top(const char *title) {
+  return title && strstr(title, "TOP");
+}
+
+static int plumos_mali_title_is_settings(const char *title) {
+  return title && strstr(title, "SETTINGS");
+}
+
+static int plumos_mali_title_is_settings_family(const char *title) {
+  return title && (strstr(title, "START") || strstr(title, "Settings") ||
+                   strstr(title, "SETTINGS") || strstr(title, "HELP") ||
+                   strstr(title, "Network") || strstr(title, "NETWORK"));
+}
+
+static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
+                                        const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                        size_t line_count) {
+  size_t i;
+  char prompt[PLUMOS_MALI_RENDER_LINE_MAX + 64];
+  char prompt_path[PLUMOS_MALI_RENDER_LINE_MAX];
+  char prompt_line1[160];
+  char prompt_line2[160];
+  char title[80];
+  char meta[160];
+  char status[160];
+  char footer1[160];
+  char footer2[160];
+  char entries[18][PLUMOS_MALI_RENDER_LINE_MAX];
+  size_t entry_count = 0;
+  float y;
+  int entry_scale;
+  float line_height;
+  float cursor_x;
+  float name_x;
+  float count_right_x;
+  float right_margin;
+  int cell_width;
+  int name_col;
+  int prompt_cursor_width;
+  float prompt_cursor_y;
+  size_t prompt_cells_per_line;
+  size_t prompt_line1_len;
+  size_t prompt_line2_len;
+  size_t prompt_len;
+  int is_rom_list;
+  int is_top;
+  int is_settings;
+  int is_settings_family;
+  int is_settings_page;
+  int show_prompt;
+  float prompt_r = 0.62f;
+  float prompt_g = 1.00f;
+  float prompt_b = 0.78f;
+  float accent_r = 0.0f;
+  float accent_g = 0.0f;
+  float accent_b = 0.0f;
+  int show_accent = 0;
+
+  plumos_mali_collect_lines(lines, line_count, title, sizeof(title),
+                            meta, sizeof(meta), status, sizeof(status),
+                            entries, sizeof(entries) / sizeof(entries[0]), &entry_count);
+  plumos_mali_find_prompt_path(lines, line_count, prompt_path, sizeof(prompt_path));
+  plumos_mali_find_footer_lines(lines, line_count, footer1, sizeof(footer1),
+                                footer2, sizeof(footer2));
+  is_rom_list = plumos_mali_title_is_rom_list(title);
+  is_top = plumos_mali_title_is_top(title);
+  is_settings = plumos_mali_title_is_settings(title);
+  is_settings_family = plumos_mali_title_is_settings_family(title);
+  is_settings_page = strstr(title, "Settings") != NULL;
+  show_prompt = !is_settings_family;
+  snprintf(prompt, sizeof(prompt), "root@PlumOS A30:~# ls -n -c ./systems/top");
+  if (is_rom_list && prompt_path[0]) {
+    snprintf(prompt, sizeof(prompt), "root@PlumOS A30:~# ls -n -c %s", prompt_path);
+  }
+  if (is_top || is_rom_list) {
+    prompt_r = 0.92f;
+    prompt_g = 0.96f;
+    prompt_b = 0.94f;
+  }
+  if (is_top || is_rom_list) {
+    accent_r = 1.0f;
+    accent_g = 0.52f;
+    accent_b = 0.05f;
+    show_accent = 1;
+  } else if (is_settings_family || is_settings) {
+    accent_r = 0.22f;
+    accent_g = 0.58f;
+    accent_b = 1.0f;
+    show_accent = 1;
+  }
+  entry_scale = plumos_mali_tty_font_scale(renderer);
+  if (is_settings_family) {
+    entry_scale = 3;
+  }
+  line_height = (float)(entry_scale * 12);
+  cell_width = 6 * entry_scale;
+  name_col = 2;
+  cursor_x = 18.0f;
+  right_margin = 18.0f;
+  if (is_settings_family) {
+    cursor_x = 12.0f;
+    name_col = 1;
+    right_margin = 8.0f;
+  }
+  name_x = cursor_x + (float)(name_col * cell_width);
+  count_right_x = (float)renderer->width - right_margin;
+  prompt_len = strlen(prompt);
+  prompt_cells_per_line = (size_t)(((float)renderer->width - 22.0f) / 12.0f);
+  if (prompt_cells_per_line >= sizeof(prompt_line1)) {
+    prompt_cells_per_line = sizeof(prompt_line1) - 1;
+  }
+  prompt_line1_len = prompt_len < prompt_cells_per_line ? prompt_len : prompt_cells_per_line;
+  prompt_line2_len = prompt_len - prompt_line1_len;
+  if (prompt_line2_len >= sizeof(prompt_line2)) {
+    prompt_line2_len = sizeof(prompt_line2) - 1;
+  }
+  memcpy(prompt_line1, prompt, prompt_line1_len);
+  prompt_line1[prompt_line1_len] = '\0';
+  memcpy(prompt_line2, prompt + prompt_line1_len, prompt_line2_len);
+  prompt_line2[prompt_line2_len] = '\0';
+
+  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
+  renderer->gl.UseProgram(renderer->program);
+  renderer->gl.ClearColor(0.000f, 0.006f, 0.005f, 1.0f);
+  renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
+
+  plumos_mali_tty_top_bar(renderer);
+  if (show_accent) {
+    plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                     accent_r, accent_g, accent_b, 1.0f);
+  }
+  if (show_prompt) {
+    plumos_mali_text(renderer, prompt_line1, 14.0f, 48.0f, 2,
+                     prompt_r, prompt_g, prompt_b, 1.0f);
+    if (prompt_line2[0]) {
+      plumos_mali_text(renderer, prompt_line2, 14.0f, 66.0f, 2,
+                       prompt_r, prompt_g, prompt_b, 1.0f);
+      prompt_cursor_width = plumos_mali_text_width(prompt_line2, 2);
+      prompt_cursor_y = 66.0f;
+    } else {
+      prompt_cursor_width = plumos_mali_text_width(prompt_line1, 2);
+      prompt_cursor_y = 48.0f;
+    }
+    if ((time(NULL) & 1) == 0 &&
+        14.0f + (float)prompt_cursor_width + 12.0f < (float)renderer->width - 8.0f) {
+      plumos_mali_rect(renderer, 14.0f + (float)prompt_cursor_width + 12.0f,
+                       prompt_cursor_y, 10.0f, 14.0f,
+                       prompt_r, prompt_g, prompt_b, 1.0f);
+    }
+    y = 104.0f;
+  } else {
+    plumos_mali_text(renderer, title, 14.0f, 48.0f, 2,
+                     0.72f, 0.88f, 1.0f, 1.0f);
+    y = 82.0f;
+  }
+
+  for (i = 0; i < entry_count; i++) {
+    int selected = 0;
+    char number[24];
+    char name[PLUMOS_MALI_RENDER_LINE_MAX];
+    char rom_name[PLUMOS_MALI_RENDER_LINE_MAX];
+    char visible_name[PLUMOS_MALI_RENDER_LINE_MAX];
+    char count[32];
+    float count_x;
+    float name_right_x;
+    int name_width;
+    int scroll_px;
+    const char *draw_name;
+    size_t name_cells;
+    float cursor_y;
+    float highlight_y;
+    float highlight_h;
+    float r = 0.72f;
+    float g = 0.82f;
+    float b = 0.78f;
+    if (!plumos_mali_tty_entry_parts(entries[i], &selected, number, sizeof(number),
+                                     name, sizeof(name), count, sizeof(count))) {
+      continue;
+    }
+    count_x = count[0] ? count_right_x - (float)plumos_mali_text_width(count, entry_scale)
+                       : count_right_x;
+    if (count_x < name_x + (float)(3 * cell_width)) {
+      count_x = name_x + (float)(3 * cell_width);
+    }
+    name_right_x = count[0] ? count_x - (float)cell_width : count_right_x;
+    if (name_right_x > (float)renderer->width - right_margin) {
+      name_right_x = (float)renderer->width - right_margin;
+    }
+    if (count[0]) {
+      name_cells = (size_t)((count_x - name_x - (float)cell_width) / (float)cell_width);
+    } else {
+      name_cells = (size_t)((name_right_x - name_x) / (float)cell_width);
+    }
+    if (!is_rom_list && !is_settings_family &&
+        name_cells > plumos_mali_tty_name_cells(entry_scale)) {
+      name_cells = plumos_mali_tty_name_cells(entry_scale);
+    }
+    if (name_cells < 1) {
+      name_cells = 1;
+    }
+    if (is_rom_list) {
+      plumos_mali_normalize_kana_marks(name, rom_name, sizeof(rom_name));
+    } else {
+      plumos_mali_copy_utf8_cells(name, visible_name, sizeof(visible_name), name_cells);
+      if (is_top) {
+        plumos_mali_ascii_upper_inplace(visible_name);
+      }
+    }
+    if (selected) {
+      highlight_y = y - 7.0f;
+      highlight_h = (float)(entry_scale * 7 + 10);
+      if (is_rom_list) {
+        highlight_y = y + (float)(entry_scale / 2);
+        highlight_h = (float)(entry_scale * 7 + 8);
+      }
+      plumos_mali_rect(renderer, 10.0f, highlight_y, (float)renderer->width - 20.0f,
+                       highlight_h, 0.12f, 0.23f, 0.17f, 1.0f);
+      r = 1.0f;
+      g = 0.88f;
+      b = 0.40f;
+    }
+    cursor_y = y;
+    if (is_rom_list) {
+      cursor_y += (float)((entry_scale * 3) / 2);
+    }
+    plumos_mali_text(renderer, selected ? ">" : " ", cursor_x, cursor_y,
+                     entry_scale, r, g, b, 1.0f);
+    (void)number;
+	    if (is_rom_list) {
+	      draw_name = rom_name;
+	      scroll_px = 0;
+	      if (selected) {
+	        name_width = plumos_mali_text_width_font(renderer, rom_name, entry_scale, 1);
+        if (name_width > (int)(name_right_x - name_x)) {
+          scroll_px = plumos_mali_marquee_offset(renderer, name_width,
+                                                 (int)(name_right_x - name_x),
+                                                 cell_width / 2);
+        }
+	      }
+	      plumos_mali_text_clipped(renderer, draw_name, name_x - (float)scroll_px, y,
+	                               entry_scale, 1, name_x, name_right_x, r, g, b, 1.0f);
+	    } else if (is_settings_page) {
+	      char setting_label[PLUMOS_MALI_RENDER_LINE_MAX];
+		      char setting_control[80];
+		      char visible_label[PLUMOS_MALI_RENDER_LINE_MAX];
+		      int control_width;
+		      float control_x;
+		      size_t label_cells;
+		      int flash_direction = 0;
+
+		      if (plumos_mali_split_setting_control(name, setting_label, sizeof(setting_label),
+		                                            setting_control, sizeof(setting_control),
+		                                            &flash_direction)) {
+	        control_width = plumos_mali_text_width(setting_control, entry_scale);
+	        control_x = count_right_x - (float)control_width;
+	        if (control_x < name_x + (float)(6 * cell_width)) {
+	          control_x = name_x + (float)(6 * cell_width);
+	        }
+	        label_cells = (size_t)((control_x - name_x - (float)cell_width) /
+	                               (float)cell_width);
+	        if (label_cells < 1) {
+	          label_cells = 1;
+	        }
+		        plumos_mali_copy_utf8_cells(setting_label, visible_label, sizeof(visible_label),
+		                                    label_cells);
+		        plumos_mali_text(renderer, visible_label, name_x, y, entry_scale, r, g, b, 1.0f);
+		        plumos_mali_text_setting_control(renderer, setting_control, control_x, y,
+		                                         entry_scale, flash_direction, r, g, b,
+		                                         1.0f);
+		      } else {
+	        plumos_mali_text(renderer, visible_name, name_x, y, entry_scale, r, g, b, 1.0f);
+	      }
+	    } else {
+	      plumos_mali_text(renderer, visible_name, name_x, y, entry_scale, r, g, b, 1.0f);
+	    }
+    if (count[0]) {
+      plumos_mali_text(renderer, count, count_x, y, entry_scale, r, g, b, 1.0f);
+    }
+    y += line_height;
+    if (y > (float)renderer->height - 34.0f) {
+      break;
+    }
+  }
+  if (entry_count == 0) {
+    plumos_mali_text(renderer, "NO ENTRIES", 18.0f, y, 2,
+                     0.54f, 0.78f, 0.68f, 1.0f);
+  }
+  if (is_settings_family && (footer1[0] || footer2[0])) {
+    plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 74.0f,
+                     (float)renderer->width, 74.0f,
+                     0.000f, 0.018f, 0.020f, 1.0f);
+    plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 76.0f,
+                     (float)renderer->width, 2.0f,
+                     0.06f, 0.18f, 0.25f, 1.0f);
+    if (footer1[0]) {
+      plumos_mali_text(renderer, footer1, 14.0f, (float)renderer->height - 56.0f,
+                       2, 0.64f, 0.82f, 0.92f, 1.0f);
+    }
+    if (footer2[0]) {
+      plumos_mali_text(renderer, footer2, 14.0f, (float)renderer->height - 34.0f,
+                       2, 0.64f, 0.82f, 0.92f, 1.0f);
+    }
+  }
+  (void)status;
+  renderer->gl.Finish();
+  return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
+}
+
+static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
+                                    const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+                                    size_t line_count) {
+  size_t i;
+  char title[80];
+  char meta[160];
+  char status[160];
+  char entries[18][PLUMOS_MALI_RENDER_LINE_MAX];
+  size_t entry_count = 0;
+  float margin = 14.0f;
+  float y;
+  float line_height = 28.0f;
+
+  if (renderer->style == PLUMOS_MALI_STYLE_TTY) {
+    return plumos_mali_render_lines_tty(renderer, lines, line_count);
+  }
+
+  plumos_mali_collect_lines(lines, line_count, title, sizeof(title),
+                            meta, sizeof(meta), status, sizeof(status),
+                            entries, sizeof(entries) / sizeof(entries[0]), &entry_count);
+
+  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
+  renderer->gl.UseProgram(renderer->program);
+  renderer->gl.ClearColor(0.012f, 0.016f, 0.018f, 1.0f);
+  renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
 
   plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 36.0f,
                    0.020f, 0.055f, 0.060f, 1.0f);

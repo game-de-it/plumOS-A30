@@ -1,5 +1,7 @@
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +25,8 @@
 #define MAX_RECENTS 256
 #define TEXT_COMMAND_MAX 8192
 #define TEXT_PATH_MAX 1024
+#define CPU_FREQ_UNSET (-1L)
+#define RETROARCH_SAFE_STATE_SLOT_DEFAULT "999"
 
 struct top_entry {
   char id[64];
@@ -65,6 +69,9 @@ struct core_system_def {
   char id[64];
   char display_name[128];
   char default_launch_profile[128];
+  char default_cpu_policy[32];
+  long default_cpu_freq_khz;
+  long default_cpu_cores;
   char launch_profiles[MAX_CORE_PROFILES][128];
   size_t launch_profile_count;
 };
@@ -72,12 +79,23 @@ struct core_system_def {
 struct system_core_override {
   char system_id[64];
   char launch_profile[128];
+  char cpu_policy[32];
+  long cpu_freq_khz;
+  long cpu_cores;
 };
 
 struct rom_core_override {
   char system_id[64];
   char relative_path[TEXT_PATH_MAX];
   char launch_profile[128];
+  char cpu_policy[32];
+  long cpu_freq_khz;
+  long cpu_cores;
+  char content_suffix[256];
+  char audio_driver[16];
+  long audio_latency_ms;
+  char dosbox_pure_force60fps[16];
+  char dosbox_pure_cycles[32];
 };
 
 struct core_override_state {
@@ -132,6 +150,18 @@ struct resume_session {
   int auto_state_load;
 };
 
+struct resume_hold {
+  char reason[64];
+  int auto_state_load;
+};
+
+struct retroarch_runtime_options {
+  char audio_driver[16];
+  long audio_latency_ms;
+  char dosbox_pure_force60fps[16];
+  char dosbox_pure_cycles[32];
+};
+
 struct launch_plan {
   char kind[32];
   char system_id[64];
@@ -139,10 +169,16 @@ struct launch_plan {
   char title[256];
   char rom_path[TEXT_PATH_MAX];
   char launch_profile[128];
+  char cpu_policy[32];
+  long cpu_freq_khz;
+  long cpu_cores;
   char retroarch_path[TEXT_PATH_MAX];
+  char standalone_launcher_path[TEXT_PATH_MAX];
   char core_path[TEXT_PATH_MAX];
   char config_path[TEXT_PATH_MAX];
+  char safe_state_slot[16];
   char command[TEXT_COMMAND_MAX];
+  struct retroarch_runtime_options retroarch_options;
   int auto_state_load;
   int rom_exists;
   int runtime_exists;
@@ -155,6 +191,24 @@ struct frontend_settings {
   int show_empty_systems;
   char boot_resume_mode[32];
 };
+
+struct cpu_preset {
+  const char *label;
+  const char *policy;
+  long freq_khz;
+};
+
+static const struct cpu_preset CPU_PRESETS[] = {
+    {"648 MHz", "fixed", 648000},
+    {"816 MHz", "fixed", 816000},
+    {"1200 MHz", "fixed", 1200000},
+    {"1344 MHz", "fixed", 1344000},
+};
+
+static const size_t CPU_PRESET_COUNT = sizeof(CPU_PRESETS) / sizeof(CPU_PRESETS[0]);
+
+static const long CPU_CORE_PRESETS[] = {2, 4};
+static const size_t CPU_CORE_PRESET_COUNT = sizeof(CPU_CORE_PRESETS) / sizeof(CPU_CORE_PRESETS[0]);
 
 static int copy_string(char *out, size_t out_size, const char *in) {
   size_t len;
@@ -240,6 +294,28 @@ static int file_exists(const char *path) {
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+static int split_content_suffix(const char *path, char *base_out, size_t base_out_size,
+                                const char **suffix_out);
+
+static int rom_path_exists(const char *path) {
+  struct stat st;
+  char base_path[TEXT_PATH_MAX];
+
+  if (stat(path, &st) == 0 && (S_ISREG(st.st_mode) || S_ISDIR(st.st_mode))) {
+    return 1;
+  }
+  if (split_content_suffix(path, base_path, sizeof(base_path), NULL) &&
+      strcmp(base_path, path) != 0 && stat(base_path, &st) == 0) {
+    return S_ISREG(st.st_mode) || S_ISDIR(st.st_mode);
+  }
+  return 0;
+}
+
+static int path_exists_any(const char *path) {
+  struct stat st;
+  return stat(path, &st) == 0;
+}
+
 static int valid_system_id(const char *s) {
   if (!s || !s[0]) {
     return 0;
@@ -264,6 +340,168 @@ static int valid_launch_profile_id(const char *s) {
     }
   }
   return 1;
+}
+
+static int valid_cpu_policy(const char *s) {
+  return s && (strcmp(s, "performance") == 0 || strcmp(s, "fixed") == 0);
+}
+
+static int parse_cpu_freq_khz(const char *s, long *out) {
+  char *end = NULL;
+  long value;
+
+  if (!s || !s[0] || !out) {
+    return 0;
+  }
+  errno = 0;
+  value = strtol(s, &end, 10);
+  if (errno != 0 || !end || *end != '\0' || value <= 0) {
+    return 0;
+  }
+  *out = value;
+  return 1;
+}
+
+static int valid_cpu_cores(long value) {
+  return value == 2 || value == 4;
+}
+
+static int parse_cpu_cores(const char *s, long *out) {
+  char *end = NULL;
+  long value;
+
+  if (!s || !s[0] || !out) {
+    return 0;
+  }
+  errno = 0;
+  value = strtol(s, &end, 10);
+  if (errno != 0 || !end || *end != '\0' || !valid_cpu_cores(value)) {
+    return 0;
+  }
+  *out = value;
+  return 1;
+}
+
+static int valid_retroarch_audio_driver(const char *s) {
+  return s && (strcmp(s, "oss") == 0 || strcmp(s, "alsa") == 0);
+}
+
+static int parse_audio_latency_ms(const char *s, long *out) {
+  char *end = NULL;
+  long value;
+
+  if (!s || !s[0] || !out) {
+    return 0;
+  }
+  errno = 0;
+  value = strtol(s, &end, 10);
+  if (errno != 0 || !end || *end != '\0' || value <= 0 || value > 1000) {
+    return 0;
+  }
+  *out = value;
+  return 1;
+}
+
+static int valid_dosbox_bool(const char *s) {
+  return s && (strcmp(s, "true") == 0 || strcmp(s, "false") == 0);
+}
+
+static int valid_dosbox_cycles(const char *s) {
+  char *end = NULL;
+  long value;
+
+  if (!s || !s[0]) {
+    return 0;
+  }
+  if (strcmp(s, "auto") == 0 || strcmp(s, "max") == 0) {
+    return 1;
+  }
+  errno = 0;
+  value = strtol(s, &end, 10);
+  return errno == 0 && end && *end == '\0' && value > 0 && value <= 1000000;
+}
+
+static int valid_content_suffix(const char *s) {
+  const char *body;
+
+  if (!s || s[0] != '#' || !s[1]) {
+    return 0;
+  }
+  body = s + 1;
+  if (body[0] == '/' || strstr(body, "../") || strstr(body, "/..") || strcmp(body, "..") == 0) {
+    return 0;
+  }
+  while (*body) {
+    unsigned char c = (unsigned char)*body++;
+    if (c < 0x20 || c == 0x7f || c == '#') {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int split_content_suffix(const char *path, char *base_out, size_t base_out_size,
+                                const char **suffix_out) {
+  const char *hash;
+  size_t base_len;
+
+  if (!path || !path[0]) {
+    return 0;
+  }
+  hash = strchr(path, '#');
+  if (!hash) {
+    if (base_out) {
+      return copy_string(base_out, base_out_size, path);
+    }
+    if (suffix_out) {
+      *suffix_out = NULL;
+    }
+    return 1;
+  }
+  if (!valid_content_suffix(hash)) {
+    return 0;
+  }
+  base_len = (size_t)(hash - path);
+  if (base_len == 0 || (base_out && base_len + 1 > base_out_size)) {
+    return 0;
+  }
+  if (base_out) {
+    memcpy(base_out, path, base_len);
+    base_out[base_len] = '\0';
+  }
+  if (suffix_out) {
+    *suffix_out = hash;
+  }
+  return 1;
+}
+
+static int parse_retroarch_state_slot(const char *s, long *out) {
+  char *end = NULL;
+  long value;
+
+  if (!s || !s[0] || !out) {
+    return 0;
+  }
+  errno = 0;
+  value = strtol(s, &end, 10);
+  if (errno != 0 || !end || *end != '\0' || value < 0 || value > 999) {
+    return 0;
+  }
+  *out = value;
+  return 1;
+}
+
+static int resolve_retroarch_safe_state_slot(char *out, size_t out_size) {
+  const char *slot = getenv("PLUMOS_RA_SAFE_STATE_SLOT");
+  long parsed;
+  int written;
+
+  if (!slot || !slot[0] || !parse_retroarch_state_slot(slot, &parsed)) {
+    slot = RETROARCH_SAFE_STATE_SLOT_DEFAULT;
+    parse_retroarch_state_slot(slot, &parsed);
+  }
+  written = snprintf(out, out_size, "%ld", parsed);
+  return written > 0 && (size_t)written < out_size;
 }
 
 static int valid_relative_rom_path(const char *s) {
@@ -712,6 +950,111 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
   return 0;
 }
 
+static int env_flag_disabled(const char *name) {
+  const char *value = getenv(name);
+
+  if (!value || !value[0]) {
+    return 0;
+  }
+  return strcmp(value, "0") == 0 || strcmp(value, "false") == 0 || strcmp(value, "False") == 0 ||
+         strcmp(value, "no") == 0 || strcmp(value, "No") == 0 || strcmp(value, "off") == 0 ||
+         strcmp(value, "Off") == 0;
+}
+
+static void redirect_stdio_to_devnull(void) {
+  int fd = open("/dev/null", O_RDWR);
+
+  if (fd < 0) {
+    return;
+  }
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
+  if (fd > STDERR_FILENO) {
+    close(fd);
+  }
+}
+
+static int launch_plan_uses_emulator(const struct launch_plan *plan) {
+  return plan && (strcmp(plan->kind, "retroarch") == 0 || strcmp(plan->kind, "standalone") == 0);
+}
+
+static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_plan *plan) {
+  char hotkeyd_path[PATH_MAX];
+  pid_t pid;
+
+  if (!launch_plan_uses_emulator(plan) || env_flag_disabled("PLUMOS_SAFE_HOTKEYD_AUTOSTART")) {
+    return 0;
+  }
+  if (!join_path(hotkeyd_path, sizeof(hotkeyd_path), plumos_root, "bin/plumos-safe-hotkeyd")) {
+    fprintf(stderr, "warning: safe hotkeyd path is too long\n");
+    return 0;
+  }
+  if (!file_exists(hotkeyd_path)) {
+    fprintf(stderr, "warning: missing safe hotkeyd: %s\n", hotkeyd_path);
+    return 0;
+  }
+
+  pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "warning: cannot start safe hotkeyd: %s\n", strerror(errno));
+    return 0;
+  }
+  if (pid == 0) {
+    redirect_stdio_to_devnull();
+    execl(hotkeyd_path, hotkeyd_path, "--oneshot", (char *)NULL);
+    _exit(127);
+  }
+
+  printf("safe_hotkeyd: started pid=%ld\n", (long)pid);
+  return pid;
+}
+
+static void stop_safe_hotkeyd(pid_t pid) {
+  int status;
+
+  if (pid <= 0) {
+    return;
+  }
+  if (waitpid(pid, &status, WNOHANG) == pid) {
+    return;
+  }
+  if (errno == ECHILD) {
+    return;
+  }
+
+  if (path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
+    for (int i = 0; i < 350; i++) {
+      pid_t rc = waitpid(pid, &status, WNOHANG);
+      if (rc == pid || (rc < 0 && errno == ECHILD)) {
+        return;
+      }
+      if (!path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
+        break;
+      }
+      usleep(100000);
+    }
+    for (int i = 0; i < 20; i++) {
+      pid_t rc = waitpid(pid, &status, WNOHANG);
+      if (rc == pid || (rc < 0 && errno == ECHILD)) {
+        return;
+      }
+      usleep(100000);
+    }
+  }
+
+  kill(pid, SIGTERM);
+  for (int i = 0; i < 20; i++) {
+    pid_t rc = waitpid(pid, &status, WNOHANG);
+    if (rc == pid || (rc < 0 && errno == ECHILD)) {
+      return;
+    }
+    usleep(100000);
+  }
+  kill(pid, SIGKILL);
+  waitpid(pid, &status, 0);
+}
+
 static void init_frontend_settings(struct frontend_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
@@ -831,6 +1174,27 @@ static int load_core_system_def(const char *path, const char *system_id,
                     sizeof(system.display_name));
     json_get_string(obj, obj + strlen(obj), "default_launch_profile",
                     system.default_launch_profile, sizeof(system.default_launch_profile));
+    json_get_string(obj, obj + strlen(obj), "default_cpu_policy", system.default_cpu_policy,
+                    sizeof(system.default_cpu_policy));
+    system.default_cpu_freq_khz =
+        json_get_long(obj, obj + strlen(obj), "default_cpu_freq_khz", 0);
+    system.default_cpu_cores = json_get_long(obj, obj + strlen(obj), "default_cpu_cores", 0);
+    if (!system.default_cpu_policy[0] && system.default_cpu_freq_khz > 0) {
+      copy_string(system.default_cpu_policy, sizeof(system.default_cpu_policy), "fixed");
+    }
+    if (system.default_cpu_policy[0] && !valid_cpu_policy(system.default_cpu_policy)) {
+      system.default_cpu_policy[0] = '\0';
+      system.default_cpu_freq_khz = 0;
+    }
+    if (strcmp(system.default_cpu_policy, "fixed") == 0 && system.default_cpu_freq_khz <= 0) {
+      system.default_cpu_policy[0] = '\0';
+      system.default_cpu_freq_khz = 0;
+    } else if (strcmp(system.default_cpu_policy, "fixed") != 0) {
+      system.default_cpu_freq_khz = 0;
+    }
+    if (!valid_cpu_cores(system.default_cpu_cores)) {
+      system.default_cpu_cores = system.default_cpu_policy[0] ? 2 : 0;
+    }
     parse_launch_profile_array(obj, obj + strlen(obj), &system);
     if (system.default_launch_profile[0]) {
       add_core_profile(&system, system.default_launch_profile);
@@ -889,7 +1253,22 @@ static int load_core_overrides(const char *path, struct core_override_state *sta
                       sizeof(entry.system_id));
       json_get_string(obj, obj + strlen(obj), "launch_profile", entry.launch_profile,
                       sizeof(entry.launch_profile));
-      if (valid_system_id(entry.system_id) && valid_launch_profile_id(entry.launch_profile)) {
+      json_get_string(obj, obj + strlen(obj), "cpu_policy", entry.cpu_policy,
+                      sizeof(entry.cpu_policy));
+      entry.cpu_freq_khz = json_get_long(obj, obj + strlen(obj), "cpu_freq_khz", 0);
+      entry.cpu_cores = json_get_long(obj, obj + strlen(obj), "cpu_cores", 0);
+      if (strcmp(entry.cpu_policy, "fixed") == 0 && entry.cpu_freq_khz <= 0) {
+        entry.cpu_policy[0] = '\0';
+        entry.cpu_freq_khz = 0;
+      } else if (strcmp(entry.cpu_policy, "fixed") != 0) {
+        entry.cpu_freq_khz = 0;
+      }
+      if (!valid_cpu_cores(entry.cpu_cores)) {
+        entry.cpu_cores = 0;
+      }
+      if (valid_system_id(entry.system_id) &&
+          (!entry.launch_profile[0] || valid_launch_profile_id(entry.launch_profile)) &&
+          (!entry.cpu_policy[0] || valid_cpu_policy(entry.cpu_policy))) {
         state->system_overrides[state->system_override_count++] = entry;
       }
       free(obj);
@@ -919,8 +1298,48 @@ static int load_core_overrides(const char *path, struct core_override_state *sta
                       sizeof(entry.relative_path));
       json_get_string(obj, obj + strlen(obj), "launch_profile", entry.launch_profile,
                       sizeof(entry.launch_profile));
+      json_get_string(obj, obj + strlen(obj), "cpu_policy", entry.cpu_policy,
+                      sizeof(entry.cpu_policy));
+      json_get_string(obj, obj + strlen(obj), "content_suffix", entry.content_suffix,
+                      sizeof(entry.content_suffix));
+      json_get_string(obj, obj + strlen(obj), "audio_driver", entry.audio_driver,
+                      sizeof(entry.audio_driver));
+      json_get_string(obj, obj + strlen(obj), "dosbox_pure_force60fps",
+                      entry.dosbox_pure_force60fps,
+                      sizeof(entry.dosbox_pure_force60fps));
+      json_get_string(obj, obj + strlen(obj), "dosbox_pure_cycles",
+                      entry.dosbox_pure_cycles, sizeof(entry.dosbox_pure_cycles));
+      entry.cpu_freq_khz = json_get_long(obj, obj + strlen(obj), "cpu_freq_khz", 0);
+      entry.cpu_cores = json_get_long(obj, obj + strlen(obj), "cpu_cores", 0);
+      entry.audio_latency_ms = json_get_long(obj, obj + strlen(obj), "audio_latency_ms", 0);
+      if (strcmp(entry.cpu_policy, "fixed") == 0 && entry.cpu_freq_khz <= 0) {
+        entry.cpu_policy[0] = '\0';
+        entry.cpu_freq_khz = 0;
+      } else if (strcmp(entry.cpu_policy, "fixed") != 0) {
+        entry.cpu_freq_khz = 0;
+      }
+      if (!valid_cpu_cores(entry.cpu_cores)) {
+        entry.cpu_cores = 0;
+      }
+      if (entry.content_suffix[0] && !valid_content_suffix(entry.content_suffix)) {
+        entry.content_suffix[0] = '\0';
+      }
+      if (entry.audio_driver[0] && !valid_retroarch_audio_driver(entry.audio_driver)) {
+        entry.audio_driver[0] = '\0';
+      }
+      if (entry.audio_latency_ms <= 0 || entry.audio_latency_ms > 1000) {
+        entry.audio_latency_ms = 0;
+      }
+      if (entry.dosbox_pure_force60fps[0] &&
+          !valid_dosbox_bool(entry.dosbox_pure_force60fps)) {
+        entry.dosbox_pure_force60fps[0] = '\0';
+      }
+      if (entry.dosbox_pure_cycles[0] && !valid_dosbox_cycles(entry.dosbox_pure_cycles)) {
+        entry.dosbox_pure_cycles[0] = '\0';
+      }
       if (valid_system_id(entry.system_id) && valid_relative_rom_path(entry.relative_path) &&
-          valid_launch_profile_id(entry.launch_profile)) {
+          (!entry.launch_profile[0] || valid_launch_profile_id(entry.launch_profile)) &&
+          (!entry.cpu_policy[0] || valid_cpu_policy(entry.cpu_policy))) {
         state->rom_overrides[state->rom_override_count++] = entry;
       }
       free(obj);
@@ -953,8 +1372,20 @@ static int save_core_overrides(const char *path, const struct core_override_stat
   for (i = 0; i < state->system_override_count; i++) {
     fprintf(f, "    { \"system_id\": ");
     json_write_escaped(f, state->system_overrides[i].system_id);
-    fprintf(f, ", \"launch_profile\": ");
-    json_write_escaped(f, state->system_overrides[i].launch_profile);
+    if (state->system_overrides[i].launch_profile[0]) {
+      fprintf(f, ", \"launch_profile\": ");
+      json_write_escaped(f, state->system_overrides[i].launch_profile);
+    }
+    if (state->system_overrides[i].cpu_policy[0]) {
+      fprintf(f, ", \"cpu_policy\": ");
+      json_write_escaped(f, state->system_overrides[i].cpu_policy);
+      if (state->system_overrides[i].cpu_freq_khz > 0) {
+        fprintf(f, ", \"cpu_freq_khz\": %ld", state->system_overrides[i].cpu_freq_khz);
+      }
+    }
+    if (state->system_overrides[i].cpu_cores > 0) {
+      fprintf(f, ", \"cpu_cores\": %ld", state->system_overrides[i].cpu_cores);
+    }
     fprintf(f, " }%s\n", i + 1 < state->system_override_count ? "," : "");
   }
   fprintf(f, "  ],\n");
@@ -964,8 +1395,39 @@ static int save_core_overrides(const char *path, const struct core_override_stat
     json_write_escaped(f, state->rom_overrides[i].system_id);
     fprintf(f, ", \"relative_path\": ");
     json_write_escaped(f, state->rom_overrides[i].relative_path);
-    fprintf(f, ", \"launch_profile\": ");
-    json_write_escaped(f, state->rom_overrides[i].launch_profile);
+    if (state->rom_overrides[i].launch_profile[0]) {
+      fprintf(f, ", \"launch_profile\": ");
+      json_write_escaped(f, state->rom_overrides[i].launch_profile);
+    }
+    if (state->rom_overrides[i].cpu_policy[0]) {
+      fprintf(f, ", \"cpu_policy\": ");
+      json_write_escaped(f, state->rom_overrides[i].cpu_policy);
+      if (state->rom_overrides[i].cpu_freq_khz > 0) {
+        fprintf(f, ", \"cpu_freq_khz\": %ld", state->rom_overrides[i].cpu_freq_khz);
+      }
+    }
+    if (state->rom_overrides[i].cpu_cores > 0) {
+      fprintf(f, ", \"cpu_cores\": %ld", state->rom_overrides[i].cpu_cores);
+    }
+    if (state->rom_overrides[i].content_suffix[0]) {
+      fprintf(f, ", \"content_suffix\": ");
+      json_write_escaped(f, state->rom_overrides[i].content_suffix);
+    }
+    if (state->rom_overrides[i].audio_driver[0]) {
+      fprintf(f, ", \"audio_driver\": ");
+      json_write_escaped(f, state->rom_overrides[i].audio_driver);
+    }
+    if (state->rom_overrides[i].audio_latency_ms > 0) {
+      fprintf(f, ", \"audio_latency_ms\": %ld", state->rom_overrides[i].audio_latency_ms);
+    }
+    if (state->rom_overrides[i].dosbox_pure_force60fps[0]) {
+      fprintf(f, ", \"dosbox_pure_force60fps\": ");
+      json_write_escaped(f, state->rom_overrides[i].dosbox_pure_force60fps);
+    }
+    if (state->rom_overrides[i].dosbox_pure_cycles[0]) {
+      fprintf(f, ", \"dosbox_pure_cycles\": ");
+      json_write_escaped(f, state->rom_overrides[i].dosbox_pure_cycles);
+    }
     fprintf(f, " }%s\n", i + 1 < state->rom_override_count ? "," : "");
   }
   fprintf(f, "  ]\n");
@@ -996,13 +1458,46 @@ static int find_system_core_override(const struct core_override_state *state,
 static int find_rom_core_override(const struct core_override_state *state, const char *system_id,
                                   const char *relative_path) {
   size_t i;
+  char base_relative_path[TEXT_PATH_MAX];
+  const char *suffix = NULL;
+
   for (i = 0; i < state->rom_override_count; i++) {
     if (strcmp(state->rom_overrides[i].system_id, system_id) == 0 &&
         strcmp(state->rom_overrides[i].relative_path, relative_path) == 0) {
       return (int)i;
     }
   }
+  if (system_id && strcmp(system_id, "dos") == 0 &&
+      split_content_suffix(relative_path, base_relative_path, sizeof(base_relative_path),
+                           &suffix) &&
+      suffix && valid_relative_rom_path(base_relative_path)) {
+    for (i = 0; i < state->rom_override_count; i++) {
+      if (strcmp(state->rom_overrides[i].system_id, system_id) == 0 &&
+          strcmp(state->rom_overrides[i].relative_path, base_relative_path) == 0) {
+        return (int)i;
+      }
+    }
+  }
   return -1;
+}
+
+static struct rom_core_override *ensure_rom_core_override(struct core_override_state *state,
+                                                          const char *system_id,
+                                                          const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+  struct rom_core_override *entry;
+
+  if (idx >= 0) {
+    return &state->rom_overrides[idx];
+  }
+  if (state->rom_override_count >= MAX_ROM_CORE_OVERRIDES) {
+    return NULL;
+  }
+  entry = &state->rom_overrides[state->rom_override_count++];
+  memset(entry, 0, sizeof(*entry));
+  copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+  copy_string(entry->relative_path, sizeof(entry->relative_path), relative_path);
+  return entry;
 }
 
 static int set_system_core_override(struct core_override_state *state, const char *system_id,
@@ -1025,6 +1520,17 @@ static int set_system_core_override(struct core_override_state *state, const cha
   return 1;
 }
 
+static int system_core_override_is_empty(const struct system_core_override *entry) {
+  return !entry->launch_profile[0] && !entry->cpu_policy[0] && entry->cpu_cores <= 0;
+}
+
+static int rom_core_override_is_empty(const struct rom_core_override *entry) {
+  return !entry->launch_profile[0] && !entry->cpu_policy[0] && entry->cpu_cores <= 0 &&
+         !entry->content_suffix[0] && !entry->audio_driver[0] &&
+         entry->audio_latency_ms <= 0 && !entry->dosbox_pure_force60fps[0] &&
+         !entry->dosbox_pure_cycles[0];
+}
+
 static int clear_system_core_override(struct core_override_state *state, const char *system_id) {
   int idx = find_system_core_override(state, system_id);
   if (idx < 0) {
@@ -1036,6 +1542,71 @@ static int clear_system_core_override(struct core_override_state *state, const c
                 sizeof(state->system_overrides[0]));
   }
   state->system_override_count--;
+  return 1;
+}
+
+static int set_system_cpu_override(struct core_override_state *state, const char *system_id,
+                                   const char *cpu_policy, long cpu_freq_khz) {
+  int idx = find_system_core_override(state, system_id);
+  struct system_core_override *entry;
+
+  if (!valid_cpu_policy(cpu_policy)) {
+    return 0;
+  }
+  if (strcmp(cpu_policy, "fixed") != 0) {
+    cpu_freq_khz = 0;
+  } else if (cpu_freq_khz <= 0) {
+    return 0;
+  }
+
+  if (idx >= 0) {
+    entry = &state->system_overrides[idx];
+  } else {
+    if (state->system_override_count >= MAX_SYSTEM_CORE_OVERRIDES) {
+      return 0;
+    }
+    entry = &state->system_overrides[state->system_override_count++];
+    memset(entry, 0, sizeof(*entry));
+    copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+  }
+  copy_string(entry->cpu_policy, sizeof(entry->cpu_policy), cpu_policy);
+  entry->cpu_freq_khz = cpu_freq_khz;
+  return 1;
+}
+
+static int clear_system_cpu_override(struct core_override_state *state, const char *system_id) {
+  int idx = find_system_core_override(state, system_id);
+  if (idx < 0) {
+    return 1;
+  }
+  state->system_overrides[idx].cpu_policy[0] = '\0';
+  state->system_overrides[idx].cpu_freq_khz = 0;
+  state->system_overrides[idx].cpu_cores = 0;
+  if (system_core_override_is_empty(&state->system_overrides[idx])) {
+    return clear_system_core_override(state, system_id);
+  }
+  return 1;
+}
+
+static int set_system_cpu_cores_override(struct core_override_state *state, const char *system_id,
+                                         long cpu_cores) {
+  int idx = find_system_core_override(state, system_id);
+  struct system_core_override *entry;
+
+  if (!valid_cpu_cores(cpu_cores)) {
+    return 0;
+  }
+  if (idx >= 0) {
+    entry = &state->system_overrides[idx];
+  } else {
+    if (state->system_override_count >= MAX_SYSTEM_CORE_OVERRIDES) {
+      return 0;
+    }
+    entry = &state->system_overrides[state->system_override_count++];
+    memset(entry, 0, sizeof(*entry));
+    copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+  }
+  entry->cpu_cores = cpu_cores;
   return 1;
 }
 
@@ -1075,6 +1646,202 @@ static int clear_rom_core_override(struct core_override_state *state, const char
   return 1;
 }
 
+static int set_rom_cpu_override(struct core_override_state *state, const char *system_id,
+                                const char *relative_path, const char *cpu_policy,
+                                long cpu_freq_khz) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+  struct rom_core_override *entry;
+
+  if (!valid_cpu_policy(cpu_policy)) {
+    return 0;
+  }
+  if (strcmp(cpu_policy, "fixed") != 0) {
+    cpu_freq_khz = 0;
+  } else if (cpu_freq_khz <= 0) {
+    return 0;
+  }
+
+  if (idx >= 0) {
+    entry = &state->rom_overrides[idx];
+  } else {
+    if (state->rom_override_count >= MAX_ROM_CORE_OVERRIDES) {
+      return 0;
+    }
+    entry = &state->rom_overrides[state->rom_override_count++];
+    memset(entry, 0, sizeof(*entry));
+    copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+    copy_string(entry->relative_path, sizeof(entry->relative_path), relative_path);
+  }
+  copy_string(entry->cpu_policy, sizeof(entry->cpu_policy), cpu_policy);
+  entry->cpu_freq_khz = cpu_freq_khz;
+  return 1;
+}
+
+static int clear_rom_cpu_override(struct core_override_state *state, const char *system_id,
+                                  const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+  if (idx < 0) {
+    return 1;
+  }
+  state->rom_overrides[idx].cpu_policy[0] = '\0';
+  state->rom_overrides[idx].cpu_freq_khz = 0;
+  state->rom_overrides[idx].cpu_cores = 0;
+  if (rom_core_override_is_empty(&state->rom_overrides[idx])) {
+    return clear_rom_core_override(state, system_id, relative_path);
+  }
+  return 1;
+}
+
+static int set_rom_cpu_cores_override(struct core_override_state *state, const char *system_id,
+                                      const char *relative_path, long cpu_cores) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+  struct rom_core_override *entry;
+
+  if (!valid_cpu_cores(cpu_cores)) {
+    return 0;
+  }
+  if (idx >= 0) {
+    entry = &state->rom_overrides[idx];
+  } else {
+    if (state->rom_override_count >= MAX_ROM_CORE_OVERRIDES) {
+      return 0;
+    }
+    entry = &state->rom_overrides[state->rom_override_count++];
+    memset(entry, 0, sizeof(*entry));
+    copy_string(entry->system_id, sizeof(entry->system_id), system_id);
+    copy_string(entry->relative_path, sizeof(entry->relative_path), relative_path);
+  }
+  entry->cpu_cores = cpu_cores;
+  return 1;
+}
+
+static int set_rom_content_suffix_override(struct core_override_state *state,
+                                           const char *system_id,
+                                           const char *relative_path,
+                                           const char *content_suffix) {
+  struct rom_core_override *entry;
+
+  if (!valid_content_suffix(content_suffix)) {
+    return 0;
+  }
+  entry = ensure_rom_core_override(state, system_id, relative_path);
+  if (!entry) {
+    return 0;
+  }
+  return copy_string(entry->content_suffix, sizeof(entry->content_suffix), content_suffix);
+}
+
+static int clear_rom_content_suffix_override(struct core_override_state *state,
+                                             const char *system_id,
+                                             const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+
+  if (idx < 0) {
+    return 1;
+  }
+  state->rom_overrides[idx].content_suffix[0] = '\0';
+  if (rom_core_override_is_empty(&state->rom_overrides[idx])) {
+    return clear_rom_core_override(state, system_id, relative_path);
+  }
+  return 1;
+}
+
+static int set_rom_audio_driver_override(struct core_override_state *state,
+                                         const char *system_id,
+                                         const char *relative_path,
+                                         const char *audio_driver) {
+  struct rom_core_override *entry;
+
+  if (!valid_retroarch_audio_driver(audio_driver)) {
+    return 0;
+  }
+  entry = ensure_rom_core_override(state, system_id, relative_path);
+  if (!entry) {
+    return 0;
+  }
+  return copy_string(entry->audio_driver, sizeof(entry->audio_driver), audio_driver);
+}
+
+static int set_rom_audio_latency_override(struct core_override_state *state,
+                                          const char *system_id,
+                                          const char *relative_path,
+                                          long audio_latency_ms) {
+  struct rom_core_override *entry;
+
+  if (audio_latency_ms <= 0 || audio_latency_ms > 1000) {
+    return 0;
+  }
+  entry = ensure_rom_core_override(state, system_id, relative_path);
+  if (!entry) {
+    return 0;
+  }
+  entry->audio_latency_ms = audio_latency_ms;
+  return 1;
+}
+
+static int clear_rom_audio_override(struct core_override_state *state, const char *system_id,
+                                    const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+
+  if (idx < 0) {
+    return 1;
+  }
+  state->rom_overrides[idx].audio_driver[0] = '\0';
+  state->rom_overrides[idx].audio_latency_ms = 0;
+  if (rom_core_override_is_empty(&state->rom_overrides[idx])) {
+    return clear_rom_core_override(state, system_id, relative_path);
+  }
+  return 1;
+}
+
+static int set_rom_dosbox_force60fps_override(struct core_override_state *state,
+                                              const char *system_id,
+                                              const char *relative_path,
+                                              const char *force60fps) {
+  struct rom_core_override *entry;
+
+  if (!valid_dosbox_bool(force60fps)) {
+    return 0;
+  }
+  entry = ensure_rom_core_override(state, system_id, relative_path);
+  if (!entry) {
+    return 0;
+  }
+  return copy_string(entry->dosbox_pure_force60fps,
+                     sizeof(entry->dosbox_pure_force60fps), force60fps);
+}
+
+static int set_rom_dosbox_cycles_override(struct core_override_state *state,
+                                          const char *system_id,
+                                          const char *relative_path,
+                                          const char *cycles) {
+  struct rom_core_override *entry;
+
+  if (!valid_dosbox_cycles(cycles)) {
+    return 0;
+  }
+  entry = ensure_rom_core_override(state, system_id, relative_path);
+  if (!entry) {
+    return 0;
+  }
+  return copy_string(entry->dosbox_pure_cycles, sizeof(entry->dosbox_pure_cycles), cycles);
+}
+
+static int clear_rom_dosbox_override(struct core_override_state *state, const char *system_id,
+                                     const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+
+  if (idx < 0) {
+    return 1;
+  }
+  state->rom_overrides[idx].dosbox_pure_force60fps[0] = '\0';
+  state->rom_overrides[idx].dosbox_pure_cycles[0] = '\0';
+  if (rom_core_override_is_empty(&state->rom_overrides[idx])) {
+    return clear_rom_core_override(state, system_id, relative_path);
+  }
+  return 1;
+}
+
 static int find_rom_by_relative_path(const struct rom_entry *entries, size_t count,
                                      const char *relative_path) {
   size_t i;
@@ -1086,6 +1853,31 @@ static int find_rom_by_relative_path(const struct rom_entry *entries, size_t cou
   return -1;
 }
 
+static int find_rom_by_relative_path_or_dos_suffix(const struct rom_entry *entries,
+                                                   size_t count, const char *system_id,
+                                                   const char *relative_path,
+                                                   char *base_out, size_t base_out_size,
+                                                   const char **suffix_out) {
+  int idx;
+
+  if (suffix_out) {
+    *suffix_out = NULL;
+  }
+  idx = find_rom_by_relative_path(entries, count, relative_path);
+  if (idx >= 0) {
+    if (base_out) {
+      copy_string(base_out, base_out_size, relative_path);
+    }
+    return idx;
+  }
+  if (!system_id || strcmp(system_id, "dos") != 0 ||
+      !split_content_suffix(relative_path, base_out, base_out_size, suffix_out) ||
+      !suffix_out || !*suffix_out || !valid_relative_rom_path(base_out)) {
+    return -1;
+  }
+  return find_rom_by_relative_path(entries, count, base_out);
+}
+
 static int resolve_launch_profile(const struct core_system_def *system,
                                   const struct core_override_state *overrides,
                                   const char *relative_path, char *out, size_t out_size) {
@@ -1093,18 +1885,188 @@ static int resolve_launch_profile(const struct core_system_def *system,
 
   if (relative_path) {
     idx = find_rom_core_override(overrides, system->id, relative_path);
-    if (idx >= 0) {
+    if (idx >= 0 && overrides->rom_overrides[idx].launch_profile[0]) {
       return copy_string(out, out_size, overrides->rom_overrides[idx].launch_profile);
     }
   }
   idx = find_system_core_override(overrides, system->id);
-  if (idx >= 0) {
+  if (idx >= 0 && overrides->system_overrides[idx].launch_profile[0]) {
     return copy_string(out, out_size, overrides->system_overrides[idx].launch_profile);
   }
   if (system->default_launch_profile[0]) {
     return copy_string(out, out_size, system->default_launch_profile);
   }
   return copy_string(out, out_size, "auto");
+}
+
+static int cpu_setting_is_valid(const char *policy, long freq_khz) {
+  if (!valid_cpu_policy(policy)) {
+    return 0;
+  }
+  if (strcmp(policy, "fixed") == 0) {
+    return freq_khz > 0;
+  }
+  return 1;
+}
+
+static int copy_cpu_setting(char *policy_out, size_t policy_size, long *freq_out,
+                            const char *policy, long freq_khz) {
+  if (!cpu_setting_is_valid(policy, freq_khz)) {
+    return 0;
+  }
+  if (!copy_string(policy_out, policy_size, policy)) {
+    return 0;
+  }
+  *freq_out = strcmp(policy, "fixed") == 0 ? freq_khz : 0;
+  return 1;
+}
+
+static int resolve_cpu_setting(const struct core_system_def *system,
+                               const struct core_override_state *overrides,
+                               const char *relative_path, char *policy_out,
+                               size_t policy_size, long *freq_out,
+                               const char **source_out) {
+  int idx;
+
+  if (!policy_out || policy_size == 0 || !freq_out || !source_out) {
+    return 0;
+  }
+  policy_out[0] = '\0';
+  *freq_out = 0;
+  *source_out = "launcher default";
+
+  if (relative_path) {
+    idx = find_rom_core_override(overrides, system->id, relative_path);
+    if (idx >= 0 && overrides->rom_overrides[idx].cpu_policy[0]) {
+      if (copy_cpu_setting(policy_out, policy_size, freq_out,
+                           overrides->rom_overrides[idx].cpu_policy,
+                           overrides->rom_overrides[idx].cpu_freq_khz)) {
+        *source_out = "ROM override";
+        return 1;
+      }
+    }
+  }
+  idx = find_system_core_override(overrides, system->id);
+  if (idx >= 0 && overrides->system_overrides[idx].cpu_policy[0]) {
+    if (copy_cpu_setting(policy_out, policy_size, freq_out,
+                         overrides->system_overrides[idx].cpu_policy,
+                         overrides->system_overrides[idx].cpu_freq_khz)) {
+      *source_out = "system override";
+      return 1;
+    }
+  }
+  if (system->default_cpu_policy[0]) {
+    if (copy_cpu_setting(policy_out, policy_size, freq_out, system->default_cpu_policy,
+                         system->default_cpu_freq_khz)) {
+      *source_out = "plumOS default";
+      return 1;
+    }
+  }
+  return 1;
+}
+
+static void format_cpu_setting(char *out, size_t out_size, const char *policy, long freq_khz) {
+  if (!out || out_size == 0) {
+    return;
+  }
+  if (!policy || !policy[0]) {
+    copy_string(out, out_size, "launcher default");
+  } else if (strcmp(policy, "fixed") == 0) {
+    snprintf(out, out_size, "fixed %ld kHz", freq_khz);
+  } else {
+    copy_string(out, out_size, policy);
+  }
+}
+
+static int cpu_setting_matches(const char *policy, long freq_khz, const char *other_policy,
+                               long other_freq_khz) {
+  if (!policy || !other_policy || strcmp(policy, other_policy) != 0) {
+    return 0;
+  }
+  if (strcmp(policy, "fixed") == 0) {
+    return freq_khz == other_freq_khz;
+  }
+  return 1;
+}
+
+static int resolve_cpu_cores(const struct core_system_def *system,
+                             const struct core_override_state *overrides,
+                             const char *relative_path, long *cores_out,
+                             const char **source_out) {
+  int idx;
+
+  if (!cores_out || !source_out) {
+    return 0;
+  }
+  *cores_out = 0;
+  *source_out = "launcher default";
+
+  if (relative_path) {
+    idx = find_rom_core_override(overrides, system->id, relative_path);
+    if (idx >= 0 && valid_cpu_cores(overrides->rom_overrides[idx].cpu_cores)) {
+      *cores_out = overrides->rom_overrides[idx].cpu_cores;
+      *source_out = "ROM override";
+      return 1;
+    }
+  }
+  idx = find_system_core_override(overrides, system->id);
+  if (idx >= 0 && valid_cpu_cores(overrides->system_overrides[idx].cpu_cores)) {
+    *cores_out = overrides->system_overrides[idx].cpu_cores;
+    *source_out = "system override";
+    return 1;
+  }
+  if (valid_cpu_cores(system->default_cpu_cores)) {
+    *cores_out = system->default_cpu_cores;
+    *source_out = "plumOS default";
+  }
+  return 1;
+}
+
+static void resolve_retroarch_runtime_options(const struct core_system_def *system,
+                                              const struct core_override_state *overrides,
+                                              const char *relative_path,
+                                              struct retroarch_runtime_options *out) {
+  int idx;
+
+  memset(out, 0, sizeof(*out));
+  if (!relative_path) {
+    return;
+  }
+  idx = find_rom_core_override(overrides, system->id, relative_path);
+  if (idx < 0) {
+    return;
+  }
+  if (overrides->rom_overrides[idx].audio_driver[0]) {
+    copy_string(out->audio_driver, sizeof(out->audio_driver),
+                overrides->rom_overrides[idx].audio_driver);
+  }
+  out->audio_latency_ms = overrides->rom_overrides[idx].audio_latency_ms;
+  if (overrides->rom_overrides[idx].dosbox_pure_force60fps[0]) {
+    copy_string(out->dosbox_pure_force60fps, sizeof(out->dosbox_pure_force60fps),
+                overrides->rom_overrides[idx].dosbox_pure_force60fps);
+  }
+  if (overrides->rom_overrides[idx].dosbox_pure_cycles[0]) {
+    copy_string(out->dosbox_pure_cycles, sizeof(out->dosbox_pure_cycles),
+                overrides->rom_overrides[idx].dosbox_pure_cycles);
+  }
+}
+
+static int apply_content_suffix_override(const struct core_system_def *system,
+                                         const struct core_override_state *overrides,
+                                         const char *relative_path, struct rom_entry *rom) {
+  int idx;
+  size_t pos;
+
+  if (!relative_path || strchr(rom->path, '#')) {
+    return 1;
+  }
+  idx = find_rom_core_override(overrides, system->id, relative_path);
+  if (idx < 0 || !overrides->rom_overrides[idx].content_suffix[0]) {
+    return 1;
+  }
+  pos = strlen(rom->path);
+  return append_string(rom->path, sizeof(rom->path), &pos,
+                       overrides->rom_overrides[idx].content_suffix);
 }
 
 static void init_favorite_state(struct favorite_state *state) {
@@ -1553,6 +2515,55 @@ static void resume_session_from_rom(struct resume_session *session, const char *
   session->auto_state_load = auto_state_load;
 }
 
+static void init_resume_hold(struct resume_hold *hold) {
+  memset(hold, 0, sizeof(*hold));
+  copy_string(hold->reason, sizeof(hold->reason), "shutdown");
+  hold->auto_state_load = 1;
+}
+
+static int valid_resume_reason(const char *reason) {
+  size_t i;
+  size_t len;
+
+  if (!reason || !reason[0]) {
+    return 0;
+  }
+  len = strlen(reason);
+  if (len >= 64) {
+    return 0;
+  }
+  for (i = 0; i < len; i++) {
+    unsigned char ch = (unsigned char)reason[i];
+    if (!(isalnum(ch) || ch == '_' || ch == '-')) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int consume_resume_hold(const char *path, struct resume_hold *hold) {
+  char *json;
+  size_t json_size;
+
+  init_resume_hold(hold);
+  if (!file_exists(path)) {
+    return 0;
+  }
+  json = read_file(path, &json_size);
+  if (!json) {
+    unlink(path);
+    return 0;
+  }
+  json_get_string(json, json + json_size, "reason", hold->reason, sizeof(hold->reason));
+  hold->auto_state_load = json_get_bool(json, json + json_size, "auto_state_load", 1);
+  if (!valid_resume_reason(hold->reason)) {
+    copy_string(hold->reason, sizeof(hold->reason), "shutdown");
+  }
+  free(json);
+  unlink(path);
+  return 1;
+}
+
 static int build_retroarch_core_path(char *out, size_t out_size, const char *plumos_root,
                                      const char *core_id) {
   char file_name[256];
@@ -1571,7 +2582,10 @@ static int build_retroarch_core_path(char *out, size_t out_size, const char *plu
 static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
                              const char *system_id, const char *relative_path,
                              const char *title, const char *rom_path,
-                             const char *launch_profile, int auto_state_load) {
+                             const char *launch_profile, const char *cpu_policy,
+                             long cpu_freq_khz, long cpu_cores,
+                             const struct retroarch_runtime_options *retroarch_options,
+                             int auto_state_load) {
   size_t pos = 0;
 
   memset(plan, 0, sizeof(*plan));
@@ -1580,36 +2594,171 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
   copy_string(plan->title, sizeof(plan->title), title && title[0] ? title : relative_path);
   copy_string(plan->rom_path, sizeof(plan->rom_path), rom_path);
   copy_string(plan->launch_profile, sizeof(plan->launch_profile), launch_profile);
+  if (cpu_policy && cpu_policy[0]) {
+    copy_string(plan->cpu_policy, sizeof(plan->cpu_policy), cpu_policy);
+    plan->cpu_freq_khz = strcmp(cpu_policy, "fixed") == 0 ? cpu_freq_khz : 0;
+  }
+  if (valid_cpu_cores(cpu_cores)) {
+    plan->cpu_cores = cpu_cores;
+  }
+  if (retroarch_options) {
+    plan->retroarch_options = *retroarch_options;
+  }
   plan->auto_state_load = auto_state_load;
-  plan->rom_exists = file_exists(plan->rom_path);
+  plan->rom_exists = rom_path_exists(plan->rom_path);
 
   if (strncmp(launch_profile, "retroarch:", 10) == 0) {
     const char *core_id = launch_profile + 10;
-    char retroarch_dir[PATH_MAX];
+    char launcher_dir[PATH_MAX];
 
     copy_string(plan->kind, sizeof(plan->kind), "retroarch");
-    if (!join_path(retroarch_dir, sizeof(retroarch_dir), plumos_root, "retroarch/bin") ||
-        !join_path(plan->retroarch_path, sizeof(plan->retroarch_path), retroarch_dir,
-                   "retroarch") ||
+    if (!resolve_retroarch_safe_state_slot(plan->safe_state_slot,
+                                           sizeof(plan->safe_state_slot))) {
+      return 0;
+    }
+    if (!join_path(launcher_dir, sizeof(launcher_dir), plumos_root, "bin") ||
+        !join_path(plan->retroarch_path, sizeof(plan->retroarch_path), launcher_dir,
+                   "plumos-retroarch-launch") ||
         !build_retroarch_core_path(plan->core_path, sizeof(plan->core_path), plumos_root,
                                    core_id) ||
         !join_path(plan->config_path, sizeof(plan->config_path), plumos_root,
-                   "config/retroarch/retroarch.cfg")) {
+                   "retroarch/config/retroarch-practical.cfg")) {
       return 0;
     }
     plan->runtime_exists = file_exists(plan->retroarch_path);
     plan->core_exists = file_exists(plan->core_path);
 
     if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->retroarch_path) ||
-        !append_string(plan->command, sizeof(plan->command), &pos, " --config ") ||
-        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->config_path) ||
-        !append_string(plan->command, sizeof(plan->command), &pos, " -L ") ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " --system ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, system_id) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " --core ") ||
         !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->core_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " --rom ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->rom_path)) {
+      return 0;
+    }
+    if (plan->cpu_policy[0]) {
+      char freq_buf[32];
+      if (!append_string(plan->command, sizeof(plan->command), &pos, " --cpu ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->cpu_policy)) {
+        return 0;
+      }
+      if (strcmp(plan->cpu_policy, "fixed") == 0) {
+        snprintf(freq_buf, sizeof(freq_buf), "%ld", plan->cpu_freq_khz);
+        if (!append_string(plan->command, sizeof(plan->command), &pos, " --freq ") ||
+            !append_shell_quoted(plan->command, sizeof(plan->command), &pos, freq_buf)) {
+          return 0;
+        }
+      }
+    }
+    if (plan->cpu_cores > 0) {
+      char cores_buf[16];
+      snprintf(cores_buf, sizeof(cores_buf), "%ld", plan->cpu_cores);
+      if (!append_string(plan->command, sizeof(plan->command), &pos, " --cores ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, cores_buf)) {
+        return 0;
+      }
+    }
+    if (plan->retroarch_options.audio_driver[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos, " --audio ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->retroarch_options.audio_driver)) {
+        return 0;
+      }
+    }
+    if (plan->retroarch_options.audio_latency_ms > 0) {
+      char latency_buf[32];
+      snprintf(latency_buf, sizeof(latency_buf), "%ld",
+               plan->retroarch_options.audio_latency_ms);
+      if (!append_string(plan->command, sizeof(plan->command), &pos, " --audio-latency ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, latency_buf)) {
+        return 0;
+      }
+    }
+    if (plan->retroarch_options.dosbox_pure_force60fps[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         " --dosbox-pure-force60fps ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->retroarch_options.dosbox_pure_force60fps)) {
+        return 0;
+      }
+    }
+    if (plan->retroarch_options.dosbox_pure_cycles[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         " --dosbox-pure-cycles ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->retroarch_options.dosbox_pure_cycles)) {
+        return 0;
+      }
+    }
+    if (!append_string(plan->command, sizeof(plan->command), &pos, " --safe-state-slot ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                             plan->safe_state_slot)) {
+      return 0;
+    }
+    if (plan->auto_state_load) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos, " --entry-slot ") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->safe_state_slot)) {
+        return 0;
+      }
+    }
+    plan->can_execute = plan->runtime_exists && plan->core_exists && plan->rom_exists;
+    return 1;
+  }
+
+  if (strncmp(launch_profile, "standalone:", 11) == 0) {
+    const char *emulator_id = launch_profile + 11;
+    char launcher_dir[PATH_MAX];
+    char freq_buf[32];
+    char cores_buf[16];
+
+    copy_string(plan->kind, sizeof(plan->kind), "standalone");
+    if (!emulator_id[0] ||
+        !join_path(launcher_dir, sizeof(launcher_dir), plumos_root, "bin") ||
+        !join_path(plan->standalone_launcher_path, sizeof(plan->standalone_launcher_path),
+                   launcher_dir, "plumos-standalone-launch")) {
+      return 0;
+    }
+    plan->runtime_exists = file_exists(plan->standalone_launcher_path);
+    plan->core_exists = 1;
+    if (plan->cpu_policy[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_STANDALONE_CPU_POLICY=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->cpu_policy) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
+      if (strcmp(plan->cpu_policy, "fixed") == 0) {
+        snprintf(freq_buf, sizeof(freq_buf), "%ld", plan->cpu_freq_khz);
+        if (!append_string(plan->command, sizeof(plan->command), &pos,
+                           "PLUMOS_STANDALONE_CPU_FREQ=") ||
+            !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                                 freq_buf) ||
+            !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+          return 0;
+        }
+      }
+    }
+    if (plan->cpu_cores > 0) {
+      snprintf(cores_buf, sizeof(cores_buf), "%ld", plan->cpu_cores);
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_STANDALONE_CPU_CORES=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, cores_buf) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
+    }
+    if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                             plan->standalone_launcher_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, emulator_id) ||
         !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
         !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->rom_path)) {
       return 0;
     }
-    plan->can_execute = plan->runtime_exists && plan->core_exists && plan->rom_exists;
+    plan->can_execute = plan->runtime_exists && plan->rom_exists;
     return 1;
   }
 
@@ -1642,13 +2791,47 @@ static void print_launch_plan(const struct launch_plan *plan) {
   printf("title: %s\n", plan->title);
   printf("path: %s\n", plan->rom_path);
   printf("launch_profile: %s\n", plan->launch_profile);
+  if (plan->cpu_policy[0]) {
+    if (strcmp(plan->cpu_policy, "fixed") == 0) {
+      printf("cpu: %s %ld kHz\n", plan->cpu_policy, plan->cpu_freq_khz);
+    } else {
+      printf("cpu: %s\n", plan->cpu_policy);
+    }
+  } else {
+    printf("cpu: launcher default\n");
+  }
+  if (plan->cpu_cores > 0) {
+    printf("cpu_cores: %ld\n", plan->cpu_cores);
+  } else {
+    printf("cpu_cores: launcher default\n");
+  }
+  if (plan->retroarch_options.audio_driver[0]) {
+    printf("retroarch_audio: %s\n", plan->retroarch_options.audio_driver);
+  }
+  if (plan->retroarch_options.audio_latency_ms > 0) {
+    printf("retroarch_audio_latency: %ld\n", plan->retroarch_options.audio_latency_ms);
+  }
+  if (plan->retroarch_options.dosbox_pure_force60fps[0]) {
+    printf("dosbox_pure_force60fps: %s\n",
+           plan->retroarch_options.dosbox_pure_force60fps);
+  }
+  if (plan->retroarch_options.dosbox_pure_cycles[0]) {
+    printf("dosbox_pure_cycles: %s\n", plan->retroarch_options.dosbox_pure_cycles);
+  }
   printf("auto_state_load: %s\n", plan->auto_state_load ? "yes" : "no");
   if (plan->retroarch_path[0]) {
     printf("retroarch: %s (%s)\n", plan->retroarch_path,
            plan->runtime_exists ? "exists" : "missing");
   }
+  if (plan->standalone_launcher_path[0]) {
+    printf("standalone_launcher: %s (%s)\n", plan->standalone_launcher_path,
+           plan->runtime_exists ? "exists" : "missing");
+  }
   if (plan->core_path[0]) {
     printf("core: %s (%s)\n", plan->core_path, plan->core_exists ? "exists" : "missing");
+  }
+  if (plan->safe_state_slot[0]) {
+    printf("safe_state_slot: %s\n", plan->safe_state_slot);
   }
   printf("rom_exists: %s\n", plan->rom_exists ? "yes" : "no");
   printf("can_execute: %s\n", plan->can_execute ? "yes" : "no");
@@ -1657,14 +2840,17 @@ static void print_launch_plan(const struct launch_plan *plan) {
   }
 }
 
-static int execute_launch_plan(const struct launch_plan *plan) {
+static int execute_launch_plan(const struct launch_plan *plan, const char *plumos_root) {
   int rc;
+  pid_t hotkeyd_pid;
 
   if (!plan->can_execute || !plan->command[0]) {
     fprintf(stderr, "error: launch plan is not executable\n");
     return 0;
   }
+  hotkeyd_pid = start_safe_hotkeyd(plumos_root, plan);
   rc = system(plan->command);
+  stop_safe_hotkeyd(hotkeyd_pid);
   if (rc == -1) {
     fprintf(stderr, "error: failed to execute launch command\n");
     return 0;
@@ -1874,6 +3060,9 @@ static int load_selected_rom(const char *plumos_root, const char *sdcard_root,
   size_t count = 0;
   long ready_ms = -1;
   int rom_idx;
+  char base_relative_path[TEXT_PATH_MAX];
+  const char *content_suffix = NULL;
+  int suffix_match = 0;
 
   if (!build_system_cache_path(system_cache_path, sizeof(system_cache_path), plumos_root,
                                system_id)) {
@@ -1896,13 +3085,27 @@ static int load_selected_rom(const char *plumos_root, const char *sdcard_root,
     return 0;
   }
   (void)ready_ms;
-  rom_idx = find_rom_by_relative_path(entries, count, relative_path);
+  rom_idx = find_rom_by_relative_path_or_dos_suffix(entries, count, system_id, relative_path,
+                                                   base_relative_path,
+                                                   sizeof(base_relative_path),
+                                                   &content_suffix);
   if (rom_idx < 0) {
     fprintf(stderr, "error: ROM is not in scan cache for %s: %s\n", system_id, relative_path);
     free(entries);
     return 0;
   }
   *rom_out = entries[rom_idx];
+  suffix_match = content_suffix && content_suffix[0];
+  if (suffix_match) {
+    size_t pos;
+    copy_string(rom_out->relative_path, sizeof(rom_out->relative_path), relative_path);
+    pos = strlen(rom_out->path);
+    if (!append_string(rom_out->path, sizeof(rom_out->path), &pos, content_suffix)) {
+      fprintf(stderr, "error: DOSBox-Pure content suffix is too long: %s\n", relative_path);
+      free(entries);
+      return 0;
+    }
+  }
   free(entries);
   return 1;
 }
@@ -2331,16 +3534,57 @@ static void print_core_selection(const char *scope, const struct core_system_def
   const char *rom_profile = NULL;
   const char *effective_profile = NULL;
   const char *effective_source = "auto detect";
+  char effective_cpu_policy[32];
+  long effective_cpu_freq_khz = 0;
+  const char *effective_cpu_source = "launcher default";
+  char effective_cpu_label[64];
+  long effective_cpu_cores = 0;
+  const char *effective_cpu_cores_source = "launcher default";
+  const char *system_cpu_policy = NULL;
+  long system_cpu_freq_khz = 0;
+  long system_cpu_cores = 0;
+  const char *rom_cpu_policy = NULL;
+  long rom_cpu_freq_khz = 0;
+  long rom_cpu_cores = 0;
+  const char *rom_content_suffix = NULL;
+  const char *rom_audio_driver = NULL;
+  long rom_audio_latency_ms = 0;
+  const char *rom_dosbox_force60fps = NULL;
+  const char *rom_dosbox_cycles = NULL;
+  char rom_audio_latency_label[32];
   size_t i;
 
   system_idx = find_system_core_override(state, system->id);
   if (system_idx >= 0) {
     system_profile = state->system_overrides[system_idx].launch_profile;
+    if (state->system_overrides[system_idx].cpu_policy[0]) {
+      system_cpu_policy = state->system_overrides[system_idx].cpu_policy;
+      system_cpu_freq_khz = state->system_overrides[system_idx].cpu_freq_khz;
+    }
+    system_cpu_cores = state->system_overrides[system_idx].cpu_cores;
   }
   if (rom_relative_path) {
     rom_idx = find_rom_core_override(state, system->id, rom_relative_path);
     if (rom_idx >= 0) {
       rom_profile = state->rom_overrides[rom_idx].launch_profile;
+      if (state->rom_overrides[rom_idx].cpu_policy[0]) {
+        rom_cpu_policy = state->rom_overrides[rom_idx].cpu_policy;
+        rom_cpu_freq_khz = state->rom_overrides[rom_idx].cpu_freq_khz;
+      }
+      rom_cpu_cores = state->rom_overrides[rom_idx].cpu_cores;
+      if (state->rom_overrides[rom_idx].content_suffix[0]) {
+        rom_content_suffix = state->rom_overrides[rom_idx].content_suffix;
+      }
+      if (state->rom_overrides[rom_idx].audio_driver[0]) {
+        rom_audio_driver = state->rom_overrides[rom_idx].audio_driver;
+      }
+      rom_audio_latency_ms = state->rom_overrides[rom_idx].audio_latency_ms;
+      if (state->rom_overrides[rom_idx].dosbox_pure_force60fps[0]) {
+        rom_dosbox_force60fps = state->rom_overrides[rom_idx].dosbox_pure_force60fps;
+      }
+      if (state->rom_overrides[rom_idx].dosbox_pure_cycles[0]) {
+        rom_dosbox_cycles = state->rom_overrides[rom_idx].dosbox_pure_cycles;
+      }
     }
   }
 
@@ -2356,6 +3600,13 @@ static void print_core_selection(const char *scope, const struct core_system_def
   } else {
     effective_profile = "auto";
   }
+  resolve_cpu_setting(system, state, rom_relative_path, effective_cpu_policy,
+                      sizeof(effective_cpu_policy), &effective_cpu_freq_khz,
+                      &effective_cpu_source);
+  resolve_cpu_cores(system, state, rom_relative_path, &effective_cpu_cores,
+                    &effective_cpu_cores_source);
+  format_cpu_setting(effective_cpu_label, sizeof(effective_cpu_label), effective_cpu_policy,
+                     effective_cpu_freq_khz);
 
   printf("plumOS text UI - core selection\n");
   printf("scope: %s\n", scope);
@@ -2365,8 +3616,29 @@ static void print_core_selection(const char *scope, const struct core_system_def
   }
   printf("systems: %s\n", systems_path);
   printf("overrides: %s\n", overrides_path);
-  printf("current: %s (%s)\n", effective_profile, effective_source);
+  printf("current_profile: %s (%s)\n", effective_profile, effective_source);
+  printf("current_cpu: %s (%s)\n", effective_cpu_label, effective_cpu_source);
+  if (effective_cpu_cores > 0) {
+    printf("current_cpu_cores: %ld (%s)\n", effective_cpu_cores, effective_cpu_cores_source);
+  } else {
+    printf("current_cpu_cores: launcher default (%s)\n", effective_cpu_cores_source);
+  }
+  if (rom_relative_path) {
+    if (rom_audio_latency_ms > 0) {
+      snprintf(rom_audio_latency_label, sizeof(rom_audio_latency_label), "%ld",
+               rom_audio_latency_ms);
+    } else {
+      copy_string(rom_audio_latency_label, sizeof(rom_audio_latency_label), "-");
+    }
+    printf("rom_content_suffix: %s\n", rom_content_suffix ? rom_content_suffix : "-");
+    printf("rom_audio: driver=%s latency=%s\n", rom_audio_driver ? rom_audio_driver : "-",
+           rom_audio_latency_label);
+    printf("rom_dosbox_pure: force60fps=%s cycles=%s\n",
+           rom_dosbox_force60fps ? rom_dosbox_force60fps : "-",
+           rom_dosbox_cycles ? rom_dosbox_cycles : "-");
+  }
   printf("\n");
+  printf("Launch profiles\n");
   printf("%-4s %-30s %-8s %-8s %-8s %s\n", "No.", "Launch profile", "Default", "System",
          "ROM", "Effective");
   printf("%-4s %-30s %-8s %-8s %-8s %s\n", "---", "--------------", "-------", "------",
@@ -2383,6 +3655,51 @@ static void print_core_selection(const char *scope, const struct core_system_def
   if (system->launch_profile_count == 0) {
     printf("(このsystemには launch_profiles がありません。launcher 側で auto detect します。)\n");
   }
+
+  printf("\n");
+  printf("CPU frequency presets\n");
+  printf("%-4s %-22s %-12s %-8s %-8s %-8s %s\n", "No.", "Preset", "Value", "Default",
+         "System", "ROM", "Effective");
+  printf("%-4s %-22s %-12s %-8s %-8s %-8s %s\n", "---", "------", "-----", "-------",
+         "------", "---", "---------");
+  for (i = 0; i < CPU_PRESET_COUNT; i++) {
+    const struct cpu_preset *preset = &CPU_PRESETS[i];
+    char value[64];
+    format_cpu_setting(value, sizeof(value), preset->policy, preset->freq_khz);
+    printf("%3zu. %-22s %-12s %-8s %-8s %-8s %s\n", i + 1, preset->label, value,
+           cpu_setting_matches(system->default_cpu_policy, system->default_cpu_freq_khz,
+                               preset->policy, preset->freq_khz)
+               ? "yes"
+               : "no",
+           system_cpu_policy && cpu_setting_matches(system_cpu_policy, system_cpu_freq_khz,
+                                                    preset->policy, preset->freq_khz)
+               ? "yes"
+               : "no",
+           rom_cpu_policy && cpu_setting_matches(rom_cpu_policy, rom_cpu_freq_khz,
+                                                 preset->policy, preset->freq_khz)
+               ? "yes"
+               : (rom_relative_path ? "no" : "-"),
+           effective_cpu_policy[0] && cpu_setting_matches(effective_cpu_policy,
+                                                          effective_cpu_freq_khz,
+                                                          preset->policy, preset->freq_khz)
+               ? "*"
+               : "");
+  }
+
+  printf("\n");
+  printf("CPU core presets\n");
+  printf("%-4s %-12s %-8s %-8s %-8s %s\n", "No.", "Cores", "Default", "System", "ROM",
+         "Effective");
+  printf("%-4s %-12s %-8s %-8s %-8s %s\n", "---", "-----", "-------", "------", "---",
+         "---------");
+  for (i = 0; i < CPU_CORE_PRESET_COUNT; i++) {
+    long cores = CPU_CORE_PRESETS[i];
+    printf("%3zu. %-12ld %-8s %-8s %-8s %s\n", i + 1, cores,
+           system->default_cpu_cores == cores ? "yes" : "no",
+           system_cpu_cores == cores ? "yes" : "no",
+           rom_cpu_cores == cores ? "yes" : (rom_relative_path ? "no" : "-"),
+           effective_cpu_cores == cores ? "*" : "");
+  }
 }
 
 static void usage(const char *argv0) {
@@ -2390,8 +3707,10 @@ static void usage(const char *argv0) {
   printf("  %s top [--all] [--refresh] [--limit N]\n", argv0);
   printf("  %s roms SYSTEM [--no-scan] [--limit N]\n", argv0);
   printf("  %s menu start|apps [--limit N]\n", argv0);
-  printf("  %s core system SYSTEM [--set PROFILE|--clear]\n", argv0);
-  printf("  %s core rom SYSTEM RELATIVE_PATH [--set PROFILE|--clear] [--no-scan]\n", argv0);
+  printf("  %s core system SYSTEM [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--clear|--clear-cpu]\n",
+         argv0);
+  printf("  %s core rom SYSTEM RELATIVE_PATH [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--content-suffix '#EXE'] [--audio oss|alsa] [--latency MS] [--dosbox-force60fps true|false] [--dosbox-cycles auto|max|N] [--clear|--clear-cpu|--clear-content-suffix|--clear-audio|--clear-dosbox] [--no-scan]\n",
+         argv0);
   printf("  %s favorites [--limit N]\n", argv0);
   printf("  %s favorite rom SYSTEM RELATIVE_PATH [--toggle|--set|--clear] [--no-scan]\n",
          argv0);
@@ -2400,6 +3719,8 @@ static void usage(const char *argv0) {
          argv0);
   printf("  %s resume show|clear\n", argv0);
   printf("  %s resume set SYSTEM RELATIVE_PATH [--profile PROFILE] [--reason REASON] [--no-scan]\n",
+         argv0);
+  printf("  %s launch SYSTEM RELATIVE_PATH [--profile PROFILE] [--execute] [--no-scan]\n",
          argv0);
   printf("  %s boot [--limit N] [--execute]\n", argv0);
   printf("\n");
@@ -2423,6 +3744,7 @@ int main(int argc, char **argv) {
   char favorites_path[PATH_MAX];
   char recent_path[PATH_MAX];
   char resume_session_path[PATH_MAX];
+  char resume_hold_path[PATH_MAX];
   const char *cmd;
   size_t limit = 0;
   int i;
@@ -2471,7 +3793,9 @@ int main(int argc, char **argv) {
   if (!join_path(recent_path, sizeof(recent_path), plumos_root,
                  "state/frontend/recent.json") ||
       !join_path(resume_session_path, sizeof(resume_session_path), plumos_root,
-                 "state/frontend/resume-session.json")) {
+                 "state/frontend/resume-session.json") ||
+      !join_path(resume_hold_path, sizeof(resume_hold_path), plumos_root,
+                 "state/frontend/resume-hold.json")) {
     fprintf(stderr, "error: recent/resume path is too long\n");
     return 1;
   }
@@ -2995,12 +4319,166 @@ int main(int argc, char **argv) {
     return 2;
   }
 
+  if (strcmp(cmd, "launch") == 0) {
+    const char *system_id;
+    const char *rom_relative_path;
+    const char *profile_arg = NULL;
+    int scan = 1;
+    int execute = 0;
+    struct rom_entry rom;
+    struct core_system_def system;
+    static struct core_override_state overrides;
+    static struct launch_plan plan;
+    static struct recent_state recent;
+    struct recent_entry recent_entry;
+    static struct resume_session session;
+    struct resume_hold hold;
+    int held_resume = 0;
+    char launch_profile[128];
+    char cpu_policy[32];
+    long cpu_freq_khz = 0;
+    long cpu_cores = 0;
+    const char *cpu_source = NULL;
+    const char *cpu_cores_source = NULL;
+    struct retroarch_runtime_options retroarch_options;
+    char timestamp[64];
+    int ok;
+
+    if (argc < 4) {
+      fprintf(stderr, "error: launch requires SYSTEM RELATIVE_PATH\n");
+      usage(argv[0]);
+      return 2;
+    }
+    system_id = argv[2];
+    rom_relative_path = argv[3];
+    if (!valid_system_id(system_id) || !valid_relative_rom_path(rom_relative_path)) {
+      fprintf(stderr, "error: invalid launch target\n");
+      return 2;
+    }
+    for (i = 4; i < argc; i++) {
+      if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+        profile_arg = argv[++i];
+        if (!valid_launch_profile_id(profile_arg)) {
+          fprintf(stderr, "error: invalid launch profile: %s\n", profile_arg);
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--execute") == 0) {
+        execute = 1;
+      } else if (strcmp(argv[i], "--no-scan") == 0) {
+        scan = 0;
+      } else {
+        fprintf(stderr, "error: unknown launch option: %s\n", argv[i]);
+        usage(argv[0]);
+        return 2;
+      }
+    }
+
+    if (!load_selected_rom(plumos_root, sdcard_root, system_id, rom_relative_path, scan, &rom)) {
+      return 1;
+    }
+    if (!load_core_system_def(systems_path, system_id, &system) ||
+        !load_core_overrides(core_overrides_path, &overrides)) {
+      fprintf(stderr, "error: cannot read launch profile state for %s\n", system_id);
+      return 1;
+    }
+    if (profile_arg) {
+      if (core_profile_index(&system, profile_arg) < 0) {
+        fprintf(stderr, "error: launch profile is not listed for %s: %s\n", system_id,
+                profile_arg);
+        return 2;
+      }
+      copy_string(launch_profile, sizeof(launch_profile), profile_arg);
+    } else if (!resolve_launch_profile(&system, &overrides, rom_relative_path, launch_profile,
+                                       sizeof(launch_profile))) {
+      fprintf(stderr, "error: cannot resolve launch profile for %s\n", system_id);
+      return 1;
+    }
+    if (!resolve_cpu_setting(&system, &overrides, rom_relative_path, cpu_policy,
+                             sizeof(cpu_policy), &cpu_freq_khz, &cpu_source) ||
+        !resolve_cpu_cores(&system, &overrides, rom_relative_path, &cpu_cores,
+                           &cpu_cores_source)) {
+      fprintf(stderr, "error: cannot resolve CPU policy for %s\n", system_id);
+      return 1;
+    }
+    if (!apply_content_suffix_override(&system, &overrides, rom_relative_path, &rom)) {
+      fprintf(stderr, "error: cannot apply content suffix for %s\n", rom_relative_path);
+      return 1;
+    }
+    resolve_retroarch_runtime_options(&system, &overrides, rom_relative_path,
+                                      &retroarch_options);
+    if (!build_launch_plan(&plan, plumos_root, system_id, rom_relative_path, rom.title,
+                           rom.path, launch_profile, cpu_policy, cpu_freq_khz, cpu_cores,
+                           &retroarch_options, 0)) {
+      fprintf(stderr, "error: cannot build launch plan\n");
+      return 1;
+    }
+
+    print_launch_plan(&plan);
+    if (!execute) {
+      printf("execute: no (--execute not specified)\n");
+      return 0;
+    }
+    if (!plan.can_execute) {
+      fprintf(stderr, "error: launch plan is not executable\n");
+      return 1;
+    }
+
+    current_utc_timestamp(timestamp, sizeof(timestamp));
+    if (!load_recent(recent_path, &recent)) {
+      fprintf(stderr, "error: cannot read recent: %s\n", recent_path);
+      return 1;
+    }
+    recent_entry_from_rom(&recent_entry, system_id, &rom, launch_profile, timestamp, 1);
+    add_recent_entry(&recent, &recent_entry);
+    if (!save_recent(recent_path, &recent)) {
+      fprintf(stderr, "error: cannot write recent: %s\n", recent_path);
+      return 1;
+    }
+
+    resume_session_from_rom(&session, system_id, &rom, launch_profile, timestamp, "launch", 1, 0);
+    if (!save_resume_session(resume_session_path, &session)) {
+      fprintf(stderr, "error: cannot write resume session: %s\n", resume_session_path);
+      return 1;
+    }
+
+    ok = execute_launch_plan(&plan, plumos_root);
+
+    current_utc_timestamp(timestamp, sizeof(timestamp));
+    if (consume_resume_hold(resume_hold_path, &hold)) {
+      held_resume = 1;
+      resume_session_from_rom(&session, system_id, &rom, launch_profile, timestamp, hold.reason, 1,
+                              hold.auto_state_load);
+      if (!save_resume_session(resume_session_path, &session)) {
+        fprintf(stderr, "warning: cannot hold resume session: %s\n", resume_session_path);
+      }
+      printf("resume: held reason=%s auto_state_load=%s\n", hold.reason,
+             hold.auto_state_load ? "yes" : "no");
+    } else {
+      init_resume_session(&session);
+      copy_string(session.updated_at, sizeof(session.updated_at), timestamp);
+      if (!save_resume_session(resume_session_path, &session)) {
+        fprintf(stderr, "warning: cannot clear resume session: %s\n", resume_session_path);
+      }
+    }
+    printf("execute: %s\n", ok ? "ok" : held_resume ? "safe-exit" : "failed");
+    return (ok || held_resume) ? 0 : 1;
+  }
+
   if (strcmp(cmd, "boot") == 0) {
     struct frontend_settings settings;
     static struct resume_session session;
     static struct recent_state recent;
     static struct launch_plan plan;
+    struct core_system_def system;
+    static struct core_override_state overrides;
     const char *limit_env = getenv("PLUMOS_TEXT_LIMIT");
+    char cpu_policy[32];
+    long cpu_freq_khz = 0;
+    long cpu_cores = 0;
+    const char *cpu_source = NULL;
+    const char *cpu_cores_source = NULL;
+    struct retroarch_runtime_options retroarch_options;
+    char session_launch_path[TEXT_PATH_MAX];
     int execute = 0;
     int has_pending_resume = 0;
 
@@ -3025,8 +4503,36 @@ int main(int argc, char **argv) {
     print_boot_resume(&settings, &session, &recent, limit, resume_session_path, recent_path);
     has_pending_resume = session.pending && session.system_id[0] && session.relative_path[0];
     if (strcmp(settings.boot_resume_mode, "last") == 0 && has_pending_resume) {
+      if (!load_core_system_def(systems_path, session.system_id, &system) ||
+          !load_core_overrides(core_overrides_path, &overrides) ||
+          !resolve_cpu_setting(&system, &overrides, session.relative_path, cpu_policy,
+                               sizeof(cpu_policy), &cpu_freq_khz, &cpu_source)) {
+        fprintf(stderr, "error: cannot resolve CPU setting for %s\n", session.system_id);
+        return 1;
+      }
+      if (!resolve_cpu_cores(&system, &overrides, session.relative_path, &cpu_cores,
+                             &cpu_cores_source)) {
+        fprintf(stderr, "error: cannot resolve CPU cores for %s\n", session.system_id);
+        return 1;
+      }
+      copy_string(session_launch_path, sizeof(session_launch_path), session.path);
+      if (!strchr(session_launch_path, '#')) {
+        int rom_idx = find_rom_core_override(&overrides, system.id, session.relative_path);
+        if (rom_idx >= 0 && overrides.rom_overrides[rom_idx].content_suffix[0]) {
+          size_t pos = strlen(session_launch_path);
+          if (!append_string(session_launch_path, sizeof(session_launch_path), &pos,
+                             overrides.rom_overrides[rom_idx].content_suffix)) {
+            fprintf(stderr, "error: cannot apply content suffix for %s\n",
+                    session.relative_path);
+            return 1;
+          }
+        }
+      }
+      resolve_retroarch_runtime_options(&system, &overrides, session.relative_path,
+                                        &retroarch_options);
       if (!build_launch_plan(&plan, plumos_root, session.system_id, session.relative_path,
-                             session.title, session.path, session.launch_profile,
+                             session.title, session_launch_path, session.launch_profile,
+                             cpu_policy, cpu_freq_khz, cpu_cores, &retroarch_options,
                              session.auto_state_load)) {
         fprintf(stderr, "error: cannot build launch plan\n");
         return 1;
@@ -3034,7 +4540,7 @@ int main(int argc, char **argv) {
       printf("\n");
       print_launch_plan(&plan);
       if (execute) {
-        return execute_launch_plan(&plan) ? 0 : 1;
+        return execute_launch_plan(&plan, plumos_root) ? 0 : 1;
       }
       printf("execute: no (--execute not specified)\n");
       return 0;
@@ -3111,9 +4617,24 @@ int main(int argc, char **argv) {
     const char *system_id;
     const char *rom_relative_path = NULL;
     const char *set_profile = NULL;
+    const char *set_cpu_policy = NULL;
+    const char *set_content_suffix = NULL;
+    const char *set_audio_driver = NULL;
+    const char *set_dosbox_force60fps = NULL;
+    const char *set_dosbox_cycles = NULL;
+    long set_cpu_freq_khz = 0;
+    long set_cpu_cores = 0;
+    long set_audio_latency_ms = 0;
     struct core_system_def system;
     static struct core_override_state state;
     int clear = 0;
+    int clear_cpu = 0;
+    int clear_content_suffix = 0;
+    int clear_audio = 0;
+    int clear_dosbox = 0;
+    int freq_seen = 0;
+    int cores_seen = 0;
+    int audio_latency_seen = 0;
     int scan = 1;
     int option_start;
 
@@ -3151,7 +4672,7 @@ int main(int argc, char **argv) {
     for (i = option_start; i < argc; i++) {
       if (strcmp(argv[i], "--set") == 0 && i + 1 < argc) {
         if (clear || set_profile) {
-          fprintf(stderr, "error: use only one of --set or --clear\n");
+          fprintf(stderr, "error: use only one profile action\n");
           return 2;
         }
         set_profile = argv[++i];
@@ -3159,12 +4680,119 @@ int main(int argc, char **argv) {
           fprintf(stderr, "error: invalid launch profile: %s\n", set_profile);
           return 2;
         }
+      } else if (strcmp(argv[i], "--cpu") == 0 && i + 1 < argc) {
+        if (clear || clear_cpu || set_cpu_policy) {
+          fprintf(stderr, "error: use only one CPU action\n");
+          return 2;
+        }
+        set_cpu_policy = argv[++i];
+        if (!valid_cpu_policy(set_cpu_policy)) {
+          fprintf(stderr, "error: invalid CPU policy: %s\n", set_cpu_policy);
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--freq") == 0 && i + 1 < argc) {
+        if (clear || clear_cpu || freq_seen) {
+          fprintf(stderr, "error: use only one CPU frequency action\n");
+          return 2;
+        }
+        if (!parse_cpu_freq_khz(argv[++i], &set_cpu_freq_khz)) {
+          fprintf(stderr, "error: invalid CPU frequency: %s\n", argv[i]);
+          return 2;
+        }
+        freq_seen = 1;
+      } else if (strcmp(argv[i], "--cores") == 0 && i + 1 < argc) {
+        if (clear || clear_cpu || cores_seen) {
+          fprintf(stderr, "error: use only one CPU core action\n");
+          return 2;
+        }
+        if (!parse_cpu_cores(argv[++i], &set_cpu_cores)) {
+          fprintf(stderr, "error: --cores expects 2 or 4\n");
+          return 2;
+        }
+        cores_seen = 1;
+      } else if (strcmp(argv[i], "--content-suffix") == 0 && i + 1 < argc) {
+        if (clear || clear_content_suffix || set_content_suffix) {
+          fprintf(stderr, "error: use only one content suffix action\n");
+          return 2;
+        }
+        set_content_suffix = argv[++i];
+        if (!valid_content_suffix(set_content_suffix)) {
+          fprintf(stderr, "error: invalid content suffix: %s\n", set_content_suffix);
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--audio") == 0 && i + 1 < argc) {
+        if (clear || clear_audio || set_audio_driver) {
+          fprintf(stderr, "error: use only one audio driver action\n");
+          return 2;
+        }
+        set_audio_driver = argv[++i];
+        if (!valid_retroarch_audio_driver(set_audio_driver)) {
+          fprintf(stderr, "error: --audio expects oss or alsa\n");
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--latency") == 0 && i + 1 < argc) {
+        if (clear || clear_audio || audio_latency_seen) {
+          fprintf(stderr, "error: use only one audio latency action\n");
+          return 2;
+        }
+        if (!parse_audio_latency_ms(argv[++i], &set_audio_latency_ms)) {
+          fprintf(stderr, "error: invalid audio latency: %s\n", argv[i]);
+          return 2;
+        }
+        audio_latency_seen = 1;
+      } else if (strcmp(argv[i], "--dosbox-force60fps") == 0 && i + 1 < argc) {
+        if (clear || clear_dosbox || set_dosbox_force60fps) {
+          fprintf(stderr, "error: use only one DOSBox-Pure force60fps action\n");
+          return 2;
+        }
+        set_dosbox_force60fps = argv[++i];
+        if (!valid_dosbox_bool(set_dosbox_force60fps)) {
+          fprintf(stderr, "error: --dosbox-force60fps expects true or false\n");
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--dosbox-cycles") == 0 && i + 1 < argc) {
+        if (clear || clear_dosbox || set_dosbox_cycles) {
+          fprintf(stderr, "error: use only one DOSBox-Pure cycles action\n");
+          return 2;
+        }
+        set_dosbox_cycles = argv[++i];
+        if (!valid_dosbox_cycles(set_dosbox_cycles)) {
+          fprintf(stderr, "error: invalid DOSBox-Pure cycles: %s\n", set_dosbox_cycles);
+          return 2;
+        }
+      } else if (strcmp(argv[i], "--clear-content-suffix") == 0) {
+        if (clear || clear_content_suffix || set_content_suffix) {
+          fprintf(stderr, "error: use only one content suffix action\n");
+          return 2;
+        }
+        clear_content_suffix = 1;
+      } else if (strcmp(argv[i], "--clear-audio") == 0) {
+        if (clear || clear_audio || set_audio_driver || audio_latency_seen) {
+          fprintf(stderr, "error: use only one audio action\n");
+          return 2;
+        }
+        clear_audio = 1;
+      } else if (strcmp(argv[i], "--clear-dosbox") == 0) {
+        if (clear || clear_dosbox || set_dosbox_force60fps || set_dosbox_cycles) {
+          fprintf(stderr, "error: use only one DOSBox-Pure action\n");
+          return 2;
+        }
+        clear_dosbox = 1;
       } else if (strcmp(argv[i], "--clear") == 0) {
-        if (clear || set_profile) {
-          fprintf(stderr, "error: use only one of --set or --clear\n");
+        if (clear || set_profile || set_cpu_policy || clear_cpu || freq_seen || cores_seen ||
+            set_content_suffix || clear_content_suffix || set_audio_driver ||
+            audio_latency_seen || clear_audio || set_dosbox_force60fps ||
+            set_dosbox_cycles || clear_dosbox) {
+          fprintf(stderr, "error: --clear cannot be combined with set actions\n");
           return 2;
         }
         clear = 1;
+      } else if (strcmp(argv[i], "--clear-cpu") == 0) {
+        if (clear || set_cpu_policy || clear_cpu || freq_seen || cores_seen) {
+          fprintf(stderr, "error: use only one CPU action\n");
+          return 2;
+        }
+        clear_cpu = 1;
       } else if (strcmp(argv[i], "--no-scan") == 0 && rom_relative_path) {
         scan = 0;
       } else {
@@ -3186,6 +4814,26 @@ int main(int argc, char **argv) {
     if (set_profile && core_profile_index(&system, set_profile) < 0) {
       fprintf(stderr, "error: launch profile is not listed for %s: %s\n", system_id,
               set_profile);
+      return 2;
+    }
+    if (freq_seen && !set_cpu_policy) {
+      set_cpu_policy = "fixed";
+    }
+    if (set_cpu_policy) {
+      if (strcmp(set_cpu_policy, "fixed") == 0 && !freq_seen) {
+        fprintf(stderr, "error: --cpu fixed requires --freq KHZ\n");
+        return 2;
+      }
+      if (strcmp(set_cpu_policy, "fixed") != 0 && freq_seen) {
+        fprintf(stderr, "error: --freq can be used only with --cpu fixed\n");
+        return 2;
+      }
+    }
+    if (!rom_relative_path &&
+        (set_content_suffix || clear_content_suffix || set_audio_driver ||
+         audio_latency_seen || clear_audio || set_dosbox_force60fps ||
+         set_dosbox_cycles || clear_dosbox)) {
+      fprintf(stderr, "error: content/audio/DOSBox-Pure options require core rom scope\n");
       return 2;
     }
 
@@ -3225,24 +4873,73 @@ int main(int argc, char **argv) {
       }
     }
 
-    if (set_profile) {
-      int ok;
-      if (rom_relative_path) {
-        ok = set_rom_core_override(&state, system_id, rom_relative_path, set_profile);
-      } else {
-        ok = set_system_core_override(&state, system_id, set_profile);
-      }
-      if (!ok || !save_core_overrides(core_overrides_path, &state)) {
-        fprintf(stderr, "error: cannot write core overrides: %s\n", core_overrides_path);
-        return 1;
-      }
-    } else if (clear) {
+    if (clear) {
       if (rom_relative_path) {
         clear_rom_core_override(&state, system_id, rom_relative_path);
       } else {
         clear_system_core_override(&state, system_id);
       }
       if (!save_core_overrides(core_overrides_path, &state)) {
+        fprintf(stderr, "error: cannot write core overrides: %s\n", core_overrides_path);
+        return 1;
+      }
+    } else if (set_profile || set_cpu_policy || cores_seen || clear_cpu ||
+               set_content_suffix || clear_content_suffix || set_audio_driver ||
+               audio_latency_seen || clear_audio || set_dosbox_force60fps ||
+               set_dosbox_cycles || clear_dosbox) {
+      int ok = 1;
+      if (set_profile) {
+        ok = rom_relative_path
+                 ? set_rom_core_override(&state, system_id, rom_relative_path, set_profile)
+                 : set_system_core_override(&state, system_id, set_profile);
+      }
+      if (ok && set_cpu_policy) {
+        ok = rom_relative_path
+                 ? set_rom_cpu_override(&state, system_id, rom_relative_path, set_cpu_policy,
+                                        set_cpu_freq_khz)
+                 : set_system_cpu_override(&state, system_id, set_cpu_policy,
+                                           set_cpu_freq_khz);
+      }
+      if (ok && cores_seen) {
+        ok = rom_relative_path
+                 ? set_rom_cpu_cores_override(&state, system_id, rom_relative_path,
+                                              set_cpu_cores)
+                 : set_system_cpu_cores_override(&state, system_id, set_cpu_cores);
+      }
+      if (ok && clear_cpu) {
+        ok = rom_relative_path ? clear_rom_cpu_override(&state, system_id, rom_relative_path)
+                               : clear_system_cpu_override(&state, system_id);
+      }
+      if (ok && set_content_suffix) {
+        ok = set_rom_content_suffix_override(&state, system_id, rom_relative_path,
+                                             set_content_suffix);
+      }
+      if (ok && clear_content_suffix) {
+        ok = clear_rom_content_suffix_override(&state, system_id, rom_relative_path);
+      }
+      if (ok && set_audio_driver) {
+        ok = set_rom_audio_driver_override(&state, system_id, rom_relative_path,
+                                           set_audio_driver);
+      }
+      if (ok && audio_latency_seen) {
+        ok = set_rom_audio_latency_override(&state, system_id, rom_relative_path,
+                                            set_audio_latency_ms);
+      }
+      if (ok && clear_audio) {
+        ok = clear_rom_audio_override(&state, system_id, rom_relative_path);
+      }
+      if (ok && set_dosbox_force60fps) {
+        ok = set_rom_dosbox_force60fps_override(&state, system_id, rom_relative_path,
+                                                set_dosbox_force60fps);
+      }
+      if (ok && set_dosbox_cycles) {
+        ok = set_rom_dosbox_cycles_override(&state, system_id, rom_relative_path,
+                                            set_dosbox_cycles);
+      }
+      if (ok && clear_dosbox) {
+        ok = clear_rom_dosbox_override(&state, system_id, rom_relative_path);
+      }
+      if (!ok || !save_core_overrides(core_overrides_path, &state)) {
         fprintf(stderr, "error: cannot write core overrides: %s\n", core_overrides_path);
         return 1;
       }

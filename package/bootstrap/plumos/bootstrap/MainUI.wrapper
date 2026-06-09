@@ -13,6 +13,9 @@ NETWORK_RESCUE="${PLUMOS_NETWORK_RESCUE:-${PLUMOS_ROOT}/bin/plumos-network-rescu
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
+UI_ROTATION="${PLUMOS_MALI_ROTATION:-auto}"
+UI_STYLE="${PLUMOS_MALI_STYLE:-tty}"
+UI_ENTRY_SCALE="${PLUMOS_MALI_TTY_ENTRY_SCALE:-2}"
 
 mkdir -p "$LOG_DIR" "${PLUMOS_ROOT}/config" 2>/dev/null || true
 
@@ -29,6 +32,20 @@ run_stock() {
 
   log "stock MainUI fallback is missing or not executable: ${STOCK_MAINUI}"
   exit 127
+}
+
+run_controller_ui() {
+  if [ ! -x "$CONTROLLER_UI" ]; then
+    log "controller UI is missing or not executable: ${CONTROLLER_UI}"
+    return 127
+  fi
+
+  log "starting plumOS controller UI: ${CONTROLLER_UI}"
+  PLUMOS_ROOT="$PLUMOS_ROOT" \
+  PLUMOS_MALI_STYLE="$UI_STYLE" \
+  PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
+    "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
+    --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
 }
 
 log "wrapper start pid=$$ pwd=$(pwd)"
@@ -53,13 +70,13 @@ if [ -e "$DISABLE_FILE" ]; then
 fi
 
 if [ -x "$CONTROLLER_UI" ]; then
-  log "starting controller network rescue UI: ${CONTROLLER_UI}"
-  "$CONTROLLER_UI" --rescue-network --rotation auto
+  run_controller_ui
   status="$?"
-  log "controller network rescue UI exited with status ${status}"
+  log "controller UI exited with status ${status}"
   if [ "$status" -eq 0 ]; then
     exit 0
   fi
+  log "controller UI failed; trying legacy plumOS frontend"
 fi
 
 if [ ! -x "$FRONTEND" ]; then

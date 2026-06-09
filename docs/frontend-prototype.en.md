@@ -24,6 +24,8 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/bin/plumos-safe-hotkeyd
+dist/plumos-frontend/plumos/bin/plumos-safe-shutdown
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
@@ -290,7 +292,32 @@ fallback. On the A30 it looks for `gpio-keys-polled` in
 polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
 The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
 SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is not an alternate START button; it
-opens the safe shutdown/resume menu preview.
+opens the SAFE menu.
+
+`plumos-safe-hotkeyd` is the safe-exit helper for the period where the frontend
+is blocked by an emulator. It auto-detects `gpio-keys-polled`, reads the
+`/dev/input/event3` equivalent non-exclusively, and by default runs
+`plumos-safe-shutdown --shutdown --no-poweroff` when Function=`KEY_ESC` is
+pressed. `SIGUSR1` uses the same trigger path, so it can be tested without a
+physical button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
+completed safe shutdown, resume hold, CPU restore, and frontend restart. The
+artifact is
+`artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
+`plumos-text-ui launch --execute` automatically starts
+`plumos-safe-hotkeyd --oneshot` only while a RetroArch/standalone launch is
+running. Set `PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable it. The auto-started
+hotkeyd `SIGUSR1` trigger is verified in
+`artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
+`scripts/probe-a30-safe-hotkeyd.sh` can rerun this path. `--trigger signal`
+runs the automated test, while `--trigger physical` waits for a physical
+Function press. The latest script-driven signal artifact is
+`artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`.
+That artifact also verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a
+pending resume plan using `--entry-slot 999`.
+The physical Function press itself is verified in
+`artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`;
+`safe-hotkeyd.log` records `trigger source=key`. An in-game SAFE overlay menu
+remains to be validated.
 
 `plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
 It uses `/dev/fb0` and `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so`, without
@@ -315,12 +342,16 @@ stopped after the probe exits. Wi-Fi/SSH are maintained by
 MainUI/keymon were stopped. Omit `--no-restart-stock` only for comparison runs
 where the stock side should be restored.
 
-`--rescue-network` is a temporary reboot-recovery UI. On that screen, pressing A
-runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue`, which retries the Wi-Fi init
-script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. The boot wrapper runs
-this helper automatically at FE startup and, for now, shows the Mali rescue UI
-before `plumos-frontend`. START menu Network and the Settings `A30 Wi-Fi Config`
-/ `A30 Wi-Fi Runtime` rows call the same helper.
+The boot wrapper runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue` in the
+background and then proceeds to the normal FE TOP screen. Network recovery is
+reachable from START menu `Network Recovery`; pressing A there retries the Wi-Fi
+init script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. The Network
+Settings `Run Network Recovery` row calls the same helper with A.
+
+Text sizing, bitmap/FreeType usage, and list column alignment rules for the A30
+device UI are documented in [A30 UI Design Rules](a30-ui-design.en.md). In
+particular, user-visible text must not be rendered below `1x`, and primary rows
+use `2x` as the baseline.
 
 Mali renderer device checks:
 
@@ -352,8 +383,16 @@ portrait when viewed raw, but, like the stock MainUI capture, it is readable as
 landscape after a 90-degree rotation.
 `--rescue-network --script a,q` also succeeded: the Mali UI invoked the network
 rescue helper via the A action and exited with code `0`.
-START menu Network and A on Settings `A30 Wi-Fi Config` were also confirmed to
-reach `udhcpc` lease acquisition and SSH start.
+START menu `Network Recovery` and A on the Settings network recovery row were
+also confirmed to reach `udhcpc` lease acquisition and SSH start.
+The Mali renderer draws ASCII with the built-in bitmap font and non-ASCII text
+with a FreeType font. Font selection tries `PLUMOS_MALI_FONT`, theme `font_ui`,
+then known A30 CJK font candidates. UTF-8 is processed by codepoint instead of
+byte, so Japanese ROM names no longer become `???`.
+On 2026-06-08, a temporary `PLUMOS_ROOT=/tmp/plumos-fonttest` Japanese ROM list
+confirmed `ドラゴンクエストIII`, `悪魔城伝説`, and
+`ファイナルファンタジー` in
+`artifacts/a30-probes/frontend-font-jp-clean2/20260608-215527.visible.cw.png`.
 However, the `reboot` command went dark/LED-off and did not reach the Miyoo logo.
 The user held power to force off, powered on again, and then restored SSH by
 pressing A on the network rescue UI.
@@ -390,37 +429,69 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 Controls:
 
-- D-pad: move cursor.
-- A/right: enter ROM list on TOP; show launch preview on ROM list.
-- B/left: return from ROM list, Favorites, Recent, or Settings to TOP. In START
-  menu, return to the previous screen.
+- D-pad up/down: move cursor. Physical Up/Down have software key repeat.
+- D-pad right/left: page down/up on TOP/ROM list/Favorites/Recent.
+- A: enter ROM list on TOP; execute launch on ROM list/Favorites/Recent.
+- B: return from ROM list, Favorites, or Recent to TOP. Settings, HELP, and
+  Network Recovery return to START; the System Settings `Display Color` and
+  `INFORMATION` subpages return to System Settings. START returns to the previous
+  screen.
 - START: open START menu.
-- START menu: Settings/Favorites/Recent open real screens; Network runs network
-  rescue; other actions show previews.
-- SELECT: system/per-ROM core preview.
+- START menu: Settings/Favorites/Recent/Network Recovery open real screens;
+  Shutdown runs `plumos-safe-shutdown --shutdown --no-poweroff`; other actions
+  show previews.
+- Left/Right are never confirm/run/back/cancel. A confirms/runs and B
+  backs/cancels.
+- SELECT: system/per-ROM core menu.
 - Function: open the SAFE menu. SAFE menu contains `Sleep`, `Shutdown`, and
   `Cancel`.
-- Settings: show current values; A on Wi-Fi rows runs network rescue, while other
-  rows show edit preview.
+- UI Settings: checkboxes save through A/Left/Right, and choices save through
+  Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot resume are
+  reflected in runtime behavior after saving.
+- Network Settings: Wi-Fi runtime rows are read-only. Only A on
+  `Run Network Recovery` runs network rescue. SSID/PSK are not displayed.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 SAFE menu:
 
 - Function opens SAFE menu from any screen.
 - Initial cursor is `Cancel` to reduce accidental actions.
-- `Sleep` previews save flushing and keeping the resume candidate.
-- `Shutdown` previews save state, resume-session update, `sync`, and poweroff.
-- `Cancel`, B, LEFT, and Function return to the previous screen.
-- The current prototype does not execute sleep or shutdown.
+- `Sleep` runs `plumos-safe-shutdown --sleep --no-poweroff`.
+- `Shutdown` runs `plumos-safe-shutdown --shutdown --no-poweroff`.
+- `Cancel` and B return to the previous screen. LEFT/RIGHT and Function are not
+  used for confirm/back.
+- Power/sleep backend selection is wired in `plumos-safe-shutdown`. The SAFE
+  menu default still does not trigger real poweroff or real suspend; it runs
+  through save, exit, `sync`, and resume hold.
+- While an emulator is running, the direct `plumos-safe-hotkeyd` safe-exit path
+  is verified first. The physical Function press is also verified. The in-game
+  overlay menu still needs validation.
 
-The Settings screen also shows a read-only inventory for A30-specific settings,
-separate from plumOS frontend settings and theme state. It reads volume,
-brightness, display color, Wi-Fi enabled flag, keymap, language, stock theme,
-and CPU mode from `/config/system.json`, plus redacted Wi-Fi runtime status from
-`/tmp/wpa_status.txt`. It does not read SSID or PSK. Write-enabled controls are
-deferred until backend validation is complete. In the Mali renderer, the first
-Settings row is `HELP`, which opens the controls help screen. Normal screens do
-not keep persistent bottom control hints.
+The Settings screen also shows plumOS-owned system settings, separate from
+frontend settings and theme state. UI Settings entries such
+as `Show Empty Systems`, `Favorites On TOP`, `Recent On TOP`, `Sort Systems`,
+`Sort ROMs`, `Scan On Enter`, and `Boot Resume Mode` are reflected in controller
+UI behavior after saving. System Settings reads volume, brightness, lumination,
+display color, language, and theme information from
+`/mnt/SDCARD/plumos/config/system/settings.json`. Its top level is `Volume`,
+`Brightness`, `Lumination`, `Display Color`, `Language`, `Theme`, and
+`INFORMATION`. `Volume`, `Brightness`, `Lumination`, and `Language` save to
+plumOS system settings with Left/Right. `Display Color` opens a subpage for
+`Contrast`, `Hue`, and `Saturation`, which also save with Left/Right. Writes
+use a first backup, temporary file, fsync, rename, and sync, but direct
+unvalidated mixer/sysfs backend application is not implemented yet.
+Current-value, backend, and policy details live under the `INFORMATION` subpage.
+Redacted Wi-Fi runtime status belongs to Network Settings, which does not read
+SSID or PSK. CPU mode belongs to Performance Settings. Performance Settings now
+connects to the existing `plumos-text-ui core system ... --cpu --freq --cores`
+flow and saves per-system `CPU freq` and `CPU Cores` to `core-overrides.json`.
+`CPU freq` exposes only fixed `648/816/1200/1344 MHz` values; unpredictable
+`keep` is removed. `Reset to Default` falls back to the `systems.json`
+`648 MHz` / `2 cores` plumOS defaults.
+`Theme` remains read-only
+until candidate names and paths are defined safely. In the Mali renderer, the
+first Settings row is `HELP`, which opens the
+controls help screen. Normal screens do not keep persistent bottom control hints.
 
 Example check:
 
