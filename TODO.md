@@ -135,7 +135,9 @@
   反映する実装にした。A30 へ deploy 済みで、SSH script から `Volume` の `14 -> 15 -> 14`、
   `Brightness` の復元、display color の可逆変更を行い、最終値が `volume=14`,
   `brightness=10`, `lcdbl=255`, `enhance=1,25,50,50,50`, mixer `179 [70%]` に戻ることを
-  確認済み。残りはユーザー目視で変化確認、物理音量ボタン連動、brightness hotkey 連動。
+  確認済み。2026-06-10 に `brightness=0` が `lcdbl=0` へ直結して画面暗転したため、
+  `Brightness` は `1..10` へ変更し、起動時runtime反映も最低値1にclampする。残りは
+  ユーザー目視で変化確認、物理音量ボタン連動、brightness hotkey 連動。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。

@@ -44,7 +44,7 @@ stockOS の `/config/system.json` とは切り離します。
 現在のキー:
 
 - `volume`: `0..20`
-- `brightness`: `0..10`
+- `brightness`: `1..10`
 - `lumination`: `0..10`
 - `contrast`: `0..20`
 - `hue`: `0..20`
