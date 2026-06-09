@@ -19,6 +19,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 
 調査結果と設計方針は以下にまとめています。
 
+- [Codex/agent 作業ルール](AGENTS.md)
 - [A30 システム調査メモ](docs/a30-system-notes.md)
 - [plumOS 設計方針](docs/plumos-design-policy.md)
 - [Docker toolchain](docs/docker-toolchain.md)

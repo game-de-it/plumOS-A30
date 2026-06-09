@@ -1,6 +1,6 @@
 # TODO
 
-This file tracks current work items only. Put work history, probe logs, and rationale in `HANDOFF.md`, `docs/`, commit history, or `artifacts/`.
+This file tracks current work items only. Put work history, probe logs, and rationale in `docs/`, commit history, or `artifacts/` according to `AGENTS.md`. Do not append new history to `HANDOFF.md`.
 
 ## Phase 0 - Repository and Remote Access
 
