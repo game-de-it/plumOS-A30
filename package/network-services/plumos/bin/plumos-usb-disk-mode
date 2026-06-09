@@ -11,6 +11,8 @@ STATE_DIR="${PLUMOS_USB_DISK_STATE_DIR:-/tmp/plumos-usb-disk-mode}"
 LOG_FILE="${PLUMOS_USB_DISK_LOG:-/tmp/plumos-usb-disk-mode.log}"
 EXIT_FLAG="${STATE_DIR}/exit"
 RUN_COPY="${STATE_DIR}/plumos-usb-disk-mode.run"
+USB_USERLAND_STATE="${STATE_DIR}/usb-userland"
+PERSIST_LOG_FILE="${PLUMOS_ROOT}/logs/usb-disk-mode-last.log"
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -60,6 +62,10 @@ restore_usb_function() {
   write_value "${ANDROID_USB}/idVendor" "$old_vendor" || true
   write_value "${ANDROID_USB}/idProduct" "$old_product" || true
   write_value "${ANDROID_USB}/enable" "$old_enable" || true
+}
+
+log_usb_state() {
+  log "usb state=$(read_value "${ANDROID_USB}/state") functions=$(read_value "${ANDROID_USB}/functions") enabled=$(read_value "${ANDROID_USB}/enable") lun=$(read_value "${LUN}/file")"
 }
 
 print_status() {
@@ -158,6 +164,56 @@ list_sd_users() {
       printf 'pid=%s comm=%s cmd=%s\n' "$pid" "$comm" "$cmd"
     fi
   done
+}
+
+stop_usb_userland() {
+  pids=""
+  : > "$USB_USERLAND_STATE"
+  for proc in /proc/[0-9]*; do
+    pid="${proc#/proc/}"
+    case "$pid" in
+      *[!0-9]*|'') continue ;;
+    esac
+    [ "$pid" = "$$" ] && continue
+    cmd="$(tr '\0' ' ' < "/proc/${pid}/cmdline" 2>/dev/null || true)"
+    case "$cmd" in
+      *'/usr/sbin/MtpDaemon -D'*|*'/usr/sbin/MtpDaemon'*)
+        echo "MtpDaemon" >> "$USB_USERLAND_STATE"
+        pids="$pids $pid"
+        ;;
+      *'/bin/adbd -D'*|*'/bin/adbd'*)
+        echo "adbd" >> "$USB_USERLAND_STATE"
+        pids="$pids $pid"
+        ;;
+    esac
+  done
+  if [ -n "$pids" ]; then
+    log "stopping stock usb userland:${pids}"
+    kill -TERM $pids 2>/dev/null || true
+    sleep 1
+    kill -KILL $pids 2>/dev/null || true
+  fi
+}
+
+restart_usb_userland() {
+  if [ -r "$USB_USERLAND_STATE" ]; then
+    if grep -q '^adbd$' "$USB_USERLAND_STATE" 2>/dev/null && [ -x /bin/adbd ]; then
+      log "restarting adbd"
+      /bin/adbd -D >> "$LOG_FILE" 2>&1 &
+    fi
+    if grep -q '^MtpDaemon$' "$USB_USERLAND_STATE" 2>/dev/null &&
+       [ -x /usr/sbin/MtpDaemon ]; then
+      log "restarting MtpDaemon"
+      /usr/sbin/MtpDaemon -D >> "$LOG_FILE" 2>&1 &
+    fi
+  fi
+}
+
+persist_log_if_possible() {
+  if [ -d "$PLUMOS_ROOT" ]; then
+    mkdir -p "${PLUMOS_ROOT}/logs" 2>/dev/null || true
+    cp "$LOG_FILE" "$PERSIST_LOG_FILE" 2>/dev/null || true
+  fi
 }
 
 preflight() {
@@ -271,7 +327,9 @@ restart_plumos() {
 
 enable_mass_storage() {
   log "enabling USB disk mode"
+  log_usb_state
   write_value "${ANDROID_USB}/enable" 0 || die "cannot disable android usb"
+  write_value "${LUN}/file" "" || true
   write_value "${ANDROID_USB}/functions" "mass_storage" || die "cannot select mass_storage"
   write_value "${ANDROID_USB}/idVendor" "1f3a" || true
   write_value "${ANDROID_USB}/idProduct" "1000" || true
@@ -280,23 +338,33 @@ enable_mass_storage() {
   write_value "${MASS_STORAGE}/inquiry_string" "plumOS A30 SD Card" || true
   write_value "${LUN}/file" "$SD_DEVICE" || die "cannot attach SD block device"
   write_value "${ANDROID_USB}/enable" 1 || die "cannot enable android usb"
+  log_usb_state
 }
 
 finish() {
   log "finishing USB disk mode"
+  log_usb_state
   restore_usb_function
   run_fsck_if_available
   remount_sdcard || die "cannot remount SD card"
+  restart_usb_userland
   restart_plumos
   rm -f "$EXIT_FLAG"
+  log_usb_state
   log "USB disk mode finished"
+  persist_log_if_possible
 }
 
 wait_for_disconnect_or_flag() {
+  last_state=""
   log "waiting for USB disconnect or ${EXIT_FLAG}"
   while :; do
     [ -e "$EXIT_FLAG" ] && break
     state="$(read_value "${ANDROID_USB}/state")"
+    if [ "$state" != "$last_state" ]; then
+      log "usb wait state=${state}"
+      last_state="$state"
+    fi
     case "$state" in
       DISCONNECTED|NOTATTACHED|'') break ;;
     esac
@@ -307,6 +375,7 @@ wait_for_disconnect_or_flag() {
 internal_enter() {
   require_paths
   save_usb_state
+  stop_usb_userland
   sync
   stop_network_services
   pause_main_supervisor
