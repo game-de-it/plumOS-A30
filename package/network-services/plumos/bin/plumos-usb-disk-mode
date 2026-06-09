@@ -25,7 +25,6 @@ log() {
   printf '%s\n' "$line" >> "$LOG_FILE" 2>/dev/null || true
   if [ -n "$RECOVERY_LOG_FILE" ]; then
     printf '%s\n' "$line" >> "$RECOVERY_LOG_FILE" 2>/dev/null || true
-    sync "$RECOVERY_LOG_FILE" 2>/dev/null || true
   fi
 }
 
@@ -251,7 +250,6 @@ reset_attempt_logs() {
   : > "$LOG_FILE" 2>/dev/null || true
   if [ -n "$RECOVERY_LOG_FILE" ]; then
     : > "$RECOVERY_LOG_FILE" 2>/dev/null || true
-    sync "$RECOVERY_LOG_FILE" 2>/dev/null || true
   fi
 }
 
@@ -311,7 +309,45 @@ stop_network_services() {
   fi
 }
 
-kill_sd_users() {
+terminate_pids() {
+  reason="$1"
+  pids="$2"
+  if [ -n "$pids" ]; then
+    log "${reason}:${pids}"
+    kill -TERM $pids 2>/dev/null || true
+    sleep 1
+    kill -KILL $pids 2>/dev/null || true
+    sleep 1
+  fi
+}
+
+kill_common_sd_users() {
+  pids=""
+  for proc in /proc/[0-9]*; do
+    pid="${proc#/proc/}"
+    case "$pid" in
+      *[!0-9]*|'') continue ;;
+    esac
+    [ "$pid" = "$$" ] && continue
+    comm="$(cat "/proc/${pid}/comm" 2>/dev/null || true)"
+    cmd="$(tr '\0' ' ' < "/proc/${pid}/cmdline" 2>/dev/null || true)"
+    case "$comm:$cmd" in
+      MainUI:*|\
+      *:"${PLUMOS_ROOT}"*|\
+      *:"${PLUMOS_SDCARD_ROOT}/miyoo/app/MainUI"*|\
+      *:' ./MainUI '*)
+        case " $pids " in
+          *" $pid "*) ;;
+          *) pids="$pids $pid" ;;
+        esac
+        ;;
+    esac
+  done
+
+  terminate_pids "terminating common sd users" "$pids"
+}
+
+kill_sd_users_full() {
   pids=""
   for proc in /proc/[0-9]*; do
     pid="${proc#/proc/}"
@@ -327,18 +363,11 @@ kill_sd_users() {
     fi
   done
 
-  if [ -n "$pids" ]; then
-    log "terminating sd users:${pids}"
-    kill -TERM $pids 2>/dev/null || true
-    sleep 1
-    kill -KILL $pids 2>/dev/null || true
-    sleep 1
-  fi
+  terminate_pids "terminating sd users after full scan" "$pids"
 }
 
 unmount_sdcard() {
   err="${STATE_DIR}/umount.err"
-  log_sd_users "sd_users_before_umount"
   if umount "$PLUMOS_SDCARD_ROOT" 2>"$err"; then
     log "unmounted ${PLUMOS_SDCARD_ROOT}"
     rm -f "$err"
@@ -350,7 +379,22 @@ unmount_sdcard() {
     done < "$err"
   fi
   rm -f "$err"
-  log_sd_users "sd_users_after_umount_failure"
+  log "initial unmount failed; running full sd user scan"
+  log_sd_users "sd_users_after_initial_umount_failure"
+  kill_sd_users_full
+  sync
+  if umount "$PLUMOS_SDCARD_ROOT" 2>"$err"; then
+    log "unmounted ${PLUMOS_SDCARD_ROOT} after full scan"
+    rm -f "$err"
+    return 0
+  fi
+  if [ -s "$err" ]; then
+    while IFS= read line; do
+      log "umount retry: ${line}"
+    done < "$err"
+  fi
+  rm -f "$err"
+  log_sd_users "sd_users_after_umount_retry_failure"
   return 1
 }
 
@@ -379,7 +423,7 @@ restart_plumos() {
   resume_main_supervisor
   if [ -x /mnt/SDCARD/miyoo/app/MainUI ] &&
      [ -z "$(ps w 2>/dev/null | grep -E '/mnt/SDCARD/miyoo/app/MainUI|plumos-controller-ui-mali' | grep -v grep || true)" ]; then
-    (cd /mnt/SDCARD/miyoo/app && ./MainUI >> "$LOG_FILE" 2>&1 &)
+    (cd /mnt/SDCARD/miyoo/app && ./MainUI >> "${PLUMOS_ROOT}/logs/mainui-wrapper.log" 2>&1 &)
   fi
 }
 
@@ -422,11 +466,11 @@ finish() {
   run_fsck_if_available
   remount_sdcard || die "cannot remount SD card"
   restart_usb_userland
-  restart_plumos
   rm -f "$EXIT_FLAG"
   log_usb_state
   log "USB disk mode finished"
   persist_log_if_possible
+  restart_plumos
 }
 
 wait_for_disconnect_or_flag() {
@@ -474,8 +518,7 @@ internal_enter() {
   sync
   stop_network_services
   pause_main_supervisor
-  log_sd_users "sd_users_before_terminate"
-  kill_sd_users
+  kill_common_sd_users
   sync
   unmount_sdcard || die "cannot unmount SD card"
   enable_mass_storage
