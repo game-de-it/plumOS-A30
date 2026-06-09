@@ -4366,6 +4366,7 @@ static void render_usb_disk_confirm(struct ui_state *ui) {
 
 static void render_usb_disk_starting(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - Network Settings - USB Disk Mode\n");
+  ui_printf(ui, "usb_disk_starting=1\n");
   ui_printf(ui, "entries=4 cursor=1\n");
   ui_printf(ui, "\n");
   ui_printf(ui, ">   1  USB DISK MODE STARTING\n");
