@@ -137,7 +137,9 @@
   `brightness=10`, `lcdbl=255`, `enhance=1,25,50,50,50`, mixer `179 [70%]` に戻ることを
   確認済み。2026-06-10 に `brightness=0` が `lcdbl=0` へ直結して画面暗転したため、
   `Brightness` は `1..10` へ変更し、起動時runtime反映も最低値1にclampする。残りは
-  ユーザー目視で変化確認、物理音量ボタン連動、brightness hotkey 連動。
+  ユーザー目視で変化確認、物理音量ボタン連動、brightness hotkey 連動。さらに
+  2026-06-10 に線形 `lcdbl 26..255` では高域が早く飽和するとの目視フィードバックを受け、
+  `lcdbl 12,18,26,36,50,68,90,118,160,255` の体感寄せ table へ変更した。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。

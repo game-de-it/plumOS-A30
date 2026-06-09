@@ -80,8 +80,9 @@ plumOS 側では `/mnt/SDCARD/plumos/config/system/settings.json` に `brightnes
 UI からは plumOS 側の `brightness`, `lumination`, `contrast`, `hue`,
 `saturation` を backup 付き atomic write で更新し、保存直後に A30 の
 `/sys/devices/virtual/disp/disp/attr/lcdbl` と
-`/sys/devices/virtual/disp/disp/attr/enhance` へ反映します。`brightness 1..10` は
-`lcdbl 26..255`、`lumination 0..10` は `enhance` の第2値 `0..50`、
+`/sys/devices/virtual/disp/disp/attr/enhance` へ反映します。`brightness 1..10` は、
+線形では高域が早く飽和するため `lcdbl 12,18,26,36,50,68,90,118,160,255` の
+体感寄せ table にします。`lumination 0..10` は `enhance` の第2値 `0..50`、
 `contrast` / `hue` / `saturation 0..20` は `enhance` の第3-5値 `0..100` に丸めます。
 
 ## volume

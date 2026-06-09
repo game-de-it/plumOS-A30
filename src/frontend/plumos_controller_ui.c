@@ -808,6 +808,10 @@ static int apply_runtime_volume(const struct device_settings *device) {
 }
 
 static int apply_runtime_brightness(const struct device_settings *device) {
+  /* A30 lcdbl values saturate early, so use a perceptual table instead of linear 1..10. */
+  static const long brightness_lcdbl_values[10] = {
+      12, 18, 26, 36, 50, 68, 90, 118, 160, 255,
+  };
   char value[64];
   long backlight_value;
   long brightness;
@@ -816,7 +820,7 @@ static int apply_runtime_brightness(const struct device_settings *device) {
     return 0;
   }
   brightness = clamp_long(device->brightness, 1, 10);
-  backlight_value = scale_setting_to_runtime(brightness, 10, 255);
+  backlight_value = brightness_lcdbl_values[brightness - 1];
   snprintf(value, sizeof(value), "%ld\n", backlight_value);
   return write_text_file(A30_LCD_BACKLIGHT_PATH, value);
 }

@@ -23,13 +23,14 @@ setting, then connects that backend to plumOS UI and services.
 Opening System Settings from the START menu in `plumos-controller-ui` shows the
 settings users should recognize as adjustment targets. As of 2026-06-09, the UI
 reads and writes `/mnt/SDCARD/plumos/config/system/settings.json`; it does not
-touch stockOS `/config/system.json`. It still does not directly apply
-unvalidated mixer or sysfs runtime backends.
+touch stockOS `/config/system.json`. Except for `Language` and `Theme`, saves
+are applied immediately to the A30 runtime backend.
 
 - `Volume`: `volume`; Left/Right changes `0..20`. Later
   this should track the physical volume buttons
-- `Brightness`: `brightness`; Left/Right changes `0..10`. Later this should
-  track a hotkey such as START + volume
+- `Brightness`: `brightness`; Left/Right changes `1..10`. `0` is not exposed
+  because it maps to a display blackout. Later this should track a hotkey such
+  as START + volume
 - `Lumination`: `lumination`; Left/Right changes `0..10`
 - `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
   each change in the `0..20` range
@@ -48,8 +49,10 @@ The `INFORMATION` subpage owns these read-only entries:
   `/mnt/SDCARD/plumos/config/system/settings.json`
 - `Input Device`: `/dev/input/event*` found from `gpio-keys-polled`
 - `Theme Source`: plumOS theme id
-- `Audio Backend`: plumOS config only
-- `Display Backend`: plumOS config only
+- `Audio Backend`: detected mixer backend. On A30 this is
+  `Soft Volume Master (amixer)`
+- `Display Backend`: detected display backend. On A30 this is
+  `disp attr lcdbl/enhance`
 - `Write Policy`: save under plumOS only; stockOS remains untouched
 
 Network Settings owns these entries:
@@ -88,19 +91,18 @@ files. plumOS stores `brightness`, `lumination`, `contrast`, `hue`, and
 `saturation` in `/mnt/SDCARD/plumos/config/system/settings.json`.
 
 The UI updates `brightness`, `lumination`, `contrast`, `hue`, and `saturation`
-in plumOS system settings using backed-up atomic writes. Direct runtime backend
-application still waits until we confirm which kernel, sysfs, or API path the
-stock frontend uses.
+in plumOS system settings using backed-up atomic writes, then applies them to
+`/sys/devices/virtual/disp/disp/attr/lcdbl` and
+`/sys/devices/virtual/disp/disp/attr/enhance`. `brightness 1..10` uses a
+perceptual table because linear high values saturate early on the A30:
+`lcdbl 12,18,26,36,50,68,90,118,160,255`.
 
 ## Volume
 
-plumOS stores `volume` in `/mnt/SDCARD/plumos/config/system/settings.json`. The
-device also has `amixer`, so direct ALSA mixer control may be possible.
-
-The UI updates `volume` in plumOS system settings using backed-up atomic writes. The
-mixer control mapping is not validated yet. Before connecting physical volume
-buttons or immediate volume application, inspect `amixer contents` and verify
-which controls change the actual output volume.
+plumOS stores `volume` in `/mnt/SDCARD/plumos/config/system/settings.json`.
+The UI updates `volume` using backed-up atomic writes and then applies it with
+`amixer cset iface=MIXER,name='Soft Volume Master'`. `volume 0..20` maps to
+mixer values `0..255`. Physical volume button tracking is a separate task.
 
 ## Wi-Fi
 

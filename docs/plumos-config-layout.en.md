@@ -50,13 +50,21 @@ System Settings reads and writes
 Current keys:
 
 - `volume`: `0..20`
-- `brightness`: `0..10`
+- `brightness`: `1..10`
 - `lumination`: `0..10`
 - `contrast`: `0..20`
 - `hue`: `0..20`
 - `saturation`: `0..20`
 - `language`: `en.lang`, `ja.lang`, etc.
 - `theme`: plumOS theme id
+
+As of 2026-06-10, values other than `Language` and `Theme` are applied to the
+A30 runtime when saved and once during FE startup. `volume` uses ALSA
+`Soft Volume Master`, `brightness` uses
+`/sys/devices/virtual/disp/disp/attr/lcdbl`, and `lumination` / `contrast` /
+`hue` / `saturation` use `/sys/devices/virtual/disp/disp/attr/enhance`.
+Brightness uses a perceptual `lcdbl` table:
+`12,18,26,36,50,68,90,118,160,255`.
 
 ## Performance Settings
 
