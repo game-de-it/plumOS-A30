@@ -24,6 +24,9 @@ plumOS でも同じ原則を守ります。
   disable -> mass_storage -> enable して host PC 側へ再 enumerate させる。
 - `/mnt/SDCARD` を unmount できた場合だけ USB mass storage を有効化する。
 - PC 側で eject した後に USB Disk Mode を抜け、fsck、remount、FE/SSH restart を行う。
+- FE は `/mnt/SDCARD/miyoo/app` から起動されるため、helper は tmpfs へ自分をコピーした後、
+  作業ディレクトリを `/` へ移してから SD card を unmount する。
+- enter 途中で失敗した場合も、USB gadget、SD mount、SSH/FE の復帰処理を試みる。
 
 ## A30 の実機状態
 

@@ -29,6 +29,11 @@ plumOS follows the same rule.
 - Enable USB mass storage only after `/mnt/SDCARD` is unmounted.
 - After the host PC ejects the drive, leave USB Disk Mode, run fsck, remount the
   SD card, and restart FE/SSH.
+- Because the FE is launched from `/mnt/SDCARD/miyoo/app`, the helper copies
+  itself to tmpfs and changes its working directory to `/` before unmounting the
+  SD card.
+- If entry fails partway through, the helper attempts to restore the USB gadget,
+  SD mount, SSH, and FE.
 
 ## A30 Device State
 

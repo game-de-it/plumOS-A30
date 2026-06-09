@@ -16,6 +16,7 @@ PERSIST_LOG_FILE="${PLUMOS_ROOT}/logs/usb-disk-mode-last.log"
 RECOVERY_LOG_FILE="${PLUMOS_USB_DISK_RECOVERY_LOG:-/config/plumos-usb-disk-mode.log}"
 USB_ATTACH_GRACE_SEC="${PLUMOS_USB_DISK_ATTACH_GRACE_SEC:-30}"
 USB_REENUM_SETTLE_SEC="${PLUMOS_USB_DISK_REENUM_SETTLE_SEC:-1}"
+FAILURE_CLEANUP_ENABLED=0
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -30,6 +31,10 @@ log() {
 
 die() {
   log "error: $*"
+  if [ "${FAILURE_CLEANUP_ENABLED:-0}" = "1" ]; then
+    FAILURE_CLEANUP_ENABLED=0
+    recover_after_failure "$*"
+  fi
   printf 'error=%s\n' "$*" >&2
   exit 1
 }
@@ -182,6 +187,15 @@ list_sd_users() {
   done
 }
 
+log_sd_users() {
+  label="$1"
+  log "${label}_begin"
+  list_sd_users | while IFS= read line; do
+    log "${label}: ${line}"
+  done
+  log "${label}_end"
+}
+
 stop_usb_userland() {
   pids=""
   : > "$USB_USERLAND_STATE"
@@ -318,7 +332,26 @@ kill_sd_users() {
     kill -TERM $pids 2>/dev/null || true
     sleep 1
     kill -KILL $pids 2>/dev/null || true
+    sleep 1
   fi
+}
+
+unmount_sdcard() {
+  err="${STATE_DIR}/umount.err"
+  log_sd_users "sd_users_before_umount"
+  if umount "$PLUMOS_SDCARD_ROOT" 2>"$err"; then
+    log "unmounted ${PLUMOS_SDCARD_ROOT}"
+    rm -f "$err"
+    return 0
+  fi
+  if [ -s "$err" ]; then
+    while IFS= read line; do
+      log "umount: ${line}"
+    done < "$err"
+  fi
+  rm -f "$err"
+  log_sd_users "sd_users_after_umount_failure"
+  return 1
 }
 
 remount_sdcard() {
@@ -348,6 +381,19 @@ restart_plumos() {
      [ -z "$(ps w 2>/dev/null | grep -E '/mnt/SDCARD/miyoo/app/MainUI|plumos-controller-ui-mali' | grep -v grep || true)" ]; then
     (cd /mnt/SDCARD/miyoo/app && ./MainUI >> "$LOG_FILE" 2>&1 &)
   fi
+}
+
+recover_after_failure() {
+  reason="$*"
+  log "recovering after USB disk mode failure: ${reason}"
+  log_usb_state
+  restore_usb_function
+  remount_sdcard || log "recovery remount failed"
+  restart_usb_userland
+  restart_plumos
+  log_usb_state
+  log "USB disk mode recovery complete"
+  persist_log_if_possible
 }
 
 enable_mass_storage() {
@@ -419,18 +465,23 @@ wait_for_disconnect_or_flag() {
 internal_enter() {
   reset_attempt_logs
   log "USB disk mode begin"
+  cd / || true
+  log "working directory moved away from SD card"
   require_paths
   save_usb_state
+  FAILURE_CLEANUP_ENABLED=1
   stop_usb_userland
   sync
   stop_network_services
   pause_main_supervisor
+  log_sd_users "sd_users_before_terminate"
   kill_sd_users
   sync
-  umount "$PLUMOS_SDCARD_ROOT" || die "cannot unmount SD card"
+  unmount_sdcard || die "cannot unmount SD card"
   enable_mass_storage
   wait_for_disconnect_or_flag
   finish
+  FAILURE_CLEANUP_ENABLED=0
 }
 
 enter() {
@@ -445,6 +496,7 @@ enter() {
   mkdir -p "$STATE_DIR"
   cp "$0" "$RUN_COPY" || die "cannot stage helper in tmpfs"
   chmod 755 "$RUN_COPY"
+  cd / || die "cannot leave SD card working directory"
   exec "$RUN_COPY" _enter
 }
 
