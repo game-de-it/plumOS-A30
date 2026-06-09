@@ -179,6 +179,7 @@ struct input_event {
 #define UI_WIFI_KEYBOARD_ROWS 7
 #define UI_WIFI_COMMAND_ROW 6
 #define UI_WIFI_COMMAND_COUNT 5
+#define UI_USB_DISK_START_DELAY_MS 2000
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
@@ -4675,7 +4676,7 @@ static void open_usb_disk_confirm_screen(struct ui_state *ui) {
 
 static void open_usb_disk_starting_screen(struct ui_state *ui) {
   ui->screen = SCREEN_USB_DISK_STARTING;
-  ui->usb_disk_start_due_ms = current_time_ms() + 500;
+  ui->usb_disk_start_due_ms = current_time_ms() + UI_USB_DISK_START_DELAY_MS;
   set_status(ui, "USB Disk Mode starting");
 }
 
