@@ -9,7 +9,6 @@ LOG_FILE="${PLUMOS_MAINUI_LOG:-${LOG_DIR}/mainui-wrapper.log}"
 FRONTEND="${PLUMOS_FRONTEND:-${PLUMOS_ROOT}/bin/plumos-frontend}"
 ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
 CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
-NETWORK_RESCUE="${PLUMOS_NETWORK_RESCUE:-${PLUMOS_ROOT}/bin/plumos-network-rescue}"
 NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
 STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-services}"
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
@@ -25,6 +24,15 @@ mkdir -p "$LOG_DIR" "${PLUMOS_ROOT}/config" 2>/dev/null || true
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+wlan_has_ip() {
+  iface="${PLUMOS_WIFI_INTERFACE:-wlan0}"
+  ifconfig "$iface" 2>/dev/null |
+    sed -n -e 's/.*inet addr:\([^ ]*\).*/\1/p' \
+           -e 's/.*inet \([0-9][0-9.]*\).*/\1/p' |
+    sed -n '1p' |
+    grep -q .
 }
 
 json_string_value() {
@@ -116,21 +124,34 @@ if command -v killall >/dev/null 2>&1; then
   killall keymon >/dev/null 2>&1 || true
 fi
 
-if [ -x "$NETWORK_RESCUE" ]; then
-  log "starting network rescue helper: ${NETWORK_RESCUE}"
-  (
-    "$NETWORK_RESCUE" >> "$LOG_FILE" 2>&1
-    if [ -x "$NETWORK_SERVICES" ]; then
-      log "starting enabled network services: ${NETWORK_SERVICES}"
-      "$NETWORK_SERVICES" start-enabled >> "$LOG_FILE" 2>&1 || true
-    fi
-  ) &
-elif [ -x "$SSH_START" ]; then
-  log "starting SSH helper: ${SSH_START}"
-  "$SSH_START" >> "$LOG_FILE" 2>&1 &
-else
-  log "SSH/network helper missing"
-fi
+(
+  if [ -x "$SSH_START" ]; then
+    log "starting SSH helper without network rescue: ${SSH_START}"
+    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  else
+    log "SSH helper missing"
+  fi
+
+  if [ -x "$NETWORK_SERVICES" ]; then
+    log "starting enabled network services: ${NETWORK_SERVICES}"
+    "$NETWORK_SERVICES" start-enabled >> "$LOG_FILE" 2>&1 || true
+  else
+    log "network services helper missing: ${NETWORK_SERVICES}"
+  fi
+
+  if [ -x "$STOCK_SERVICES" ]; then
+    waited=0
+    while [ "$waited" -lt 15 ]; do
+      if wlan_has_ip; then
+        log "network already has IP; starting plumOS network-ready services"
+        "$STOCK_SERVICES" network-ready >> "$LOG_FILE" 2>&1 || true
+        break
+      fi
+      sleep 1
+      waited=$((waited + 1))
+    done
+  fi
+) &
 
 if [ -e "$DISABLE_FILE" ]; then
   log "disable file exists: ${DISABLE_FILE}"

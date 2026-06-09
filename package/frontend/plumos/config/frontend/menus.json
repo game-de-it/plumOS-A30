@@ -24,12 +24,6 @@
           "action": "internal:network-settings"
         },
         {
-          "id": "network-recovery",
-          "display_name": "Network Recovery",
-          "kind": "internal",
-          "action": "internal:network-recovery"
-        },
-        {
           "id": "performance-settings",
           "display_name": "Performance Settings",
           "kind": "internal",

@@ -342,11 +342,12 @@ stopped after the probe exits. Wi-Fi/SSH are maintained by
 MainUI/keymon were stopped. Omit `--no-restart-stock` only for comparison runs
 where the stock side should be restored.
 
-The boot wrapper runs `/mnt/SDCARD/plumos/bin/plumos-network-rescue` in the
-background and then proceeds to the normal FE TOP screen. Network recovery is
-reachable from START menu `Network Recovery`; pressing A there retries the Wi-Fi
-init script, DHCP, and `/mnt/SDCARD/plumos/ssh/start-ssh.sh`. The Network
-Settings `Run Network Recovery` row calls the same helper with A.
+The boot wrapper does not run `plumos-network-rescue`; it proceeds to the normal
+FE TOP screen. The START menu and Network Settings do not expose Network
+Recovery. If an old `internal:network-recovery` or `--rescue-network` route is
+still invoked, it only shows a disabled compatibility screen and does not call
+the helper. Recovery for cases where SSH is unavailable should be designed as a
+separate shell script launched directly from StockOS MainUI.
 
 Text sizing, bitmap/FreeType usage, and list column alignment rules for the A30
 device UI are documented in [A30 UI Design Rules](a30-ui-design.en.md). In
@@ -381,10 +382,10 @@ probe, the stock side was left stopped, Wi-Fi/SSH remained connected, and no
 stale `plumos-controller-ui-mali` process remained. The `/dev/fb0` capture is
 portrait when viewed raw, but, like the stock MainUI capture, it is readable as
 landscape after a 90-degree rotation.
-`--rescue-network --script a,q` also succeeded: the Mali UI invoked the network
-rescue helper via the A action and exited with code `0`.
-START menu `Network Recovery` and A on the Settings network recovery row were
-also confirmed to reach `udhcpc` lease acquisition and SSH start.
+At the time, `--rescue-network --script a,q` also succeeded by invoking the
+network rescue helper through the Mali UI A action and exiting with code `0`.
+As of 2026-06-10, this route is a disabled compatibility screen and no longer
+calls the helper.
 The Mali renderer draws ASCII with the built-in bitmap font and non-ASCII text
 with a FreeType font. Font selection tries `PLUMOS_MALI_FONT`, theme `font_ui`,
 then known A30 CJK font candidates. UTF-8 is processed by codepoint instead of
@@ -394,8 +395,8 @@ confirmed `ドラゴンクエストIII`, `悪魔城伝説`, and
 `ファイナルファンタジー` in
 `artifacts/a30-probes/frontend-font-jp-clean2/20260608-215527.visible.cw.png`.
 However, the `reboot` command went dark/LED-off and did not reach the Miyoo logo.
-The user held power to force off, powered on again, and then restored SSH by
-pressing A on the network rescue UI.
+The user held power to force off, powered on again, and at the time restored SSH
+by pressing A on the network rescue UI. That FE route is now disabled.
 
 Render TOP once:
 
@@ -432,15 +433,14 @@ Controls:
 - D-pad up/down: move cursor. Physical Up/Down have software key repeat.
 - D-pad right/left: page down/up on TOP/ROM list/Favorites/Recent.
 - A: enter ROM list on TOP; execute launch on ROM list/Favorites/Recent.
-- B: return from ROM list, Favorites, or Recent to TOP. Settings, HELP, and
-  Network Recovery return to START; the System Settings `Display Color` and
+- B: return from ROM list, Favorites, or Recent to TOP. Settings and HELP return
+  to START; the System Settings `Display Color` and
   `INFORMATION` subpages return to System Settings; the Network Settings
   `INFORMATION` subpage returns to Network Settings. START returns to the
   previous screen.
 - START: open START menu.
-- START menu: Settings/Favorites/Recent/Network Recovery open real screens;
-  Shutdown runs `plumos-safe-shutdown --shutdown --no-poweroff`; other actions
-  show previews.
+- START menu: Settings/Favorites/Recent open real screens; Shutdown runs
+  `plumos-safe-shutdown --shutdown --no-poweroff`; other actions show previews.
 - Left/Right are never confirm/run/back/cancel. A confirms/runs and B
   backs/cancels.
 - SELECT: system/per-ROM core menu.
@@ -450,10 +450,10 @@ Controls:
   Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot resume are
   reflected in runtime behavior after saving.
 - Network Settings: the first layer contains `Wi-Fi`, `Connect Wi-Fi`,
-  `NW Service`, `Run Network Recovery`, and `INFORMATION`. `Wi-Fi` controls
-  runtime on/off, `NW Service` owns FTP/SFTP/Samba/USB Disk Mode, and
-  `Run Network Recovery` runs network rescue. Connection/IP/Signal details live
-  under `INFORMATION`. SSID/PSK are not displayed.
+  `NW Service`, and `INFORMATION`. `Wi-Fi` OFF stops the runtime, connection
+  starts through `Connect Wi-Fi`, and `NW Service` owns FTP/SFTP/Samba/USB Disk
+  Mode. Connection/IP/Signal details live under `INFORMATION`. SSID/PSK are not
+  displayed.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 SAFE menu:

@@ -17,7 +17,7 @@ usage() {
 Usage: plumos-network-control [options]
 
 Options:
-  --wifi on       Start Wi-Fi runtime through plumOS network recovery.
+  --wifi on       Disabled; use --connect-file or a MainUI recovery script.
   --wifi off      Stop wlan0 runtime without editing saved credentials.
   --wifi status   Print redacted runtime status. Default.
   --scan          Print visible SSIDs as tab-separated network rows.
@@ -112,17 +112,9 @@ wifi_off() {
 }
 
 wifi_on() {
-  helper="${PLUMOS_ROOT}/bin/plumos-network-rescue"
-  log "wifi_on begin"
-  if [ ! -x "$helper" ]; then
-    log "wifi_on missing_helper=$helper"
-    echo "error: plumos-network-rescue missing" >&2
-    return 1
-  fi
-  "$helper"
-  rc=$?
-  log "wifi_on end rc=$rc ip=$(get_wlan_ip || true)"
-  return "$rc"
+  log "wifi_on disabled reason=network_rescue_route_removed"
+  echo "error: --wifi on is disabled; use --connect-file or a MainUI recovery script" >&2
+  return 1
 }
 
 print_status() {

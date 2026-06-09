@@ -95,6 +95,8 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
 - 2026-06-10 に StockOS `sysntpd` を停止し、DHCP 後に plumOS 管理の
   `/usr/sbin/ntpd -n -N -p time.cloudflare.com -p pool.ntp.org -p time.google.com -p time.apple.com`
   を起動するよう変更した。実機では約9時間進んでいたUTC時刻が `ntpd` により補正された。
+- 2026-06-10 に FE/boot wrapper からの Network Recovery 導線は停止した。SSH がない状態での
+  復旧は、StockOS MainUI から直接起動できる独立した shell script として別途設計する。
 
 実装上の意味:
 

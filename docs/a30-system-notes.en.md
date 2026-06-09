@@ -80,6 +80,9 @@ remain untouched.
   plumOS-managed `/usr/sbin/ntpd -n -N` after DHCP, using `time.cloudflare.com`,
   `pool.ntp.org`, `time.google.com`, and `time.apple.com`. On hardware this
   corrected a UTC clock that had been nearly nine hours ahead.
+- On June 10, 2026, the Network Recovery route from the FE and boot wrapper was
+  disabled. Recovery for cases where SSH is unavailable should be designed as a
+  separate shell script launched directly from StockOS MainUI.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,

@@ -72,8 +72,7 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - The header shows only `PLUMOS A30 TTY1`, time, Wi-Fi, and Battery/Charge.
 - Do not show `PATH`, `STATUS`, `ENTRIES`, `CURSOR`, or debug/status lines.
 - The START first layer should be `UI Settings`, `System Settings`,
-  `Network Settings`, `Network Recovery`, `Performance Settings`, `Apps`,
-  `HELP`, and `Shutdown`.
+  `Network Settings`, `Performance Settings`, `Apps`, `HELP`, and `Shutdown`.
 - START, Settings subpages, and HELP use the blue left accent bar and do not
   show a command prompt. The screen title and list entries indicate location.
 - A is always confirm/run; B is always back/cancel. Left/Right may be used for

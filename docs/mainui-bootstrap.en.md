@@ -9,15 +9,14 @@ uses that path as a small wrapper and moves the actual frontend entry point to
 - Back up stock MainUI to `/mnt/SDCARD/miyoo/app/MainUI.stock`.
 - Replace `/mnt/SDCARD/miyoo/app/MainUI` with a shell wrapper.
 - Launch `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` as the normal FE.
-- Run `/mnt/SDCARD/plumos/bin/plumos-network-rescue` automatically for boot
-  recovery.
 - Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
 - Run `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` to stop StockOS
   `MtpDaemon`, `adbd`, and `sysntpd`.
-- After DHCP, `plumos-network-rescue` calls `plumos-stock-services network-ready`
+- Do not run `plumos-network-rescue` automatically at boot.
+- Start only the SSH helper and enabled network services from the wrapper.
+- If `wlan0` already has an IP address, call `plumos-stock-services network-ready`
   to start plumOS-managed `ntpd`.
-- Open `Network Recovery` from the START menu; pressing A there reruns Wi-Fi
-  init, DHCP, and dropbear SSH start.
+- Do not expose Network Recovery from the START menu or Network Settings.
 - After the normal FE initializes the Mali renderer and completes its first
   frame, it creates `/tmp/plumos-fe-ready`. If this flag exists, the wrapper
   does not fall back to stock MainUI even if the FE exits later.
@@ -55,11 +54,13 @@ The install script:
 
 The bootstrap package does not include the controller UI binary. Build and
 deploy the frontend package separately with `./scripts/docker-build.sh frontend`.
-At startup the wrapper runs `plumos-network-rescue` in the background, then
-shows the normal FE. The `Network Recovery` screen is reachable from the normal
-FE START menu and pressing A there reruns
-`/mnt/SDCARD/plumos/bin/plumos-network-rescue`. Left/Right are not used for
-confirm/run/back/cancel; A confirms/runs and B backs/cancels.
+At startup the wrapper does not run `plumos-network-rescue`; it shows the normal
+FE and starts the SSH helper plus enabled network services in the background.
+Left/Right are not used for confirm/run/back/cancel; A confirms/runs and B
+backs/cancels.
+
+Network recovery for cases where SSH is unavailable should be designed as a
+separate shell script launched directly from StockOS MainUI, not as an FE route.
 
 ## Disable
 

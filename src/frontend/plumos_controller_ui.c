@@ -2821,7 +2821,6 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   }
   if (strcmp(id, "network_connect_wifi") == 0 ||
       strcmp(id, "network_services") == 0 ||
-      strcmp(id, "network_rescue") == 0 ||
       strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
@@ -3148,8 +3147,6 @@ static void add_network_settings_entries(struct ui_state *ui) {
                     "Scan SSID");
   add_setting_entry(ui, "network_services", "NW Service",
                     "File Transfer");
-  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
-                    "Wi-Fi + DHCP + SSH");
   add_setting_entry(ui, "network_information", "INFORMATION", "");
 }
 
@@ -4308,8 +4305,8 @@ static void setting_help_lines(const struct setting_entry *entry,
     copy_string(line1, line1_size, "Scan SSIDs and connect with password.");
     copy_string(line2, line2_size, "Saves Wi-Fi config only after IP is acquired.");
   } else if (strcmp(id, "network_rescue") == 0) {
-    copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
-    copy_string(line2, line2_size, "Restores the usual remote access path.");
+    copy_string(line1, line1_size, "Network Recovery is disabled.");
+    copy_string(line2, line2_size, "Use Connect Wi-Fi or NW Service instead.");
   } else if (strcmp(id, "network_services") == 0) {
     copy_string(line1, line1_size, "Open file transfer services.");
     copy_string(line2, line2_size, "FTP, SFTP, Samba, and USB Disk Mode.");
@@ -4322,7 +4319,7 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strncmp(id, "network_", 8) == 0) {
     if (strcmp(id, "network_wifi_enabled") == 0) {
       copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
-      copy_string(line2, line2_size, "On runs recovery; Off stops wlan0 runtime.");
+      copy_string(line2, line2_size, "Use Connect Wi-Fi to start a new connection.");
     } else if (strcmp(id, "network_ftp_enabled") == 0) {
       copy_string(line1, line1_size, "FTP file transfer service.");
       copy_string(line2, line2_size, "Home is /mnt/SDCARD; ON/OFF persists after reboot.");
@@ -4347,10 +4344,10 @@ static void setting_help_lines(const struct setting_entry *entry,
                strcmp(id, "network_frequency") == 0 ||
                strcmp(id, "network_status_source") == 0) {
       copy_string(line1, line1_size, "Current Wi-Fi connection information.");
-      copy_string(line2, line2_size, "Use Network Recovery if this looks wrong.");
+      copy_string(line2, line2_size, "Use Connect Wi-Fi if this looks wrong.");
     } else if (strcmp(id, "network_ssh") == 0) {
       copy_string(line1, line1_size, "Remote access path used for development.");
-      copy_string(line2, line2_size, "Network recovery restarts Wi-Fi, DHCP, and SSH.");
+      copy_string(line2, line2_size, "SFTP uses the same SSH service.");
     } else if (strcmp(id, "network_credentials") == 0) {
       copy_string(line1, line1_size, "Wi-Fi credentials are intentionally hidden.");
       copy_string(line2, line2_size, "Do not expose SSID or PSK in UI/logs/git.");
@@ -4651,13 +4648,13 @@ static void render_core_select(struct ui_state *ui) {
 }
 
 static void render_network_rescue(struct ui_state *ui) {
-  ui_printf(ui, "plumOS controller UI - Network Recovery\n");
-  ui_printf(ui, "A: start Wi-Fi and SSH  Q: quit\n");
-  ui_printf(ui, "target=/mnt/SDCARD/plumos/bin/plumos-network-rescue\n");
+  ui_printf(ui, "plumOS controller UI - Network Recovery Disabled\n");
+  ui_printf(ui, "B: back  Q: quit\n");
+  ui_printf(ui, "target=(disabled compatibility screen)\n");
   ui_printf(ui, "\n");
-  ui_printf(ui, "1. Wi-Fi init script\n");
-  ui_printf(ui, "2. DHCP on wlan0\n");
-  ui_printf(ui, "3. Dropbear SSH on port 2222\n");
+  ui_printf(ui, "1. Network Recovery is not exposed from FE.\n");
+  ui_printf(ui, "2. Use Network Settings > Connect Wi-Fi.\n");
+  ui_printf(ui, "3. Use Network Settings > NW Service.\n");
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -5076,11 +5073,6 @@ static void open_core_select_screen(struct ui_state *ui, const char *system_id,
   }
 }
 
-static void open_network_rescue_screen(struct ui_state *ui) {
-  ui->screen = SCREEN_NETWORK_RESCUE;
-  set_status(ui, "network recovery ready");
-}
-
 static void open_usb_disk_confirm_screen(struct ui_state *ui) {
   ui->screen = SCREEN_USB_DISK_CONFIRM;
   ui->usb_disk_start_due_ms = 0;
@@ -5117,45 +5109,6 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
 }
 
 static int update_settings_entries_after_save(struct ui_state *ui);
-
-static int run_network_rescue(struct ui_state *ui) {
-  char script[PATH_MAX];
-  char cmd[UI_COMMAND_MAX];
-  size_t pos = 0;
-  int rc;
-
-  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-rescue")) {
-    set_status(ui, "network rescue path too long");
-    return 0;
-  }
-  if (!file_exists(script)) {
-    set_status(ui, "network rescue script missing");
-    return 0;
-  }
-
-  cmd[0] = '\0';
-  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
-      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
-      !append_string(cmd, sizeof(cmd), &pos, " ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, script)) {
-    set_status(ui, "network rescue command too long");
-    return 0;
-  }
-
-  rc = system(cmd);
-  if (rc == -1) {
-    set_status(ui, "network rescue system call failed");
-    return 0;
-  }
-  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
-    set_status(ui, "network rescue complete");
-    return 1;
-  }
-  set_status(ui, "network rescue returned non-zero");
-  return 0;
-}
 
 static int run_usb_disk_mode(struct ui_state *ui) {
   char script[PATH_MAX];
@@ -5220,11 +5173,7 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
     return 0;
   }
   if (enable) {
-    if (!run_network_rescue(ui)) {
-      return 0;
-    }
-    update_settings_entries_after_save(ui);
-    set_status(ui, "Wi-Fi runtime on");
+    set_status(ui, "Use Connect Wi-Fi; Network Recovery is disabled");
     return 1;
   }
   if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
@@ -6660,9 +6609,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (ui->rescue_network) {
     if (action == ACTION_A) {
-      run_network_rescue(ui);
+      set_status(ui, "Network Recovery is disabled");
     } else if (action == ACTION_B) {
-      set_status(ui, "network rescue ready");
+      set_status(ui, "Network Recovery is disabled");
     }
     return;
   }
@@ -6725,7 +6674,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
 
   if (ui->screen == SCREEN_NETWORK_RESCUE) {
     if (action == ACTION_A) {
-      run_network_rescue(ui);
+      set_status(ui, "Network Recovery is disabled");
       return;
     }
     if (action == ACTION_B) {
@@ -6843,9 +6792,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       } else if (strcmp(entry->action, "internal:recent") == 0) {
         open_recent_screen(ui);
       } else if (strcmp(entry->action, "internal:network-recovery") == 0) {
-        open_network_rescue_screen(ui);
+        set_status(ui, "Network Recovery is disabled");
       } else if (strcmp(entry->action, "internal:network") == 0) {
-        open_network_rescue_screen(ui);
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
       } else if (strcmp(entry->action, "internal:help") == 0) {
         open_help_screen(ui);
       } else if (strcmp(entry->action, "system:shutdown") == 0) {
@@ -6941,7 +6890,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         return;
       }
       if (is_network_setting_entry(entry)) {
-        run_network_rescue(ui);
+        set_status(ui, "Network Recovery is disabled");
         return;
       }
       if (is_network_usb_disk_mode_entry(entry)) {
@@ -7593,7 +7542,7 @@ static void usage(const char *argv0) {
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
   printf("     [--rotation auto|none|cw|ccw] [--font PATH] [--ui-style classic|tty]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
-  printf("     [--rescue-network]\n");
+  printf("     [--rescue-network]  # disabled compatibility screen\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
@@ -7610,7 +7559,7 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_MALI_FONT    Optional FreeType font for non-ASCII Mali text\n");
   printf("  PLUMOS_MALI_STYLE   classic or tty. Default: classic\n");
   printf("  PLUMOS_MALI_TTY_ENTRY_SCALE  1, 1.5, or 2. Default: 1\n");
-  printf("  PLUMOS_CONTROLLER_RESCUE network enables A-button Wi-Fi/SSH rescue\n");
+  printf("  PLUMOS_CONTROLLER_RESCUE network opens a disabled compatibility screen\n");
   printf("  PLUMOS_SYSTEM_SETTINGS_JSON  Default: $PLUMOS_ROOT/config/system/settings.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");
   printf("  PLUMOS_CONTROLLER_CPU_DEFAULT  648MHz/2-core FE default; set 0 to skip\n");
@@ -7753,7 +7702,7 @@ int main(int argc, char **argv) {
   if (getenv("PLUMOS_CONTROLLER_RESCUE") &&
       strcmp(getenv("PLUMOS_CONTROLLER_RESCUE"), "network") == 0) {
     ui.rescue_network = 1;
-    copy_string(ui.status, sizeof(ui.status), "network rescue ready");
+    copy_string(ui.status, sizeof(ui.status), "Network Recovery is disabled");
   }
 
   for (i = 1; i < argc; i++) {
@@ -7818,7 +7767,7 @@ int main(int argc, char **argv) {
       copy_string(ui.mali_tty_entry_scale, sizeof(ui.mali_tty_entry_scale), scale);
     } else if (strcmp(argv[i], "--rescue-network") == 0) {
       ui.rescue_network = 1;
-      copy_string(ui.status, sizeof(ui.status), "network rescue ready");
+      copy_string(ui.status, sizeof(ui.status), "Network Recovery is disabled");
     } else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
       script = argv[++i];
     } else if (strcmp(argv[i], "--dump-events") == 0) {
@@ -7910,7 +7859,7 @@ int main(int argc, char **argv) {
       copy_string(ui.status, sizeof(ui.status), "Mali renderer ready");
     }
     if (ui.rescue_network) {
-      copy_string(ui.status, sizeof(ui.status), "network rescue ready");
+      copy_string(ui.status, sizeof(ui.status), "Network Recovery is disabled");
     }
 #else
     fprintf(stderr, "error: this binary was built without Mali renderer support\n");

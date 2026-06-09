@@ -74,16 +74,15 @@ manual value.
 
 The first Network Settings layer owns only actionable items:
 
-- `Wi-Fi`: checkbox. A toggles the runtime on/off. ON runs
-  `plumos-network-rescue`; OFF runs `plumos-network-control --wifi off` and
-  does not edit saved credentials.
+- `Wi-Fi`: checkbox. OFF runs `plumos-network-control --wifi off` and does not
+  edit saved credentials. ON does not call Network Recovery; use `Connect Wi-Fi`
+  to start a connection.
 - `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
   DHCP, one default-gateway ping when available, then an IP-address result
   screen. The PSK is passed to the backend through a temporary file and is not
   logged.
 - `NW Service`: opens the file-transfer service subpage for FTP/SFTP/Samba/USB
   Disk Mode.
-- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery.
 - `INFORMATION`: opens the read-only network information subpage.
 
 The `NW Service` subpage owns these actions:

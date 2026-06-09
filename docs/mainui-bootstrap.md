@@ -9,14 +9,14 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
 - stock MainUI は `/mnt/SDCARD/miyoo/app/MainUI.stock` として退避する
 - `/mnt/SDCARD/miyoo/app/MainUI` は shell wrapper にする
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` を通常FEとして起動する
-- wrapper は boot 復旧用に `/mnt/SDCARD/plumos/bin/plumos-network-rescue` を自動実行する
 - wrapper は stock `/etc/main` が先に起動した `keymon` を止める
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` で StockOS の
   `MtpDaemon`、`adbd`、`sysntpd` を止める
-- `plumos-network-rescue` は DHCP 後に `plumos-stock-services network-ready` を呼び、
+- wrapper は boot 時に `plumos-network-rescue` を自動実行しない
+- wrapper は SSH helper と有効化済み network service だけを起動する
+- `wlan0` に IP が既にある場合だけ `plumos-stock-services network-ready` を呼び、
   plumOS 管理の `ntpd` を起動する
-- START menu の `Network Recovery` から Network Recovery 画面へ入り、A ボタンで
-  Wi-Fi 起動処理、DHCP、SSH start を再実行できる
+- START menu と Network Settings から Network Recovery へ入る導線は持たない
 - 通常FEが Mali renderer の初期化と初回描画に成功したら
   `/tmp/plumos-fe-ready` を作る。wrapper はこの flag がある場合、FE がその後
   終了しても stock MainUI へ fallback しない
@@ -54,10 +54,12 @@ install script は以下を行います。
 
 bootstrap package は controller UI 本体を含みません。frontend は
 `./scripts/docker-build.sh frontend` で別 package として build/deploy します。
-wrapper 起動時は `plumos-network-rescue` を background で自動実行し、そのまま通常FEを
-表示します。Network Recovery 画面は通常FEの START menu から開き、A ボタンで
-`/mnt/SDCARD/plumos/bin/plumos-network-rescue` を再実行します。左右キーは実行/戻るに
-使わず、実行は A、戻る/キャンセルは B に統一します。
+wrapper 起動時は `plumos-network-rescue` を実行せず、そのまま通常FEを表示します。
+SSH helper と有効化済み network service は background で開始します。左右キーは
+実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
+
+SSH が復旧していない状態でのネットワーク復旧は、FE 内の Network Recovery ではなく、
+StockOS MainUI から直接起動できる独立した shell script として設計します。
 
 ## disable
 

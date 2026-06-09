@@ -58,7 +58,7 @@
 - Header は `PLUMOS A30 TTY1`、時刻、Wi-Fi、Battery/Charge だけを表示する。
 - `PATH`、`STATUS`、`ENTRIES`、`CURSOR`、debug/status line は表示しない。
 - START 第一階層は `UI Settings`、`System Settings`、`Network Settings`、
-  `Network Recovery`、`Performance Settings`、`Apps`、`HELP`、`Shutdown` を基本にする。
+  `Performance Settings`、`Apps`、`HELP`、`Shutdown` を基本にする。
 - START、Settings の各サブ項目、HELP は左端アクセントバーをブルーにし、
   command prompt は表示しない。画面タイトルとリスト項目で現在位置を示す。
 - 決定/実行は必ず A、戻る/キャンセルは必ず B にする。十字キー左右はページ送りや
