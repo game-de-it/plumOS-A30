@@ -4736,13 +4736,13 @@ static int run_usb_disk_mode(struct ui_state *ui) {
   }
 
   cmd[0] = '\0';
-  if (!append_string(cmd, sizeof(cmd), &pos, "cd / && PLUMOS_SDCARD_ROOT=") ||
+  if (!append_string(cmd, sizeof(cmd), &pos, "cd / && export PLUMOS_SDCARD_ROOT=") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
       !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
       !append_string(cmd, sizeof(cmd), &pos,
                      " PLUMOS_USB_DISK_MODE_EXPERIMENTAL=1"
-                     " PLUMOS_USB_DISK_MODE_CONFIRM=UNMOUNT_SDCARD ") ||
+                     " PLUMOS_USB_DISK_MODE_CONFIRM=UNMOUNT_SDCARD; exec ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
       !append_string(cmd, sizeof(cmd), &pos,
                      " enter >>/tmp/plumos-usb-disk-mode.ui.log 2>&1")) {
