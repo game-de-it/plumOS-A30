@@ -32,6 +32,7 @@ Project notes:
 - [plumOS frontend data model](docs/frontend-data-model.en.md)
 - [plumOS frontend theme model](docs/frontend-theme-model.en.md)
 - [A30 settings UI policy](docs/a30-settings-policy.en.md)
+- [plumOS network services](docs/network-services.en.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)

@@ -63,7 +63,8 @@ prepare_source() {
 #define DROPBEAR_SVR_PASSWORD_AUTH 0
 #define DROPBEAR_SVR_PAM_AUTH 0
 #define DROPBEAR_SVR_PUBKEY_AUTH 1
-#define DROPBEAR_SFTPSERVER 0
+#define DROPBEAR_SFTPSERVER 1
+#define SFTPSERVER_PATH "/mnt/SDCARD/plumos/ssh/libexec/sftp-server"
 #define DROPBEAR_X11FWD 0
 #define DROPBEAR_SVR_AGENTFWD 0
 #define DROPBEAR_SVR_LOCALTCPFWD 0
@@ -145,6 +146,7 @@ assemble_package() {
   mkdir -p \
     "${PKG_DIR}/plumos/ssh/bin" \
     "${PKG_DIR}/plumos/ssh/etc" \
+    "${PKG_DIR}/plumos/ssh/libexec" \
     "${PKG_DIR}/plumos/ssh/log" \
     "${PKG_DIR}/plumos/ssh/run" \
     "${PKG_DIR}/Roms/PORTS"

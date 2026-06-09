@@ -12,6 +12,11 @@ AUTH_SOURCE="${PLUMOS_SSH_AUTHORIZED_KEYS:-${ETC_DIR}/authorized_keys}"
 HOST_KEY="${ETC_DIR}/dropbear_ed25519_host_key"
 PID_FILE="${RUN_DIR}/dropbear.pid"
 LOG_FILE="${LOG_DIR}/dropbear.log"
+DROPBEAR_BIN="${PLUMOS_SSH_DROPBEAR_BIN:-${BIN_DIR}/dropbear}"
+
+if [ -z "${PLUMOS_SSH_DROPBEAR_BIN:-}" ] && [ -x "${BIN_DIR}/dropbear-sftp" ]; then
+  DROPBEAR_BIN="${BIN_DIR}/dropbear-sftp"
+fi
 
 mkdir -p "$ETC_DIR" "$RUN_DIR" "$LOG_DIR"
 
@@ -65,7 +70,7 @@ rm -f "$PID_FILE"
 write_network_snapshot
 
 echo "Starting Dropbear on ${LISTEN}" | tee -a "$LOG_FILE"
-"$BIN_DIR/dropbear" \
+"$DROPBEAR_BIN" \
   -E \
   -m \
   -p "$LISTEN" \

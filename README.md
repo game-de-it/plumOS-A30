@@ -31,6 +31,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [plumOS frontend data model](docs/frontend-data-model.md)
 - [plumOS frontend theme model](docs/frontend-theme-model.md)
 - [A30 設定 UI 方針](docs/a30-settings-policy.md)
+- [plumOS ネットワークサービス](docs/network-services.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.md)
 - [SSH 導入手順](docs/ssh-bringup.md)
 - [TODO](TODO.md)

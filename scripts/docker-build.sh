@@ -16,6 +16,8 @@ Commands:
   userland       Build the plumOS BusyBox userland into dist/plumos-userland.
   frontend       Build the frontend prototype into dist/plumos-frontend.
   joystickd      Build the A30 serial-to-uinput joystick daemon into dist/plumos-joystickd.
+  network-services
+                 Build FTP/SFTP/Samba service package into dist/plumos-network-services.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
   sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
@@ -110,6 +112,10 @@ case "$cmd" in
   joystickd)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-joystickd.sh
+    ;;
+  network-services|net-services)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-network-services.sh
     ;;
   runtime-probe|probe)
     ensure_image

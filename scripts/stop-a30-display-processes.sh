@@ -55,12 +55,34 @@ add_pid() {
 
 pids=""
 
+cmd_is_display_target() {
+  cmd=$1
+  case "$cmd" in
+    *'/mnt/SDCARD/plumos/emulators/'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-controller-ui'*|\
+    *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-standalone-launch'*|\
+    *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 for fd in /proc/[0-9]*/fd/*; do
   target=$(readlink "$fd" 2>/dev/null || true)
   if [ "$target" = /dev/fb0 ]; then
     pid=${fd#/proc/}
     pid=${pid%%/*}
-    add_pid "$pid"
+    cmd=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
+    if cmd_is_display_target "$cmd"; then
+      add_pid "$pid"
+    else
+      printf 'skip_fb0_pid=%s COMM=' "$pid"
+      cat "/proc/$pid/comm" 2>/dev/null || true
+      printf 'CMD='
+      printf '%s\n' "$cmd"
+    fi
   fi
 done
 
@@ -69,15 +91,7 @@ for f in /proc/[0-9]*/cmdline; do
   pid=${pid%/cmdline}
   [ "$pid" = "$$" ] && continue
   cmd=$(tr '\0' ' ' <"$f" 2>/dev/null || true)
-  case "$cmd" in
-    *'/mnt/SDCARD/plumos/emulators/'*|\
-    *'/mnt/SDCARD/plumos/bin/plumos-controller-ui'*|\
-    *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
-    *'/mnt/SDCARD/plumos/bin/plumos-standalone-launch'*|\
-    *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*)
-      add_pid "$pid"
-      ;;
-  esac
+  cmd_is_display_target "$cmd" && add_pid "$pid"
 done
 
 echo "target_pids=${pids:- none}"

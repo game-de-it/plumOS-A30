@@ -10,6 +10,7 @@ FRONTEND="${PLUMOS_FRONTEND:-${PLUMOS_ROOT}/bin/plumos-frontend}"
 ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
 CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
 NETWORK_RESCUE="${PLUMOS_NETWORK_RESCUE:-${PLUMOS_ROOT}/bin/plumos-network-rescue}"
+NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
@@ -56,7 +57,13 @@ fi
 
 if [ -x "$NETWORK_RESCUE" ]; then
   log "starting network rescue helper: ${NETWORK_RESCUE}"
-  "$NETWORK_RESCUE" >> "$LOG_FILE" 2>&1 &
+  (
+    "$NETWORK_RESCUE" >> "$LOG_FILE" 2>&1
+    if [ -x "$NETWORK_SERVICES" ]; then
+      log "starting enabled network services: ${NETWORK_SERVICES}"
+      "$NETWORK_SERVICES" start-enabled >> "$LOG_FILE" 2>&1 || true
+    fi
+  ) &
 elif [ -x "$SSH_START" ]; then
   log "starting SSH helper: ${SSH_START}"
   "$SSH_START" >> "$LOG_FILE" 2>&1 &

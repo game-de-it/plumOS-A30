@@ -5,6 +5,7 @@ PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/network-rescue.log"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
+NETWORK_SERVICES="${PLUMOS_ROOT}/bin/plumos-network-services"
 LOCK_DIR=/tmp/plumos-network-rescue.lock
 DHCP_ATTEMPTS="${PLUMOS_NETWORK_RESCUE_DHCP_ATTEMPTS:-6}"
 DHCP_RETRY_SLEEP="${PLUMOS_NETWORK_RESCUE_DHCP_RETRY_SLEEP:-3}"
@@ -205,6 +206,14 @@ if [ -x "$SSH_START" ]; then
   log "ssh start rc=$?"
 else
   log "ssh start missing: $SSH_START"
+fi
+
+if [ -x "$NETWORK_SERVICES" ]; then
+  log "network services start-enabled"
+  "$NETWORK_SERVICES" start-enabled >> "$LOG_FILE" 2>&1
+  log "network services start-enabled rc=$?"
+else
+  log "network services helper missing: $NETWORK_SERVICES"
 fi
 
 log_state "end"

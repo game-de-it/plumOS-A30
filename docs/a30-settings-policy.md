@@ -51,6 +51,9 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 
 - `Wi-Fi`: checkbox。A で runtime ON/OFF を切り替える。ON は `plumos-network-rescue`、
   OFF は `plumos-network-control --wifi off` を呼び、保存済み認証情報は編集しない。
+- `FTP`: checkbox。A で BusyBox FTP service を ON/OFF する。共有起点は `/mnt/SDCARD/`。
+- `SFTP`: checkbox。A で Dropbear SFTP subsystem を ON/OFF する。OFF にしても SSH shell は止めない。
+- `Samba`: checkbox。A で `SDCARD` SMB share を ON/OFF する。Windows/macOS で認証を求められた場合は `plumos` / `plumos` を使う。
 - `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
   IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
 - `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する。
@@ -64,6 +67,9 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 - `Link Speed`: `/tmp/wpa_status.txt` の `LINKSPEED`
 - `Frequency`: `/tmp/wpa_status.txt` の `FREQUENCY`
 - `SSH`: plumOS の remote access path。現状は Dropbear port 2222
+- `FTP`: `plumos-network-services status ftp`
+- `SFTP`: `plumos-network-services status sftp`
+- `Samba`: `plumos-network-services status samba`
 
 Wi-Fi 状態、IP、信号などの情報行で A を押しても recovery は実行しません。
 Performance Settings では launcher/core profile 由来の CPU 方針を扱います。

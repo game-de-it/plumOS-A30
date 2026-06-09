@@ -63,6 +63,12 @@ The first Network Settings layer owns only actionable items:
 - `Wi-Fi`: checkbox. A toggles the runtime on/off. ON runs
   `plumos-network-rescue`; OFF runs `plumos-network-control --wifi off` and
   does not edit saved credentials.
+- `FTP`: checkbox. A toggles the BusyBox FTP service. The shared root is
+  `/mnt/SDCARD/`.
+- `SFTP`: checkbox. A toggles the Dropbear SFTP subsystem. Turning it OFF does
+  not stop SSH shell access.
+- `Samba`: checkbox. A toggles the `SDCARD` SMB share. If Windows/macOS asks for
+  credentials, use `plumos` / `plumos`.
 - `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
   DHCP, one default-gateway ping when available, then an IP-address result
   screen. The PSK is passed to the backend through a temporary file and is not
@@ -78,6 +84,9 @@ The `INFORMATION` subpage owns these read-only entries:
 - `Link Speed`: `LINKSPEED` from `/tmp/wpa_status.txt`
 - `Frequency`: `FREQUENCY` from `/tmp/wpa_status.txt`
 - `SSH`: plumOS remote access path. Current value is Dropbear port 2222
+- `FTP`: `plumos-network-services status ftp`
+- `SFTP`: `plumos-network-services status sftp`
+- `Samba`: `plumos-network-services status samba`
 
 Pressing A on Wi-Fi status, IP, signal, or other information rows does not run recovery.
 Performance Settings owns launcher/core-profile CPU policy. As of 2026-06-09,

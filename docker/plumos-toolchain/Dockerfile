@@ -60,6 +60,7 @@ RUN dpkg --add-architecture armhf \
     make \
     meson \
     ninja-build \
+    openssh-sftp-server:armhf \
     patch \
     pkg-config \
     python3 \
@@ -73,6 +74,44 @@ RUN dpkg --add-architecture armhf \
     zip \
     zlib1g-dev:armhf \
     zstd \
+  && mkdir -p /opt/plumos/samba-armhf /tmp/plumos-samba-debs \
+  && cd /tmp/plumos-samba-debs \
+  && for pkg in \
+    samba:armhf \
+    samba-common-bin:armhf \
+    samba-libs:armhf \
+    libacl1:armhf \
+    libattr1:armhf \
+    libaudit1:armhf \
+    libavahi-client3:armhf \
+    libavahi-common3:armhf \
+    libbsd0:armhf \
+    libcap-ng0:armhf \
+    libc6:armhf \
+    libcups2:armhf \
+    libgnutls30:armhf \
+    libgmp10:armhf \
+    libhogweed6:armhf \
+    libidn2-0:armhf \
+    libjansson4:armhf \
+    libldap-2.5-0:armhf \
+    libldb2:armhf \
+    libnettle8:armhf \
+    libp11-kit0:armhf \
+    libpam0g:armhf \
+    libpopt0:armhf \
+    libsasl2-2:armhf \
+    libsasl2-modules-db:armhf \
+    libtalloc2:armhf \
+    libtasn1-6:armhf \
+    libtdb1:armhf \
+    libtevent0:armhf \
+    libunistring2:armhf \
+    libwbclient0:armhf; do \
+      apt-get download "$pkg"; \
+    done \
+  && for deb in ./*.deb; do dpkg-deb -x "$deb" /opt/plumos/samba-armhf; done \
+  && rm -rf /tmp/plumos-samba-debs \
   && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /workspace /opt/plumos/sysroot /opt/plumos/src /opt/plumos/cache \

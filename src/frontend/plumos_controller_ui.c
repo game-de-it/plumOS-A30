@@ -310,6 +310,12 @@ struct device_settings {
   char network_status_source[128];
   char network_control_status[128];
   char ssh_status[128];
+  int ftp_service_running;
+  int sftp_service_running;
+  int samba_service_running;
+  char ftp_status[128];
+  char sftp_status[128];
+  char samba_status[128];
   char brightness_backend[128];
   char volume_backend[128];
   char wifi_state[64];
@@ -807,6 +813,93 @@ static int read_first_line_file(const char *path, char *out, size_t out_size) {
     out[--len] = '\0';
   }
   return out[0] != '\0';
+}
+
+static void trim_line_end(char *s);
+
+static int read_network_service_status(struct ui_state *ui, const char *service,
+                                       char *status, size_t status_size,
+                                       int *running_out) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char line[256];
+  char state[64] = "";
+  char summary[128] = "";
+  char enabled_value[32] = "";
+  FILE *pipe;
+  size_t pos = 0;
+  int running = 0;
+  int installed = 1;
+  int enabled = 0;
+  int enabled_seen = 0;
+
+  if (status && status_size > 0) {
+    status[0] = '\0';
+  }
+  if (running_out) {
+    *running_out = 0;
+  }
+  if (!ui || !service || !service[0] ||
+      !join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-services")) {
+    copy_string(status, status_size, "Not Installed");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    copy_string(status, status_size, "Not Installed");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " status ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, service) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>/dev/null")) {
+    copy_string(status, status_size, "Status Error");
+    return 0;
+  }
+
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    copy_string(status, status_size, "Status Error");
+    return 0;
+  }
+  while (fgets(line, sizeof(line), pipe)) {
+    trim_line_end(line);
+    if (strncmp(line, "state=", 6) == 0) {
+      copy_truncated_string(state, sizeof(state), line + 6);
+    } else if (strncmp(line, "summary=", 8) == 0) {
+      copy_truncated_string(summary, sizeof(summary), line + 8);
+    } else if (strncmp(line, "enabled=", 8) == 0) {
+      copy_truncated_string(enabled_value, sizeof(enabled_value), line + 8);
+      enabled_seen = 1;
+    }
+  }
+  pclose(pipe);
+
+  enabled = strcmp(enabled_value, "1") == 0 ||
+            strcmp(enabled_value, "true") == 0 ||
+            strcmp(enabled_value, "on") == 0;
+  if (strcmp(state, "running") == 0) {
+    running = 1;
+  } else if (strcmp(state, "not_installed") == 0) {
+    installed = 0;
+  }
+  if (running_out) {
+    *running_out = enabled_seen ? enabled : running;
+  }
+  if (summary[0]) {
+    copy_string(status, status_size, summary);
+  } else if (state[0]) {
+    copy_string(status, status_size, state);
+  } else {
+    copy_string(status, status_size, installed ? "Stopped" : "Not Installed");
+  }
+  return installed;
 }
 
 static int write_text_file(const char *path, const char *text) {
@@ -2043,6 +2136,9 @@ static void init_device_settings(struct device_settings *device) {
   copy_string(device->network_control_status, sizeof(device->network_control_status),
               "plumOS runtime control");
   copy_string(device->ssh_status, sizeof(device->ssh_status), "Dropbear port 2222");
+  copy_string(device->ftp_status, sizeof(device->ftp_status), "Not Installed");
+  copy_string(device->sftp_status, sizeof(device->sftp_status), "Not Installed");
+  copy_string(device->samba_status, sizeof(device->samba_status), "Not Installed");
   copy_string(device->brightness_backend, sizeof(device->brightness_backend),
               "runtime backend unknown");
   copy_string(device->volume_backend, sizeof(device->volume_backend),
@@ -2070,6 +2166,15 @@ static void load_device_runtime_status(struct ui_state *ui) {
                       sizeof(device->wifi_linkspeed));
   read_key_value_file(ui->wpa_status_path, "FREQUENCY", device->wifi_frequency,
                       sizeof(device->wifi_frequency));
+  read_network_service_status(ui, "ftp", device->ftp_status,
+                              sizeof(device->ftp_status),
+                              &device->ftp_service_running);
+  read_network_service_status(ui, "sftp", device->sftp_status,
+                              sizeof(device->sftp_status),
+                              &device->sftp_service_running);
+  read_network_service_status(ui, "samba", device->samba_status,
+                              sizeof(device->samba_status),
+                              &device->samba_service_running);
 }
 
 static int load_device_settings(struct ui_state *ui) {
@@ -2499,7 +2604,10 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "show_favorites_on_top") == 0 ||
       strcmp(id, "show_recent_on_top") == 0 ||
       strcmp(id, "rom_scan_policy") == 0 ||
-      strcmp(id, "network_wifi_enabled") == 0) {
+      strcmp(id, "network_wifi_enabled") == 0 ||
+      strcmp(id, "network_ftp_enabled") == 0 ||
+      strcmp(id, "network_sftp_enabled") == 0 ||
+      strcmp(id, "network_samba_enabled") == 0) {
     return SETTING_CONTROL_CHECKBOX;
   }
   if (setting_choices(id, NULL)) {
@@ -2542,6 +2650,9 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "system_saturation") == 0 ||
                 strcmp(id, "system_language") == 0 ||
                 strcmp(id, "network_wifi_enabled") == 0 ||
+                strcmp(id, "network_ftp_enabled") == 0 ||
+                strcmp(id, "network_sftp_enabled") == 0 ||
+                strcmp(id, "network_samba_enabled") == 0 ||
                 strcmp(id, "performance_system") == 0 ||
                 strcmp(id, "performance_cpu_policy") == 0 ||
                 strcmp(id, "performance_cpu_cores") == 0);
@@ -2670,6 +2781,12 @@ static void add_network_settings_entries(struct ui_state *ui) {
 
   add_bool_setting_entry(ui, "network_wifi_enabled", "Wi-Fi",
                          device->wifi_runtime_enabled);
+  add_bool_setting_entry(ui, "network_ftp_enabled", "FTP",
+                         device->ftp_service_running);
+  add_bool_setting_entry(ui, "network_sftp_enabled", "SFTP",
+                         device->sftp_service_running);
+  add_bool_setting_entry(ui, "network_samba_enabled", "Samba",
+                         device->samba_service_running);
   add_setting_entry(ui, "network_connect_wifi", "Connect Wi-Fi",
                     "Scan SSID");
   add_setting_entry(ui, "network_rescue", "Run Network Recovery",
@@ -2704,6 +2821,9 @@ static void add_network_information_entries(struct ui_state *ui) {
   }
   add_setting_entry(ui, "network_frequency", "Frequency", value);
   add_setting_entry(ui, "network_ssh", "SSH", device->ssh_status);
+  add_setting_entry(ui, "network_ftp_status", "FTP", device->ftp_status);
+  add_setting_entry(ui, "network_sftp_status", "SFTP", device->sftp_status);
+  add_setting_entry(ui, "network_samba_status", "Samba", device->samba_status);
 }
 
 static int performance_top_entry_is_real(const struct top_entry *entry) {
@@ -3813,6 +3933,20 @@ static void setting_help_lines(const struct setting_entry *entry,
     if (strcmp(id, "network_wifi_enabled") == 0) {
       copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
       copy_string(line2, line2_size, "On runs recovery; Off stops wlan0 runtime.");
+    } else if (strcmp(id, "network_ftp_enabled") == 0) {
+      copy_string(line1, line1_size, "FTP file transfer service.");
+      copy_string(line2, line2_size, "Home is /mnt/SDCARD; ON/OFF persists after reboot.");
+    } else if (strcmp(id, "network_sftp_enabled") == 0) {
+      copy_string(line1, line1_size, "SFTP file transfer over SSH.");
+      copy_string(line2, line2_size, "Home is /mnt/SDCARD; ON/OFF persists after reboot.");
+    } else if (strcmp(id, "network_samba_enabled") == 0) {
+      copy_string(line1, line1_size, "Windows/macOS network drive service.");
+      copy_string(line2, line2_size, "Share is SDCARD; ON/OFF persists after reboot.");
+    } else if (strcmp(id, "network_ftp_status") == 0 ||
+               strcmp(id, "network_sftp_status") == 0 ||
+               strcmp(id, "network_samba_status") == 0) {
+      copy_string(line1, line1_size, "Current file transfer service status.");
+      copy_string(line2, line2_size, "All services use /mnt/SDCARD as the home/share root.");
     } else if (strcmp(id, "network_config_source") == 0) {
       copy_string(line1, line1_size, "Read-only Wi-Fi config inventory.");
       copy_string(line2, line2_size, "Credential editing waits for backup and rollback.");
@@ -4602,6 +4736,58 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
     return 1;
   }
   set_status(ui, "network control returned non-zero");
+  return 0;
+}
+
+static int run_network_service_control(struct ui_state *ui, const char *service,
+                                       int enable) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char status_message[128];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui || !service || !service[0]) {
+    return 0;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-services")) {
+    set_status(ui, "network services path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "network services script missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, enable ? " start " : " stop ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, service) ||
+      !append_string(cmd, sizeof(cmd), &pos, " >/dev/null 2>&1")) {
+    set_status(ui, "network service command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  update_settings_entries_after_save(ui);
+  if (rc == -1) {
+    set_status(ui, "network service system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    snprintf(status_message, sizeof(status_message), "%s %s",
+             service, enable ? "enabled" : "disabled");
+    set_status(ui, status_message);
+    return 1;
+  }
+  snprintf(status_message, sizeof(status_message), "%s %s failed",
+           service, enable ? "start" : "stop");
+  set_status(ui, status_message);
   return 0;
 }
 
@@ -5530,22 +5716,27 @@ static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
 
   if (control == SETTING_CONTROL_CHECKBOX) {
     int current = bool_from_setting_value(value);
-    int next = current;
+    int next;
     if (!setting_is_writable(id)) {
       set_status(ui, "setting is read-only");
       return 1;
     }
     if (action == ACTION_A) {
       next = !current;
-    } else if (action == ACTION_LEFT) {
-      next = 0;
-    } else if (action == ACTION_RIGHT) {
-      next = 1;
     } else {
       return 0;
     }
     if (strcmp(id, "network_wifi_enabled") == 0) {
       return run_network_wifi_control(ui, next);
+    }
+    if (strcmp(id, "network_ftp_enabled") == 0) {
+      return run_network_service_control(ui, "ftp", next);
+    }
+    if (strcmp(id, "network_sftp_enabled") == 0) {
+      return run_network_service_control(ui, "sftp", next);
+    }
+    if (strcmp(id, "network_samba_enabled") == 0) {
+      return run_network_service_control(ui, "samba", next);
     }
     save_setting_bool(ui, id, next);
     return 1;

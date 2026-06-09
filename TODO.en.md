@@ -83,6 +83,7 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [x] Store Brightness as `1..20` and map it to RAW lcdbl table `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190`.
 - [x] Hide the brightness tile test screen from normal users behind `PLUMOS_CONTROLLER_BRIGHTNESS_TEST=1`.
 - [x] Implement read-only status and network recovery action in Network Settings.
+- [x] Implement FTP/SFTP/Samba checkboxes and persistent ON/OFF in Network Settings, then smoke-test them on device.
 - [x] Connect Performance Settings to the existing CPU profile/core override features.
 - [x] Record A30 UI design rules in `docs/a30-ui-design.md`.
 - [ ] Implement Graphic UI mode / gallery mode.
@@ -93,7 +94,8 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [ ] Implement localization for UI language strings.
 - [ ] Decide Theme selection names, paths, and scope.
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
-- [ ] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
+- [x] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
+- [ ] Measure simultaneous multi-file transfers and throughput for FTP/SFTP/Samba, then update the README recommendation.
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 
