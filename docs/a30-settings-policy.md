@@ -14,8 +14,10 @@
 - A30 本体設定の write-enabled UI は、backup、atomic write、`sync`、復旧方針を
   持つ項目だけに限定する。
 - stock 側の仕様を採用する場合は、事前に理由とリスクを確認する。
-- Wi-Fi の PSK、`/config/wpa_supplicant.conf` の内容は git、log、UI に出さない。
-  SSID は `Connect Wi-Fi` のユーザ選択画面でのみ表示し、log/git には残さない。
+- Wi-Fi の PSK、`/config/wpa_supplicant.conf` の内容は git と log に出さない。
+  PSK は `Connect Wi-Fi` のパスワード入力中だけ確認用に表示し、接続処理や log へ
+  渡す際は一時 file 経由にする。SSID は `Connect Wi-Fi` のユーザ選択画面でのみ
+  表示し、log/git には残さない。
 
 ## controller UI の現在値表示
 

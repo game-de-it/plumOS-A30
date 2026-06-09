@@ -15,9 +15,11 @@ setting, then connects that backend to plumOS UI and services.
 - Make A30 write-enabled controls available only for entries that have backup,
   atomic write, `sync`, and a recovery policy.
 - Confirm the reason and risk before adopting a stock behavior.
-- Never expose Wi-Fi PSK or `/config/wpa_supplicant.conf` contents in git,
-  logs, or UI. SSIDs are shown only in the explicit `Connect Wi-Fi` selection
-  screen and must not be written to logs or git.
+- Never expose Wi-Fi PSK or `/config/wpa_supplicant.conf` contents in git or
+  logs. The PSK is visible only while the user is entering it in `Connect Wi-Fi`;
+  the connection backend still receives it through a temporary file. SSIDs are
+  shown only in the explicit `Connect Wi-Fi` selection screen and must not be
+  written to logs or git.
 
 ## Current Values In Controller UI
 

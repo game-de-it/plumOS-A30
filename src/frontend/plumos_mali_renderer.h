@@ -2063,6 +2063,69 @@ static void plumos_mali_find_footer_lines(const char lines[][PLUMOS_MALI_RENDER_
   }
 }
 
+static int plumos_mali_find_wifi_keyboard_cursor(
+    const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+    size_t line_count, int *row_out, int *col_out) {
+  size_t i;
+  const char *prefix = "wifi_keyboard_cursor=";
+  size_t prefix_len = strlen(prefix);
+
+  if (row_out) {
+    *row_out = -1;
+  }
+  if (col_out) {
+    *col_out = -1;
+  }
+  for (i = 0; i < line_count; i++) {
+    char *endptr;
+    long row;
+    long col;
+
+    if (strncmp(lines[i], prefix, prefix_len) != 0) {
+      continue;
+    }
+    row = strtol(lines[i] + prefix_len, &endptr, 10);
+    if (endptr == lines[i] + prefix_len || *endptr != ',') {
+      return 0;
+    }
+    col = strtol(endptr + 1, &endptr, 10);
+    if (row < 0 || col < 0) {
+      return 0;
+    }
+    if (row_out) {
+      *row_out = (int)row;
+    }
+    if (col_out) {
+      *col_out = (int)col;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+static void plumos_mali_find_prefixed_line(
+    const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+    size_t line_count, const char *prefix, char *out, size_t out_size) {
+  size_t i;
+  size_t prefix_len;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!prefix) {
+    return;
+  }
+  prefix_len = strlen(prefix);
+  for (i = 0; i < line_count; i++) {
+    if (strncmp(lines[i], prefix, prefix_len) == 0) {
+      snprintf(out, out_size, "%s", lines[i] + prefix_len);
+      plumos_mali_truncate(out, 64);
+      return;
+    }
+  }
+}
+
 static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
                                       size_t line_count,
                                       char *title, size_t title_size,
@@ -2102,6 +2165,10 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
     }
     if (plumos_mali_starts_with(line, "footer1=") ||
         plumos_mali_starts_with(line, "footer2=")) {
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "wifi_keyboard_cursor=") ||
+        plumos_mali_starts_with(line, "wifi_password=")) {
       continue;
     }
     if (plumos_mali_starts_with(line, "source:")) {
@@ -2322,6 +2389,62 @@ static void plumos_mali_text_setting_control(struct plumos_mali_renderer *render
                    scale, red, green, blue, alpha);
 }
 
+static void plumos_mali_text_token_row(struct plumos_mali_renderer *renderer,
+                                       const char *text, int selected_token,
+                                       float x, float y, int scale, float max_x,
+                                       float red, float green, float blue,
+                                       float alpha) {
+  const char *p = text;
+  float pen_x = 0.0f;
+  int token_index = 0;
+  int space_width = plumos_mali_text_width(" ", scale);
+
+  if (!renderer || !text || scale <= 0) {
+    return;
+  }
+  while (*p) {
+    char token[32];
+    size_t token_len = 0;
+    int token_width;
+    int is_selected;
+
+    while (*p == ' ') {
+      pen_x += (float)space_width;
+      p++;
+    }
+    if (!*p || x + pen_x >= max_x) {
+      break;
+    }
+    while (p[token_len] && p[token_len] != ' ' && token_len + 1 < sizeof(token)) {
+      token[token_len] = p[token_len];
+      token_len++;
+    }
+    token[token_len] = '\0';
+    while (p[token_len] && p[token_len] != ' ') {
+      token_len++;
+    }
+    p += token_len;
+    if (!token[0]) {
+      continue;
+    }
+
+    token_width = plumos_mali_text_width(token, scale);
+    is_selected = token_index == selected_token;
+    if (is_selected) {
+      plumos_mali_rect(renderer, x + pen_x - 3.0f, y - 4.0f,
+                       (float)token_width + 6.0f, (float)(scale * 7 + 8),
+                       0.22f, 0.02f, 0.02f, 1.0f);
+      plumos_mali_text(renderer, token, x + pen_x, y, scale,
+                       1.0f, 0.08f, 0.04f, alpha);
+    } else {
+      plumos_mali_text(renderer, token, x + pen_x, y, scale,
+                       red, green, blue, alpha);
+    }
+    pen_x += (float)token_width;
+    token_index++;
+  }
+}
+
 static int plumos_mali_title_is_rom_list(const char *title) {
   return title && (strstr(title, "ROMS") || strstr(title, "FAVORITES") ||
                    strstr(title, "RECENT"));
@@ -2358,6 +2481,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   char status[160];
   char footer1[160];
   char footer2[160];
+  char wifi_password[160];
   char entries[18][PLUMOS_MALI_RENDER_LINE_MAX];
   size_t entry_count = 0;
   float y;
@@ -2382,6 +2506,8 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   int is_settings_page;
   int is_brightness_test;
   int show_prompt;
+  int wifi_keyboard_row = -1;
+  int wifi_keyboard_col = -1;
   int brightness_tile_values[24];
   int brightness_tile_selected[24];
   int brightness_tile_current[24];
@@ -2400,6 +2526,10 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   plumos_mali_find_prompt_path(lines, line_count, prompt_path, sizeof(prompt_path));
   plumos_mali_find_footer_lines(lines, line_count, footer1, sizeof(footer1),
                                 footer2, sizeof(footer2));
+  plumos_mali_find_wifi_keyboard_cursor(lines, line_count,
+                                        &wifi_keyboard_row, &wifi_keyboard_col);
+  plumos_mali_find_prefixed_line(lines, line_count, "wifi_password=",
+                                 wifi_password, sizeof(wifi_password));
   is_rom_list = plumos_mali_title_is_rom_list(title);
   is_top = plumos_mali_title_is_top(title);
   is_settings = plumos_mali_title_is_settings(title);
@@ -2603,6 +2733,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
 
   for (i = 0; i < entry_count; i++) {
     int selected = 0;
+    int keyboard_selected = 0;
     char number[24];
     char name[PLUMOS_MALI_RENDER_LINE_MAX];
     char rom_name[PLUMOS_MALI_RENDER_LINE_MAX];
@@ -2623,6 +2754,10 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     if (!plumos_mali_tty_entry_parts(entries[i], &selected, number, sizeof(number),
                                      name, sizeof(name), count, sizeof(count))) {
       continue;
+    }
+    if (wifi_keyboard_row >= 0 && wifi_keyboard_col >= 0 &&
+        atoi(number) == wifi_keyboard_row + 1) {
+      keyboard_selected = 1;
     }
     count_x = count[0] ? count_right_x - (float)plumos_mali_text_width(count, entry_scale)
                        : count_right_x;
@@ -2653,7 +2788,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
         plumos_mali_ascii_upper_inplace(visible_name);
       }
     }
-    if (selected) {
+    if (selected && !keyboard_selected) {
       highlight_y = y - 7.0f;
       highlight_h = (float)(entry_scale * 7 + 10);
       if (is_rom_list) {
@@ -2686,7 +2821,12 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
 	      }
 	      plumos_mali_text_clipped(renderer, draw_name, name_x - (float)scroll_px, y,
 	                               entry_scale, 1, name_x, name_right_x, r, g, b, 1.0f);
-	    } else if (is_settings_page) {
+		    } else if (wifi_keyboard_row >= 0) {
+		      plumos_mali_text_token_row(renderer, name,
+		                                 keyboard_selected ? wifi_keyboard_col : -1,
+		                                 name_x, y,
+		                                 entry_scale, name_right_x, r, g, b, 1.0f);
+		    } else if (is_settings_page) {
 	      char setting_label[PLUMOS_MALI_RENDER_LINE_MAX];
 		      char setting_control[80];
 		      char visible_label[PLUMOS_MALI_RENDER_LINE_MAX];
@@ -2732,14 +2872,23 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     plumos_mali_text(renderer, "NO ENTRIES", 18.0f, y, 2,
                      0.54f, 0.78f, 0.68f, 1.0f);
   }
-  if (is_settings_family && (footer1[0] || footer2[0])) {
+  if (is_settings_family && (footer1[0] || footer2[0] || wifi_password[0])) {
     plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 74.0f,
                      (float)renderer->width, 74.0f,
                      0.000f, 0.018f, 0.020f, 1.0f);
     plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 76.0f,
                      (float)renderer->width, 2.0f,
                      0.06f, 0.18f, 0.25f, 1.0f);
-    if (footer1[0]) {
+    if (wifi_password[0]) {
+      const char *label = "Password:";
+      int label_width = plumos_mali_text_width(label, 2);
+      plumos_mali_text(renderer, label, 14.0f, (float)renderer->height - 56.0f,
+                       2, 0.64f, 0.82f, 0.92f, 1.0f);
+      plumos_mali_text(renderer, wifi_password,
+                       14.0f + (float)label_width + 12.0f,
+                       (float)renderer->height - 56.0f,
+                       2, 1.0f, 0.08f, 0.04f, 1.0f);
+    } else if (footer1[0]) {
       plumos_mali_text(renderer, footer1, 14.0f, (float)renderer->height - 56.0f,
                        2, 0.64f, 0.82f, 0.92f, 1.0f);
     }

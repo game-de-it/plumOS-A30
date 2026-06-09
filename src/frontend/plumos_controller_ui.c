@@ -176,9 +176,9 @@ struct input_event {
 #define UI_MAX_WIFI_NETWORKS 64
 #define UI_WIFI_SSID_MAX 160
 #define UI_WIFI_PASSWORD_MAX 64
-#define UI_WIFI_KEYBOARD_ROWS 11
-#define UI_WIFI_COMMAND_ROW 10
-#define UI_WIFI_COMMAND_COUNT 4
+#define UI_WIFI_KEYBOARD_ROWS 7
+#define UI_WIFI_COMMAND_ROW 6
+#define UI_WIFI_COMMAND_COUNT 5
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
@@ -428,6 +428,7 @@ struct ui_state {
   enum wifi_connect_stage wifi_stage;
   size_t wifi_key_row;
   size_t wifi_key_col;
+  int wifi_key_shift;
   char wifi_password[UI_WIFI_PASSWORD_MAX + 1];
   char wifi_result_title[96];
   char wifi_result_ip[64];
@@ -501,22 +502,26 @@ static const long PERFORMANCE_CPU_CORE_PRESETS[] = {2, 4};
 static const size_t PERFORMANCE_CPU_CORE_PRESET_COUNT =
     sizeof(PERFORMANCE_CPU_CORE_PRESETS) / sizeof(PERFORMANCE_CPU_CORE_PRESETS[0]);
 
-static const char *WIFI_KEYBOARD_ROWS[UI_WIFI_KEYBOARD_ROWS] = {
-    "abcdefghij",
-    "klmnopqrst",
-    "uvwxyz",
-    "ABCDEFGHIJ",
-    "KLMNOPQRST",
-    "UVWXYZ",
+static const char *WIFI_KEYBOARD_ROWS_LOWER[UI_WIFI_COMMAND_ROW] = {
     "0123456789",
+    "qwertyuiop",
+    "asdfghjkl",
+    "zxcvbnm",
     "-_.@#$%&!*",
-    "?+=:/\\\"'()",
-    "[]{}~,;^`|",
-    ""
+    "?+=:/\\\"'()[]"
+};
+
+static const char *WIFI_KEYBOARD_ROWS_UPPER[UI_WIFI_COMMAND_ROW] = {
+    "0123456789",
+    "QWERTYUIOP",
+    "ASDFGHJKL",
+    "ZXCVBNM",
+    "-_.@#$%&!*",
+    "?+=:/\\\"'()[]"
 };
 
 static const char *WIFI_COMMAND_LABELS[UI_WIFI_COMMAND_COUNT] = {
-    "DEL", "SPACE", "CLEAR", "CONNECT"
+    "SHIFT", "SPACE", "DEL", "CLEAR", "CONNECT"
 };
 
 static long long current_time_ms(void) {
@@ -974,14 +979,22 @@ static int wifi_scan_networks(struct ui_state *ui) {
   return 1;
 }
 
-static size_t wifi_keyboard_row_len(size_t row) {
+static const char *wifi_keyboard_row_chars(const struct ui_state *ui, size_t row) {
+  if (row >= UI_WIFI_COMMAND_ROW) {
+    return "";
+  }
+  return ui && ui->wifi_key_shift ? WIFI_KEYBOARD_ROWS_UPPER[row]
+                                  : WIFI_KEYBOARD_ROWS_LOWER[row];
+}
+
+static size_t wifi_keyboard_row_len(const struct ui_state *ui, size_t row) {
   if (row == UI_WIFI_COMMAND_ROW) {
     return UI_WIFI_COMMAND_COUNT;
   }
   if (row >= UI_WIFI_KEYBOARD_ROWS) {
     return 0;
   }
-  return strlen(WIFI_KEYBOARD_ROWS[row]);
+  return strlen(wifi_keyboard_row_chars(ui, row));
 }
 
 static void wifi_clamp_key_cursor(struct ui_state *ui) {
@@ -993,7 +1006,7 @@ static void wifi_clamp_key_cursor(struct ui_state *ui) {
   if (ui->wifi_key_row >= UI_WIFI_KEYBOARD_ROWS) {
     ui->wifi_key_row = UI_WIFI_KEYBOARD_ROWS - 1;
   }
-  row_len = wifi_keyboard_row_len(ui->wifi_key_row);
+  row_len = wifi_keyboard_row_len(ui, ui->wifi_key_row);
   if (row_len == 0) {
     ui->wifi_key_col = 0;
   } else if (ui->wifi_key_col >= row_len) {
@@ -1031,27 +1044,6 @@ static void wifi_delete_password_char(struct ui_state *ui) {
            strlen(ui->wifi_password));
 }
 
-static void wifi_mask_password(const char *password, char *out, size_t out_size) {
-  size_t len;
-  size_t i;
-
-  if (!out || out_size == 0) {
-    return;
-  }
-  out[0] = '\0';
-  if (!password) {
-    return;
-  }
-  len = strlen(password);
-  if (len + 1 > out_size) {
-    len = out_size - 1;
-  }
-  for (i = 0; i < len; i++) {
-    out[i] = '*';
-  }
-  out[len] = '\0';
-}
-
 static void wifi_format_keyboard_row(const struct ui_state *ui, size_t row,
                                      char *out, size_t out_size) {
   size_t pos = 0;
@@ -1066,24 +1058,14 @@ static void wifi_format_keyboard_row(const struct ui_state *ui, size_t row,
       if (i > 0 && !append_string(out, out_size, &pos, " ")) {
         return;
       }
-      if (ui && ui->wifi_key_row == row && ui->wifi_key_col == i) {
-        if (!append_string(out, out_size, &pos, "[")) {
-          return;
-        }
-        if (!append_string(out, out_size, &pos, WIFI_COMMAND_LABELS[i])) {
-          return;
-        }
-        if (!append_string(out, out_size, &pos, "]")) {
-          return;
-        }
-      } else if (!append_string(out, out_size, &pos, WIFI_COMMAND_LABELS[i])) {
+      if (!append_string(out, out_size, &pos, WIFI_COMMAND_LABELS[i])) {
         return;
       }
     }
     return;
   }
   if (row < UI_WIFI_KEYBOARD_ROWS) {
-    const char *keys = WIFI_KEYBOARD_ROWS[row];
+    const char *keys = wifi_keyboard_row_chars(ui, row);
     for (i = 0; keys[i]; i++) {
       char ch[2];
       if (i > 0 && !append_string(out, out_size, &pos, " ")) {
@@ -1091,17 +1073,7 @@ static void wifi_format_keyboard_row(const struct ui_state *ui, size_t row,
       }
       ch[0] = keys[i];
       ch[1] = '\0';
-      if (ui && ui->wifi_key_row == row && ui->wifi_key_col == i) {
-        if (!append_string(out, out_size, &pos, "[")) {
-          return;
-        }
-        if (!append_string(out, out_size, &pos, ch)) {
-          return;
-        }
-        if (!append_string(out, out_size, &pos, "]")) {
-          return;
-        }
-      } else if (!append_string(out, out_size, &pos, ch)) {
+      if (!append_string(out, out_size, &pos, ch)) {
         return;
       }
     }
@@ -4154,7 +4126,6 @@ static void render_wifi_connect(struct ui_state *ui) {
   size_t window = ui_list_window_size(ui);
   size_t start = 0;
   size_t end = 0;
-  char masked[UI_WIFI_PASSWORD_MAX + 1];
   char footer1[160];
   char footer2[160];
 
@@ -4187,21 +4158,28 @@ static void render_wifi_connect(struct ui_state *ui) {
     const char *ssid = ui->wifi_count > 0 && ui->wifi_cursor < ui->wifi_count
                            ? ui->wifi_networks[ui->wifi_cursor].ssid
                            : "-";
-    wifi_mask_password(ui->wifi_password, masked, sizeof(masked));
     ui_printf(ui, "A: type/run  B: SSID list  UP/DOWN/LEFT/RIGHT: move  Q: quit\n");
     ui_printf(ui, "target=%s\n", ssid);
     ui_printf(ui, "entries=%d cursor=%zu\n", UI_WIFI_KEYBOARD_ROWS,
               ui->wifi_key_row + 1);
+    if (ui->renderer_mali) {
+      ui_printf(ui, "wifi_keyboard_cursor=%zu,%zu\n", ui->wifi_key_row,
+                ui->wifi_key_col);
+      ui_printf(ui, "wifi_password=%s\n",
+                ui->wifi_password[0] ? ui->wifi_password : "-");
+    }
     ui_printf(ui, "\n");
     for (i = 0; i < UI_WIFI_KEYBOARD_ROWS; i++) {
       char row[128];
       wifi_format_keyboard_row(ui, i, row, sizeof(row));
       ui_printf(ui, "%c %3zu  %s\n",
-                i == ui->wifi_key_row ? '>' : ' ', i + 1, row);
+                !ui->renderer_mali && i == ui->wifi_key_row ? '>' : ' ',
+                i + 1, row);
     }
     snprintf(footer1, sizeof(footer1), "Password: %s (%zu chars)",
-             masked[0] ? masked : "-", strlen(ui->wifi_password));
-    snprintf(footer2, sizeof(footer2), "Use CONNECT after entering 8..63 chars.");
+             ui->wifi_password[0] ? ui->wifi_password : "-",
+             strlen(ui->wifi_password));
+    snprintf(footer2, sizeof(footer2), "SHIFT toggles case. CONNECT runs.");
     ui_printf(ui, "footer1=%s\n", footer1);
     ui_printf(ui, "footer2=%s\n", footer2);
   } else {
@@ -4648,6 +4626,7 @@ static void open_wifi_connect_screen(struct ui_state *ui) {
   ui->wifi_stage = WIFI_CONNECT_SELECT;
   ui->wifi_key_row = 0;
   ui->wifi_key_col = 0;
+  ui->wifi_key_shift = 0;
   ui->wifi_password[0] = '\0';
   wifi_clear_result(ui);
   set_status(ui, "Scanning Wi-Fi SSIDs");
@@ -5681,16 +5660,20 @@ static int handle_wifi_password_key(struct ui_state *ui) {
   if (ui->wifi_key_row == UI_WIFI_COMMAND_ROW) {
     switch (ui->wifi_key_col) {
     case 0:
-      wifi_delete_password_char(ui);
+      ui->wifi_key_shift = !ui->wifi_key_shift;
+      set_status(ui, ui->wifi_key_shift ? "Keyboard uppercase" : "Keyboard lowercase");
       return 1;
     case 1:
       wifi_append_password_char(ui, ' ');
       return 1;
     case 2:
+      wifi_delete_password_char(ui);
+      return 1;
+    case 3:
       ui->wifi_password[0] = '\0';
       set_status(ui, "Password cleared");
       return 1;
-    case 3:
+    case 4:
       run_wifi_connect_selected(ui);
       return 1;
     default:
@@ -5698,8 +5681,9 @@ static int handle_wifi_password_key(struct ui_state *ui) {
     }
   }
   if (ui->wifi_key_row < UI_WIFI_KEYBOARD_ROWS &&
-      ui->wifi_key_col < strlen(WIFI_KEYBOARD_ROWS[ui->wifi_key_row])) {
-    wifi_append_password_char(ui, WIFI_KEYBOARD_ROWS[ui->wifi_key_row][ui->wifi_key_col]);
+      ui->wifi_key_col < strlen(wifi_keyboard_row_chars(ui, ui->wifi_key_row))) {
+    wifi_append_password_char(
+        ui, wifi_keyboard_row_chars(ui, ui->wifi_key_row)[ui->wifi_key_col]);
     return 1;
   }
   return 1;
@@ -5762,6 +5746,7 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
       ui->wifi_stage = WIFI_CONNECT_PASSWORD;
       ui->wifi_key_row = 0;
       ui->wifi_key_col = 0;
+      ui->wifi_key_shift = 0;
       set_status(ui, "Enter Wi-Fi password");
       return 1;
     }
@@ -5795,7 +5780,7 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
       return 1;
     }
     if (action == ACTION_RIGHT) {
-      size_t row_len = wifi_keyboard_row_len(ui->wifi_key_row);
+      size_t row_len = wifi_keyboard_row_len(ui, ui->wifi_key_row);
       if (ui->wifi_key_col + 1 < row_len) {
         ui->wifi_key_col++;
       }
