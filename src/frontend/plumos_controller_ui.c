@@ -172,6 +172,8 @@ struct input_event {
 #define UI_RENDER_LINE_MAX 512
 #define UI_KEY_REPEAT_DELAY_MS 350
 #define UI_KEY_REPEAT_INTERVAL_MS 95
+#define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
+#define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
 struct top_entry {
   char id[64];
@@ -193,6 +195,7 @@ struct rom_entry {
 };
 
 static int dirname_path(char *out, size_t out_size, const char *path);
+static long clamp_long(long value, long min_value, long max_value);
 
 static int rom_entry_alias_root_path(const struct rom_entry *entry, char *out,
                                      size_t out_size) {
@@ -712,6 +715,205 @@ static int write_text_file(const char *path, const char *text) {
     return 0;
   }
   return written == (ssize_t)len;
+}
+
+static long scale_setting_to_runtime(long value, long setting_max,
+                                     long runtime_max) {
+  value = clamp_long(value, 0, setting_max);
+  if (setting_max <= 0) {
+    return 0;
+  }
+  return (value * runtime_max + setting_max / 2) / setting_max;
+}
+
+static int system_command_succeeded(int rc) {
+  return rc != -1 && WIFEXITED(rc) && WEXITSTATUS(rc) == 0;
+}
+
+static const char *runtime_volume_backend_path(void) {
+  if (access("/usr/bin/amixer", X_OK) == 0) {
+    return "/usr/bin/amixer";
+  }
+  if (access("/bin/amixer", X_OK) == 0) {
+    return "/bin/amixer";
+  }
+  if (access("/sbin/amixer", X_OK) == 0) {
+    return "/sbin/amixer";
+  }
+  return NULL;
+}
+
+static int runtime_volume_backend_available(void) {
+  return runtime_volume_backend_path() != NULL;
+}
+
+static int runtime_lcd_backend_available(void) {
+  return access(A30_LCD_BACKLIGHT_PATH, W_OK) == 0;
+}
+
+static int runtime_enhance_backend_available(void) {
+  return access(A30_DISPLAY_ENHANCE_PATH, W_OK) == 0;
+}
+
+static void update_device_backend_status(struct device_settings *device) {
+  int lcd_available;
+  int enhance_available;
+
+  if (!device) {
+    return;
+  }
+  if (runtime_volume_backend_available()) {
+    copy_string(device->volume_backend, sizeof(device->volume_backend),
+                "Soft Volume Master (amixer)");
+  } else {
+    copy_string(device->volume_backend, sizeof(device->volume_backend),
+                "amixer unavailable");
+  }
+
+  lcd_available = runtime_lcd_backend_available();
+  enhance_available = runtime_enhance_backend_available();
+  if (lcd_available && enhance_available) {
+    copy_string(device->brightness_backend, sizeof(device->brightness_backend),
+                "disp attr lcdbl/enhance");
+  } else if (lcd_available) {
+    copy_string(device->brightness_backend, sizeof(device->brightness_backend),
+                "disp attr lcdbl only");
+  } else if (enhance_available) {
+    copy_string(device->brightness_backend, sizeof(device->brightness_backend),
+                "disp attr enhance only");
+  } else {
+    copy_string(device->brightness_backend, sizeof(device->brightness_backend),
+                "disp attr unavailable");
+  }
+}
+
+static int apply_runtime_volume(const struct device_settings *device) {
+  char cmd[256];
+  const char *amixer_path;
+  long mixer_value;
+
+  if (!device) {
+    return 0;
+  }
+  amixer_path = runtime_volume_backend_path();
+  if (!amixer_path) {
+    return 0;
+  }
+  mixer_value = scale_setting_to_runtime(device->volume, 20, 255);
+  snprintf(cmd, sizeof(cmd),
+           "%s cset iface=MIXER,name='Soft Volume Master' %ld "
+           ">/tmp/.plumos_volume_set 2>&1",
+           amixer_path, mixer_value);
+  return system_command_succeeded(system(cmd));
+}
+
+static int apply_runtime_brightness(const struct device_settings *device) {
+  char value[64];
+  long backlight_value;
+
+  if (!device || !runtime_lcd_backend_available()) {
+    return 0;
+  }
+  backlight_value = scale_setting_to_runtime(device->brightness, 10, 255);
+  snprintf(value, sizeof(value), "%ld\n", backlight_value);
+  return write_text_file(A30_LCD_BACKLIGHT_PATH, value);
+}
+
+static int apply_runtime_display_enhance(const struct device_settings *device) {
+  char value[128];
+  long lumination_value;
+  long contrast_value;
+  long hue_value;
+  long saturation_value;
+
+  if (!device || !runtime_enhance_backend_available()) {
+    return 0;
+  }
+  lumination_value = scale_setting_to_runtime(device->lumination, 10, 50);
+  contrast_value = scale_setting_to_runtime(device->contrast, 20, 100);
+  hue_value = scale_setting_to_runtime(device->hue, 20, 100);
+  saturation_value = scale_setting_to_runtime(device->saturation, 20, 100);
+  snprintf(value, sizeof(value), "1,%ld,%ld,%ld,%ld\n", lumination_value,
+           contrast_value, hue_value, saturation_value);
+  return write_text_file(A30_DISPLAY_ENHANCE_PATH, value);
+}
+
+static void set_device_setting_number(struct device_settings *device,
+                                      const char *id, long value) {
+  if (!device || !id) {
+    return;
+  }
+  if (strcmp(id, "system_volume") == 0) {
+    device->volume = value;
+  } else if (strcmp(id, "system_brightness") == 0) {
+    device->brightness = value;
+  } else if (strcmp(id, "system_lumination") == 0) {
+    device->lumination = value;
+  } else if (strcmp(id, "system_contrast") == 0) {
+    device->contrast = value;
+  } else if (strcmp(id, "system_hue") == 0) {
+    device->hue = value;
+  } else if (strcmp(id, "system_saturation") == 0) {
+    device->saturation = value;
+  }
+}
+
+static int apply_device_runtime_settings(const struct device_settings *device,
+                                         const char *id, char *status,
+                                         size_t status_size) {
+  int ok = 1;
+  int attempted = 0;
+  int needs_volume;
+  int needs_brightness;
+  int needs_enhance;
+
+  if (status && status_size > 0) {
+    status[0] = '\0';
+  }
+  if (!device) {
+    if (status && status_size > 0) {
+      copy_string(status, status_size, "runtime settings unavailable");
+    }
+    return 0;
+  }
+
+  needs_volume = !id || strcmp(id, "system_volume") == 0;
+  needs_brightness = !id || strcmp(id, "system_brightness") == 0;
+  needs_enhance = !id || strcmp(id, "system_lumination") == 0 ||
+                  strcmp(id, "system_contrast") == 0 ||
+                  strcmp(id, "system_hue") == 0 ||
+                  strcmp(id, "system_saturation") == 0;
+
+  if (needs_volume && runtime_volume_backend_available()) {
+    attempted = 1;
+    if (!apply_runtime_volume(device)) {
+      ok = 0;
+    }
+  } else if (needs_volume) {
+    ok = 0;
+  }
+  if (needs_brightness && runtime_lcd_backend_available()) {
+    attempted = 1;
+    if (!apply_runtime_brightness(device)) {
+      ok = 0;
+    }
+  } else if (needs_brightness) {
+    ok = 0;
+  }
+  if (needs_enhance && runtime_enhance_backend_available()) {
+    attempted = 1;
+    if (!apply_runtime_display_enhance(device)) {
+      ok = 0;
+    }
+  } else if (needs_enhance) {
+    ok = 0;
+  }
+
+  if (!ok && status && status_size > 0) {
+    copy_string(status, status_size,
+                attempted ? "runtime apply failed" : "runtime backend unavailable");
+  }
+  return ok;
 }
 
 static void apply_frontend_cpu_default(void) {
@@ -1412,8 +1614,10 @@ static void init_device_settings(struct device_settings *device) {
   copy_string(device->network_status_source, sizeof(device->network_status_source),
               "runtime status missing");
   copy_string(device->ssh_status, sizeof(device->ssh_status), "Dropbear port 2222");
-  copy_string(device->brightness_backend, sizeof(device->brightness_backend), "plumOS config");
-  copy_string(device->volume_backend, sizeof(device->volume_backend), "plumOS config");
+  copy_string(device->brightness_backend, sizeof(device->brightness_backend),
+              "runtime backend unknown");
+  copy_string(device->volume_backend, sizeof(device->volume_backend),
+              "runtime backend unknown");
   copy_string(device->status, sizeof(device->status), "plumOS defaults");
 }
 
@@ -1449,10 +1653,7 @@ static int load_device_settings(struct ui_state *ui) {
   format_storage_status(ui->sdcard_root, ui->device.sdcard_storage,
                         sizeof(ui->device.sdcard_storage));
 
-  copy_string(ui->device.volume_backend, sizeof(ui->device.volume_backend),
-              "plumOS config only");
-  copy_string(ui->device.brightness_backend, sizeof(ui->device.brightness_backend),
-              "plumOS config only");
+  update_device_backend_status(&ui->device);
 
   load_device_runtime_status(ui);
 
@@ -3170,25 +3371,25 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strncmp(id, "system_", 7) == 0) {
     if (strcmp(id, "system_volume") == 0) {
       copy_string(line1, line1_size, "System-wide volume setting.");
-      copy_string(line2, line2_size, "Saves volume to plumOS config; physical buttons come later.");
+      copy_string(line2, line2_size, "Applies to Soft Volume Master and saves to plumOS.");
     } else if (strcmp(id, "system_brightness") == 0) {
       copy_string(line1, line1_size, "Screen brightness setting.");
-      copy_string(line2, line2_size, "Saves brightness to plumOS config; hotkey comes later.");
+      copy_string(line2, line2_size, "Applies to A30 lcdbl and saves to plumOS.");
     } else if (strcmp(id, "system_lumination") == 0) {
-      copy_string(line1, line1_size, "Display lumination value from plumOS config.");
-      copy_string(line2, line2_size, "Saves lumination to plumOS config.");
+      copy_string(line1, line1_size, "Display lumination setting.");
+      copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
     } else if (strcmp(id, "system_display_color") == 0) {
       copy_string(line1, line1_size, "Open display color tuning.");
       copy_string(line2, line2_size, "Contrast, hue, and saturation are changed inside.");
     } else if (strcmp(id, "system_contrast") == 0) {
       copy_string(line1, line1_size, "Display contrast setting.");
-      copy_string(line2, line2_size, "Saves contrast to plumOS config.");
+      copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
     } else if (strcmp(id, "system_hue") == 0) {
       copy_string(line1, line1_size, "Display hue setting.");
-      copy_string(line2, line2_size, "Saves hue to plumOS config.");
+      copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
     } else if (strcmp(id, "system_saturation") == 0) {
       copy_string(line1, line1_size, "Display saturation setting.");
-      copy_string(line2, line2_size, "Saves saturation to plumOS config.");
+      copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
     } else if (strcmp(id, "system_language") == 0) {
       copy_string(line1, line1_size, "Frontend language setting.");
       copy_string(line2, line2_size, "Saves language to plumOS config.");
@@ -3201,13 +3402,13 @@ static void setting_help_lines(const struct setting_entry *entry,
       copy_string(line2, line2_size, "Used to confirm the active A30 environment.");
     } else if (strcmp(id, "system_audio_backend") == 0) {
       copy_string(line1, line1_size, "Audio backend policy for plumOS.");
-      copy_string(line2, line2_size, "Volume writes wait for mixer backend validation.");
+      copy_string(line2, line2_size, "Volume writes use the detected mixer backend.");
     } else if (strcmp(id, "system_brightness") == 0 ||
                strcmp(id, "system_lumination") == 0 ||
                strcmp(id, "system_display_color") == 0 ||
                strcmp(id, "system_display_backend") == 0) {
       copy_string(line1, line1_size, "Display backend policy for plumOS.");
-      copy_string(line2, line2_size, "Brightness writes wait for backend validation.");
+      copy_string(line2, line2_size, "Display writes use the detected A30 sysfs backend.");
     } else if (strcmp(id, "system_language") == 0 ||
                strcmp(id, "system_input_device") == 0 ||
                strcmp(id, "system_theme_source") == 0) {
@@ -4278,6 +4479,7 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   long min_value = 0;
   long max_value = 9999;
   const char *system_key = NULL;
+  char runtime_status[128];
 
   if (direction == 0) {
     set_status(ui, "setting needs LEFT/RIGHT");
@@ -4326,9 +4528,18 @@ static int save_setting_number(struct ui_state *ui, const char *id,
       set_status(ui, "plumOS system config write failed");
       return 0;
     }
+    set_device_setting_number(&ui->device, id, value);
+    apply_device_runtime_settings(&ui->device, id, runtime_status,
+                                  sizeof(runtime_status));
     update_settings_entries_after_save(ui);
     settings_start_arrow_blink(ui, direction);
-    snprintf(ui->status, sizeof(ui->status), "saved %s=%ld", id, value);
+    if (runtime_status[0]) {
+      snprintf(ui->status, sizeof(ui->status), "saved %s=%ld; %s", id, value,
+               runtime_status);
+    } else {
+      snprintf(ui->status, sizeof(ui->status), "saved %s=%ld; runtime applied",
+               id, value);
+    }
     return 1;
   }
 
@@ -5486,6 +5697,9 @@ int main(int argc, char **argv) {
   }
 
   apply_frontend_cpu_default();
+  if (load_device_settings(&ui)) {
+    apply_device_runtime_settings(&ui.device, NULL, NULL, 0);
+  }
 
   memset(&initial_settings, 0, sizeof(initial_settings));
   initial_settings_loaded = load_settings(ui.settings_path, &initial_settings);

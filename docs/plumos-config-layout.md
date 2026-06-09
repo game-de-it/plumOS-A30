@@ -52,6 +52,11 @@ stockOS の `/config/system.json` とは切り離します。
 - `language`: `en.lang`, `ja.lang` など
 - `theme`: plumOS theme id
 
+2026-06-09 時点では、`Language` と `Theme` 以外の値は保存直後と FE 起動時に A30
+runtime へ反映します。`volume` は ALSA `Soft Volume Master`、`brightness` は
+`/sys/devices/virtual/disp/disp/attr/lcdbl`、`lumination` / `contrast` / `hue` /
+`saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` を使います。
+
 ## Performance Settings
 
 Performance Settings は新しい cpufreq 仕様を先に作るのではなく、既存の

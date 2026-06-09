@@ -128,9 +128,14 @@
 - [x] text mode は theme asset/font が壊れていても default font/color で必ず操作できる fallback を実装する。
 - [x] stock theme 互換は初期仕様に含めず、必要になった場合だけ importer として検討する。
 - [x] brightness、volume、Wi-Fi、keymap など A30 設定 UI の扱いを決める。
-- [ ] A30 settings の mixer/sysfs runtime backend 連動を検証する。System Settings の
-  plumOS-owned 限定 write は backup、atomic write、`sync` 付きで実装済みだが、
-  物理音量ボタン、brightness hotkey、即時 runtime 反映は未接続。
+- [ ] A30 settings の mixer/sysfs runtime backend 連動を実機目視で確認する。2026-06-09 に
+  System Settings の `Volume` は ALSA `Soft Volume Master`、`Brightness` は
+  `/sys/devices/virtual/disp/disp/attr/lcdbl`、`Lumination` / `Contrast` / `Hue` /
+  `Saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` へ保存直後と FE 起動時に
+  反映する実装にした。A30 へ deploy 済みで、SSH script から `Volume` の `14 -> 15 -> 14`、
+  `Brightness` の復元、display color の可逆変更を行い、最終値が `volume=14`,
+  `brightness=10`, `lcdbl=255`, `enhance=1,25,50,50,50`, mixer `179 [70%]` に戻ることを
+  確認済み。残りはユーザー目視で変化確認、物理音量ボタン連動、brightness hotkey 連動。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。

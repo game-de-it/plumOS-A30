@@ -21,12 +21,12 @@
 `plumos-controller-ui` の START menu から System Settings を開くと、ユーザーが
 調整対象として認識する次の項目を表示します。2026-06-09 時点では
 `/mnt/SDCARD/plumos/config/system/settings.json` を読み書きし、stockOS の
-`/config/system.json` には触れません。未検証の mixer/sysfs へ直接反映する処理はまだ
-行いません。
+`/config/system.json` には触れません。`Language` と `Theme` 以外は、plumOS 設定保存後に
+A30 runtime backend へ即時反映します。
 
-- `Volume`: `volume`。左右で `0..20` を変更する。将来は物理音量ボタンと連動する
-- `Brightness`: `brightness`。左右で `0..10` を変更する。将来は START + 音量ボタンなどの hotkey と連動する
-- `Lumination`: `lumination`。左右で `0..10` を変更する
+- `Volume`: `volume`。左右で `0..20` を変更し、ALSA `Soft Volume Master` へ反映する。将来は物理音量ボタンと連動する
+- `Brightness`: `brightness`。左右で `0..10` を変更し、`/sys/devices/virtual/disp/disp/attr/lcdbl` へ反映する。将来は START + 音量ボタンなどの hotkey と連動する
+- `Lumination`: `lumination`。左右で `0..10` を変更し、display `enhance` へ反映する
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
 - `Language`: `language`。左右で `English`, `Japanese`, `Chinese`, `Traditional Chinese`, `Korean`, `Spanish`, `Portuguese` を選択する
 - `Theme`: graphical mode 向けの theme 設定候補。候補名と path の扱いが固まるまで read-only
@@ -40,8 +40,8 @@
 - `plumOS System Config`: `/mnt/SDCARD/plumos/config/system/settings.json` の読み取り状態
 - `Input Device`: `gpio-keys-polled` から見つけた `/dev/input/event*`
 - `Theme Source`: plumOS theme id
-- `Audio Backend`: plumOS config only
-- `Display Backend`: plumOS config only
+- `Audio Backend`: 検出した mixer backend。A30 では `Soft Volume Master (amixer)`
+- `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
 - `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針
 
 Network Settings では次の項目を扱います。
@@ -78,18 +78,18 @@ plumOS 側では `/mnt/SDCARD/plumos/config/system/settings.json` に `brightnes
 `lumination`, `contrast`, `hue`, `saturation` を持ちます。
 
 UI からは plumOS 側の `brightness`, `lumination`, `contrast`, `hue`,
-`saturation` を backup 付き atomic write で更新します。stock frontend がどの
-kernel/sysfs/API に即時反映しているかは未確認のため、直接 runtime backend を叩く処理は
-まだ実装しません。
+`saturation` を backup 付き atomic write で更新し、保存直後に A30 の
+`/sys/devices/virtual/disp/disp/attr/lcdbl` と
+`/sys/devices/virtual/disp/disp/attr/enhance` へ反映します。`brightness 0..10` は
+`lcdbl 0..255`、`lumination 0..10` は `enhance` の第2値 `0..50`、
+`contrast` / `hue` / `saturation 0..20` は `enhance` の第3-5値 `0..100` に丸めます。
 
 ## volume
 
 plumOS 側では `/mnt/SDCARD/plumos/config/system/settings.json` に `volume` を持ちます。
-実機には `amixer` も存在するため、ALSA mixer 経由で直接制御できる可能性があります。
-
-UI からは plumOS 側の `volume` を backup 付き atomic write で更新します。
-ただし mixer control の対応関係は未検証です。物理音量ボタンや即時音量反映へ接続する前に、
-`amixer contents` と実際の音量変化を見て、設定値と mixer の対応を決めます。
+UI からは plumOS 側の `volume` を backup 付き atomic write で更新し、保存直後に
+`amixer cset iface=MIXER,name='Soft Volume Master'` へ反映します。`volume 0..20` は
+mixer 値 `0..255` に丸めます。物理音量ボタン連動は別タスクです。
 
 ## Wi-Fi
 
