@@ -95,7 +95,7 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [ ] Decide Theme selection names, paths, and scope.
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
 - [x] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
-- [ ] Measure simultaneous multi-file transfers and throughput for FTP/SFTP/Samba, then update the README recommendation.
+- [x] Measure simultaneous multi-file transfers and throughput for FTP/SFTP/Samba, then update the README recommendation.
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 

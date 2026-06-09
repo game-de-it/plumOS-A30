@@ -279,14 +279,16 @@ Default share/home directory:
 
 Services:
   FTP:
-    BusyBox tcpsvd + ftpd, port 21.
+    BusyBox tcpsvd + ftpd, port 21, max 20 concurrent connections.
   SFTP:
     Dropbear SFTP subsystem. Requires a Dropbear build with SFTP enabled and
     /mnt/SDCARD/plumos/ssh/libexec/sftp-server. Uses existing SSH
-    authentication on port 2222.
+    authentication on port 2222. The plumOS Dropbear build raises
+    MAX_UNAUTH_PER_IP to 20 for parallel small-file transfers.
   Samba:
     Writable SMB share named SDCARD on port 445 for Windows/macOS network-drive
-    mounting. Use smb://A30_IP/SDCARD or \\\\A30_IP\\SDCARD with:
+    mounting, max 20 connections. Use smb://A30_IP/SDCARD or
+    \\\\A30_IP\\SDCARD with:
       username: plumos
       password: plumos
 

@@ -9,6 +9,8 @@ This document defines the initial file-transfer network services provided by plu
 - Do not modify the stock rootfs or `/config/system.json`.
 - Network Settings shows `FTP`, `SFTP`, and `Samba` as checkboxes. A toggles each service.
 - ON means start + enable, and OFF means stop + disable. The state persists across reboot.
+- To transfer many small ROM files efficiently, each service should expose a concurrent-transfer
+  entry limit of 20. The normal recommendation is 10-way parallel transfer; 20 is headroom.
 
 ## Services
 
@@ -18,6 +20,7 @@ This document defines the initial file-transfer network services provided by plu
 - Port: `21`
 - Shared root: `/mnt/SDCARD/`
 - Authentication: anonymous/write-enabled in the first implementation
+- Concurrent connection limit: `20`
 
 FTP is the lightweight candidate if multi-file transfer tests are stable.
 
@@ -27,6 +30,7 @@ FTP is the lightweight candidate if multi-file transfer tests are stable.
 - Port: same as SSH, `2222`
 - Shared root: the SFTP server starts from `/mnt/SDCARD/`
 - Authentication: existing SSH authentication
+- Concurrent connection entry limit: Dropbear `MAX_UNAUTH_PER_IP=20`
 
 SFTP is attached to the SSH daemon, so turning SFTP OFF must not stop SSH itself. OFF disables the
 `/mnt/SDCARD/plumos/ssh/libexec/sftp-server` entry point while keeping SSH shell access alive.
@@ -39,6 +43,7 @@ SFTP is attached to the SSH daemon, so turning SFTP OFF must not stop SSH itself
 - Shared root: `/mnt/SDCARD/`
 - URL example: `smb://A30_IP/SDCARD`
 - Authentication: `plumos` / `plumos`
+- Concurrent connection limit: `20`
 
 The Samba setup prioritizes mounting from Windows and macOS as a network drive. The first
 implementation maps `plumos` to `root` inside Samba and forces the share user to `root`. On A30,
@@ -85,15 +90,20 @@ The service helper is:
 
 Do not commit or log SSIDs, PSKs, or private filenames.
 
-## Benchmark Plan
+## Benchmark Results
 
-README recommendations should be updated after real measurements. Measure:
+As of 2026-06-10, macOS -> A30 upload results with 50 x 1MiB files and 10-way
+parallel transfer are:
 
-- Large single-file upload/download
-- Many-small-file upload/download
-- Stability during simultaneous multi-file transfer
-- Usability from macOS Finder, Windows Explorer, FTP clients, and SFTP clients
-- Whether transfer load interferes with FE input or emulator launch
+- FTP: 50/50 success, 8.645 seconds, 5.78 MiB/s.
+- SFTP: 50/50 success, 16.936 seconds, 2.95 MiB/s. Dropbear must use `MAX_UNAUTH_PER_IP=20`.
+- Samba: 50/50 success, 29.658 seconds, 1.69 MiB/s. On macOS, use `cp -X` to avoid xattr errors.
 
-Initial comparison targets are Samba for ease of use, FTP for lightweight transfer, and SFTP for
-standard secure-tool compatibility.
+SFTP also passed a 20-way smoke test with 20 x 1MiB files. The normal recommendation
+for many small ROM files is 10-way parallel transfer, with the service entry limit
+set to 20.
+
+Current recommendation: use FTP when speed is the priority, SFTP when secure
+standard-tool compatibility matters, and Samba when Windows/macOS network-drive
+mounting is the priority. Long-running checks for FE input and emulator-launch
+impact remain future validation work.

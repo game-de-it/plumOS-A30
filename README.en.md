@@ -69,6 +69,17 @@ Default connection:
 ssh -p 2222 root@A30_IP_ADDRESS
 ```
 
+## File Transfer Services
+
+Network Settings can toggle FTP, SFTP, and Samba. All three share `/mnt/SDCARD/`.
+Current measurements recommend FTP when speed is the priority, SFTP when secure
+standard-tool compatibility matters, and Samba when Windows/macOS network-drive
+mounting is the priority.
+
+The normal recommendation is 10-way parallel transfer, with each service entry
+limit set to 20. Detailed measurements and operating notes live in
+[plumOS network services](docs/network-services.en.md).
+
 ## References
 
 - Miyoo A30 toolchain reference: https://codeberg.org/hydrogen18/miyooa30

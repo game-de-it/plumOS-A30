@@ -8,6 +8,7 @@ RUN_DIR="${PLUMOS_ROOT}/run"
 LOG_DIR="${PLUMOS_ROOT}/logs"
 CONFIG_DIR="${PLUMOS_ROOT}/config/network"
 FTP_PORT="${PLUMOS_FTP_PORT:-21}"
+TRANSFER_MAX_CONNECTIONS="${PLUMOS_TRANSFER_MAX_CONNECTIONS:-20}"
 SMB_CONF="${CONFIG_DIR}/smb.conf"
 SERVICES_CONF="${CONFIG_DIR}/services.conf"
 LOG_FILE="${LOG_DIR}/network-services.log"
@@ -122,7 +123,7 @@ status_ftp() {
     return 1
   fi
   if pid_alive "$(ftp_pid_file)"; then
-    print_status ftp running "FTP port ${FTP_PORT}"
+    print_status ftp running "FTP port ${FTP_PORT}, max ${TRANSFER_MAX_CONNECTIONS}"
     return 0
   fi
   print_status ftp stopped "FTP stopped"
@@ -164,7 +165,7 @@ status_samba() {
     return 1
   fi
   if pid_alive "$(smbd_pid_file)"; then
-    print_status samba running "Samba share SDCARD"
+    print_status samba running "Samba share SDCARD, max ${TRANSFER_MAX_CONNECTIONS}"
     return 0
   fi
   print_status samba stopped "Samba stopped"
@@ -182,8 +183,9 @@ start_ftp() {
     status_ftp
     return 0
   fi
-  log "start port=${FTP_PORT} share=${SHARE_DIR}" ftp
-  "$TCPSVD" -vE 0.0.0.0 "$FTP_PORT" "$FTPD" -w -A -t 300 -T 3600 "$SHARE_DIR" >> "$LOG_FILE" 2>&1 &
+  log "start port=${FTP_PORT} max=${TRANSFER_MAX_CONNECTIONS} share=${SHARE_DIR}" ftp
+  "$TCPSVD" -vE -c "$TRANSFER_MAX_CONNECTIONS" 0.0.0.0 "$FTP_PORT" \
+    "$FTPD" -w -A -t 300 -T 3600 "$SHARE_DIR" >> "$LOG_FILE" 2>&1 &
   echo "$!" > "$(ftp_pid_file)"
   sleep 1
   status_ftp
@@ -254,6 +256,7 @@ EOF
    printcap name = /dev/null
    server min protocol = SMB2
    smb ports = 445
+   max smbd processes = ${TRANSFER_MAX_CONNECTIONS}
    disable netbios = yes
    interfaces = wlan0
    bind interfaces only = yes
@@ -274,6 +277,7 @@ EOF
    guest only = no
    valid users = root
    force user = root
+   max connections = ${TRANSFER_MAX_CONNECTIONS}
    create mask = 0666
    directory mask = 0777
 EOF
@@ -291,7 +295,7 @@ start_samba() {
     return 0
   fi
   write_smb_conf
-  log "start share=${SHARE_DIR}" samba
+  log "start max=${TRANSFER_MAX_CONNECTIONS} share=${SHARE_DIR}" samba
   "$SMBD" -D -s "$SMB_CONF" >> "$LOG_FILE" 2>&1 || true
   sleep 1
   status_samba
@@ -322,9 +326,9 @@ Commands:
   start-enabled
 
 Services:
-  ftp      BusyBox FTP on port ${FTP_PORT}, share ${SHARE_DIR}
+  ftp      BusyBox FTP on port ${FTP_PORT}, max ${TRANSFER_MAX_CONNECTIONS}, share ${SHARE_DIR}
   sftp     Dropbear SFTP subsystem, share starts at ${SHARE_DIR}
-  samba    SMB share //A30_IP/SDCARD backed by ${SHARE_DIR}
+  samba    SMB share //A30_IP/SDCARD, max ${TRANSFER_MAX_CONNECTIONS}, backed by ${SHARE_DIR}
   all
 EOF
 }

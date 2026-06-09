@@ -68,6 +68,16 @@ A30 側では Ports から `Start SSH` を実行します。
 ssh -p 2222 root@A30_IP_ADDRESS
 ```
 
+## ファイル転送サービス
+
+Network Settings から FTP、SFTP、Samba を ON/OFF できます。共有起点はいずれも
+`/mnt/SDCARD/` です。実測では、小さい ROM をまとめて転送する速度優先なら FTP、
+安全な標準ツール互換なら SFTP、Windows/macOS のネットワークドライブ用途なら
+Samba を推奨します。
+
+各サービスの通常推奨は 10 並列転送、入口上限は 20 です。詳細な測定値と運用方針は
+[plumOS ネットワークサービス](docs/network-services.md) にまとめます。
+
 ## 参考資料
 
 - Miyoo A30 toolchain reference: https://codeberg.org/hydrogen18/miyooa30

@@ -65,6 +65,8 @@ prepare_source() {
 #define DROPBEAR_SVR_PUBKEY_AUTH 1
 #define DROPBEAR_SFTPSERVER 1
 #define SFTPSERVER_PATH "/mnt/SDCARD/plumos/ssh/libexec/sftp-server"
+#define MAX_UNAUTH_PER_IP 20
+#define MAX_UNAUTH_CLIENTS 40
 #define DROPBEAR_X11FWD 0
 #define DROPBEAR_SVR_AGENTFWD 0
 #define DROPBEAR_SVR_LOCALTCPFWD 0
