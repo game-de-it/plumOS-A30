@@ -116,11 +116,15 @@ with 10-way parallelism, ending the timer after `sync`.
 | ---: | ---: | ---: | --- |
 | 50/50 success | 5.827 seconds | 8.58 MiB/s | file sizes OK, SHA-256 matched |
 
-## Open Items
+## Completion Decision
 
-- Re-test Windows mass-storage enumeration after stopping `MtpDaemon` / `adbd`;
-  the first attempt did not appear as a drive, and the helper now waits through
-  the attach grace window before treating disconnect as an exit.
+As of 2026-06-10, the basic file-transfer flow is considered complete: Windows
+and macOS recognize the device as USB Mass Storage, the macOS transfer benchmark
+passed under the same conditions used for FTP/SFTP/Samba, the start screen gives
+clear feedback, and the SD-card remount/FE return flow has been validated.
+
+## Future Improvements
+
 - Decide how to return from USB Disk Mode without relying only on USB disconnect.
 - Decide whether a rootfs/tmpfs-resident screen is needed while the SD card is
   unmounted.

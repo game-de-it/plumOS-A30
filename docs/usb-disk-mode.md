@@ -104,10 +104,14 @@ SSH daemon も停止するためです。
 | ---: | ---: | ---: | --- |
 | 50/50 成功 | 5.827 秒 | 8.58 MiB/s | file size OK、SHA-256一致 |
 
-## 未解決項目
+## 完了判定
 
-- Windows で mass_storage として enumerate されない初回症状があったため、
-  `MtpDaemon` / `adbd` 停止と attach grace 後に再検証する。
+2026-06-10 時点で、Windows/macOS からの USB Mass Storage 認識、Mac からの同条件転送
+benchmark、画面上の開始フィードバック、SD card remount/FE 復帰の基本 flow を確認済みです。
+ファイル転送機能としては完了扱いにします。
+
+## 将来改善項目
+
 - A30 側で USB cable disconnect 以外の復帰入力をどう受けるか。
 - USB Disk Mode 中に画面へ案内を出し続ける rootfs/tmpfs resident UI が必要か。
 - `nofua=0` と `nofua=1` の速度/安定性比較。
