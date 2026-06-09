@@ -1,329 +1,140 @@
 # TODO
 
+This file tracks current work items only. Put work history, probe logs, and rationale in `HANDOFF.md`, `docs/`, commit history, or `artifacts/`.
+
 ## Phase 0 - Repository and Remote Access
 
-- [x] Prepare the local git repository at `/Users/kroot/plumOS-A30`.
-- [x] Build a development SSH kit that starts from the SD card.
-- [x] Allow workstation public keys under `plumos/ssh/etc/authorized_keys`.
-- [x] Start SSH from Ports on the A30.
-- [x] Collect device information with `scripts/collect-a30-info.sh root@A30_IP_ADDRESS`.
-- [x] Document boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
-- [x] Use Japanese as the primary documentation language and `.en.md` for English.
-- [ ] Finalize GitHub remote, license, and release policy before publication.
+- [x] Set up the local git repository at `/Users/kroot/plumOS-A30`.
+- [x] Prepare the SD-card boot development SSH kit.
+- [x] Enable SSH-based information gathering on the A30.
+- [x] Document the boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
+- [x] Use Japanese as the source documentation and `.en.md` files for English mirrors.
+- [ ] Decide the GitHub remote, license, and release policy before public publishing.
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
-- [x] Design a plumOS-specific Docker build environment.
-- [x] Put the toolchain Dockerfile and helper scripts under `docker/`.
-- [ ] Make the A30 sysroot reproducible through Docker builds.
-- [ ] Build the frontend, helpers, RetroArch, and libretro cores inside Docker.
-- [ ] For SDL2, RetroArch, libretro cores, standalone emulators, and helper
-  libraries, check the latest stable upstream release at build time and record
-  the selected version/tag/commit/build options in manifests.
-- [x] Build the frontend compatibility scanner inside Docker.
-- [x] Collect Docker build output under `dist/` or a staging directory.
-- [x] Keep build cache and large generated files out of git.
-- [x] Document how to build and use the Docker image in Japanese and English.
+- [x] Prepare the plumOS Docker build environment.
+- [x] Build the frontend, helpers, RetroArch, libretro cores, and standalone emulators inside Docker.
+- [x] Collect Docker build outputs under `dist/` or a staging directory.
+- [x] Keep build caches and large generated outputs out of git.
+- [x] Record upstream versions and build options for SDL2 runtime and minimal RetroArch.
+- [ ] Make the A30 sysroot reproducible from the Docker build.
+- [ ] Record selected versions, tags, commits, and build options for emulator/core/helper libraries.
 
 ## Phase 2 - plumOS Runtime Layout
 
-- [ ] Package the `/mnt/SDCARD/plumos` runtime directory layout.
-- [ ] Define the roles of `bin/`, `lib/`, `runtime/`, `frontend/`, `retroarch/`,
-  `config/`, `state/`, `cache/`, `logs/`, and `ssh/`.
-- [ ] Add `plumos-env` without depending on stock `/mnt/SDCARD/miyoo/lib`.
-- [x] Build/deploy a static BusyBox for plumOS to avoid stock BusyBox quirks.
-- [x] Install BusyBox applets as wrapper scripts instead of symlinks for vfat.
-- [ ] Add `procps-ng`, `coreutils`, `util-linux`, and similar tools under
-  `plumos/gnu/bin` for a more Debian-like workflow.
-- [ ] Validate compatibility for `ps`, `top`, `df`, `free`, `tar`, `find`,
-  `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, and `strace`.
-- [x] Validate the bundled dynamic linker/shared library strategy with the SDL2
-  probe when dynamic linking is required.
-- [ ] Run a smoke test on the device using only plumOS runtime paths.
+- [ ] Package the runtime directory layout under `/mnt/SDCARD/plumos`.
+- [x] Split responsibilities across `config/frontend`, `config/system`, `config/network`, and `config/performance`.
+- [x] Provide `plumos-env` without relying on stock `/mnt/SDCARD/miyoo/lib`.
+- [x] Provide static BusyBox and vfat-safe wrapper applets for plumOS.
+- [x] Add first-pass helper userland tools such as `ip`, `ss`, and `strace`.
+- [x] Smoke-test `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, and `strace` on device.
+- [x] Validate the dynamic linker and shared library bundling policy with the SDL2 probe.
+- [x] Run a smoke test that uses only the plumOS runtime path.
+- [ ] Add `procps-ng`, `coreutils`, `util-linux`, or similar packages if needed.
 
 ## Phase 3 - Device Deployment Loop
 
-- [x] Add a deploy script that transfers Docker-built artifacts to the A30.
-- [x] Choose the SSH/SCP/rsync-equivalent transfer method.
-- [x] Add helpers to run commands on the device and collect logs afterward.
-- [ ] Make build -> deploy -> run -> collect logs work through one command.
-- [ ] Document a rollback path that only requires SD-card changes.
+- [x] Create a deploy script that transfers Docker outputs to the A30.
+- [x] Decide the transfer method for SSH/SCP/rsync-style deployment.
+- [x] Create helpers for running commands and collecting logs on the device.
+- [x] Create a `/dev/fb0` capture helper.
+- [x] Standardize display/emulator process shutdown in `scripts/stop-a30-display-processes.sh`.
+- [ ] Combine build, deploy, run, and log collection into one command.
+- [ ] Document an SD-card-only rollback procedure.
 
 ## Phase 4 - Boot Bootstrap
 
-- [x] Build a rollback-safe `MainUI` wrapper.
-- [x] Launch `/mnt/SDCARD/plumos/bin/plumos-frontend` from the wrapper.
+- [x] Create a rollback-capable `MainUI` wrapper.
+- [x] Start `plumos-controller-ui-mali` as the normal FE from the wrapper.
 - [x] Fall back to stock MainUI if wrapper startup fails.
-- [x] Write wrapper and frontend logs to `/mnt/SDCARD/plumos/logs`.
-- [x] Manually run a plumOS frontend prototype while keeping stock MainUI.
-- [x] Stop stock `keymon` from the wrapper launched by stock `/etc/main`, and
-  automatically run the plumOS network rescue helper during boot.
-- [x] Add controller UI `--rescue-network` for reboot recovery, so A reruns the
-  Wi-Fi start path, DHCP, and SSH start.
-- [x] Confirm the A30 remains recoverable through network rescue after a power
-  cycle.
-- [ ] Since stock MainUI has no reboot item, investigate why the `reboot` command
-  goes dark/LED-off without reaching the Miyoo logo, and decide whether safe OS
-  reboot is supported.
+- [x] Write wrapper and plumOS frontend logs to `/mnt/SDCARD/plumos/logs`.
+- [x] Stop stock `keymon` at boot and start the plumOS FE plus network recovery path.
+- [x] Expose network recovery from the START menu and Network Settings.
+- [x] Confirm Wi-Fi, DHCP, SSH, and FE recovery after A30 power cycling.
+- [ ] Decide whether safe OS reboot is possible, since stock MainUI has no reboot item.
 
 ## Phase 5 - Frontend Compatibility Layer
 
-- [x] Read stock `config.json` files from `Emu`, `RApp`, `App`, and `Themes`.
-- [x] Document that stock `config.json` is inventory/migration input, not the
-  new plumOS specification.
-- [x] Resolve `rompath`, `imgpath`, `gamelist`, and `launchlist` and check
-  existence/counts.
-- [x] Confirm ROM filename to artwork filename matching rules.
-- [ ] Read the stock `gamelist` XML data schema.
+- [x] Read stock `Emu`, `RApp`, `App`, and `Themes` `config.json` files as inventory.
+- [x] Resolve `rompath`, `imgpath`, `gamelist`, and `launchlist` and check existence/counts.
+- [x] Confirm the name matching rules between ROM files and artwork files.
+- [x] Detect `extlist`, `launchlist`, and `recentlist` with the compatibility scanner.
+- [x] Create a decision-record template for reusing stock behavior.
+- [ ] Read the stock data schema for `gamelist` XML.
 - [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
-- [x] Implement `extlist` ROM count filtering in the compatibility scanner.
 - [ ] Implement `extlist` filtering in the frontend ROM list.
-- [x] Detect `launchlist` entries in the compatibility scanner.
-- [ ] Support alternate launchers/cores through UI and launch profiles.
-- [x] Detect existence and entry count for `Roms/recentlist.json` in the
-  compatibility scanner.
-- [ ] Parse/update a `Roms/recentlist.json` compatible recent list.
-- [ ] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path
-  `$1`.
-- [ ] Eventually move away from shell launch scripts toward plumOS launch
-  profiles.
-- [x] Add a decision record template for any proposed direct reuse of stock
-  behavior.
+- [ ] Support alternate launchers/cores from `launchlist` in UI and launch profiles.
+- [ ] Parse and update `Roms/recentlist.json` compatibility data.
+- [ ] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, and ROM path `$1`.
+- [ ] Move shell launch script behavior into plumOS launch profiles.
 
 ## Phase 6 - Frontend Implementation
 
-- [x] Design a plumOS-native system/app/theme data model.
-- [x] Create the initial `systems.json` seed.
-- [x] Build a ROM scan prototype using Miyoo/ROCKNIX directory aliases.
-- [x] Build an on-enter per-system ROM directory re-scan prototype.
-- [x] Measure first text-mode display time with 1000 dummy ROM files.
-- [x] Build an SSH-checkable text-mode system list / ROM list prototype.
-- [x] Implement a START menu UI model for settings/apps/network/shutdown.
-- [x] Implement system default core selection with SELECT on a highlighted TOP
-  system.
-- [x] Implement per-ROM core override selection with SELECT on a highlighted ROM
-  entry.
-- [x] Implement core priority as ROM override > system default > plumOS
-  recommended > auto detect.
-- [x] Store core selection as an extensible launch profile id, not only a core
-  id.
-- [x] Implement favorite toggle in the ROM list and open Favorites from the
-  START menu.
-- [x] Add an optional setting to show Favorites as a virtual TOP system.
-- [x] Manage recent ROM/launch profile/resume availability in `recent.json`.
-- [x] Manage auto-resume target ROM/core/launch profile/pending state in
-  `resume-session.json`.
-- [x] Implement a text UI prototype for `boot_resume_mode=off|last|picker`.
-- [x] Build a launch plan for the same ROM/core/launch profile on boot, and
-  auto-launch it with `boot --execute` when a pending resume session exists.
-- [x] Build a minimal controller-first frontend prototype.
-- [x] Implement system list, ROM list, recents, favorites, and settings screens
-  in the controller UI.
-- [x] Decide how to load themes, fonts, and artwork.
-- [x] Implement thumbnail lookup that preserves paths relative to the ROM alias
-  root.
-- [x] Implement thumbnail lookup with subdirectory priority, flat fallback, and
-  placeholder fallback.
-- [x] Design a plumOS theme model that separates theme, layout preset, and
-  frontend behavior.
-- [x] Define the schema for `/mnt/SDCARD/plumos/themes/<theme_id>/theme.json`.
-- [x] Limit themes to colors, fonts, backgrounds, system icons, selection style,
-  spacing, thumbnail frames, and sound effects.
-- [x] Prevent themes from changing behavior such as button mappings, START menu,
-  SELECT core menu, favorites, ROM scanning, and resume.
-- [x] Implement a text-mode fallback that remains usable with default font/color
-  even when theme assets or fonts are missing/broken.
-- [x] Keep stock theme compatibility out of the initial spec; consider it later
-  only as an importer if needed.
-- [x] Decide how to handle A30 settings such as brightness, volume, Wi-Fi, and
-  keymap.
-- [ ] Implement write-enabled A30 settings controls only after backend
-  validation, backup, atomic write, and `sync` policy are settled.
-- [x] Run a minimal framebuffer/input/audio runtime probe binary on the A30.
-- [x] Run a minimal linked/window/input probe binary with plumOS-bundled SDL2 on
-  the A30.
-- [x] Validate the plumOS-bundled SDL2 framebuffer/render options on the A30 and
-  confirm that upstream SDL3+sdl2-compat only reaches dummy/offscreen/evdev
-  software rendering without a real display backend.
-- [x] Inspect stock SDL1/SDL2 video backends and confirm that stock SDL2 uses a
-  custom `mali` backend for `/dev/fb0` + Mali fbdev EGL.
-- [x] Implement a clean-room fbdev + Mali EGL presenter probe without linking to
-  stock SDL and confirm `eglSwapBuffers` on the A30.
-- [x] Choose the initial real-display path: integrate fbdev + Mali EGL directly
-  into the frontend first, and confirm TOP display plus ROM-list navigation with
-  `plumos-controller-ui-mali` on the A30.
-- [x] Convert `plumos-controller-ui-mali` to an A30-oriented compact layout and
-  confirm TOP/ROM/Settings/SAFE exercise plus a 30-second hold while stock
-  MainUI/keymon are still present.
-- [x] Add `--rotation auto|none|cw|ccw` to `plumos-controller-ui-mali`; on the
-  A30 `480x640` framebuffer, `auto` draws the landscape UI in the same raw
-  orientation as stock.
-- [x] Confirm that Wi-Fi/SSH stay up through `wpa_supplicant`/`udhcpc`/`dropbear`
-  rather than stock `MainUI.stock`/`keymon`.
-- [x] Confirm that OS boot starts Wi-Fi through `/etc/rc.d/S96wpa_supplicant`
-  -> `/etc/init.d/wpa_supplicant`.
-- [x] Treat IP acquisition/DHCP as likely MainUI-dependent and automatically run
-  `plumos-network-rescue` when the FE starts.
-- [x] Run the same network rescue path from START menu Network and from the
-  Settings `A30 Wi-Fi Config`/`A30 Wi-Fi Runtime` rows.
-- [x] Use
-  `scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock`
-  to validate the Mali UI in the plumOS target state with stock `/etc/main`,
-  `MainUI.stock`, and `keymon` stopped.
-- [x] Review TOP/ROM/START/Settings/SAFE through `/dev/fb0` captures and shorten
-  the Mali START menu rows to reduce right-edge truncation.
-- [x] Make the Mali renderer closer to stock MainUI: top status bar only shows
-  time/Wi-Fi/Battery, bottom control hints are removed, and Settings has a
-  `HELP` item.
-- [ ] Visually inspect `plumos-controller-ui-mali` on the device screen and tune
-  text readability, spacing, colors, and selection display.
-- [ ] Have the user visually confirm the physical screen orientation for
-  `--rotation auto`; switch to `cw`/`ccw` if it is reversed.
-- [ ] Revisit SDL3/sdl2-compat custom video backend work after the frontend
-  presenter behavior is stable.
-- [ ] Re-test audio playback with stock MainUI stopped or replaced.
-- [x] Compare keeping stock `keymon` with reading `/dev/input/event*`
-  directly.
-- [x] Confirm physical button code/action mapping except power and left-stick
-  click with
-  `plumos-input-compare --all-events`.
-- [x] Add `EV_ABS` output to `plumos-input-compare` and check whether the left
-  stick is exposed as kernel input.
-- [x] Check the left-stick click with `plumos-input-compare --all-events` and
-  `/dev/ttyS0` serial frames; record that it does not appear in normal kernel
-  input or the 6-byte serial frame.
-- [x] Based on stockOS/spruceOS calibration storage and hardware event results,
-  treat the left-stick click as unconnected/unsupported in initial plumOS.
-- [x] Inspect the spruceOS A30 implementation and confirm that `joystickinput`
-  uses `/dev/ttyS2` raw serial data plus `/config/joypad.config`.
-- [x] Add `plumos-serial-joy-probe` for checking raw `/dev/ttyS*` data.
-- [x] Confirm that the A30 emits 9600/8N1 `ff b1 b2 b3 b4 fe` frames from
-  `/dev/ttyS0`.
-- [x] Capture serial frame ranges while moving the left stick and confirm that
-  `axisYR`/`axisXR` are close to the `/config/joypad.config` min/max values.
-- [ ] Capture up/down/left/right separately and confirm the X/Y assignment and
-  sign for `axisYR`/`axisXR`.
-- [x] Record a minimal plumOS `plumos-joystickd` design around
-  `/config/joypad.config` and the `/dev/ttyS0` raw serial path.
-- [x] Add a minimal `plumos-joystickd` implementation that converts `/dev/ttyS0`
-  raw frames into virtual `/dev/uinput` `ABS_X`/`ABS_Y` events.
-- [x] Validate that the `plumos-joystickd` virtual input device appears on the
-  A30 as `js0`/`event4`.
-- [x] Add `plumos-joystick-reader` so the virtual input from
-  `plumos-joystickd` can be monitored through the Linux joystick API and evdev.
-- [x] Run `plumos-joystick-reader` on the A30 and confirm that `js0`/`event4`
-  can be read through the Linux joystick API and evdev.
-- [x] Remove the provisional `BTN_THUMBL` from the `plumos-joystickd` virtual
-  device because the left-stick click is treated as unsupported.
-- [x] Add `js0` device name/axes/buttons output to `plumos-joystick-reader`.
-- [x] Check stock RetroArch build features and record that SDL1 is enabled while
-  SDL2 and udev/evdev are disabled.
-- [x] Add `scripts/probe-a30-retroarch-joystick.sh` so the stock RetroArch SDL
-  joystick log probe can be repeated while `plumos-joystickd` is running.
-- [x] Record that the stock RetroArch log probe reaches the SDL joypad driver,
-  but does not show autoconfig/connection logs for `plumOS A30 Analog Stick`.
-- [x] Record that stock RetroArch detects the left stick as `Axis -2`/`+/-2`
-  during Port 1 Controls binding, but the stick does not move the menu cursor.
-- [x] Confirm that stock PPSSPP starts `miyoo282_xpad_inputd`, which uses
-  `/dev/ttyS0`, `/config/joypad.config`, and `/dev/uinput` to create
-  `MIYOO Pad1`.
-- [x] Add `scripts/probe-a30-ppsspp-input.sh` so the PPSSPP analog input path
-  can be re-inspected while PPSSPP is running.
-- [x] Document that stock PPSSPP reads an Xbox 360-like `MIYOO Pad1`
-  (`045e:028e`, `js0`/`event4`, 8 axes/11 buttons) through SDL2
-  GameController/Joystick APIs.
-- [x] Verify that with stock RetroArch/SDL1, `plumos-joystickd` axes-only and
-  composite virtual input devices are visible through the Linux joystick API,
-  but RetroArch logs still do not confirm device/autoconfig recognition.
-- [x] Choose the RetroArch analog strategy: do not rely on stock SDL1; prioritize
-  SDL2/evdev plus a buttons+axes composite virtual pad in the plumOS RetroArch
-  build.
-- [x] Add a PPSSPP-like buttons+axes composite virtual pad mode to
-  `plumos-joystickd`.
-- [x] Add `scripts/probe-a30-joystickd-xbox.sh` so `--device-mode xbox` hardware
-  checks can be repeated.
-- [x] Verify that `plumos-joystickd --device-mode xbox` appears on the A30 as
-  an 8-axis / 11-button `js*`/`event*` device.
-- [x] Add `scripts/probe-a30-ppsspp-plumos-gamepad.sh` so stock PPSSPP can be
-  tested with the plumOS gamepad and without the stock input daemon.
-- [x] Verify that `plumos-joystickd --device-mode xbox` is recognized by
-  PPSSPP/SDL2 GameController and loads a GameController mapping successfully.
-- [x] Confirm that short stock MainUI/keymon, PPSSPP direct-launch, and stock
-  RetroArch probes leave no stale `plumos-joystickd --device-mode xbox`
-  process/device/fd behind.
-- [x] Add `scripts/probe-a30-joystickd-buttons.sh` and confirm that A/B/X/Y,
-  D-pad, L/R, L2/R2, START/SELECT, and Function are forwarded as
-  `plumOS A30 Gamepad` button/hat/trigger events.
-- [x] Add `scripts/probe-a30-sdl2-gamepad.sh` and confirm that plumOS-bundled
-  upstream SDL3 3.4.10 + sdl2-compat 2.32.68 automatically recognizes the
-  `plumos-joystickd --device-mode xbox` composite virtual pad as a
-  GameController.
-- [x] Add `scripts/probe-a30-joystickd-residency.sh` and confirm that in the
-  stockless plumOS state, the FE, SDL2, and PPSSPP direct launch work while
-  `plumos-joystickd --device-mode xbox` is resident, with no stale
-  process/device/fd after exit.
-- [ ] PPSSPP direct launch opens `/dev/input/event3` and `/dev/ttyS0` in
-  addition to `plumOS A30 Gamepad` on `event4`; check for duplicate physical
-  input or serial contention and find a way to suppress it if needed.
-- [ ] For the plumOS RetroArch build, prioritize testing SDL2/evdev plus a
-  composite virtual pad instead of relying on the stock SDL1 path.
-- [ ] Lower the priority of the `/dev/mem` ADC path unless later evidence shows
-  it is required beyond stock calibration/test screens.
-- [x] Implement a controller UI SAFE menu prototype opened by Function.
-- [ ] Safely confirm the short power-button event code and stock sleep/shutdown
-  side effects.
-- [ ] Validate a Function-button fallback for the safe shutdown/resume menu
-  while RetroArch is running.
-- [x] Decide to stop stock `keymon` when plumOS becomes the regular boot
-  frontend.
-- [ ] Investigate how to show a Sleep/Shutdown/Cancel menu from Function, or
-  from power if available, while RetroArch is running.
+- [x] Design the plumOS frontend data model for systems, apps, and themes.
+- [x] Implement `systems.json` seeding, ROM scanning, on-enter scanning, and directory game scanning.
+- [x] Implement the text UI for system, ROM, list, start, settings, core, favorites, recent, and resume views.
+- [x] Implement the controller UI for TOP, ROM, START, Settings, SAFE, HELP, and Core Select views.
+- [x] Implement the Mali TTY renderer, rotation auto-detection, A30 compact layout, and blue/orange accents.
+- [x] Implement paging, scrolling, key repeat, Japanese text rendering, and marquee behavior for TOP/ROM lists.
+- [x] Organize the START menu and settings hierarchy into UI Settings/System/Network/Performance/Apps/HELP/Shutdown.
+- [x] Implement UI Settings checkboxes, value selectors, persistence, and runtime application.
+- [x] Connect System Settings Volume/Brightness/Lumination/Display Color/Language to plumOS config and runtime backends.
+- [x] Store Brightness as `1..20` and map it to RAW lcdbl table `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190`.
+- [x] Hide the brightness tile test screen from normal users behind `PLUMOS_CONTROLLER_BRIGHTNESS_TEST=1`.
+- [x] Implement read-only status and network recovery action in Network Settings.
+- [x] Connect Performance Settings to the existing CPU profile/core override features.
+- [x] Record A30 UI design rules in `docs/a30-ui-design.md`.
+- [ ] Implement Graphic UI mode / gallery mode.
+- [ ] Design the artwork scraper and thumbnail cache pipeline.
+- [ ] Implement ROM thumbnail scraping.
+- [ ] Remove horizontal compression from the current TTY prompt rendering.
+- [ ] Link physical volume buttons and brightness hotkeys to System Settings.
+- [ ] Implement localization for UI language strings.
+- [ ] Decide Theme selection names, paths, and scope.
+- [ ] Design a safe Wi-Fi editor flow with backup and rollback.
 
-## Phase 7 - RetroArch and Core Runtime
+## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 
-- [x] Create an emulator/core/standalone build-target inventory for plumOS based
-  on stockOS `Emu`, `RApp`, and installed cores, then classify targets into
-  Class A/B/C by expected A30 playability.
-- [ ] Check the latest stable RetroArch release at build time and build/test it
-  for the A30 armv7 hard-float environment.
-- [ ] Place RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.
-- [ ] Place cores under `/mnt/SDCARD/plumos/retroarch/cores`.
-- [ ] Stop depending on `HOME=/mnt/SDCARD/RetroArch`.
-- [ ] Manage per-system/core differences through `--config` and override configs.
-- [ ] Update libretro cores per system in stages.
-- [ ] Treat upstream latest stable libretro cores and standalone emulators as
-  the initial candidates; compare against stockOS versions/patches/build
-  options only when hardware testing shows problems.
-- [ ] Validate boot, performance, save/state, input, and audio/video per core.
-- [ ] Validate RetroArch Auto Save State / Auto Load State for the plumOS resume
-  flow.
-- [ ] Check whether Network Control Interface or an equivalent mechanism can run
-  `SAVE_STATE`, `CLOSE_CONTENT`, and `QUIT` safely.
-- [ ] Build a safe shutdown script that runs save state, save RAM flush,
-  RetroArch exit, and `sync` before shutdown.
-- [ ] Check whether true suspend/resume works on the A30; if not, evaluate a
-  pseudo-sleep policy.
+- [x] Build and deploy RetroArch minimal/practical runtime for A30.
+- [x] Confirm OSS audio, SDL2 joypad, and FE-owned launch with the RetroArch practical runtime.
+- [x] Implement SELECT+B menu, SELECT+START quit, and FE return input drain/cooldown.
+- [x] Build/deploy `fceumm` and `gambatte`, then verify NES/GB on the actual screen.
+- [x] Build Class A/B libretro cores for A30 armv7 hard-float.
+- [x] Finalize PPSSPP standalone display, input, menu hotkey, config defaults, and joystickd startup.
+- [x] Decide the launch approach for ScummVM, EasyRPG Player, PCSX-ReARMed, and DOSBox-Pure.
+- [x] Exclude standalone DOSBox Staging from normal distribution and use DOSBox-Pure as the DOS default candidate.
+- [x] Implement CPU restore, joystickd shutdown, framebuffer restore, and FE return in the FE-owned launcher.
+- [ ] Deploy and validate built Class A/B cores per system.
+- [ ] Revalidate standalone launcher cleanup on normal exit, TERM, KILL, and SSH disconnect.
+- [ ] Verify normal user-initiated exits for PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch from the FE A-button path.
+- [ ] Implement backup, restore, and factory reset for PPSSPP config/controls.
+- [ ] Document why the stock PPSSPP landscape menu works compared with official PPSSPP.
+- [ ] Manage per-system/core differences with `--config` and override config.
+- [ ] Validate RetroArch Auto Save State / Auto Load State with the plumOS resume flow.
 
-## Phase 8 - A30 System Policy Validation
+## Phase 8 - A30 Input, Power, and System Policy
 
-- [ ] Measure CPU governor, CPU online/offline, and clock policy.
-- [ ] Decide whether the stock CPU2/CPU3 offline behavior is valid.
-- [ ] Compare `performance`, `ondemand`, and `interactive` governors.
-- [ ] Restore CPU state reliably after game exit.
-- [ ] Check whether the Wi-Fi power sequence can be safely reproduced from plumOS.
-- [x] Trace boot-time `wpa_supplicant`, DHCP, and IP acquisition timing through
-  `network-rescue.log` after poweroff -> power on.
-- [ ] Repeat poweroff -> power-on Wi-Fi auto-connect checks and tune DHCP retry
-  count/timing.
-- [ ] Decide whether to keep stock Wi-Fi userland or bundle it with plumOS.
-- [ ] Decide whether SSH stays a development package or becomes a plumOS service.
+- [x] Confirm A30 physical input mapping and `/dev/input/event*` paths.
+- [x] Implement `/dev/ttyS0` serial stick frame handling and `plumos-joystickd`.
+- [x] Confirm `plumos-joystickd --device-mode xbox` through SDL2, PPSSPP, and RetroArch paths.
+- [x] Implement/confirm Function SAFE menu, safe shutdown, resume hold, mem sleep, and poweroff.
+- [x] Measure CPU governor/frequency/core policy and set the FE default to 648MHz / 2 cores.
+- [x] Confirm Wi-Fi power sequencing, DHCP, and Dropbear recovery several times.
+- [ ] Capture left-stick up/down/left/right individually and finalize X/Y axes and signs.
+- [ ] Separate the power-button short-press event code from stock sleep/shutdown intervention.
+- [ ] Decide whether RetroArch Function UX should be an overlay menu or direct safe exit.
+- [ ] Decide whether to keep using stock Wi-Fi userland or move it into plumOS.
+- [ ] Decide whether SSH remains a development package or becomes a plumOS service.
 
 ## Phase 9 - Packaging and Release
 
-- [ ] Treat development Docker files as part of the project deliverables.
-- [ ] Build the runtime package that is extracted to the SD card.
-- [ ] Build a developer Docker/toolchain package.
-- [ ] Decide how to split end-user releases and developer releases.
-- [ ] Prepare license notices and upstream attribution.
-- [ ] Add a GitHub Release package/artifact workflow.
-- [ ] Verify install and rollback on a fresh-SD-card equivalent setup.
+- [ ] Create the runtime package to extract onto an SD card.
+- [ ] Create the developer Docker/toolchain package.
+- [ ] Decide how to separate end-user and developer releases.
+- [ ] Summarize the differences between StockOS and plumOS.
+- [ ] Summarize plumOS benefits for end users.
+- [ ] Document the constraints and tradeoffs when migrating from StockOS to plumOS.
+- [ ] Organize license notices and upstream attribution.
+- [ ] Create a GitHub Release package/artifact workflow.
+- [ ] Validate install and rollback on a fresh-SD-card-equivalent environment.
