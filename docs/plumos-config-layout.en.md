@@ -63,8 +63,8 @@ A30 runtime when saved and once during FE startup. `volume` uses ALSA
 `Soft Volume Master`, `brightness` uses
 `/sys/devices/virtual/disp/disp/attr/lcdbl`, and `lumination` / `contrast` /
 `hue` / `saturation` use `/sys/devices/virtual/disp/disp/attr/enhance`.
-Brightness uses a perceptual `lcdbl` table:
-`12,18,26,36,50,68,90,118,160,255`.
+Brightness currently uses the experimental `lcdbl` table
+`1,2,3,4,5,6,7,8,9,10`.
 
 ## Performance Settings
 

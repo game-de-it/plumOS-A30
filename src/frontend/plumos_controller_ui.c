@@ -808,9 +808,9 @@ static int apply_runtime_volume(const struct device_settings *device) {
 }
 
 static int apply_runtime_brightness(const struct device_settings *device) {
-  /* A30 lcdbl values saturate early, so use a perceptual table instead of linear 1..10. */
+  /* A30 lcdbl changes are concentrated at the low end; map UI steps to lcdbl 1..10. */
   static const long brightness_lcdbl_values[10] = {
-      12, 18, 26, 36, 50, 68, 90, 118, 160, 255,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
   };
   char value[64];
   long backlight_value;

@@ -93,9 +93,9 @@ files. plumOS stores `brightness`, `lumination`, `contrast`, `hue`, and
 The UI updates `brightness`, `lumination`, `contrast`, `hue`, and `saturation`
 in plumOS system settings using backed-up atomic writes, then applies them to
 `/sys/devices/virtual/disp/disp/attr/lcdbl` and
-`/sys/devices/virtual/disp/disp/attr/enhance`. `brightness 1..10` uses a
-perceptual table because linear high values saturate early on the A30:
-`lcdbl 12,18,26,36,50,68,90,118,160,255`.
+`/sys/devices/virtual/disp/disp/attr/enhance`. Because visible changes on the
+A30 are concentrated at the low end, `brightness 1..10` currently maps directly
+to experimental `lcdbl 1,2,3,4,5,6,7,8,9,10`.
 
 ## Volume
 
