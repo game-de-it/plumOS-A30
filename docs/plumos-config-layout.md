@@ -44,7 +44,7 @@ stockOS の `/config/system.json` とは切り離します。
 現在のキー:
 
 - `volume`: `0..20`
-- `brightness`: `1..10`
+- `brightness`: `3..50`
 - `lumination`: `0..10`
 - `contrast`: `0..20`
 - `hue`: `0..20`
@@ -56,7 +56,7 @@ stockOS の `/config/system.json` とは切り離します。
 runtime へ反映します。`volume` は ALSA `Soft Volume Master`、`brightness` は
 `/sys/devices/virtual/disp/disp/attr/lcdbl`、`lumination` / `contrast` / `hue` /
 `saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` を使います。
-Brightness は実験値として `lcdbl` table `1,2,3,4,5,6,7,8,9,10` を使います。
+Brightness は実験値として同じ `lcdbl 3..50` へ割り当てます。
 
 ## Performance Settings
 

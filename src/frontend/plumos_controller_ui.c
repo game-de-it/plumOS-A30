@@ -808,10 +808,6 @@ static int apply_runtime_volume(const struct device_settings *device) {
 }
 
 static int apply_runtime_brightness(const struct device_settings *device) {
-  /* A30 lcdbl changes are concentrated at the low end; map UI steps to lcdbl 1..10. */
-  static const long brightness_lcdbl_values[10] = {
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  };
   char value[64];
   long backlight_value;
   long brightness;
@@ -819,8 +815,8 @@ static int apply_runtime_brightness(const struct device_settings *device) {
   if (!device || !runtime_lcd_backend_available()) {
     return 0;
   }
-  brightness = clamp_long(device->brightness, 1, 10);
-  backlight_value = brightness_lcdbl_values[brightness - 1];
+  brightness = clamp_long(device->brightness, 3, 50);
+  backlight_value = brightness;
   snprintf(value, sizeof(value), "%ld\n", backlight_value);
   return write_text_file(A30_LCD_BACKLIGHT_PATH, value);
 }
@@ -1673,7 +1669,7 @@ static int load_device_settings(struct ui_state *ui) {
   ui->device.loaded = 1;
   ui->device.volume = json_get_long(json, json_end, "volume", ui->device.volume);
   ui->device.brightness = json_get_long(json, json_end, "brightness", ui->device.brightness);
-  ui->device.brightness = clamp_long(ui->device.brightness, 1, 10);
+  ui->device.brightness = clamp_long(ui->device.brightness, 3, 50);
   ui->device.lumination = json_get_long(json, json_end, "lumination", ui->device.lumination);
   ui->device.contrast = json_get_long(json, json_end, "contrast", ui->device.contrast);
   ui->device.hue = json_get_long(json, json_end, "hue", ui->device.hue);
@@ -4507,8 +4503,8 @@ static int save_setting_number(struct ui_state *ui, const char *id,
     max_value = 20;
   } else if (strcmp(id, "system_brightness") == 0) {
     system_key = "brightness";
-    min_value = 1;
-    max_value = 10;
+    min_value = 3;
+    max_value = 50;
   } else if (strcmp(id, "system_lumination") == 0) {
     system_key = "lumination";
     min_value = 0;
