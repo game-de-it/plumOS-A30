@@ -107,3 +107,7 @@ Current recommendation: use FTP when speed is the priority, SFTP when secure
 standard-tool compatibility matters, and Samba when Windows/macOS network-drive
 mounting is the priority. Long-running checks for FE input and emulator-launch
 impact remain future validation work.
+
+High-speed USB-cable transfer is designed separately as [USB Disk Mode](usb-disk-mode.en.md).
+It is not a network service; it is an experimental path that exposes the SD card
+partition to the PC as USB Mass Storage.

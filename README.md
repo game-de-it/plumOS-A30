@@ -32,6 +32,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [plumOS frontend theme model](docs/frontend-theme-model.md)
 - [A30 設定 UI 方針](docs/a30-settings-policy.md)
 - [plumOS ネットワークサービス](docs/network-services.md)
+- [plumOS USB Disk Mode](docs/usb-disk-mode.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.md)
 - [SSH 導入手順](docs/ssh-bringup.md)
 - [TODO](TODO.md)
@@ -77,6 +78,10 @@ Samba を推奨します。
 
 各サービスの通常推奨は 10 並列転送、入口上限は 20 です。詳細な測定値と運用方針は
 [plumOS ネットワークサービス](docs/network-services.md) にまとめます。
+
+FunKey-OS の USB Mass Storage 方式を参考にした `USB Disk Mode` も実験機能として
+設計中です。これは `/mnt/SDCARD` を unmount して SD card partition を PC に直接見せる
+方式のため、通常UIへ出す前に復帰手順と実機検証を固めます。
 
 ## 参考資料
 

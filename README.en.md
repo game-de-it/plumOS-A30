@@ -33,6 +33,7 @@ Project notes:
 - [plumOS frontend theme model](docs/frontend-theme-model.en.md)
 - [A30 settings UI policy](docs/a30-settings-policy.en.md)
 - [plumOS network services](docs/network-services.en.md)
+- [plumOS USB Disk Mode](docs/usb-disk-mode.en.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)
@@ -79,6 +80,11 @@ mounting is the priority.
 The normal recommendation is 10-way parallel transfer, with each service entry
 limit set to 20. Detailed measurements and operating notes live in
 [plumOS network services](docs/network-services.en.md).
+
+`USB Disk Mode`, inspired by FunKey-OS's USB Mass Storage approach, is being
+designed as an experiment. It unmounts `/mnt/SDCARD` and exposes the SD card
+partition directly to the PC, so recovery flow and hardware validation must be
+settled before exposing it in the normal UI.
 
 ## References
 

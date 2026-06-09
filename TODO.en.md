@@ -96,6 +96,8 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
 - [x] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
 - [x] Measure simultaneous multi-file transfers and throughput for FTP/SFTP/Samba, then update the README recommendation.
+- [ ] Bundle `dosfsck` / a FAT checker in plumOS userland before making USB Disk Mode a normal feature.
+- [ ] Validate the USB Disk Mode enter/finish flow on hardware, then settle a safe return path before exposing it in the normal UI.
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 

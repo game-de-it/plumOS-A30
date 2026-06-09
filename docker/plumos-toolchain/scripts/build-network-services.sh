@@ -291,6 +291,10 @@ Services:
     \\\\A30_IP\\SDCARD with:
       username: plumos
       password: plumos
+  USB Disk Mode:
+    Hidden experimental helper, /mnt/SDCARD/plumos/bin/plumos-usb-disk-mode.
+    It unmounts /mnt/SDCARD before exposing /dev/mmcblk0p1 as USB Mass Storage
+    and is not meant for normal UI use until hardware validation is complete.
 
 Persistent service state:
   /mnt/SDCARD/plumos/config/network/services.conf
