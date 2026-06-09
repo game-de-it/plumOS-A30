@@ -94,17 +94,20 @@ SSID、PSK、個人ファイル名をログや git に残さない方針は Netw
 2026-06-10 時点の macOS -> A30 upload 実測は次の通りです。測定は 1MiB ファイル
 50 個を 10 並列で転送しました。
 
-- FTP: 50/50 成功、8.645 秒、5.78 MiB/s。
-- SFTP: 50/50 成功、16.936 秒、2.95 MiB/s。Dropbear は `MAX_UNAUTH_PER_IP=20` にする。
-- Samba: 50/50 成功、29.658 秒、1.69 MiB/s。macOS では xattr エラーを避けるため `cp -X` を使う。
+| Method | Result | Time | Throughput | Notes |
+| --- | ---: | ---: | ---: | --- |
+| USB Disk Mode | 50/50 成功 | 5.827 秒 | 8.58 MiB/s | macOS mounted `/Volumes/PLUMOS-A30`; `sync` 後に計測終了。SHA-256一致。 |
+| FTP | 50/50 成功 | 8.645 秒 | 5.78 MiB/s | 速度優先の network service 候補。 |
+| SFTP | 50/50 成功 | 16.936 秒 | 2.95 MiB/s | Dropbear は `MAX_UNAUTH_PER_IP=20` にする。 |
+| Samba | 50/50 成功 | 29.658 秒 | 1.69 MiB/s | macOS では xattr エラーを避けるため `cp -X` を使う。 |
 
 SFTP は 1MiB ファイル 20 個の 20 並列 smoke でも 20/20 成功しています。小さい ROM
 をまとめて送る通常推奨は 10 並列、上限入口は 20 とします。
 
-現時点の推奨は、速度優先なら FTP、標準の安全なツール互換を優先するなら SFTP、
-Windows/macOS のネットワークドライブとして扱うなら Samba です。転送中の FE 操作や
-emulator 起動への影響は、今後の長時間運用で追加確認します。
+現時点の推奨は、USB cable を使えるなら USB Disk Mode、network 越しの速度優先なら FTP、
+標準の安全なツール互換を優先するなら SFTP、Windows/macOS のネットワークドライブとして
+扱うなら Samba です。転送中の FE 操作や emulator 起動への影響は、今後の長時間運用で
+追加確認します。
 
-USB cable 経由の高速転送は [USB Disk Mode](usb-disk-mode.md) として別に設計します。
-これは network service ではなく、SD card partition を USB Mass Storage として PC へ渡す
-実験機能です。
+USB Disk Mode は network service ではありません。詳細は
+[USB Disk Mode](usb-disk-mode.md) にまとめます。

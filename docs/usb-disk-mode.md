@@ -94,6 +94,16 @@ SSH daemon も停止するためです。
 5. PC 側で eject 後、USB cable disconnect または A30 側の復帰操作で終了する。
 6. fsck、remount、network recovery、FE restart を行う。
 
+## 転送速度の検証結果
+
+2026-06-10 に macOS で `/Volumes/PLUMOS-A30` として mount した状態で実測しました。
+測定は FTP/SFTP/Samba と同じく 1MiB ファイル 50 個を 10 並列で転送し、`sync` 後に
+計測終了としました。
+
+| Result | Time | Throughput | Verification |
+| ---: | ---: | ---: | --- |
+| 50/50 成功 | 5.827 秒 | 8.58 MiB/s | file size OK、SHA-256一致 |
+
 ## 未解決項目
 
 - Windows で mass_storage として enumerate されない初回症状があったため、
@@ -102,4 +112,3 @@ SSH daemon も停止するためです。
 - USB Disk Mode 中に画面へ案内を出し続ける rootfs/tmpfs resident UI が必要か。
 - `nofua=0` と `nofua=1` の速度/安定性比較。
 - macOS/Windows/Linux で eject 後の dirty bit と再 mount を検証する。
-- 実 transfer benchmark を FTP/SFTP/Samba と同じ条件で測る。

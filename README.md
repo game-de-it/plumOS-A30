@@ -72,15 +72,15 @@ ssh -p 2222 root@A30_IP_ADDRESS
 ## ファイル転送サービス
 
 Network Settings から FTP、SFTP、Samba を ON/OFF できます。共有起点はいずれも
-`/mnt/SDCARD/` です。実測では、小さい ROM をまとめて転送する速度優先なら FTP、
-安全な標準ツール互換なら SFTP、Windows/macOS のネットワークドライブ用途なら
-Samba を推奨します。
+`/mnt/SDCARD/` です。実測では、USB cable を使えるなら USB Disk Mode、network 越しの
+速度優先なら FTP、安全な標準ツール互換なら SFTP、Windows/macOS のネットワーク
+ドライブ用途なら Samba を推奨します。
 
 各サービスの通常推奨は 10 並列転送、入口上限は 20 です。詳細な測定値と運用方針は
 [plumOS ネットワークサービス](docs/network-services.md) にまとめます。
 
 FunKey-OS の USB Mass Storage 方式を参考にした `USB Disk Mode` も実験機能として
-設計中です。これは `/mnt/SDCARD` を unmount して SD card partition を PC に直接見せる
+検証中です。これは `/mnt/SDCARD` を unmount して SD card partition を PC に直接見せる
 方式のため、通常UIへ出す前に復帰手順と実機検証を固めます。
 
 ## 参考資料

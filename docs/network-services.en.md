@@ -95,19 +95,22 @@ Do not commit or log SSIDs, PSKs, or private filenames.
 As of 2026-06-10, macOS -> A30 upload results with 50 x 1MiB files and 10-way
 parallel transfer are:
 
-- FTP: 50/50 success, 8.645 seconds, 5.78 MiB/s.
-- SFTP: 50/50 success, 16.936 seconds, 2.95 MiB/s. Dropbear must use `MAX_UNAUTH_PER_IP=20`.
-- Samba: 50/50 success, 29.658 seconds, 1.69 MiB/s. On macOS, use `cp -X` to avoid xattr errors.
+| Method | Result | Time | Throughput | Notes |
+| --- | ---: | ---: | ---: | --- |
+| USB Disk Mode | 50/50 success | 5.827 seconds | 8.58 MiB/s | macOS mounted `/Volumes/PLUMOS-A30`; timing ended after `sync`. SHA-256 matched. |
+| FTP | 50/50 success | 8.645 seconds | 5.78 MiB/s | Network service candidate when speed matters. |
+| SFTP | 50/50 success | 16.936 seconds | 2.95 MiB/s | Dropbear must use `MAX_UNAUTH_PER_IP=20`. |
+| Samba | 50/50 success | 29.658 seconds | 1.69 MiB/s | On macOS, use `cp -X` to avoid xattr errors. |
 
 SFTP also passed a 20-way smoke test with 20 x 1MiB files. The normal recommendation
 for many small ROM files is 10-way parallel transfer, with the service entry limit
 set to 20.
 
-Current recommendation: use FTP when speed is the priority, SFTP when secure
-standard-tool compatibility matters, and Samba when Windows/macOS network-drive
-mounting is the priority. Long-running checks for FE input and emulator-launch
-impact remain future validation work.
+Current recommendation: use USB Disk Mode when a USB cable is available, FTP
+when network speed is the priority, SFTP when secure standard-tool compatibility
+matters, and Samba when Windows/macOS network-drive mounting is the priority.
+Long-running checks for FE input and emulator-launch impact remain future
+validation work.
 
-High-speed USB-cable transfer is designed separately as [USB Disk Mode](usb-disk-mode.en.md).
-It is not a network service; it is an experimental path that exposes the SD card
-partition to the PC as USB Mass Storage.
+USB Disk Mode is not a network service. See [USB Disk Mode](usb-disk-mode.en.md)
+for details.

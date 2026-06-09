@@ -106,6 +106,16 @@ mode, and B returns to Network Settings.
 5. After host eject, exit on USB cable disconnect or an A30-side return action.
 6. Run fsck, remount, run network recovery, and restart the FE.
 
+## Transfer Benchmark
+
+Measured on 2026-06-10 with macOS mounting the drive as `/Volumes/PLUMOS-A30`.
+The test used the same conditions as FTP/SFTP/Samba: 50 x 1MiB files transferred
+with 10-way parallelism, ending the timer after `sync`.
+
+| Result | Time | Throughput | Verification |
+| ---: | ---: | ---: | --- |
+| 50/50 success | 5.827 seconds | 8.58 MiB/s | file sizes OK, SHA-256 matched |
+
 ## Open Items
 
 - Re-test Windows mass-storage enumeration after stopping `MtpDaemon` / `adbd`;
@@ -116,4 +126,3 @@ mode, and B returns to Network Settings.
   unmounted.
 - Compare `nofua=0` and `nofua=1` for speed and reliability.
 - Validate dirty-bit/remount behavior on macOS, Windows, and Linux.
-- Benchmark transfer speed with the same conditions used for FTP/SFTP/Samba.
