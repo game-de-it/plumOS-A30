@@ -59,11 +59,6 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 - `Link Speed`: `/tmp/wpa_status.txt` の `LINKSPEED`
 - `Frequency`: `/tmp/wpa_status.txt` の `FREQUENCY`
 - `SSH`: plumOS の remote access path。現状は Dropbear port 2222
-- `Status Source`: runtime status の読み取り元
-- `Config Source`: plumOS network runtime
-- `Credentials`: `hidden`
-- `Runtime Control`: runtime helper の状態
-- `Write Policy`: runtime control のみ有効。safe Wi-Fi editor 実装まで認証情報は read-only
 
 Wi-Fi 状態、IP、信号などの情報行で A を押しても recovery は実行しません。
 Performance Settings では launcher/core profile 由来の CPU 方針を扱います。

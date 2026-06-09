@@ -2343,15 +2343,6 @@ static void add_network_information_entries(struct ui_state *ui) {
   }
   add_setting_entry(ui, "network_frequency", "Frequency", value);
   add_setting_entry(ui, "network_ssh", "SSH", device->ssh_status);
-  add_setting_entry(ui, "network_status_source", "Status Source",
-                    device->network_status_source);
-  add_setting_entry(ui, "network_config_source", "Config Source",
-                    "plumOS network runtime");
-  add_setting_entry(ui, "network_credentials", "Credentials", "hidden");
-  add_setting_entry(ui, "network_runtime_control", "Runtime Control",
-                    device->network_control_status);
-  add_setting_entry(ui, "network_write_policy", "Write Policy",
-                    "runtime only; credentials read-only");
 }
 
 static int performance_top_entry_is_real(const struct top_entry *entry) {
@@ -3453,7 +3444,7 @@ static void setting_help_lines(const struct setting_entry *entry,
     copy_string(line2, line2_size, "Restores the usual remote access path.");
   } else if (strcmp(id, "network_information") == 0) {
     copy_string(line1, line1_size, "Open read-only network information.");
-    copy_string(line2, line2_size, "Connection, IP, signal, SSH, source, and policy.");
+    copy_string(line2, line2_size, "Connection, IP, signal, link speed, and SSH.");
   } else if (strncmp(id, "network_", 8) == 0) {
     if (strcmp(id, "network_wifi_enabled") == 0) {
       copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
@@ -3467,8 +3458,8 @@ static void setting_help_lines(const struct setting_entry *entry,
                strcmp(id, "network_link_speed") == 0 ||
                strcmp(id, "network_frequency") == 0 ||
                strcmp(id, "network_status_source") == 0) {
-      copy_string(line1, line1_size, "Read-only redacted Wi-Fi runtime status.");
-      copy_string(line2, line2_size, "SSID and PSK are never shown here.");
+      copy_string(line1, line1_size, "Current Wi-Fi connection information.");
+      copy_string(line2, line2_size, "Use Network Recovery if this looks wrong.");
     } else if (strcmp(id, "network_ssh") == 0) {
       copy_string(line1, line1_size, "Remote access path used for development.");
       copy_string(line2, line2_size, "Network recovery restarts Wi-Fi, DHCP, and SSH.");

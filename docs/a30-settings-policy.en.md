@@ -71,11 +71,6 @@ The `INFORMATION` subpage owns these read-only entries:
 - `Link Speed`: `LINKSPEED` from `/tmp/wpa_status.txt`
 - `Frequency`: `FREQUENCY` from `/tmp/wpa_status.txt`
 - `SSH`: plumOS remote access path. Current value is Dropbear port 2222
-- `Status Source`: runtime status source
-- `Config Source`: plumOS network runtime
-- `Credentials`: `hidden`
-- `Runtime Control`: runtime helper state
-- `Write Policy`: runtime control only; credentials stay read-only until a safe Wi-Fi editor exists
 
 Pressing A on Wi-Fi status, IP, signal, or other information rows does not run recovery.
 Performance Settings owns launcher/core-profile CPU policy. As of 2026-06-09,
