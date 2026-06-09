@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <linux/fb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -2340,6 +2341,10 @@ static int plumos_mali_title_is_settings_family(const char *title) {
                    strstr(title, "Network") || strstr(title, "NETWORK"));
 }
 
+static int plumos_mali_title_is_brightness_test(const char *title) {
+  return title && strstr(title, "Brightness Test");
+}
+
 static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                                         const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
                                         size_t line_count) {
@@ -2375,7 +2380,12 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   int is_settings;
   int is_settings_family;
   int is_settings_page;
+  int is_brightness_test;
   int show_prompt;
+  int brightness_tile_values[24];
+  int brightness_tile_selected[24];
+  int brightness_tile_current[24];
+  size_t brightness_tile_count = 0;
   float prompt_r = 0.62f;
   float prompt_g = 1.00f;
   float prompt_b = 0.78f;
@@ -2395,7 +2405,32 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   is_settings = plumos_mali_title_is_settings(title);
   is_settings_family = plumos_mali_title_is_settings_family(title);
   is_settings_page = strstr(title, "Settings") != NULL;
+  is_brightness_test = plumos_mali_title_is_brightness_test(title);
   show_prompt = !is_settings_family;
+  if (is_brightness_test) {
+    const char *prefix = "brightness_tile=";
+    size_t prefix_len = strlen(prefix);
+    for (i = 0; i < line_count && brightness_tile_count <
+                    sizeof(brightness_tile_values) / sizeof(brightness_tile_values[0]);
+         i++) {
+      const char *line = lines[i];
+      char *endptr = NULL;
+      long value;
+      if (!plumos_mali_starts_with(line, prefix)) {
+        continue;
+      }
+      value = strtol(line + prefix_len, &endptr, 10);
+      if (endptr == line + prefix_len) {
+        continue;
+      }
+      brightness_tile_values[brightness_tile_count] = (int)value;
+      brightness_tile_selected[brightness_tile_count] =
+          strstr(endptr, "selected=1") != NULL;
+      brightness_tile_current[brightness_tile_count] =
+          strstr(endptr, "current=1") != NULL;
+      brightness_tile_count++;
+    }
+  }
   snprintf(prompt, sizeof(prompt), "root@PlumOS A30:~# ls -n -c ./systems/top");
   if (is_rom_list && prompt_path[0]) {
     snprintf(prompt, sizeof(prompt), "root@PlumOS A30:~# ls -n -c %s", prompt_path);
@@ -2480,6 +2515,90 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     plumos_mali_text(renderer, title, 14.0f, 48.0f, 2,
                      0.72f, 0.88f, 1.0f, 1.0f);
     y = 82.0f;
+  }
+
+  if (is_brightness_test) {
+    const size_t columns = 4;
+    const float grid_x = 18.0f;
+    const float grid_y = 92.0f;
+    const float gap = 10.0f;
+    const float tile_w = ((float)renderer->width - grid_x * 2.0f -
+                          gap * (float)(columns - 1)) /
+                         (float)columns;
+    const float tile_h = 54.0f;
+    size_t tile;
+
+    for (tile = 0; tile < brightness_tile_count; tile++) {
+      size_t col = tile % columns;
+      size_t row = tile / columns;
+      float x = grid_x + (float)col * (tile_w + gap);
+      float tile_y = grid_y + (float)row * (tile_h + gap);
+      int selected_tile = brightness_tile_selected[tile];
+      int current_tile = brightness_tile_current[tile];
+      char label[16];
+      int label_width;
+      float label_x;
+      float label_y;
+
+      snprintf(label, sizeof(label), "%d", brightness_tile_values[tile]);
+      if (selected_tile) {
+        plumos_mali_rect(renderer, x, tile_y, tile_w, tile_h,
+                         1.0f, 0.76f, 0.20f, 1.0f);
+        plumos_mali_rect(renderer, x + 3.0f, tile_y + 3.0f,
+                         tile_w - 6.0f, tile_h - 6.0f,
+                         0.10f, 0.25f, 0.20f, 1.0f);
+      } else {
+        plumos_mali_rect(renderer, x, tile_y, tile_w, tile_h,
+                         0.05f, 0.13f, 0.15f, 1.0f);
+        plumos_mali_rect(renderer, x + 2.0f, tile_y + 2.0f,
+                         tile_w - 4.0f, tile_h - 4.0f,
+                         0.00f, 0.03f, 0.03f, 1.0f);
+      }
+      if (current_tile && !selected_tile) {
+        plumos_mali_rect(renderer, x + 4.0f, tile_y + tile_h - 8.0f,
+                         tile_w - 8.0f, 4.0f,
+                         0.22f, 0.58f, 1.0f, 1.0f);
+      }
+
+      label_width = plumos_mali_text_width(label, 3);
+      label_x = x + (tile_w - (float)label_width) / 2.0f;
+      label_y = tile_y + 16.0f;
+      plumos_mali_text(renderer, label, label_x, label_y, 3,
+                       selected_tile ? 1.0f : 0.72f,
+                       selected_tile ? 0.88f : 0.82f,
+                       selected_tile ? 0.40f : 0.78f,
+                       1.0f);
+      if (current_tile) {
+        const char *current_label = "CURRENT";
+        int current_width = plumos_mali_text_width(current_label, 1);
+        plumos_mali_text(renderer, current_label,
+                         x + (tile_w - (float)current_width) / 2.0f,
+                         tile_y + tile_h - 17.0f, 1,
+                         0.64f, 0.82f, 0.92f, 1.0f);
+      }
+    }
+
+    if (footer1[0] || footer2[0]) {
+      plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 74.0f,
+                       (float)renderer->width, 74.0f,
+                       0.000f, 0.018f, 0.020f, 1.0f);
+      plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 76.0f,
+                       (float)renderer->width, 2.0f,
+                       0.06f, 0.18f, 0.25f, 1.0f);
+      if (footer1[0]) {
+        plumos_mali_text(renderer, footer1, 14.0f,
+                         (float)renderer->height - 56.0f, 2,
+                         0.64f, 0.82f, 0.92f, 1.0f);
+      }
+      if (footer2[0]) {
+        plumos_mali_text(renderer, footer2, 14.0f,
+                         (float)renderer->height - 34.0f, 2,
+                         0.64f, 0.82f, 0.92f, 1.0f);
+      }
+    }
+    (void)status;
+    renderer->gl.Finish();
+    return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
   }
 
   for (i = 0; i < entry_count; i++) {

@@ -340,6 +340,7 @@ enum settings_category {
   SETTINGS_CATEGORY_UI = 0,
   SETTINGS_CATEGORY_SYSTEM,
   SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR,
+  SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST,
   SETTINGS_CATEGORY_SYSTEM_INFORMATION,
   SETTINGS_CATEGORY_NETWORK,
   SETTINGS_CATEGORY_PERFORMANCE
@@ -1923,6 +1924,13 @@ static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
     {"pt.lang", "Portuguese"},
 };
 
+static const long BRIGHTNESS_TEST_VALUES[] = {
+    10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 255,
+};
+#define BRIGHTNESS_TEST_COUNT \
+  (sizeof(BRIGHTNESS_TEST_VALUES) / sizeof(BRIGHTNESS_TEST_VALUES[0]))
+#define BRIGHTNESS_TEST_COLUMNS 4
+
 enum setting_control_type {
   SETTING_CONTROL_READONLY = 0,
   SETTING_CONTROL_CHECKBOX,
@@ -2107,6 +2115,8 @@ static const char *settings_category_title(enum settings_category category) {
   switch (category) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
     return "System Settings - Display Color";
+  case SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST:
+    return "System Settings - Brightness Test";
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     return "System Settings - INFORMATION";
   case SETTINGS_CATEGORY_SYSTEM:
@@ -2170,6 +2180,21 @@ static void add_system_settings_entries(struct ui_state *ui) {
   add_setting_entry(ui, "system_theme", "Theme",
                     device->theme[0] ? device->theme : "-");
   add_setting_entry(ui, "system_information", "INFORMATION", "");
+}
+
+static void add_system_brightness_test_entries(struct ui_state *ui) {
+  size_t i;
+  char id[64];
+  char value[32];
+  const struct device_settings *device = &ui->device;
+
+  for (i = 0; i < BRIGHTNESS_TEST_COUNT; i++) {
+    long brightness = BRIGHTNESS_TEST_VALUES[i];
+    snprintf(id, sizeof(id), "system_brightness_test_%ld", brightness);
+    snprintf(value, sizeof(value), "%ld", brightness);
+    add_setting_entry(ui, id, value,
+                      device->brightness == brightness ? "current" : "preset");
+  }
 }
 
 static void add_system_display_color_entries(struct ui_state *ui) {
@@ -2589,6 +2614,10 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
     load_device_settings(ui);
     add_system_display_color_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST:
+    load_device_settings(ui);
+    add_system_brightness_test_entries(ui);
     break;
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     load_device_settings(ui);
@@ -3378,7 +3407,7 @@ static void setting_help_lines(const struct setting_entry *entry,
       copy_string(line2, line2_size, "Applies to Soft Volume Master and saves to plumOS.");
     } else if (strcmp(id, "system_brightness") == 0) {
       copy_string(line1, line1_size, "Screen brightness setting.");
-      copy_string(line2, line2_size, "Applies to A30 lcdbl and saves to plumOS.");
+      copy_string(line2, line2_size, "LEFT/RIGHT fine-tunes; A opens preset test.");
     } else if (strcmp(id, "system_lumination") == 0) {
       copy_string(line1, line1_size, "Display lumination setting.");
       copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
@@ -3431,6 +3460,74 @@ static void setting_help_lines(const struct setting_entry *entry,
   }
 }
 
+static size_t brightness_test_nearest_index(long brightness) {
+  size_t i;
+  size_t best = 0;
+  long best_delta = brightness > BRIGHTNESS_TEST_VALUES[0]
+                        ? brightness - BRIGHTNESS_TEST_VALUES[0]
+                        : BRIGHTNESS_TEST_VALUES[0] - brightness;
+
+  for (i = 1; i < BRIGHTNESS_TEST_COUNT; i++) {
+    long value = BRIGHTNESS_TEST_VALUES[i];
+    long delta = brightness > value ? brightness - value : value - brightness;
+    if (delta < best_delta) {
+      best = i;
+      best_delta = delta;
+    }
+  }
+  return best;
+}
+
+static void render_brightness_test_settings(struct ui_state *ui) {
+  size_t i;
+  long current = clamp_long(ui->device.brightness, 3, 255);
+  long selected = current;
+
+  if (ui->setting_count > 0 && ui->settings_cursor < ui->setting_count) {
+    selected = BRIGHTNESS_TEST_VALUES[ui->settings_cursor];
+  }
+
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            settings_category_title(ui->settings_category));
+  ui_printf(ui, "A: apply  B: back  UP/DOWN/LEFT/RIGHT: move  Q: quit\n");
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
+            ui->setting_count ? ui->settings_cursor + 1 : 0);
+  ui_printf(ui, "brightness_current=%ld\n", current);
+  ui_printf(ui, "\n");
+
+  if (ui->renderer_mali) {
+    for (i = 0; i < BRIGHTNESS_TEST_COUNT; i++) {
+      long value = BRIGHTNESS_TEST_VALUES[i];
+      ui_printf(ui, "brightness_tile=%ld selected=%d current=%d\n",
+                value, i == ui->settings_cursor ? 1 : 0,
+                value == current ? 1 : 0);
+    }
+    ui_printf(ui, "footer1=Current brightness: %ld\n", current);
+    ui_printf(ui, "footer2=Selected preset: %ld\n", selected);
+  } else {
+    for (i = 0; i < BRIGHTNESS_TEST_COUNT; i++) {
+      long value = BRIGHTNESS_TEST_VALUES[i];
+      if (i % BRIGHTNESS_TEST_COLUMNS == 0) {
+        ui_printf(ui, "  ");
+      }
+      ui_printf(ui, "[%c%3ld%s]", i == ui->settings_cursor ? '>' : ' ',
+                value, value == current ? "*" : " ");
+      if (i % BRIGHTNESS_TEST_COLUMNS == BRIGHTNESS_TEST_COLUMNS - 1 ||
+          i + 1 == BRIGHTNESS_TEST_COUNT) {
+        ui_printf(ui, "\n");
+      } else {
+        ui_printf(ui, "  ");
+      }
+    }
+    ui_printf(ui, "\ncurrent=%ld selected=%ld\n", current, selected);
+  }
+
+  ui_printf(ui, "\nsource: %s\n", ui->system_config_path);
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_settings(struct ui_state *ui) {
   size_t i;
   size_t window = ui_list_window_size(ui);
@@ -3441,6 +3538,10 @@ static void render_settings(struct ui_state *ui) {
 
   if (window == 0) {
     window = 1;
+  }
+  if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST) {
+    render_brightness_test_settings(ui);
+    return;
   }
   start = (ui->settings_cursor / window) * window;
   end = start + window;
@@ -3751,6 +3852,16 @@ static void open_settings_screen(struct ui_state *ui, enum settings_category cat
     snprintf(ui->status, sizeof(ui->status), "cannot load %s", title);
   } else {
     snprintf(ui->status, sizeof(ui->status), "%s ready", title);
+  }
+}
+
+static void open_system_brightness_test_screen(struct ui_state *ui) {
+  open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST);
+  if (ui->setting_count > 0) {
+    ui->settings_cursor = brightness_test_nearest_index(ui->device.brightness);
+    if (ui->settings_cursor >= ui->setting_count) {
+      ui->settings_cursor = ui->setting_count - 1;
+    }
   }
 }
 
@@ -4567,6 +4678,31 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   return 1;
 }
 
+static int save_brightness_test_value(struct ui_state *ui, long value) {
+  char runtime_status[128];
+
+  if (!ui) {
+    return 0;
+  }
+  value = clamp_long(value, 3, 255);
+  if (!save_system_config_number(ui, "brightness", value)) {
+    set_status(ui, "plumOS system config write failed");
+    return 0;
+  }
+  set_device_setting_number(&ui->device, "system_brightness", value);
+  apply_device_runtime_settings(&ui->device, "system_brightness", runtime_status,
+                                sizeof(runtime_status));
+  update_settings_entries_after_save(ui);
+  if (runtime_status[0]) {
+    snprintf(ui->status, sizeof(ui->status), "saved brightness=%ld; %s", value,
+             runtime_status);
+  } else {
+    snprintf(ui->status, sizeof(ui->status), "saved brightness=%ld; runtime applied",
+             value);
+  }
+  return 1;
+}
+
 static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
   const struct setting_entry *entry;
   enum setting_control_type control;
@@ -4641,12 +4777,63 @@ static int is_system_display_color_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "system_display_color") == 0;
 }
 
+static int is_system_brightness_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_brightness") == 0;
+}
+
 static int is_system_information_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "system_information") == 0;
 }
 
 static int is_help_setting_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "help") == 0;
+}
+
+static int handle_brightness_test_action(struct ui_state *ui, enum ui_action action) {
+  size_t cursor;
+
+  if (!ui || ui->settings_category != SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST) {
+    return 0;
+  }
+  if (action == ACTION_B) {
+    open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+    select_setting_entry_by_id(ui, "system_brightness");
+    set_status(ui, "back to System Settings");
+    return 1;
+  }
+  if (ui->setting_count == 0) {
+    return 1;
+  }
+  cursor = ui->settings_cursor;
+  if (cursor >= ui->setting_count) {
+    cursor = ui->setting_count - 1;
+  }
+  if (action == ACTION_LEFT) {
+    if (cursor > 0) {
+      cursor--;
+    }
+  } else if (action == ACTION_RIGHT) {
+    if (cursor + 1 < ui->setting_count) {
+      cursor++;
+    }
+  } else if (action == ACTION_UP) {
+    if (cursor >= BRIGHTNESS_TEST_COLUMNS) {
+      cursor -= BRIGHTNESS_TEST_COLUMNS;
+    }
+  } else if (action == ACTION_DOWN) {
+    if (cursor + BRIGHTNESS_TEST_COLUMNS < ui->setting_count) {
+      cursor += BRIGHTNESS_TEST_COLUMNS;
+    }
+  } else if (action == ACTION_A) {
+    if (cursor < BRIGHTNESS_TEST_COUNT) {
+      save_brightness_test_value(ui, BRIGHTNESS_TEST_VALUES[cursor]);
+    }
+    return 1;
+  } else {
+    return 0;
+  }
+  ui->settings_cursor = cursor;
+  return 1;
 }
 
 static void handle_action(struct ui_state *ui, enum ui_action action) {
@@ -4834,6 +5021,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (ui->screen == SCREEN_SETTINGS) {
+    if (handle_brightness_test_action(ui, action)) {
+      return;
+    }
     if (action == ACTION_UP) {
       if (ui->settings_cursor > 0) {
         ui->settings_cursor--;
@@ -4883,6 +5073,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_system_display_color_entry(entry)) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR);
+        return;
+      }
+      if (is_system_brightness_entry(entry)) {
+        open_system_brightness_test_screen(ui);
         return;
       }
       if (is_system_information_entry(entry)) {
@@ -5114,6 +5308,11 @@ static int settings_value_action_repeats(const struct ui_state *ui,
 static int action_repeat_interval_ms(const struct ui_state *ui,
                                      enum ui_action action) {
   if (action == ACTION_UP || action == ACTION_DOWN) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
+  if (ui && ui->screen == SCREEN_SETTINGS &&
+      ui->settings_category == SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST &&
+      (action == ACTION_LEFT || action == ACTION_RIGHT)) {
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
   if (settings_value_action_repeats(ui, action)) {
