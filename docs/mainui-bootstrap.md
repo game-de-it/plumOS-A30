@@ -11,6 +11,10 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` を通常FEとして起動する
 - wrapper は boot 復旧用に `/mnt/SDCARD/plumos/bin/plumos-network-rescue` を自動実行する
 - wrapper は stock `/etc/main` が先に起動した `keymon` を止める
+- wrapper は `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` で StockOS の
+  `MtpDaemon`、`adbd`、`sysntpd` を止める
+- `plumos-network-rescue` は DHCP 後に `plumos-stock-services network-ready` を呼び、
+  plumOS 管理の `ntpd` を起動する
 - START menu の `Network Recovery` から Network Recovery 画面へ入り、A ボタンで
   Wi-Fi 起動処理、DHCP、SSH start を再実行できる
 - controller UI が無い/異常終了した場合は旧 `plumos-frontend`、それも失敗した場合は
@@ -86,4 +90,5 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 /mnt/SDCARD/plumos/logs/mainui-wrapper.log
 /mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
+/mnt/SDCARD/plumos/logs/stock-services.log
 ```

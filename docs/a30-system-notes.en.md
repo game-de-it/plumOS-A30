@@ -52,6 +52,10 @@ Implication: the safest replacement point is SD-card
 `/mnt/SDCARD/miyoo/app/MainUI`, ideally with a wrapper/rollback plan before
 replacing the binary outright.
 
+StockOS starts `sysntpd`, `adbd`, and `mtp` from rootfs rc.d, but the plumOS boot
+wrapper calls `plumos-stock-services boot` to stop them. The rootfs init scripts
+remain untouched.
+
 ## Wi-Fi
 
 - Service: `/etc/init.d/wpa_supplicant`, started as `S96wpa_supplicant`.
@@ -72,6 +76,10 @@ replacing the binary outright.
   already running, no IP was assigned, and `/proc/net/wireless` showed no
   association yet. DHCP attempt 1 started at about uptime 9s and completed the
   `192.168.10.165` lease plus Dropbear startup at about uptime 16s.
+- On June 10, 2026, plumOS started stopping StockOS `sysntpd` and launching a
+  plumOS-managed `/usr/sbin/ntpd -n -N` after DHCP, using `time.cloudflare.com`,
+  `pool.ntp.org`, `time.google.com`, and `time.apple.com`. On hardware this
+  corrected a UTC clock that had been nearly nine hours ahead.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,

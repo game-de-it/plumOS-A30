@@ -1,0 +1,200 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_ROOT}/logs"
+LOG_FILE="${LOG_DIR}/stock-services.log"
+NTP_PID_FILE="${PLUMOS_NTP_PID_FILE:-/tmp/plumos-ntpd.pid}"
+NTPD="${PLUMOS_NTPD:-/usr/sbin/ntpd}"
+NTP_SERVERS="${PLUMOS_NTP_SERVERS:-time.cloudflare.com pool.ntp.org time.google.com time.apple.com}"
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+uptime_now() {
+  if [ -r /proc/uptime ]; then
+    read -r up _ < /proc/uptime || up=unknown
+    printf '%s' "$up"
+  else
+    printf '%s' "unknown"
+  fi
+}
+
+log() {
+  printf '%s uptime=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+cmdline_for_pid() {
+  cat "/proc/$1/cmdline" 2>/dev/null | tr '\0' ' ' || true
+}
+
+cmd_matches() {
+  cmd="$1"
+  shift
+  for pattern in "$@"; do
+    case "$cmd" in
+      $pattern) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+find_pids_by_cmd() {
+  self="$$"
+  for proc in /proc/[0-9]*; do
+    pid="${proc#/proc/}"
+    case "$pid" in
+      *[!0-9]*|'') continue ;;
+    esac
+    [ "$pid" = "$self" ] && continue
+    cmd="$(cmdline_for_pid "$pid")"
+    [ -n "$cmd" ] || continue
+    if cmd_matches "$cmd" "$@"; then
+      printf '%s\n' "$pid"
+    fi
+  done
+}
+
+terminate_pids() {
+  label="$1"
+  shift
+  [ "$#" -gt 0 ] || {
+    log "${label}: no matching process"
+    return 0
+  }
+  log "${label}: stopping pids=$*"
+  kill -TERM "$@" 2>/dev/null || true
+  sleep 1
+  kill -KILL "$@" 2>/dev/null || true
+}
+
+stop_init_script() {
+  script="$1"
+  if [ -x "$script" ]; then
+    log "init stop ${script}"
+    "$script" stop >/dev/null 2>&1 || true
+  fi
+}
+
+stop_stock_usb_userland() {
+  pids=""
+  log "stop stock USB userland begin"
+  stop_init_script /etc/init.d/mtp
+  stop_init_script /etc/init.d/adbd
+  for pid in $(find_pids_by_cmd '*/usr/sbin/MtpDaemon*' '*/bin/adbd*'); do
+    pids="${pids} ${pid}"
+  done
+  # shellcheck disable=SC2086
+  terminate_pids "stock USB userland" $pids
+  log "stop stock USB userland end"
+}
+
+ntp_pid_running() {
+  [ -r "$NTP_PID_FILE" ] || return 1
+  read -r pid < "$NTP_PID_FILE" || return 1
+  case "$pid" in
+    *[!0-9]*|'') return 1 ;;
+  esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  cmd="$(cmdline_for_pid "$pid")"
+  case "$cmd" in
+    *ntpd*) return 0 ;;
+  esac
+  return 1
+}
+
+stop_all_ntp() {
+  pids=""
+  log "stop NTP begin"
+  stop_init_script /etc/init.d/sysntpd
+  stop_init_script /etc/init.d/ntpd
+  for pid in $(find_pids_by_cmd '*/usr/sbin/ntpd*' '* busybox ntpd *' '* ntpd -n*' '* ntpd -N*'); do
+    pids="${pids} ${pid}"
+  done
+  # shellcheck disable=SC2086
+  terminate_pids "NTP" $pids
+  rm -f "$NTP_PID_FILE" 2>/dev/null || true
+  log "stop NTP end"
+}
+
+start_plumos_ntp() {
+  if ntp_pid_running; then
+    read -r pid < "$NTP_PID_FILE" || pid=unknown
+    log "plumOS NTP already running pid=${pid}"
+    return 0
+  fi
+  if [ ! -x "$NTPD" ]; then
+    log "plumOS NTP backend missing: ${NTPD}"
+    return 1
+  fi
+
+  stop_all_ntp
+  set -- -n -N
+  for server in $NTP_SERVERS; do
+    set -- "$@" -p "$server"
+  done
+  log "starting plumOS NTP: ${NTPD} servers=${NTP_SERVERS}"
+  "$NTPD" "$@" >> "$LOG_FILE" 2>&1 &
+  pid="$!"
+  printf '%s\n' "$pid" > "$NTP_PID_FILE" 2>/dev/null || true
+  log "plumOS NTP started pid=${pid}"
+}
+
+network_ready() {
+  stop_stock_usb_userland
+  start_plumos_ntp
+}
+
+boot_normalize() {
+  stop_stock_usb_userland
+  stop_all_ntp
+}
+
+status() {
+  printf 'stock_usb_pids='
+  find_pids_by_cmd '*/usr/sbin/MtpDaemon*' '*/bin/adbd*' | tr '\n' ' '
+  printf '\n'
+  printf 'ntp_pids='
+  find_pids_by_cmd '*/usr/sbin/ntpd*' '* busybox ntpd *' '* ntpd -n*' '* ntpd -N*' | tr '\n' ' '
+  printf '\n'
+  if ntp_pid_running; then
+    read -r pid < "$NTP_PID_FILE" || pid=unknown
+    printf 'plumos_ntp=running pid=%s\n' "$pid"
+  else
+    printf 'plumos_ntp=stopped\n'
+  fi
+}
+
+case "${1:-}" in
+  boot)
+    boot_normalize
+    ;;
+  network-ready)
+    network_ready
+    ;;
+  stop-usb)
+    stop_stock_usb_userland
+    ;;
+  ntp-start)
+    start_plumos_ntp
+    ;;
+  ntp-stop)
+    stop_all_ntp
+    ;;
+  status)
+    status
+    ;;
+  *)
+    cat >&2 <<EOF
+Usage: $0 COMMAND
+
+Commands:
+  boot           Stop StockOS USB userland and StockOS NTP during plumOS boot.
+  network-ready  Keep StockOS USB userland stopped and start plumOS-managed NTP.
+  stop-usb       Stop StockOS MtpDaemon/adbd.
+  ntp-start      Stop StockOS NTP and start plumOS-managed ntpd.
+  ntp-stop       Stop all known ntpd instances.
+  status         Print StockOS USB and NTP process status.
+EOF
+    exit 1
+    ;;
+esac

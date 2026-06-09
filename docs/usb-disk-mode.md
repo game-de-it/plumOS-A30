@@ -18,8 +18,8 @@ plumOS でも同じ原則を守ります。
 
 - host PC と A30 が同じ FAT32 partition を同時に writable mount しない。
 - USB Disk Mode に入る前に FE、emulator、file-transfer service、SSH を停止する。
-- StockOS の `MtpDaemon` / `adbd` は USB gadget を触るため、USB Disk Mode 中だけ停止し、
-  終了時に必要なら再起動する。
+- StockOS の `MtpDaemon` / `adbd` は USB gadget を触るため停止する。plumOS では
+  boot 時にも停止し、USB Disk Mode 終了時も既定では再起動しない。
 - USB cable は USB Disk Mode 開始前に接続されていてよい。開始時に gadget を
   disable -> mass_storage -> enable して host PC 側へ再 enumerate させる。
 - `/mnt/SDCARD` を unmount できた場合だけ USB mass storage を有効化する。
@@ -27,6 +27,8 @@ plumOS でも同じ原則を守ります。
 - FE は `/mnt/SDCARD/miyoo/app` から起動されるため、helper は tmpfs へ自分をコピーした後、
   作業ディレクトリを `/` へ移してから SD card を unmount する。
 - enter 途中で失敗した場合も、USB gadget、SD mount、SSH/FE の復帰処理を試みる。
+- StockOS USB userland を比較検証で戻したい場合だけ
+  `PLUMOS_RESTORE_STOCK_USB_USERLAND=1` を指定する。
 
 ## A30 の実機状態
 

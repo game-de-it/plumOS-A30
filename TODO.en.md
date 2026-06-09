@@ -50,6 +50,7 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [x] Fall back to stock MainUI if wrapper startup fails.
 - [x] Write wrapper and plumOS frontend logs to `/mnt/SDCARD/plumos/logs`.
 - [x] Stop stock `keymon` at boot and start the plumOS FE plus network recovery path.
+- [x] Stop StockOS `MtpDaemon` / `adbd` / `sysntpd` at boot, then start plumOS-managed NTP after DHCP.
 - [x] Expose network recovery from the START menu and Network Settings.
 - [x] Confirm Wi-Fi, DHCP, SSH, and FE recovery after A30 power cycling.
 - [ ] Decide whether safe OS reboot is possible, since stock MainUI has no reboot item.

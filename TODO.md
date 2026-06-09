@@ -50,6 +50,7 @@
 - [x] wrapper 起動失敗時に stock MainUI へ戻れる fallback を作る。
 - [x] wrapper と plumOS frontend の log を `/mnt/SDCARD/plumos/logs` へ出す。
 - [x] boot 時に stock `keymon` を止め、plumOS FE と network recovery path を起動する。
+- [x] boot 時に StockOS `MtpDaemon` / `adbd` / `sysntpd` を止め、DHCP 後に plumOS 管理の NTP を起動する。
 - [x] START menu と Network Settings から network recovery を実行できるようにする。
 - [x] A30 の電源再投入後に Wi-Fi/DHCP/SSH/FE が復旧できることを確認する。
 - [ ] stock MainUI に reboot 項目がないため、安全な OS 再起動可否を決める。

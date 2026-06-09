@@ -19,6 +19,7 @@ USB_REENUM_SETTLE_SEC="${PLUMOS_USB_DISK_REENUM_SETTLE_SEC:-}"
 USB_REENUM_SETTLE_US="${PLUMOS_USB_DISK_REENUM_SETTLE_US:-250000}"
 PROCESS_TERM_GRACE_US="${PLUMOS_USB_DISK_TERM_GRACE_US:-300000}"
 PROCESS_KILL_GRACE_US="${PLUMOS_USB_DISK_KILL_GRACE_US:-200000}"
+RESTORE_STOCK_USB_USERLAND="${PLUMOS_RESTORE_STOCK_USB_USERLAND:-0}"
 FAILURE_CLEANUP_ENABLED=0
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
@@ -271,6 +272,10 @@ stop_usb_userland() {
 }
 
 restart_usb_userland() {
+  if [ "$RESTORE_STOCK_USB_USERLAND" != "1" ]; then
+    log "not restarting stock USB userland; PLUMOS_RESTORE_STOCK_USB_USERLAND=0"
+    return 0
+  fi
   if [ -r "$USB_USERLAND_STATE" ]; then
     if grep -q '^adbd$' "$USB_USERLAND_STATE" 2>/dev/null && [ -x /bin/adbd ]; then
       log "restarting adbd"

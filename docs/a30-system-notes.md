@@ -67,6 +67,9 @@
 - ただし plumOS の本体はここへ置かず、`MainUI` は
   `/mnt/SDCARD/plumos/bin/plumos-frontend` などを起動する薄いラッパーにします。
 - rootfs 書き換えは、起動フローと復旧手段が十分に固まるまで後回しにします。
+- StockOS の `sysntpd`、`adbd`、`mtp` は rootfs 側 rc.d で起動されますが、plumOS
+  boot wrapper が `plumos-stock-services boot` を呼んで停止します。rootfs の init script
+  自体は変更しません。
 
 ## Wi-Fi
 
@@ -89,6 +92,9 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
   `plumos-network-rescue` を自動開始した。開始時は `wpa_supplicant` は起動済み、
   IPなし、`/proc/net/wireless` は未関連付け状態だった。DHCP attempt 1 が uptime 約9秒で
   始まり、約16秒で `192.168.10.165` の lease と Dropbear 起動まで完了した
+- 2026-06-10 に StockOS `sysntpd` を停止し、DHCP 後に plumOS 管理の
+  `/usr/sbin/ntpd -n -N -p time.cloudflare.com -p pool.ntp.org -p time.google.com -p time.apple.com`
+  を起動するよう変更した。実機では約9時間進んでいたUTC時刻が `ntpd` により補正された。
 
 実装上の意味:
 

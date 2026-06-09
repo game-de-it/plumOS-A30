@@ -21,8 +21,9 @@ plumOS follows the same rule.
   same time.
 - Before entering USB Disk Mode, stop the FE, emulators, file-transfer services,
   and SSH.
-- Stop StockOS `MtpDaemon` / `adbd` while USB Disk Mode is active because they
-  also touch the USB gadget, then restart them on return if they were running.
+- Stop StockOS `MtpDaemon` / `adbd` because they also touch the USB gadget.
+  plumOS also stops them at boot and, by default, does not restart them when USB
+  Disk Mode exits.
 - The USB cable may already be connected before entering USB Disk Mode. On
   entry, the helper disables the gadget, switches to mass_storage, and re-enables
   it so the host PC re-enumerates the device.
@@ -34,6 +35,8 @@ plumOS follows the same rule.
   SD card.
 - If entry fails partway through, the helper attempts to restore the USB gadget,
   SD mount, SSH, and FE.
+- Set `PLUMOS_RESTORE_STOCK_USB_USERLAND=1` only for comparison tests that need
+  to restore StockOS USB userland.
 
 ## A30 Device State
 

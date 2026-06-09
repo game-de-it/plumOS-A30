@@ -6,6 +6,7 @@ LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/network-rescue.log"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
 NETWORK_SERVICES="${PLUMOS_ROOT}/bin/plumos-network-services"
+STOCK_SERVICES="${PLUMOS_ROOT}/bin/plumos-stock-services"
 LOCK_DIR=/tmp/plumos-network-rescue.lock
 DHCP_ATTEMPTS="${PLUMOS_NETWORK_RESCUE_DHCP_ATTEMPTS:-6}"
 DHCP_RETRY_SLEEP="${PLUMOS_NETWORK_RESCUE_DHCP_RETRY_SLEEP:-3}"
@@ -199,6 +200,19 @@ while [ "$attempt" -le "$DHCP_ATTEMPTS" ]; do
 done
 
 log_state "after_dhcp"
+
+if [ -x "$STOCK_SERVICES" ]; then
+  if [ -n "$(get_wlan_ip || true)" ]; then
+    log "stock services network-ready"
+    "$STOCK_SERVICES" network-ready >> "$LOG_FILE" 2>&1
+    rc="$?"
+    log "stock services network-ready rc=${rc}"
+  else
+    log "stock services network-ready skipped ip=none"
+  fi
+else
+  log "stock services helper missing: $STOCK_SERVICES"
+fi
 
 if [ -x "$SSH_START" ]; then
   log "ssh start"

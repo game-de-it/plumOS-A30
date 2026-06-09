@@ -11,6 +11,7 @@ ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
 CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
 NETWORK_RESCUE="${PLUMOS_NETWORK_RESCUE:-${PLUMOS_ROOT}/bin/plumos-network-rescue}"
 NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
+STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-services}"
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
@@ -50,6 +51,13 @@ run_controller_ui() {
 }
 
 log "wrapper start pid=$$ pwd=$(pwd)"
+
+if [ -x "$STOCK_SERVICES" ]; then
+  log "normalizing stock services: ${STOCK_SERVICES}"
+  "$STOCK_SERVICES" boot >> "$LOG_FILE" 2>&1 || true
+else
+  log "stock services helper missing: ${STOCK_SERVICES}"
+fi
 
 if command -v killall >/dev/null 2>&1; then
   killall keymon >/dev/null 2>&1 || true

@@ -12,6 +12,10 @@ uses that path as a small wrapper and moves the actual frontend entry point to
 - Run `/mnt/SDCARD/plumos/bin/plumos-network-rescue` automatically for boot
   recovery.
 - Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
+- Run `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` to stop StockOS
+  `MtpDaemon`, `adbd`, and `sysntpd`.
+- After DHCP, `plumos-network-rescue` calls `plumos-stock-services network-ready`
+  to start plumOS-managed `ntpd`.
 - Open `Network Recovery` from the START menu; pressing A there reruns Wi-Fi
   init, DHCP, and dropbear SSH start.
 - Fall back to the legacy `plumos-frontend`, then stock MainUI, if the
@@ -89,4 +93,5 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 /mnt/SDCARD/plumos/logs/mainui-wrapper.log
 /mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
+/mnt/SDCARD/plumos/logs/stock-services.log
 ```
