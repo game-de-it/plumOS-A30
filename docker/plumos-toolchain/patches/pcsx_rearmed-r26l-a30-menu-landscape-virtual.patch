@@ -1,0 +1,26 @@
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -184,6 +184,11 @@ static int plumos_a30_native_fb32(void)
+ static int plumos_a30_native_fb32(void)
+ {
+   return plumos_env_enabled("PLUMOS_A30_PCSX_NATIVE_FB32", 1);
++}
++
++static int plumos_a30_menu_landscape(void)
++{
++  return plumos_env_enabled("PLUMOS_A30_PCSX_MENU_LANDSCAPE", 1);
+ }
+ 
+ static int plumos_a30_rotate_ccw(void)
+@@ -473,6 +478,11 @@ void plat_init(void)
+ 
+   in_menu = 1;
+   SDL_WM_SetCaption("PCSX-ReARMed " REV, NULL);
++  if (plumos_a30_native_fb32() && plumos_a30_menu_landscape()) {
++    g_menuscreen_w = 640;
++    g_menuscreen_h = 480;
++    g_menuscreen_pp = g_menuscreen_w;
++  }
+ 
+   shadow_fb_size = g_menuscreen_w * g_menuscreen_h * 2;
+   // alloc enough for double res. rendering

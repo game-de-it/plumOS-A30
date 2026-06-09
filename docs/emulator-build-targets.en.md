@@ -33,8 +33,8 @@ Inventory date: 2026-06-07
 | package | plumOS target | note |
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
-| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. `fceumm` and `gambatte` are built/deployed from upstream HEAD. Continue preferring upstream latest stable/HEAD. |
-| standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Use for PPSSPP and engines where standalone is better than libretro. |
+| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The 41 Class A/B cores are now built for the A30 armv7 hard-float target, mostly from upstream HEAD. The staged output is `dist/plumos-libretro-cores`. On real A30 hardware, only `fceumm` and `gambatte` have screen-smoke confirmation so far; the rest still need per-system boot, performance, input, and audio/video validation. |
+| standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
 Note: the plumOS-bundled SDL3+sdl2-compat runtime does not provide an A30 real
@@ -44,6 +44,43 @@ uses RetroArch's `mali_fbdev` context with the A30 rootfs
 core-loaded game video is confirmed with `fceumm`/`gambatte`. The current
 `retroarch-minimal.cfg` disables audio, so sound and emulator-facing input still
 need the next validation step.
+
+## Build status
+
+As of 2026-06-07, `./scripts/docker-build.sh libretro-cores` stages 41 Class A/B
+cores under `dist/plumos-libretro-cores/plumos/retroarch/cores`. The clean
+manifest reports `built=41`, `failed=0`, and `skipped=0`.
+
+`vecx` needed `platform=armv HAS_GPU=0` because upstream HEAD's default build
+expects OpenGL headers. This keeps it on a software path for the A30
+fbdev/Mali/SDL-oriented target. ScummVM uses the libretro Makefile lite build,
+and EasyRPG is currently a minimal-ish first libretro build with ICU/XML and
+some auxiliary audio features disabled. These are build successes; practical
+usefulness still depends on A30 title/profile testing.
+
+Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
+under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
+contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,
+`DOSBox Staging v0.82.2`, and `PCSX-ReARMed r26l`; the manifest reports
+`built=5`, `failed=0`, and `skipped=0`. ScummVM uses a classic engine subset,
+DOSBox Staging uses system SpeexDSP plus a fixed page size for cross-build
+stability, and PCSX-ReARMed standalone uses the generic SDL1 frontend with
+ARMv7/NEON rather than upstream's `miyoo` platform. In the 2026-06-08 A30
+hardware pass, PPSSPP, ScummVM, EasyRPG Player, and PCSX-ReARMed completed
+first-pass checks for screen, audio, input, menu/exit flow, and config/save
+paths. DOSBox Staging can display and accept input after A30 patches, but it is
+less practical than DOSBox-Pure libretro because real games push one CPU core
+near its limit and audio is more fragile.
+
+## Standalone adoption snapshot
+
+| emulator | decision | A30 result |
+| --- | --- | --- |
+| PPSSPP v1.20.4 | Standalone default candidate for lightweight PSP | Whole-app rotation, scissor fallback, `854x480` logical UI, L2 menu, A30 gamepad, and fixed 1344 MHz / 4-core CPU profile are confirmed. This is for light titles, not full PSP coverage. |
+| ScummVM v2026.2.0 | Standalone default candidate for ScummVM | `rotation_mode=270`, VirtualMouse warp fix, and A30 theme `scummmodern-a30-md` give working screen, mouse, audio, and exit flow. |
+| EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
+| PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
+| DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
 
 ## Class A: initial build targets
 
@@ -66,7 +103,7 @@ initial plumOS emulator/core build plan.
 | Neo Geo cartridge | `fbneo` | `Emu/NEOGEO`, `RApp/fbneo` | Needs BIOS and gamelist compatibility checks. |
 | Neo Geo CD | `neocd` | `RApp/neocd` | CD-based but 2D-focused. Check loading and CDDA. |
 | Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
-| PS1 | `pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Decide BIOS/save/state paths early. |
+| PS1 | `standalone:pcsx_rearmed`, `retroarch:pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Standalone is hardware-tested and is the initial default candidate. Decide BIOS/save/state paths early. |
 | NGP / NGPC | `mednafen_ngp` | `Emu/NGP`, `RApp/mednafen_ngp` | Low load. |
 | WonderSwan / WonderSwan Color | `mednafen_wswan` | `Emu/WSC`, `RApp/mednafen_wswan` | Low load. |
 | Atari Lynx | `mednafen_lynx` or `handy` | backup `mednafen_lynx`, installed `handy` | Not stock top-level, but practical on A30. |
@@ -77,9 +114,9 @@ initial plumOS emulator/core build plan.
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
 | PICO-8 carts | `retro8`, optional standalone `fake08` | `RApp/retro8`, installed `fake08` | Active stock launch uses `retro8`; standalone `fake08` is a comparison target. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
-| ScummVM | `scummvm` | installed core | Likely low load. Needs mouse/keyboard profiles. |
-| EasyRPG | `easyrpg`, optional standalone EasyRPG Player | `RApp/easyrpg` | Practical candidate. |
-| DOS classics | `dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Needs keyboard profiles. |
+| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. |
+| EasyRPG | `standalone:easyrpg`, optional `retroarch:easyrpg` | `RApp/easyrpg` | Standalone is the practical candidate with auxiliary audio features enabled. |
+| DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
 | MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |
 
 ## Class B: promote after targeted checks
@@ -92,7 +129,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
 | PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
 | Virtual Boy | `mednafen_vb` | Likely runnable, but screen/UX is special. |
-| lightweight PSP | PPSSPP standalone | Test 2D/light titles only; do not promise PSP as a whole. |
+| lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 
 ## Class C: not initial build targets
@@ -111,7 +148,10 @@ an experimental target or a known-light title.
 | current MAME / newer 3D arcade | `mame`, `mame2015` | Class A covers older 2D arcade; newer MAME should wait. |
 | heavy PSP | PPSSPP standalone/libretro | PSP as a whole is not a target. Light titles only stay in Class B. |
 
-## Suggested build order
+## Suggested validation order
+
+The Class A/B bulk core build is done. Runtime validation should proceed in this
+order after deploying the staged package:
 
 1. RetroArch runtime skeleton and first low-risk cores:
    `fceumm` and `gambatte` are build/deploy/screen-smoke confirmed.
@@ -132,13 +172,26 @@ an experimental target or a known-light title.
 7. Conditional checks:
    CPS3, SNES enhancement-chip titles, PC-88/PC-98, lightweight PSP.
 
-## Open checks before building everything
+## Open checks after bulk build
 
-- RetroArch audio/input smoke: minimal RGUI and `fceumm`/`gambatte`
-  core-loaded video are confirmed through `fbdev_mali`, but audio and
-  emulator-facing input still need device validation.
-- Core build recipes need tag/URL/SHA-256 or commit/build options recorded in a
-  manifest.
+- RetroArch audio/input smoke: the practical runtime has confirmed OSS audio
+  plus SDL2 joypad and `plumos-joystickd --device-mode xbox` with NES/GB, but
+  the full bulk-built core set is not validated yet.
+- Core build recipes are recorded in `dist/plumos-libretro-cores/docs/manifest.txt`;
+  raw per-core details from the doubled run are kept as `manifest.raw-double-run.txt`.
+- Standalone emulator build recipes are recorded in
+  `dist/plumos-standalone-emulators/docs/manifest.txt`.
+- PPSSPP/ScummVM/EasyRPG/PCSX-ReARMed standalone packages have A30 first-pass
+  validation. ScummVM directory ROMs resolve the target id from
+  `.plumos-scummvm-target`, `scummvm-target.txt`, `.scummvm`, or sibling
+  `.scummvm`/`.svm` sidecars, falling back to `sky` only when no sidecar exists.
+  DOSBox Staging standalone was tested but is not a normal target.
+- DOSBox-Pure libretro can store per-ROM `#EXE` suffixes, OSS/ALSA audio
+  driver, audio latency, `dosbox_pure_force60fps`, `dosbox_pure_cycles`, and
+  CPU policy/frequency/core-count settings in `core-overrides.json`. On A30,
+  `DOS/DOSBOX_DIGGER.ZIP` is configured with `#DIGGER.EXE`, OSS latency 256,
+  force60fps, cycles max, and fixed 1344 MHz / 4 cores; the FE A-button path
+  reaches `execute: ok`.
 - Save/state/system/BIOS directories must move away from stock
   `HOME=/mnt/SDCARD/RetroArch`.
 - `plumos-joystickd --device-mode xbox` should be part of emulator launch

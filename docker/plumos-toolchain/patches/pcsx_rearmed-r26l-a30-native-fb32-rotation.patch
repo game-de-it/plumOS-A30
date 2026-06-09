@@ -1,0 +1,331 @@
+diff --git a/frontend/plat_sdl.c b/frontend/plat_sdl.c
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -10,6 +10,8 @@
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <stdint.h>
++#include <string.h>
+ #include <assert.h>
+ #include <SDL.h>
+ 
+@@ -151,6 +153,7 @@ static int resized;
+ 
+ static void handle_window_resize(void);
+ static void handle_scaler_resize(int w, int h);
++static void change_mode(int w, int h);
+ static void centered_clear(void);
+ static int plumos_env_enabled(const char *name, int default_value)
+ {
+@@ -159,6 +162,150 @@ static int plumos_env_enabled(const char *name, int default_value)
+     return default_value;
+   return value[0] != '0' && value[0] != 'n' && value[0] != 'N'
+     && value[0] != 'f' && value[0] != 'F';
++}
++
++static int plumos_a30_native_fb32(void)
++{
++  return plumos_env_enabled("PLUMOS_A30_PCSX_NATIVE_FB32", 1);
++}
++
++static int plumos_a30_rotate_ccw(void)
++{
++  const char *value = getenv("PLUMOS_A30_PCSX_ROTATION");
++  return value != NULL && value[0] == 'c' && value[1] == 'c';
++}
++
++static uint32_t plumos_bgr555_to_xrgb8888(uint16_t p)
++{
++  uint32_t t = ((p << 19) | (p >> 7)) & 0xf800f8;
++  t |= (p << 6) & 0xf800;
++  return 0xff000000 | t | ((t >> 5) & 0x070707);
++}
++
++static uint32_t plumos_bgr888_to_xrgb8888(const uint8_t *src)
++{
++  return 0xff000000 | (src[0] << 16) | (src[1] << 8) | src[2];
++}
++
++static uint32_t plumos_rgb565_to_xrgb8888(uint16_t p)
++{
++  uint32_t r = (p >> 11) & 0x1f;
++  uint32_t g = (p >> 5) & 0x3f;
++  uint32_t b = p & 0x1f;
++  r = (r << 3) | (r >> 2);
++  g = (g << 2) | (g >> 4);
++  b = (b << 3) | (b >> 2);
++  return 0xff000000 | (r << 16) | (g << 8) | b;
++}
++
++static void plumos_a30_blit_rotated_xrgb8888(const void *src_, int w, int h,
++    int sstride, int bgr24)
++{
++  uint32_t *dst = plat_sdl_screen->pixels;
++  int dpitch = plat_sdl_screen->pitch / 4;
++  int scale = (w * 2 <= plat_sdl_screen->h && h * 2 <= plat_sdl_screen->w) ? 2 : 1;
++  int logical_w = w * scale;
++  int logical_h = h * scale;
++  int out_w = logical_h;
++  int out_h = logical_w;
++  int ox = (plat_sdl_screen->w - out_w) / 2;
++  int oy = (plat_sdl_screen->h - out_h) / 2;
++  int ccw = plumos_a30_rotate_ccw();
++  int sx, sy, dx, dy;
++
++  if (ox < 0 || oy < 0)
++    return;
++  if (out_w != plat_sdl_screen->w || out_h != plat_sdl_screen->h) {
++    for (dy = 0; dy < plat_sdl_screen->h; dy++)
++      memset(dst + dy * dpitch, 0, plat_sdl_screen->w * 4);
++  }
++
++  for (sy = 0; sy < h; sy++) {
++    const uint16_t *src16 = (const uint16_t *)src_ + sy * sstride;
++    const uint8_t *src24 = (const uint8_t *)src_ + sy * sstride * 2;
++    for (sx = 0; sx < w; sx++) {
++      uint32_t p = bgr24
++        ? plumos_bgr888_to_xrgb8888(src24 + sx * 3)
++        : plumos_bgr555_to_xrgb8888(src16[sx]);
++      for (dy = 0; dy < scale; dy++) {
++        int ly = sy * scale + dy;
++        for (dx = 0; dx < scale; dx++) {
++          int lx = sx * scale + dx;
++          int px = ccw ? ly : logical_h - 1 - ly;
++          int py = ccw ? logical_w - 1 - lx : lx;
++          dst[(oy + py) * dpitch + ox + px] = p;
++        }
++      }
++    }
++  }
++}
++
++static void plumos_a30_blit_menu_rotated_xrgb8888(void)
++{
++  const uint16_t *src = g_menuscreen_ptr;
++  uint32_t *dst = plat_sdl_screen->pixels;
++  int dpitch = plat_sdl_screen->pitch / 4;
++  int logical_w = g_menuscreen_w;
++  int logical_h = g_menuscreen_h;
++  int out_w = logical_h;
++  int out_h = logical_w;
++  int ox = (plat_sdl_screen->w - out_w) / 2;
++  int oy = (plat_sdl_screen->h - out_h) / 2;
++  int ccw = plumos_a30_rotate_ccw();
++  int x, y;
++
++  if (ox < 0 || oy < 0)
++    return;
++  for (y = 0; y < plat_sdl_screen->h; y++)
++    memset(dst + y * dpitch, 0, plat_sdl_screen->w * 4);
++
++  for (y = 0; y < g_menuscreen_h; y++) {
++    const uint16_t *row = src + y * g_menuscreen_pp;
++    for (x = 0; x < g_menuscreen_w; x++) {
++      int px = ccw ? y : logical_h - 1 - y;
++      int py = ccw ? logical_w - 1 - x : x;
++      dst[(oy + py) * dpitch + ox + px] = plumos_rgb565_to_xrgb8888(row[x]);
++    }
++  }
++}
++
++static void plumos_a30_blit_rgb565_rotated_xrgb8888(const uint16_t *src,
++    int w, int h, int spitch)
++{
++  uint32_t *dst = plat_sdl_screen->pixels;
++  int dpitch = plat_sdl_screen->pitch / 4;
++  int scale = (w * 2 <= plat_sdl_screen->h && h * 2 <= plat_sdl_screen->w) ? 2 : 1;
++  int logical_w = w * scale;
++  int logical_h = h * scale;
++  int out_w = logical_h;
++  int out_h = logical_w;
++  int ox = (plat_sdl_screen->w - out_w) / 2;
++  int oy = (plat_sdl_screen->h - out_h) / 2;
++  int ccw = plumos_a30_rotate_ccw();
++  int sx, sy, dx, dy;
++
++  if (ox < 0 || oy < 0)
++    return;
++  if (out_w != plat_sdl_screen->w || out_h != plat_sdl_screen->h) {
++    for (dy = 0; dy < plat_sdl_screen->h; dy++)
++      memset(dst + dy * dpitch, 0, plat_sdl_screen->w * 4);
++  }
++
++  for (sy = 0; sy < h; sy++) {
++    const uint16_t *row = src + sy * spitch;
++    for (sx = 0; sx < w; sx++) {
++      uint32_t p = plumos_rgb565_to_xrgb8888(row[sx]);
++      for (dy = 0; dy < scale; dy++) {
++        int ly = sy * scale + dy;
++        for (dx = 0; dx < scale; dx++) {
++          int lx = sx * scale + dx;
++          int px = ccw ? ly : logical_h - 1 - ly;
++          int py = ccw ? logical_w - 1 - lx : lx;
++          dst[(oy + py) * dpitch + ox + px] = p;
++        }
++      }
++    }
++  }
+ }
+ 
+ static int plugin_owns_display(void)
+@@ -260,6 +407,8 @@ void plat_init(void)
+   pl_rearmed_cbs.pl_get_layer_pos = get_layer_pos;
+ 
+   bgr_to_uyvy_init();
++  if (plumos_a30_native_fb32() && plat_target.vout_method == 0)
++    change_mode(g_menuscreen_w, g_menuscreen_h);
+ 
+   assert(plat_sdl_screen);
+   plugin_update();
+@@ -433,10 +582,11 @@ static void centered_clear(void)
+ 
+ static void centered_clear(void)
+ {
+-  int dstride = plat_sdl_screen->pitch / 2;
++  int bytes_pp = plat_sdl_screen->format->BytesPerPixel;
++  int dstride = plat_sdl_screen->pitch;
+   int w = plat_sdl_screen->w;
+   int h = plat_sdl_screen->h;
+-  unsigned short *dst;
++  unsigned char *dst;
+ 
+   if (plat_sdl_gl_active) {
+     gl_clear();
+@@ -448,7 +598,7 @@ static void centered_clear(void)
+   dst = plat_sdl_screen->pixels;
+ 
+   for (; h > 0; dst += dstride, h--)
+-    memset(dst, 0, w * 2);
++    memset(dst, 0, w * bytes_pp);
+ 
+   if (SDL_MUSTLOCK(plat_sdl_screen))
+     SDL_UnlockSurface(plat_sdl_screen);
+@@ -487,6 +637,10 @@ static void centered_blit(int doffs, const void *src_, int w, int h,
+ 
+   if (SDL_MUSTLOCK(plat_sdl_screen))
+     SDL_LockSurface(plat_sdl_screen);
++  if (plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4) {
++    plumos_a30_blit_rotated_xrgb8888(src_, w, h, sstride, bgr24);
++    goto out;
++  }
+   dst = plat_sdl_screen->pixels;
+   dstride = plat_sdl_screen->pitch / 2;
+   w = adj_src_dst(plat_sdl_screen, w, sstride, &h, &dst, &src);
+@@ -536,6 +690,10 @@ static void centered_blit_menu(void)
+   if (SDL_MUSTLOCK(plat_sdl_screen))
+     SDL_LockSurface(plat_sdl_screen);
+ 
++  if (plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4) {
++    plumos_a30_blit_menu_rotated_xrgb8888();
++    goto out;
++  }
+   dst = plat_sdl_screen->pixels;
+   dstride = plat_sdl_screen->pitch / 2;
+   len = adj_src_dst(plat_sdl_screen, w, g_menuscreen_pp, &h, &dst, &src);
+@@ -543,6 +701,7 @@ static void centered_blit_menu(void)
+   for (; h > 0; dst += dstride, src += g_menuscreen_pp, h--)
+     memcpy(dst, src, len * 2);
+ 
++out:
+   if (SDL_MUSTLOCK(plat_sdl_screen))
+     SDL_UnlockSurface(plat_sdl_screen);
+ }
+@@ -550,6 +709,8 @@ static void centered_hud_print(int x, int y, const char *str, int bpp)
+ static void centered_hud_print(int x, int y, const char *str, int bpp)
+ {
+   int w_diff, h_diff;
++  if (plat_sdl_screen->format->BytesPerPixel != 2)
++    return;
+   if (SDL_MUSTLOCK(plat_sdl_screen))
+     SDL_LockSurface(plat_sdl_screen);
+   w_diff = plat_sdl_screen->w - psx_w;
+@@ -579,7 +740,10 @@ static void *setup_blit_callbacks(int w, int h)
+   }
+   else {
+-    pl_plat_clear = centered_clear;
++    if (plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4)
++      return shadow_fb;
+ 
+-    if (!SDL_MUSTLOCK(plat_sdl_screen) && w == plat_sdl_screen->w &&
++    pl_plat_clear = centered_clear;
++    if (plat_sdl_screen->format->BytesPerPixel == 2 &&
++        !SDL_MUSTLOCK(plat_sdl_screen) && w == plat_sdl_screen->w &&
+         h == plat_sdl_screen->h)
+       return plat_sdl_screen->pixels;
+ 
+@@ -594,9 +758,16 @@ static void *setup_blit_callbacks(int w, int h)
+ static void change_mode(int w, int h)
+ {
+   int set_w = w, set_h = h, had_overlay = 0, had_gl = 0;
++  int set_bpp = 16;
+   if (plat_target.vout_fullscreen && (plat_target.vout_method != 0 || !sdl12_compat))
+     set_w = fs_w, set_h = fs_h;
++  if (plumos_a30_native_fb32()) {
++    set_w = 480;
++    set_h = 640;
++    set_bpp = 32;
++  }
+   if (plat_sdl_screen->w != set_w || plat_sdl_screen->h != set_h ||
++      plat_sdl_screen->format->BitsPerPixel != set_bpp ||
+       plat_target.vout_fullscreen != vout_fullscreen_old)
+   {
+     Uint32 flags = plat_sdl_screen->flags;
+@@ -618,7 +789,7 @@ static void change_mode(int w, int h)
+       had_gl = 1;
+     }
+     SDL_PumpEvents();
+-    plat_sdl_screen = SDL_SetVideoMode(set_w, set_h, 16, flags);
++    plat_sdl_screen = SDL_SetVideoMode(set_w, set_h, set_bpp, flags);
+     //printf("mode: %dx%d %x -> %dx%d\n", set_w, set_h, flags,
+     //  plat_sdl_screen->w, plat_sdl_screen->h);
+     assert(plat_sdl_screen);
+@@ -716,6 +887,15 @@ void *plat_gvideo_flip(void)
+     gl_flip_v(shadow_fb, psx_w, psx_h, g_scaler != SCALE_FULLSCREEN ? gl_vertices : NULL);
+     ret = shadow_fb;
+   }
++  else if (plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4) {
++    if (SDL_MUSTLOCK(plat_sdl_screen))
++      SDL_LockSurface(plat_sdl_screen);
++    plumos_a30_blit_rgb565_rotated_xrgb8888(shadow_fb, psx_w, psx_h, psx_w);
++    if (SDL_MUSTLOCK(plat_sdl_screen))
++      SDL_UnlockSurface(plat_sdl_screen);
++    ret = shadow_fb;
++    do_flip |= 2;
++  }
+   else
+     do_flip |= 2;
+ 
+@@ -729,9 +909,11 @@ void *plat_gvideo_flip(void)
+   if (do_flip) {
+     if (forced_clears > 0) {
+       forced_clears--;
+-      centered_clear();
++      if (!(plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4))
++        centered_clear();
+     }
+-    if (!SDL_MUSTLOCK(plat_sdl_screen) && plat_sdl_screen->w == psx_w &&
++    if (plat_sdl_screen->format->BytesPerPixel == 2 &&
++        !SDL_MUSTLOCK(plat_sdl_screen) && plat_sdl_screen->w == psx_w &&
+         plat_sdl_screen->h == psx_h && (do_flip & 2)) {
+       ret = plat_sdl_screen->pixels;
+     }
+@@ -759,6 +941,10 @@ void plat_video_menu_enter(int is_rom_loaded)
+     unsigned short *dst = menubg_img;
+     const unsigned short *src;
+     int h;
++    if (plat_sdl_screen->format->BytesPerPixel != 2) {
++      memset(menubg_img, 0, psx_w * psx_h * 2);
++      goto menu_bg_done;
++    }
+     if (SDL_MUSTLOCK(plat_sdl_screen))
+       SDL_LockSurface(plat_sdl_screen);
+     src = plat_sdl_screen->pixels;
+@@ -769,6 +955,7 @@ void plat_video_menu_enter(int is_rom_loaded)
+     if (SDL_MUSTLOCK(plat_sdl_screen))
+       SDL_UnlockSurface(plat_sdl_screen);
+   }
++menu_bg_done:
+   pl_vout_buf = menubg_img;
+ 
+   if (plat_target.vout_method == 0)

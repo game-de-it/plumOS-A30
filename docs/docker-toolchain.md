@@ -36,8 +36,19 @@ plumOS 用 userland を build します。
 ```text
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/ss
+dist/plumos-userland/plumos/gnu/bin/strace
+dist/plumos-userland/plumos/gnu/libexec/
+dist/plumos-userland/plumos/lib/
 dist/plumos-userland/plumos/share/doc/busybox/
+dist/plumos-userland/plumos/share/doc/gnu-userland/
 ```
+
+BusyBox applet は vfat 向けに symlink ではなく wrapper script として生成します。
+`iproute2` の `ip`/`ss` と `strace` は Debian armhf package 由来の実体を
+`plumos/gnu/libexec` に置き、`plumos/gnu/bin` の wrapper から plumOS 同梱
+dynamic loader と library path で起動します。
 
 frontend prototype を build します。
 
@@ -54,6 +65,8 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/bin/plumos-safe-hotkeyd
+dist/plumos-frontend/plumos/bin/plumos-safe-shutdown
 dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
@@ -69,6 +82,9 @@ runtime probe を build します。
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
+dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
+dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -137,9 +153,10 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-libretro core の初期 smoke 用として `fceumm` と `gambatte` を build します。core は
-build 時点の upstream HEAD を使い、選んだ commit、build flags、NEEDED を manifest に
-残します。
+libretro core package を build します。現在は Class A/B の 41 core を A30 armv7
+hard-float 向けに build し、選んだ commit、build flags、NEEDED を manifest に残します。
+`PLUMOS_CORE_FILTER=vecx` や `PLUMOS_CORE_FILTER=class-a` のように指定すると、個別/クラス別
+build もできます。
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
@@ -148,12 +165,31 @@ build 時点の upstream HEAD を使い、選んだ commit、build flags、NEEDE
 生成物は以下に出ます。
 
 ```text
-dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
-dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
-dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
-dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/cores/*_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/*_libretro.info
 dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
+DOSBox Staging、PCSX-ReARMed を A30 armv7 hard-float 向けに build し、選んだ
+tag/commit、NEEDED、build log を manifest に残します。`PLUMOS_STANDALONE_FILTER=ppsspp`
+のように指定すると個別 build もできます。`FAIL_ON_STANDALONE_ERROR=1` を指定すると、
+いずれかの emulator build 失敗時に command 全体を失敗扱いにします。
+
+```sh
+./scripts/docker-build.sh standalone-emulators
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-standalone-emulators/plumos/emulators/<id>/bin/
+dist/plumos-standalone-emulators/plumos/emulators/ppsspp/assets/
+dist/plumos-standalone-emulators/plumos/bin/plumos-standalone-launch
+dist/plumos-standalone-emulators/plumos/lib/
+dist/plumos-standalone-emulators/docs/manifest.txt
+dist/plumos-standalone-emulators/docs/build-logs/
 ```
 
 ## A30 へ転送して実行
@@ -258,6 +294,9 @@ probe は framebuffer を RetroArch に渡すため `plumos-controller-ui-mali` 
 `result=libretro_core_smoke_ok` になり、ユーザー目視でも両方のゲーム画面表示を確認済みです。
 現在の `retroarch-minimal.cfg` は audio disabled なので、音声は full runtime build の
 検証対象です。
+
+2026-06-07 時点の bulk core build は 41本を stage 済みです。実機での画面/音/入力確認は
+`fceumm`/`gambatte` 以外まだ未実施なので、deploy 後は system ごとの段階検証を行います。
 
 ```sh
 ./scripts/docker-build.sh libretro-cores

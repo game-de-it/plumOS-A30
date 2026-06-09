@@ -44,12 +44,21 @@ Outputs:
 ```text
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/ss
+dist/plumos-userland/plumos/gnu/bin/strace
+dist/plumos-userland/plumos/gnu/libexec/
+dist/plumos-userland/plumos/lib/
 dist/plumos-userland/plumos/share/doc/busybox/
+dist/plumos-userland/plumos/share/doc/gnu-userland/
 ```
 
 BusyBox is built from the official `1.38.0` tarball after SHA-256 verification.
 Since the SD card is vfat and does not handle symlinks well, applets are
 installed as small wrapper scripts instead of symlinks.
+`iproute2` `ip`/`ss` and `strace` come from Debian armhf packages; the real
+binaries live in `plumos/gnu/libexec`, and `plumos/gnu/bin` wrappers run them
+through the plumOS-bundled dynamic loader and library path.
 
 Deploy:
 
@@ -78,6 +87,8 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/bin/plumos-safe-hotkeyd
+dist/plumos-frontend/plumos/bin/plumos-safe-shutdown
 dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
@@ -119,6 +130,9 @@ Outputs:
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
+dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
+dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 

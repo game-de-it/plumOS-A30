@@ -1,0 +1,213 @@
+diff --git a/src/platform/sdl/sdl2_ui.cpp b/src/platform/sdl/sdl2_ui.cpp
+index 201802e..1f5562f 100644
+--- a/src/platform/sdl/sdl2_ui.cpp
++++ b/src/platform/sdl/sdl2_ui.cpp
+@@ -161,6 +161,23 @@ static Input::Keys::InputKey SdlKey2InputKey(SDL_Keycode sdlkey);
+ static Input::Keys::InputKey SdlJKey2InputKey(int button_index);
+ #endif
+ 
++static int GetPlumOSA30Rotation() {
++	const char* value = std::getenv("PLUMOS_A30_EASYRPG_ROTATION");
++	if (!value || !*value) {
++		return 0;
++	}
++	if (!std::strcmp(value, "cw") || !std::strcmp(value, "90")) {
++		return 90;
++	}
++	if (!std::strcmp(value, "ccw") || !std::strcmp(value, "270")) {
++		return 270;
++	}
++	if (!std::strcmp(value, "180")) {
++		return 180;
++	}
++	return 0;
++}
++
+ Sdl2Ui::Sdl2Ui(long width, long height, const Game_Config& cfg) : BaseUi(cfg)
+ {
+ 	// Set some SDL environment variables before starting. These are platform
+@@ -174,6 +191,10 @@ Sdl2Ui::Sdl2Ui(long width, long height, const Game_Config& cfg) : BaseUi(cfg)
+ 	// Only handle keyboard events when the canvas has focus
+ 	SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
+ #endif
++	plumos_a30_rotation = GetPlumOSA30Rotation();
++	if (plumos_a30_rotation) {
++		Output::Debug("plumOS A30 display rotation: {}", plumos_a30_rotation);
++	}
+ 
+ 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+ 		Output::Error("Couldn't initialize SDL.\n{}\n", SDL_GetError());
+@@ -220,6 +241,9 @@ Sdl2Ui::~Sdl2Ui() {
+ 	if (sdl_texture_scaled) {
+ 		SDL_DestroyTexture(sdl_texture_scaled);
+ 	}
++	if (sdl_texture_plumos_a30_output) {
++		SDL_DestroyTexture(sdl_texture_plumos_a30_output);
++	}
+ 	if (sdl_renderer) {
+ 		SDL_DestroyRenderer(sdl_renderer);
+ 	}
+@@ -605,66 +629,66 @@ void Sdl2Ui::UpdateDisplay() {
+ 	SDL_UpdateTexture(sdl_texture_game, nullptr, main_surface->pixels(), main_surface->pitch());
+ #endif
+ 
++	const bool plumos_a30_rotate = plumos_a30_rotation == 90 || plumos_a30_rotation == 180 || plumos_a30_rotation == 270;
++	const bool plumos_a30_swap_axes = plumos_a30_rotation == 90 || plumos_a30_rotation == 270;
++	const int render_width = plumos_a30_swap_axes ? window.height : window.width;
++	const int render_height = plumos_a30_swap_axes ? window.width : window.height;
++
+ 	if (window.size_changed && window.width > 0 && window.height > 0) {
+ 		// Based on SDL2 function UpdateLogicalSize
+ 		window.size_changed = false;
+ 
+-		float width_float = static_cast<float>(window.width);
+-		float height_float = static_cast<float>(window.height);
++		float width_float = static_cast<float>(render_width);
++		float height_float = static_cast<float>(render_height);
+ 
+ 		float want_aspect = (float)main_surface->width() / main_surface->height();
+ 		float real_aspect = width_float / height_float;
+ 
+-		auto do_stretch = [this]() {
++		auto do_stretch = [this, render_width]() {
+ 			if (vcfg.stretch.Get()) {
+ 				viewport.x = 0;
+-				viewport.w = window.width;
++				viewport.w = render_width;
+ 			}
+ 		};
+ 
+ 		if (vcfg.scaling_mode.Get() == ConfigEnum::ScalingMode::Integer) {
+ 			// Integer division on purpose
+ 			if (want_aspect > real_aspect) {
+-				window.scale = static_cast<float>(window.width / main_surface->width());
++				window.scale = static_cast<float>(render_width / main_surface->width());
+ 			} else {
+-				window.scale = static_cast<float>(window.height / main_surface->height());
++				window.scale = static_cast<float>(render_height / main_surface->height());
+ 			}
+ 
+ 			viewport.w = static_cast<int>(ceilf(main_surface->width() * window.scale));
+-			viewport.x = (window.width - viewport.w) / 2;
++			viewport.x = (render_width - viewport.w) / 2;
+ 			viewport.h = static_cast<int>(ceilf(main_surface->height() * window.scale));
+-			viewport.y = (window.height - viewport.h) / 2;
++			viewport.y = (render_height - viewport.h) / 2;
+ 			do_stretch();
+-
+-			SDL_RenderSetViewport(sdl_renderer, &viewport);
+ 		} else if (fabs(want_aspect - real_aspect) < 0.0001) {
+ 			// The aspect ratios are the same, let SDL2 scale it
+ 			window.scale = width_float / main_surface->width();
+-			SDL_RenderSetViewport(sdl_renderer, nullptr);
+ 
+ 			// Only used here for the mouse coordinates
+ 			viewport.x = 0;
+ 			viewport.y = 0;
+-			viewport.w = window.width;
+-			viewport.h = window.height;
++			viewport.w = render_width;
++			viewport.h = render_height;
+ 		} else if (want_aspect > real_aspect) {
+ 			// Letterboxing (black bars top and bottom)
+ 			window.scale = width_float / main_surface->width();
+ 			viewport.x = 0;
+-			viewport.w = window.width;
++			viewport.w = render_width;
+ 			viewport.h = static_cast<int>(ceilf(main_surface->height() * window.scale));
+-			viewport.y = (window.height - viewport.h) / 2;
++			viewport.y = (render_height - viewport.h) / 2;
+ 			do_stretch();
+-			SDL_RenderSetViewport(sdl_renderer, &viewport);
+ 		} else {
+ 			// black bars left and right
+ 			window.scale = height_float / main_surface->height();
+ 			viewport.y = 0;
+-			viewport.h = window.height;
++			viewport.h = render_height;
+ 			viewport.w = static_cast<int>(ceilf(main_surface->width() * window.scale));
+-			viewport.x = (window.width - viewport.w) / 2;
++			viewport.x = (render_width - viewport.w) / 2;
+ 			do_stretch();
+-			SDL_RenderSetViewport(sdl_renderer, &viewport);
+ 		}
+ 
+ 		if (vcfg.scaling_mode.Get() == ConfigEnum::ScalingMode::Bilinear && window.scale > 0.f) {
+@@ -681,18 +705,54 @@ void Sdl2Ui::UpdateDisplay() {
+ 		}
+ 	}
+ 
++	if (plumos_a30_rotate) {
++		if (!sdl_texture_plumos_a30_output ||
++				plumos_a30_output_width != render_width ||
++				plumos_a30_output_height != render_height) {
++			if (sdl_texture_plumos_a30_output) {
++				SDL_DestroyTexture(sdl_texture_plumos_a30_output);
++			}
++			sdl_texture_plumos_a30_output = SDL_CreateTexture(sdl_renderer, texture_format,
++					SDL_TEXTUREACCESS_TARGET, render_width, render_height);
++			plumos_a30_output_width = render_width;
++			plumos_a30_output_height = render_height;
++			if (!sdl_texture_plumos_a30_output) {
++				Output::Debug("SDL_CreateTexture failed : {}", SDL_GetError());
++				return;
++			}
++		}
++		SDL_SetRenderTarget(sdl_renderer, sdl_texture_plumos_a30_output);
++	} else {
++		SDL_SetRenderTarget(sdl_renderer, nullptr);
++	}
++	SDL_RenderSetViewport(sdl_renderer, &viewport);
+ 	SDL_RenderClear(sdl_renderer);
+ 	if (vcfg.scaling_mode.Get() == ConfigEnum::ScalingMode::Bilinear && window.scale > 0.f) {
+ 		// Render game texture on the scaled texture
+ 		SDL_SetRenderTarget(sdl_renderer, sdl_texture_scaled);
++		SDL_RenderSetViewport(sdl_renderer, nullptr);
+ 		SDL_RenderClear(sdl_renderer);
+ 		SDL_RenderCopy(sdl_renderer, sdl_texture_game, nullptr, nullptr);
+ 
+-		SDL_SetRenderTarget(sdl_renderer, nullptr);
++		SDL_SetRenderTarget(sdl_renderer, plumos_a30_rotate ? sdl_texture_plumos_a30_output : nullptr);
++		SDL_RenderSetViewport(sdl_renderer, &viewport);
+ 		SDL_RenderCopy(sdl_renderer, sdl_texture_scaled, nullptr, nullptr);
+ 	} else {
+ 		SDL_RenderCopy(sdl_renderer, sdl_texture_game, nullptr, nullptr);
+ 	}
++	if (plumos_a30_rotate) {
++		SDL_SetRenderTarget(sdl_renderer, nullptr);
++		SDL_RenderSetViewport(sdl_renderer, nullptr);
++		SDL_RenderClear(sdl_renderer);
++		SDL_Rect dst = {
++			(window.width - render_width) / 2,
++			(window.height - render_height) / 2,
++			render_width,
++			render_height
++		};
++		SDL_RenderCopyEx(sdl_renderer, sdl_texture_plumos_a30_output, nullptr, &dst,
++				static_cast<double>(plumos_a30_rotation), nullptr, SDL_FLIP_NONE);
++	}
+ 	SDL_RenderPresent(sdl_renderer);
+ }
+ 
+diff --git a/src/platform/sdl/sdl2_ui.h b/src/platform/sdl/sdl2_ui.h
+index f8a1707..5945e58 100644
+--- a/src/platform/sdl/sdl2_ui.h
++++ b/src/platform/sdl/sdl2_ui.h
+@@ -130,6 +130,7 @@ private:
+ 	/** Main SDL window. */
+ 	SDL_Texture* sdl_texture_game = nullptr;
+ 	SDL_Texture* sdl_texture_scaled = nullptr;
++	SDL_Texture* sdl_texture_plumos_a30_output = nullptr;
+ 	SDL_Window* sdl_window = nullptr;
+ 	SDL_Renderer* sdl_renderer = nullptr;
+ 	SDL_Joystick *sdl_joystick = nullptr;
+@@ -142,6 +143,9 @@ private:
+ 		bool size_changed = true;
+ 		float scale = 0.f;
+ 	} window = {};
++	int plumos_a30_rotation = 0;
++	int plumos_a30_output_width = 0;
++	int plumos_a30_output_height = 0;
+ 
+ 	uint32_t texture_format = SDL_PIXELFORMAT_UNKNOWN;
+ 

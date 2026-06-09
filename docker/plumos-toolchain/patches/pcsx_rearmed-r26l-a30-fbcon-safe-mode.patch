@@ -1,0 +1,53 @@
+diff --git a/frontend/plat_sdl.c b/frontend/plat_sdl.c
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -11,0 +12 @@
++#include <stdlib.h>
+@@ -152,4 +153,12 @@ static void handle_window_resize(void);
+ static void handle_scaler_resize(int w, int h);
+ static void centered_clear(void);
+-
++static int plumos_env_enabled(const char *name, int default_value)
++{
++  const char *value = getenv(name);
++  if (value == NULL || value[0] == '\0')
++    return default_value;
++  return value[0] != '0' && value[0] != 'n' && value[0] != 'N'
++    && value[0] != 'f' && value[0] != 'F';
++}
++
+ static int plugin_owns_display(void)
+@@ -481,5 +490,26 @@ static void centered_blit(int doffs, const void *src_, int w, int h,
+   dst = plat_sdl_screen->pixels;
+   dstride = plat_sdl_screen->pitch / 2;
+   w = adj_src_dst(plat_sdl_screen, w, sstride, &h, &dst, &src);
+-
++  if (plumos_env_enabled("PLUMOS_A30_PCSX_SCALE2X", 1)
++      && plat_sdl_screen->w >= w * 2 && plat_sdl_screen->h >= h * 2) {
++    int x;
++    int dst_w = w * 2;
++    dst = plat_sdl_screen->pixels;
++    dst += (plat_sdl_screen->w - dst_w) / 2;
++    dst += dstride * ((plat_sdl_screen->h - h * 2) / 2);
++    for (; h > 0; dst += dstride * 2, src += sstride, h--) {
++      if (bgr24)
++        bgr888_to_rgb565(dst, src, w);
++      else
++        bgr555_to_rgb565(dst, src, w);
++      for (x = w - 1; x >= 0; x--) {
++        unsigned short p = dst[x];
++        dst[x * 2] = p;
++        dst[x * 2 + 1] = p;
++      }
++      memcpy(dst + dstride, dst, dst_w * 2);
++    }
++    goto out;
++  }
++
+   if (bgr24) {
+@@ -491,4 +521,4 @@ static void centered_blit(int doffs, const void *src_, int w, int h,
+       bgr555_to_rgb565(dst, src, w);
+   }
+-
++out:
+   if (SDL_MUSTLOCK(plat_sdl_screen))

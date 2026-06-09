@@ -1,0 +1,78 @@
+diff --git a/frontend/plat_sdl.c b/frontend/plat_sdl.c
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -755,9 +755,16 @@ static void change_mode(int w, int h)
+ static void change_mode(int w, int h)
+ {
+   int set_w = w, set_h = h, had_overlay = 0, had_gl = 0;
++  int set_bpp = 16;
+   if (plat_target.vout_fullscreen && (plat_target.vout_method != 0 || !sdl12_compat))
+     set_w = fs_w, set_h = fs_h;
++  if (plumos_a30_native_fb32()) {
++    set_w = 480;
++    set_h = 640;
++    set_bpp = 32;
++  }
+   if (plat_sdl_screen->w != set_w || plat_sdl_screen->h != set_h ||
++      plat_sdl_screen->format->BitsPerPixel != set_bpp ||
+       plat_target.vout_fullscreen != vout_fullscreen_old)
+   {
+     Uint32 flags = plat_sdl_screen->flags;
+@@ -779,7 +786,7 @@ static void change_mode(int w, int h)
+       had_gl = 1;
+     }
+     SDL_PumpEvents();
+-    plat_sdl_screen = SDL_SetVideoMode(set_w, set_h, 16, flags);
++    plat_sdl_screen = SDL_SetVideoMode(set_w, set_h, set_bpp, flags);
+     //printf("mode: %dx%d %x -> %dx%d\n", set_w, set_h, flags,
+     //  plat_sdl_screen->w, plat_sdl_screen->h);
+     assert(plat_sdl_screen);
+@@ -877,6 +884,15 @@ void *plat_gvideo_flip(void)
+     gl_flip_v(shadow_fb, psx_w, psx_h, g_scaler != SCALE_FULLSCREEN ? gl_vertices : NULL);
+     ret = shadow_fb;
+   }
++  else if (plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4) {
++    if (SDL_MUSTLOCK(plat_sdl_screen))
++      SDL_LockSurface(plat_sdl_screen);
++    plumos_a30_blit_rgb565_rotated_xrgb8888(shadow_fb, psx_w, psx_h, psx_w);
++    if (SDL_MUSTLOCK(plat_sdl_screen))
++      SDL_UnlockSurface(plat_sdl_screen);
++    ret = shadow_fb;
++    do_flip |= 2;
++  }
+   else
+     do_flip |= 2;
+ 
+@@ -890,9 +906,11 @@ void *plat_gvideo_flip(void)
+   if (do_flip) {
+     if (forced_clears > 0) {
+       forced_clears--;
+-      centered_clear();
++      if (!(plumos_a30_native_fb32() && plat_sdl_screen->format->BytesPerPixel == 4))
++        centered_clear();
+     }
+-    if (!SDL_MUSTLOCK(plat_sdl_screen) && plat_sdl_screen->w == psx_w &&
++    if (plat_sdl_screen->format->BytesPerPixel == 2 &&
++        !SDL_MUSTLOCK(plat_sdl_screen) && plat_sdl_screen->w == psx_w &&
+         plat_sdl_screen->h == psx_h && (do_flip & 2)) {
+       ret = plat_sdl_screen->pixels;
+     }
+@@ -920,6 +928,10 @@ void plat_video_menu_enter(int is_rom_loaded)
+     unsigned short *dst = menubg_img;
+     const unsigned short *src;
+     int h;
++    if (plat_sdl_screen->format->BytesPerPixel != 2) {
++      memset(menubg_img, 0, psx_w * psx_h * 2);
++      goto menu_bg_done;
++    }
+     if (SDL_MUSTLOCK(plat_sdl_screen))
+       SDL_LockSurface(plat_sdl_screen);
+     src = plat_sdl_screen->pixels;
+@@ -930,6 +942,7 @@ void plat_video_menu_enter(int is_rom_loaded)
+     if (SDL_MUSTLOCK(plat_sdl_screen))
+       SDL_UnlockSurface(plat_sdl_screen);
+   }
++menu_bg_done:
+   pl_vout_buf = menubg_img;
+ 
+   if (plat_target.vout_method == 0)

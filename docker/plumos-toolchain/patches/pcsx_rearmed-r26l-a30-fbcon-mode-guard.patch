@@ -1,0 +1,16 @@
+diff --git a/frontend/plat_sdl.c b/frontend/plat_sdl.c
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -688,2 +688,10 @@ void *plat_gvideo_set_mode(int *w, int *h, int *bpp)
+-  else if (plat_target.vout_method == 0) // && sdl12_compat
+-    change_mode(*w, *h);
++  else if (plat_target.vout_method == 0) {
++    int mode_w = *w;
++    int mode_h = *h;
++    if (plumos_env_enabled("PLUMOS_A30_PCSX_SAFE_FB", 1)
++        && (mode_w < g_menuscreen_w || mode_h < g_menuscreen_h)) {
++      mode_w = g_menuscreen_w;
++      mode_h = g_menuscreen_h;
++    }
++    change_mode(mode_w, mode_h);
++  }

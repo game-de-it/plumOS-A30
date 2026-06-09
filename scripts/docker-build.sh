@@ -22,13 +22,27 @@ Commands:
   sdl2-probe     Build the SDL2 joystick/GameController probe into dist/plumos-sdl2-probe.
   retroarch-minimal
                  Build a minimal RetroArch display probe into dist/plumos-retroarch-minimal.
-  libretro-cores Build fceumm/gambatte into dist/plumos-libretro-cores.
+  retroarch-practical
+                 Build the practical RetroArch runtime into dist/plumos-retroarch-practical.
+  libretro-cores Build Class A/B libretro cores into dist/plumos-libretro-cores.
+  standalone-emulators
+                 Build standalone PPSSPP/ScummVM/EasyRPG/DOSBox/PCSX-ReARMed into dist/plumos-standalone-emulators.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
 
 Environment:
   PLUMOS_DOCKER_IMAGE     Docker image tag. Default: ${IMAGE}
   PLUMOS_DOCKER_PLATFORM  Docker platform. Default: ${PLATFORM}
+  PLUMOS_CORE_FILTER      libretro-cores filter: all, class-a, class-b, class-ab, or comma-separated core ids.
+  FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
+  PLUMOS_STANDALONE_FILTER
+                           standalone-emulators filter: all or comma-separated emulator ids.
+  FAIL_ON_STANDALONE_ERROR
+                           Set to 1 to make standalone-emulators exit non-zero on any emulator build failure.
+  TARGET_DIR               Override standalone output path inside the container.
+  PPSSPP_PATCH_MODE        PPSSPP patch mode: a30, display-ui, or vanilla. Default: a30.
+  PPSSPP_STAGE_ID          PPSSPP output emulator id. Default: ppsspp.
+  PPSSPP_BINARY_NAME       PPSSPP staged binary name. Default: PPSSPPSDL.
 EOF
 }
 
@@ -63,6 +77,14 @@ docker_run_base=(
   -e PLUMOS_MARCH=armv7-a
   -e PLUMOS_MFPU=neon-vfpv4
   -e PLUMOS_MFLOAT_ABI=hard
+  -e PLUMOS_CORE_FILTER="${PLUMOS_CORE_FILTER:-all}"
+  -e FAIL_ON_CORE_ERROR="${FAIL_ON_CORE_ERROR:-0}"
+  -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"
+  -e FAIL_ON_STANDALONE_ERROR="${FAIL_ON_STANDALONE_ERROR:-0}"
+  -e TARGET_DIR="${TARGET_DIR:-}"
+  -e PPSSPP_PATCH_MODE="${PPSSPP_PATCH_MODE:-a30}"
+  -e PPSSPP_STAGE_ID="${PPSSPP_STAGE_ID:-ppsspp}"
+  -e PPSSPP_BINARY_NAME="${PPSSPP_BINARY_NAME:-PPSSPPSDL}"
   -v "${ROOT_DIR}:/workspace"
   -w /workspace
   "$IMAGE"
@@ -109,9 +131,17 @@ case "$cmd" in
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-retroarch-minimal.sh
     ;;
+  retroarch-practical|retroarch-full)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-retroarch-practical.sh
+    ;;
   libretro-cores|cores)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-libretro-cores.sh
+    ;;
+  standalone-emulators|standalone|emulators-standalone)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-standalone-emulators.sh
     ;;
   shell)
     ensure_image

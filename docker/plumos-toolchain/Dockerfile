@@ -19,6 +19,7 @@ RUN dpkg --add-architecture armhf \
     automake \
     bash \
     binutils-arm-linux-gnueabihf \
+    bison \
     build-essential \
     ca-certificates \
     clang \
@@ -26,9 +27,36 @@ RUN dpkg --add-architecture armhf \
     crossbuild-essential-armhf \
     curl \
     file \
+    flex \
     gettext \
     git \
+    iproute2:armhf \
+    libasound2-dev:armhf \
+    libegl1-mesa-dev:armhf \
+    libexpat1-dev:armhf \
+    libflac-dev:armhf \
+    libfmt-dev:armhf \
+    libfreetype6-dev:armhf \
+    libgles2-mesa-dev:armhf \
+    libharfbuzz-dev:armhf \
+    libicu-dev:armhf \
+    libjpeg-dev:armhf \
+    liblhasa-dev:armhf \
+    libmad0-dev:armhf \
+    libmpg123-dev:armhf \
+    libogg-dev:armhf \
+    libopusfile-dev:armhf \
+    libpixman-1-dev:armhf \
+    libpng-dev:armhf \
+    libsamplerate0-dev:armhf \
+    libsndfile1-dev:armhf \
+    libsdl1.2-dev:armhf \
+    libsdl2-dev:armhf \
+    libspeexdsp-dev:armhf \
     libtool \
+    libvorbis-dev:armhf \
+    libxmp-dev:armhf \
+    libxml2-dev:armhf \
     make \
     meson \
     ninja-build \
@@ -37,10 +65,13 @@ RUN dpkg --add-architecture armhf \
     python3 \
     python3-pip \
     rsync \
+    strace:armhf \
     tar \
     unzip \
     wget \
     xz-utils \
+    zip \
+    zlib1g-dev:armhf \
     zstd \
   && rm -rf /var/lib/apt/lists/*
 

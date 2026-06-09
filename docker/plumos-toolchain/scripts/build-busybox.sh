@@ -11,7 +11,11 @@ BUILD_DIR="${ROOT_DIR}/build/busybox-${BUSYBOX_VERSION}"
 SRC_DIR="${BUILD_DIR}/src"
 DIST_DIR="${ROOT_DIR}/dist/plumos-userland"
 BIN_DIR="${DIST_DIR}/plumos/bin"
+GNU_BIN_DIR="${DIST_DIR}/plumos/gnu/bin"
+GNU_LIBEXEC_DIR="${DIST_DIR}/plumos/gnu/libexec"
+LIB_DIR="${DIST_DIR}/plumos/lib"
 DOC_DIR="${DIST_DIR}/plumos/share/doc/busybox"
+GNU_DOC_DIR="${DIST_DIR}/plumos/share/doc/gnu-userland"
 TARBALL="${DOWNLOAD_DIR}/busybox-${BUSYBOX_VERSION}.tar.bz2"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
@@ -79,8 +83,8 @@ prepare_source() {
     set_config SHOW_USAGE y
     set_config LONG_OPTS y
     set_config FEATURE_HUMAN_READABLE y
-    set_config FEATURE_PREFER_APPLETS y
-    set_config FEATURE_SH_STANDALONE y
+    set_config FEATURE_PREFER_APPLETS n
+    set_config FEATURE_SH_STANDALONE n
 
     set_config PS y
     set_config FEATURE_PS_WIDE y
@@ -140,6 +144,150 @@ write_wrapper() {
   chmod 0755 "$path"
 }
 
+find_runtime_lib() {
+  local soname="$1"
+  local dir
+
+  for dir in \
+    /lib/arm-linux-gnueabihf \
+    /usr/lib/arm-linux-gnueabihf \
+    /usr/arm-linux-gnueabihf/lib \
+    /lib \
+    /usr/lib; do
+    if [ -e "${dir}/${soname}" ]; then
+      readlink -f "${dir}/${soname}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+runtime_needed() {
+  local elf="$1"
+  "${CROSS_COMPILE}readelf" -d "$elf" 2>/dev/null | \
+    awk '/NEEDED/ { gsub(/[][]/, "", $5); print $5 }'
+}
+
+COPIED_RUNTIME_LIBS=""
+
+copy_runtime_lib_tree() {
+  local soname="$1"
+  local lib
+
+  case " ${COPIED_RUNTIME_LIBS} " in
+    *" ${soname} "*) return 0 ;;
+  esac
+
+  lib="$(find_runtime_lib "$soname")" || die "runtime library not found: ${soname}"
+  install -m 0755 "$lib" "${LIB_DIR}/${soname}"
+  COPIED_RUNTIME_LIBS="${COPIED_RUNTIME_LIBS} ${soname}"
+
+  while IFS= read -r child; do
+    [ -n "$child" ] || continue
+    copy_runtime_lib_tree "$child"
+  done < <(runtime_needed "${LIB_DIR}/${soname}")
+}
+
+copy_runtime_deps() {
+  local elf="$1"
+  local soname
+
+  while IFS= read -r soname; do
+    [ -n "$soname" ] || continue
+    copy_runtime_lib_tree "$soname"
+  done < <(runtime_needed "$elf")
+}
+
+write_gnu_wrapper() {
+  local name="$1"
+  local binary="$2"
+  local path="${GNU_BIN_DIR}/${name}"
+
+  mkdir -p "$(dirname "$path")"
+  {
+    printf '%s\n' '#!/bin/sh'
+    printf '%s\n' 'PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"'
+    printf '%s\n' 'exec "${PLUMOS_ROOT}/lib/ld-linux-armhf.so.3" \'
+    printf '%s\n' '  --library-path "${PLUMOS_ROOT}/lib:/usr/lib:/lib" \'
+    printf '  "${PLUMOS_ROOT}/gnu/libexec/%s" "$@"\n' "$binary"
+  } > "$path"
+  chmod 0755 "$path"
+}
+
+install_gnu_tool() {
+  local name="$1"
+  shift
+  local candidate
+  local src=""
+  local dst="${GNU_LIBEXEC_DIR}/${name}.bin"
+
+  for candidate in "$@"; do
+    if [ -e "$candidate" ]; then
+      src="$(readlink -f "$candidate")"
+      break
+    fi
+  done
+
+  [ -n "$src" ] || die "${name}: armhf binary not found; rebuild the Docker image"
+  file "$src" | grep -q 'ARM' || die "${name}: ${src} is not an ARM binary"
+
+  install -m 0755 "$src" "$dst"
+  copy_runtime_deps "$dst"
+  write_gnu_wrapper "$name" "$(basename "$dst")"
+
+  {
+    echo "== ${name} =="
+    echo "source: ${src}"
+    file "$dst"
+    echo
+    "${CROSS_COMPILE}readelf" -d "$dst" | grep NEEDED || true
+    echo
+  } >> "${GNU_DOC_DIR}/manifest.txt"
+}
+
+assemble_gnu_tools() {
+  log "Assembling GNU/iproute2 userland tools"
+  mkdir -p "$GNU_BIN_DIR" "$GNU_LIBEXEC_DIR" "$LIB_DIR" "$GNU_DOC_DIR"
+  : > "${GNU_DOC_DIR}/manifest.txt"
+
+  install_gnu_tool ip /bin/ip /sbin/ip /usr/sbin/ip
+  install_gnu_tool ss /bin/ss /usr/bin/ss /sbin/ss /usr/sbin/ss
+  install_gnu_tool strace /usr/bin/strace /bin/strace
+
+  {
+    echo "plumOS GNU-style userland tools"
+    echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo
+    echo "Debian package versions:"
+    dpkg-query -W -f='${binary:Package}\t${Version}\n' \
+      iproute2:armhf strace:armhf 2>/dev/null || true
+  } > "${GNU_DOC_DIR}/versions.txt"
+
+  {
+    find "$GNU_BIN_DIR" "$GNU_LIBEXEC_DIR" -type f -print
+    find "$LIB_DIR" -maxdepth 1 -type f -print
+  } | sort | xargs sha256sum > "${GNU_DOC_DIR}/SHA256SUMS"
+
+  find "$LIB_DIR" -maxdepth 1 -type f -printf '%f\n' | sort > "${GNU_DOC_DIR}/runtime-libs.txt"
+
+  cat > "${GNU_DOC_DIR}/README.txt" <<'EOF'
+GNU-style userland tools for plumOS A30
+
+Installed wrappers:
+  /mnt/SDCARD/plumos/gnu/bin/ip
+  /mnt/SDCARD/plumos/gnu/bin/ss
+  /mnt/SDCARD/plumos/gnu/bin/strace
+
+The wrappers run armhf Debian binaries from:
+  /mnt/SDCARD/plumos/gnu/libexec
+
+They explicitly use the plumOS dynamic loader and library path:
+  /mnt/SDCARD/plumos/lib/ld-linux-armhf.so.3
+  /mnt/SDCARD/plumos/lib
+EOF
+}
+
 assemble_package() {
   log "Assembling plumOS userland package"
   rm -rf "$DIST_DIR"
@@ -159,6 +307,8 @@ assemble_package() {
     esac
     write_wrapper "$applet"
   done
+
+  assemble_gnu_tools
 
   cat > "${BIN_DIR}/plumos-env" <<'EOF'
 #!/bin/sh
@@ -204,6 +354,7 @@ EOF
 
   printf 'Built %s\n' "$DIST_DIR"
   printf 'BusyBox wrappers: %s\n' "$(find "$BIN_DIR" -type f | wc -l)"
+  printf 'GNU wrappers: %s\n' "$(find "$GNU_BIN_DIR" -type f | wc -l)"
 }
 
 download_busybox

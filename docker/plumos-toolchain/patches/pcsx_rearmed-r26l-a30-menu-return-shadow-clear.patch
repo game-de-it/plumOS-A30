@@ -1,0 +1,65 @@
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -67,6 +67,7 @@ const struct menu_keymap in_sdl_key_map[] =
+   { SDLK_LSHIFT,    PBTN_MA3 },
+   { SDLK_TAB,       PBTN_L },
+   { SDLK_BACKSPACE, PBTN_R },
++  { SDLK_RCTRL,     PBTN_MENU },
+ };
+ #else
+ static const struct in_default_bind in_sdl_defbinds[] = {
+@@ -123,6 +124,8 @@ const struct menu_keymap in_sdl_key_map[] =
+   { SDLK_LALT,   PBTN_MA3 },
+   { SDLK_TAB,    PBTN_L },
+   { SDLK_BACKSPACE, PBTN_R },
++  { SDLK_ESCAPE, PBTN_MENU },
++  { SDLK_WORLD_10, PBTN_MENU },
+ };
+ #endif
+ 
+@@ -149,6 +152,7 @@ static const struct in_pdata in_sdl_platform_data = {
+ 
+ static int psx_w = 256, psx_h = 240;
+ static void *shadow_fb, *menubg_img;
++static int shadow_fb_size;
+ static int vout_fullscreen_old;
+ static int forced_clears;
+ static int forced_flips;
+@@ -451,7 +455,6 @@ void plat_init(void)
+ {
+   static const char *hwfilters[] = { "linear", "nearest", NULL };
+   const SDL_version *ver;
+-  int shadow_size;
+   int ret;
+ 
+   plat_sdl_quit_cb = quit_cb;
+@@ -471,13 +474,13 @@ void plat_init(void)
+   in_menu = 1;
+   SDL_WM_SetCaption("PCSX-ReARMed " REV, NULL);
+ 
+-  shadow_size = g_menuscreen_w * g_menuscreen_h * 2;
++  shadow_fb_size = g_menuscreen_w * g_menuscreen_h * 2;
+   // alloc enough for double res. rendering
+-  if (shadow_size < 1024 * 512 * 2)
+-    shadow_size = 1024 * 512 * 2;
++  if (shadow_fb_size < 1024 * 512 * 2)
++    shadow_fb_size = 1024 * 512 * 2;
+ 
+-  shadow_fb = malloc(shadow_size);
+-  menubg_img = malloc(shadow_size);
++  shadow_fb = malloc(shadow_fb_size);
++  menubg_img = malloc(shadow_fb_size);
+   if (shadow_fb == NULL || menubg_img == NULL) {
+     fprintf(stderr, "OOM\n");
+     exit(1);
+@@ -1119,8 +1122,8 @@ void plat_video_menu_leave(void)
+   int d;
+ 
+   in_menu = 0;
+-  if (plat_sdl_overlay != NULL || plat_sdl_gl_active)
+-    memset(shadow_fb, 0, g_menuscreen_w * g_menuscreen_h * 2);
++  if (plat_sdl_overlay != NULL || plat_sdl_gl_active || plumos_a30_native_fb32())
++    memset(shadow_fb, 0, shadow_fb_size);
+ 
+   if (plat_target.vout_fullscreen)
+     change_mode(fs_w, fs_h);

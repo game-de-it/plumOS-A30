@@ -1,0 +1,34 @@
+diff --git a/frontend/menu.c b/frontend/menu.c
+--- a/frontend/menu.c
++++ b/frontend/menu.c
+@@ -10,6 +10,7 @@
+ 
+ #define _GNU_SOURCE 1
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include <errno.h>
+ #ifndef NO_DYLIB
+@@ -2728,12 +2729,21 @@ void menu_init(void)
+ void menu_init(void)
+ {
+ 	char buff[MAXPATHLEN];
++	const char *menu_scale_env;
++	int menu_scale;
+ 	int i;
+ 
+ 	cpu_clock_st = cpu_clock = plat_target_cpu_clock_get();
+ 
+ 	scan_bios_plugins();
+-	menu_init_base_scale(g_menuscreen_w >= 640 && g_menuscreen_h >= 480 ? 2 : 1);
++	menu_scale = g_menuscreen_w >= 640 && g_menuscreen_h >= 480 ? 2 : 1;
++	menu_scale_env = getenv("PLUMOS_A30_PCSX_MENU_SCALE");
++	if (menu_scale_env != NULL && menu_scale_env[0] != '\0') {
++		int requested = atoi(menu_scale_env);
++		if (requested >= 1 && requested <= 4)
++			menu_scale = requested;
++	}
++	menu_init_base_scale(menu_scale);
+ 
+ 	menu_set_defconfig();
+ 	menu_load_config(0);

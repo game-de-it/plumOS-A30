@@ -1,0 +1,85 @@
+diff --git a/frontend/plat_sdl.c b/frontend/plat_sdl.c
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -74,17 +74,30 @@ static const struct in_default_bind in_sdl_defbinds[] = {
+   { SDLK_DOWN,   IN_BINDTYPE_PLAYER12, DKEY_DOWN },
+   { SDLK_LEFT,   IN_BINDTYPE_PLAYER12, DKEY_LEFT },
+   { SDLK_RIGHT,  IN_BINDTYPE_PLAYER12, DKEY_RIGHT },
+-  { SDLK_d,      IN_BINDTYPE_PLAYER12, DKEY_TRIANGLE },
+-  { SDLK_z,      IN_BINDTYPE_PLAYER12, DKEY_CROSS },
+-  { SDLK_x,      IN_BINDTYPE_PLAYER12, DKEY_CIRCLE },
+-  { SDLK_s,      IN_BINDTYPE_PLAYER12, DKEY_SQUARE },
+-  { SDLK_v,      IN_BINDTYPE_PLAYER12, DKEY_START },
+-  { SDLK_c,      IN_BINDTYPE_PLAYER12, DKEY_SELECT },
+-  { SDLK_w,      IN_BINDTYPE_PLAYER12, DKEY_L1 },
+-  { SDLK_r,      IN_BINDTYPE_PLAYER12, DKEY_R1 },
++  { SDLK_LALT,   IN_BINDTYPE_PLAYER12, DKEY_TRIANGLE },
++  { SDLK_SPACE,  IN_BINDTYPE_PLAYER12, DKEY_CROSS },
++  { SDLK_LCTRL,  IN_BINDTYPE_PLAYER12, DKEY_CIRCLE },
++  { SDLK_LSHIFT, IN_BINDTYPE_PLAYER12, DKEY_SQUARE },
++  { SDLK_RETURN, IN_BINDTYPE_PLAYER12, DKEY_START },
++  { SDLK_RCTRL,  IN_BINDTYPE_PLAYER12, DKEY_SELECT },
++  { SDLK_TAB,    IN_BINDTYPE_PLAYER12, DKEY_L1 },
++  { SDLK_BACKSPACE, IN_BINDTYPE_PLAYER12, DKEY_R1 },
+   { SDLK_e,      IN_BINDTYPE_PLAYER12, DKEY_L2 },
+   { SDLK_t,      IN_BINDTYPE_PLAYER12, DKEY_R2 },
+   { SDLK_ESCAPE, IN_BINDTYPE_EMU, SACTION_ENTER_MENU },
++  { SDLK_WORLD_0,  IN_BINDTYPE_PLAYER12, DKEY_CROSS },
++  { SDLK_WORLD_1,  IN_BINDTYPE_PLAYER12, DKEY_CIRCLE },
++  { SDLK_WORLD_2,  IN_BINDTYPE_PLAYER12, DKEY_SQUARE },
++  { SDLK_WORLD_3,  IN_BINDTYPE_PLAYER12, DKEY_TRIANGLE },
++  { SDLK_WORLD_4,  IN_BINDTYPE_PLAYER12, DKEY_L1 },
++  { SDLK_WORLD_5,  IN_BINDTYPE_PLAYER12, DKEY_R1 },
++  { SDLK_WORLD_6,  IN_BINDTYPE_PLAYER12, DKEY_SELECT },
++  { SDLK_WORLD_7,  IN_BINDTYPE_PLAYER12, DKEY_START },
++  { SDLK_WORLD_8,  IN_BINDTYPE_PLAYER12, DKEY_SELECT },
++  { SDLK_WORLD_9,  IN_BINDTYPE_PLAYER12, DKEY_START },
++  { SDLK_WORLD_10, IN_BINDTYPE_EMU, SACTION_ENTER_MENU },
++  { SDLK_WORLD_11, IN_BINDTYPE_PLAYER12, DKEY_L2 },
++  { SDLK_WORLD_12, IN_BINDTYPE_PLAYER12, DKEY_R2 },
+   { SDLK_F1,     IN_BINDTYPE_EMU, SACTION_SAVE_STATE },
+   { SDLK_F2,     IN_BINDTYPE_EMU, SACTION_LOAD_STATE },
+   { SDLK_F3,     IN_BINDTYPE_EMU, SACTION_PREV_SSLOT },
+@@ -104,12 +117,12 @@ const struct menu_keymap in_sdl_key_map[] =
+   { SDLK_DOWN,   PBTN_DOWN },
+   { SDLK_LEFT,   PBTN_LEFT },
+   { SDLK_RIGHT,  PBTN_RIGHT },
+-  { SDLK_RETURN, PBTN_MOK },
+-  { SDLK_ESCAPE, PBTN_MBACK },
+-  { SDLK_SEMICOLON,    PBTN_MA2 },
+-  { SDLK_QUOTE,        PBTN_MA3 },
+-  { SDLK_LEFTBRACKET,  PBTN_L },
+-  { SDLK_RIGHTBRACKET, PBTN_R },
++  { SDLK_SPACE,  PBTN_MOK },
++  { SDLK_LCTRL,  PBTN_MBACK },
++  { SDLK_LSHIFT, PBTN_MA2 },
++  { SDLK_LALT,   PBTN_MA3 },
++  { SDLK_TAB,    PBTN_L },
++  { SDLK_BACKSPACE, PBTN_R },
+ };
+ #endif
+ 
+@@ -377,6 +390,8 @@ void plat_init(void)
+   plat_sdl_quit_cb = quit_cb;
+ 
+   old_fullscreen = -1; // hack
++  if (plumos_a30_native_fb32())
++    screen_flags = SDL_SWSURFACE;
+ 
+   ret = plat_sdl_init();
+   if (ret != 0)
+@@ -771,6 +786,14 @@ static void change_mode(int w, int h)
+       plat_target.vout_fullscreen != vout_fullscreen_old)
+   {
+     Uint32 flags = plat_sdl_screen->flags;
++    if (plumos_a30_native_fb32()) {
++      flags &= ~(SDL_HWSURFACE | SDL_DOUBLEBUF);
++#ifdef SDL_TRIPLEBUF
++      flags &= ~SDL_TRIPLEBUF;
++#endif
++      flags |= SDL_SWSURFACE;
++      screen_flags = SDL_SWSURFACE;
++    }
+     if (plat_target.vout_fullscreen)
+       flags |= SDL_FULLSCREEN;
+     else {

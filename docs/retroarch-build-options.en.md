@@ -74,6 +74,7 @@ Video4Linux2 no
 | remote control | `--enable-networking`, `--enable-command` | Candidate path for safe save/quit from the shutdown/resume flow. |
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | Stock has both OSS and ALSA. Verify actual A30 device behavior. |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | Avoid stock SDL1; plumOS prefers `plumos-joystickd --device-mode xbox` with SDL2/evdev. |
+| screenshots/images | rpng/rjpeg/screenshots | Enable because manually captured screenshots may be used as gallery/scraping fallbacks. |
 | content | `--enable-chd`, `--enable-flac` candidate | Needed if PS1/PCE CD/Mega CD/Neo Geo CD remain in the practical target set. |
 | info | core info cache optional | Not required because the FE owns launch profiles, but useful for core metadata. |
 
@@ -83,7 +84,6 @@ Video4Linux2 no
 | --- | --- | --- |
 | Netplay | Netplay | Stock enables it, but A30 Wi-Fi/CPU make it lower priority. Keep separate from Network Command. |
 | LibretroDB | database/playlists | The FE manages ROM scan/metadata, so this is not required for the first full runtime. |
-| screenshots/images | rpng/rjpeg/screenshots | Useful later for visual checks/thumbnails, but audio/input come first. |
 | menu | Ozone/XMB/MaterialUI | Use RGUI on A30; polish belongs mostly in the FE. |
 | rewind/runahead | rewind, runahead | Disable initially for A30 CPU/RAM headroom. |
 | softpatch | patch/xdelta | Re-enable when IPS/BPS support is needed. |
@@ -124,16 +124,63 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 
 - `fceumm` + NES: ROM load, save-path creation, and Mali fbdev display loop confirmed
 - `gambatte` + GB: ROM load and Mali fbdev display loop confirmed
 - Both game screens were visually confirmed by the user
-- Sound is untested because `retroarch-minimal.cfg` disables audio
+- Sound was untested in the minimal build because `retroarch-minimal.cfg`
+  disabled audio
+
+RetroArch 1.22.2 practical:
+
+- `./scripts/docker-build.sh retroarch-practical` builds a practical runtime
+  with OSS/ALSA audio, SDL2 joypad, Network Command, LibretroDB, 7zip, and
+  screenshots/images.
+- On the A30, `input_driver = "null"` plus `input_joypad_driver = "sdl2"` and
+  `plumos-joystickd --device-mode xbox` detected `plumOS A30 Gamepad`.
+- Probes using `udev`/`linuxraw` as the primary input driver failed to
+  initialize, so the initial practical config prefers SDL2 joypad.
+- OSS audio + SDL2 joypad + `audio_latency = 128` + CPU `performance` had
+  working screen, sound, and controls in user visual testing.
+- CPU `ondemand` caused audio stutter. CPU `userspace fixed 648000 kHz` with
+  2 cores worked well for NES/GB and is the initial lightweight-core default
+  for a better stability/battery balance.
+- With the power cable unplugged, the dummy CPU load measurement averaged about
+  1.98 W for 2 cores + performance and about 8.07 W for 4 cores + performance.
+  Since 4 cores consumed about 4.1x more power, core count is also a
+  system/ROM override target.
+- The FE SELECT core menu shows CPU presets and core-count presets and resolves
+  system/ROM overrides into `plumos-retroarch-launch --cpu/--freq/--cores`.
+- `--enable-command` is enabled in the practical runtime. Because A30 `lo` can
+  be down, the launcher tries `ip link set lo up` before starting RetroArch.
+  As of 2026-06-08, `GET_STATUS`/`QUIT` work through `127.0.0.1:55355`.
+  The direct launcher path also verified `SAVE_STATE` -> `SAVE_FILES` ->
+  `CLOSE_CONTENT` -> `QUIT`, with `GET_STATUS CONTENTLESS` after
+  `CLOSE_CONTENT`. The launcher TERM cleanup now uses `SAVE_STATE_SLOT 999` ->
+  `SAVE_FILES` -> `CLOSE_CONTENT` -> `QUIT` by default when
+  `PLUMOS_RA_SAFE_EXIT=1`, then falls back to kill. The slot is configurable via
+  `PLUMOS_RA_SAFE_STATE_SLOT` / `--safe-state-slot`.
+  `plumos-safe-shutdown --shutdown --no-poweroff` also verifies the
+  FE/text-ui-owned launcher path: it TERM's the launcher and leaves
+  `resume-session.json` pending with `auto_state_load=true`. The controller UI
+  SAFE menu / START Shutdown path also calls `plumos-safe-shutdown --no-poweroff`
+  successfully. The `plumos-safe-hotkeyd` `SIGUSR1` trigger also drives the same
+  safe-exit path while RetroArch is running, with resume hold, CPU restore,
+  frontend restart, and no residual processes. `plumos-text-ui launch --execute`
+  auto-starting `plumos-safe-hotkeyd --oneshot` is also verified.
+  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the
+  path, and the physical Function press is verified as `trigger source=key`.
+  The 2026-06-08 artifact
+  `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
+  verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a resume plan using
+  `--entry-slot 999`. Next is deciding whether an in-game SAFE menu or direct
+  safe-exit is the right UX.
 
 ## Next Practical Build Target
 
-The first full runtime should keep the minimal video path and add only the next
-needed pieces:
+The first practical runtime should keep the minimal video path and add only the
+next needed pieces:
 
-- Enable OSS audio and run a short sound test with a core.
+- Use OSS audio and SDL2 joypad as the initial practical config.
 - Enable/compare ALSA only if `libasound` and device behavior are stable.
-- Start `plumos-joystickd --device-mode xbox` and check whether RetroArch input
-  works through SDL2/udev or linuxraw.
-- Enable `--enable-command` and test safe `QUIT`/save-state actions from the FE.
+- The safe-exit flow wired through controller UI SAFE/START and
+  `plumos-safe-hotkeyd` is verified through the physical Function press and
+  power/sleep backend dry-runs. Next is extending it to an in-game SAFE menu if
+  needed, or live-fire real poweroff / real suspend checks.
 - Enable/compare CHD/FLAC before PS1/PCE CD/Mega CD/Neo Geo CD core smoke tests.

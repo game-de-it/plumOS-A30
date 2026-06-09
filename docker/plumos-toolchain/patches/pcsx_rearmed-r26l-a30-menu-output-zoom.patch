@@ -1,0 +1,106 @@
+--- a/frontend/plat_sdl.c
++++ b/frontend/plat_sdl.c
+@@ -250,9 +250,62 @@ static void plumos_a30_blit_rotated_xrgb8888(const void *src_, int w, int h,
+         }
+       }
+     }
++  }
++}
++
++static int plumos_a30_zoom_coord(int v, int center, int num, int den)
++{
++  int off = v - center;
++  if (off >= 0)
++    return center + (off * den + num / 2) / num;
++  return center - ((-off * den + num / 2) / num);
++}
++
++static void plumos_a30_menu_zoom_ratio(int *num, int *den)
++{
++  const char *value = getenv("PLUMOS_A30_PCSX_MENU_ZOOM");
++  long n, d = 1;
++  char *end;
++
++  *num = 1;
++  *den = 1;
++
++  if (value == NULL || value[0] == '\0')
++    return;
++  if (value[0] == '0' || value[0] == 'n' || value[0] == 'N'
++      || value[0] == 'f' || value[0] == 'F') {
++    *num = 1;
++    *den = 1;
++    return;
+   }
++
++  n = strtol(value, &end, 10);
++  if (end != NULL && *end == '/') {
++    const char *den_start = end + 1;
++    d = strtol(den_start, &end, 10);
++  }
++
++  if (n >= d && d > 0 && n <= d * 2) {
++    *num = (int)n;
++    *den = (int)d;
++  }
+ }
+ 
++static int plumos_a30_menu_edge_mask(void)
++{
++  const char *value = getenv("PLUMOS_A30_PCSX_MENU_EDGE_MASK");
++  int pixels;
++
++  if (value == NULL || value[0] == '\0')
++    return 0;
++  pixels = atoi(value);
++  if (pixels < 0)
++    return 0;
++  if (pixels > 64)
++    return 64;
++  return pixels;
++}
++
+ static void plumos_a30_blit_menu_rotated_xrgb8888(void)
+ {
+   const uint16_t *src = g_menuscreen_ptr;
+@@ -265,19 +318,33 @@ static void plumos_a30_blit_menu_rotated_xrgb8888(void)
+   int ox = (plat_sdl_screen->w - out_w) / 2;
+   int oy = (plat_sdl_screen->h - out_h) / 2;
+   int ccw = plumos_a30_rotate_ccw();
+-  int x, y;
++  int zoom_num, zoom_den;
++  int edge_mask;
++  int px, py, x, y, ux, uy;
+ 
+   if (ox < 0 || oy < 0)
+     return;
+   for (y = 0; y < plat_sdl_screen->h; y++)
+     memset(dst + y * dpitch, 0, plat_sdl_screen->w * 4);
+ 
+-  for (y = 0; y < g_menuscreen_h; y++) {
+-    const uint16_t *row = src + y * g_menuscreen_pp;
+-    for (x = 0; x < g_menuscreen_w; x++) {
+-      int px = ccw ? y : logical_h - 1 - y;
+-      int py = ccw ? logical_w - 1 - x : x;
+-      dst[(oy + py) * dpitch + ox + px] = plumos_rgb565_to_xrgb8888(row[x]);
++  plumos_a30_menu_zoom_ratio(&zoom_num, &zoom_den);
++  edge_mask = plumos_a30_menu_edge_mask();
++
++  for (py = 0; py < out_h; py++) {
++    for (px = 0; px < out_w; px++) {
++      if (px < edge_mask || px >= out_w - edge_mask
++          || py < edge_mask || py >= out_h - edge_mask)
++        continue;
++      ux = ccw ? logical_w - 1 - py : py;
++      uy = ccw ? px : logical_h - 1 - px;
++
++      x = plumos_a30_zoom_coord(ux, logical_w / 2, zoom_num, zoom_den);
++      y = plumos_a30_zoom_coord(uy, logical_h / 2, zoom_num, zoom_den);
++      if (x < 0 || x >= g_menuscreen_w || y < 0 || y >= g_menuscreen_h)
++        continue;
++
++      dst[(oy + py) * dpitch + ox + px] =
++        plumos_rgb565_to_xrgb8888(src[y * g_menuscreen_pp + x]);
+     }
+   }
+ }

@@ -73,6 +73,7 @@ Video4Linux2 no
 | remote control | `--enable-networking`, `--enable-command` | shutdown/resume flow から save/quit を安全に送る候補。 |
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | stock は OSS/ALSA 両方有効。A30 実機では音声 device の掴み方を検証する。 |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | stock SDL1 ではなく、plumOS は `plumos-joystickd --device-mode xbox` と SDL2/evdev を優先する。 |
+| screenshots/images | rpng/rjpeg/screenshots | 手動 screenshot を gallery/scraping fallback に使う可能性があるため有効化する。 |
 | content | `--enable-chd`, `--enable-flac` candidate | PS1/PCE CD/Mega CD/Neo Geo CD を残すなら CHD/CDDA 対応を検証する。 |
 | info | core info cache optional | FE が launch profile を管理するため必須ではないが、core metadata には便利。 |
 
@@ -82,7 +83,6 @@ Video4Linux2 no
 | --- | --- | --- |
 | Netplay | Netplay | stock は有効だが、A30 Wi-Fi/CPUでは初期優先度を下げる。Network Command とは分ける。 |
 | LibretroDB | database/playlists | FE 側で ROM scan/metadata を管理するため、初期 full runtime の必須ではない。 |
-| screenshots/images | rpng/rjpeg/screenshots | 画面確認や thumbnail 用に便利だが、まずは audio/input を優先。 |
 | menu | Ozone/XMB/MaterialUI | A30では RGUI を基本にする。見た目改善は FE 側で行う。 |
 | rewind/runahead | rewind, runahead | A30 の CPU/RAM では初期無効でよい。 |
 | softpatch | patch/xdelta | IPS/BPS が必要になったら戻す。 |
@@ -123,15 +123,53 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 
 - `fceumm` + NES: ROM load、save path生成、Mali fbdev表示 loop 生存確認済み
 - `gambatte` + GB: ROM load、Mali fbdev表示 loop 生存確認済み
 - ユーザー目視で両方のゲーム画面表示を確認済み
-- 音声は `retroarch-minimal.cfg` で無効化しているため未検証
+- minimal build の音声は `retroarch-minimal.cfg` で無効化していたため未検証
+
+RetroArch 1.22.2 practical:
+
+- `./scripts/docker-build.sh retroarch-practical` で OSS/ALSA audio、SDL2 joypad、Network Command、
+  LibretroDB、7zip、screenshots/images を含む実用寄り runtime を build する。
+- 実機では `input_driver = "null"` + `input_joypad_driver = "sdl2"` +
+  `plumos-joystickd --device-mode xbox` で `plumOS A30 Gamepad` が認識された。
+- `udev`/`linuxraw` を primary input driver にした probe は初期化に失敗したため、
+  初期実用 config は SDL2 joypad を優先する。
+- OSS audio + SDL2 joypad + `audio_latency = 128` + CPU `performance` では画面/音/操作が
+  ユーザー目視で良好。
+- CPU `ondemand` では音途切れが出た。CPU `userspace fixed 648000 kHz` + 2 cores は
+  NES/GB で画面/音/操作が良好で、電池消費と安定性のバランス上、軽量 core の初期値にする。
+- 電源ケーブルを抜いた状態の dummy CPU負荷計測では、2 cores + performance が約 1.98 W、
+  4 cores + performance が約 8.07 W で、4 cores は約 4.1 倍の消費だった。
+  そのため core count も system/ROM override 対象にする。
+- FE の SELECT core menu には CPU preset と core count preset を表示し、system/ROM override から
+  `plumos-retroarch-launch --cpu/--freq/--cores` へ解決する。
+- `--enable-command` は practical runtime で有効化済み。A30 では `lo` がDOWNのことがあるため、
+  launcher が RetroArch 起動前に `ip link set lo up` を試す。2026-06-08 時点で
+  `GET_STATUS`/`QUIT` は `127.0.0.1:55355` 経由で確認済み。direct launcher 経路では
+  `SAVE_STATE` -> `SAVE_FILES` -> `CLOSE_CONTENT` -> `QUIT` も通り、`CLOSE_CONTENT` 後に
+  `GET_STATUS CONTENTLESS` を確認済み。launcher のTERM cleanupは
+  `PLUMOS_RA_SAFE_EXIT=1` 既定で `SAVE_STATE_SLOT 999` -> `SAVE_FILES` ->
+  `CLOSE_CONTENT` -> `QUIT` を試してからfallback killする。slot は
+  `PLUMOS_RA_SAFE_STATE_SLOT` / `--safe-state-slot` で変更できる。
+  `plumos-safe-shutdown --shutdown --no-poweroff` から FE/text-ui-owned launcher へTERMし、
+  `resume-session.json` を `pending=true` / `auto_state_load=true` のまま保持する経路も
+  A30実機で確認済み。controller UI の SAFE menu / START Shutdown から
+  `plumos-safe-shutdown --no-poweroff` を呼ぶ経路も確認済み。`plumos-safe-hotkeyd` の
+  `SIGUSR1` trigger では、RetroArch 実行中に同じ安全終了pathを通し、resume hold、
+  CPU復元、FE再起動、残留なしまで確認済み。`plumos-text-ui launch --execute` からの
+  `plumos-safe-hotkeyd --oneshot` 自動起動も確認済み。
+  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で再実行でき、物理
+  Function 押下は `trigger source=key` として確認済み。2026-06-08 の
+  `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
+  では `SAVE_STATE_SLOT 999`、`.state999` 作成、resume plan の `--entry-slot 999`
+  まで確認済み。次はゲーム中SAFE menuを出すか直接安全終了にするかのUX決定。
 
 ## 次の実用 build の狙い
 
-最初の full runtime は、minimal video 経路を維持しつつ以下だけ増やすのがよいです。
+最初の practical runtime は、minimal video 経路を維持しつつ以下だけ増やすのがよいです。
 
-- OSS audio を有効にした build と config で短時間音出しを確認する。
+- OSS audio と SDL2 joypad を初期実用 config とする。
 - ALSA は `libasound` と実機 device が安定して扱える場合だけ併用または比較する。
-- `plumos-joystickd --device-mode xbox` を起動し、SDL2/udev または linuxraw で RetroArch
-  input が読めるか確認する。
-- `--enable-command` を有効にし、FE から `QUIT`/save-state 系の安全終了を試す。
+- controller UI の SAFE menu/START Shutdown と `plumos-safe-hotkeyd` から接続済みの
+  安全終了flowは、物理 Function 押下と power/sleep backend dry-run まで確認済み。
+  次は必要ならゲーム中SAFE menu、または実 poweroff / 実 suspend の発火確認へ広げる。
 - CHD/FLAC は PS1/PCE CD/Mega CD/Neo Geo CD の core smoke 前に有効化して比較する。

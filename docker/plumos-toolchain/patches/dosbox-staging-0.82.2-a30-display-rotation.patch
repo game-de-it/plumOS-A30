@@ -1,0 +1,184 @@
+diff --git a/include/sdlmain.h b/include/sdlmain.h
+index b1466f6..7e6f86c 100644
+--- a/include/sdlmain.h
++++ b/include/sdlmain.h
+@@ -303,7 +303,10 @@ struct SDL_Block {
+ 	struct {
+ 		SDL_Surface* input_surface   = nullptr;
+ 		SDL_Texture* texture         = nullptr;
++		SDL_Texture* a30_output      = nullptr;
+ 		SDL_PixelFormat* pixelFormat = nullptr;
++		int a30_output_width         = 0;
++		int a30_output_height        = 0;
+ 
+ 		InterpolationMode interpolation_mode = InterpolationMode::Bilinear;
+ 	} texture = {};
+diff --git a/src/gui/sdlmain.cpp b/src/gui/sdlmain.cpp
+index 04b7641..29fe857 100644
+--- a/src/gui/sdlmain.cpp
++++ b/src/gui/sdlmain.cpp
+@@ -2549,6 +2549,143 @@ static void update_frame_texture([[maybe_unused]] const uint16_t *changedLines)
+ 	                  sdl.texture.input_surface->pitch);
+ }
+ 
++static int get_plumos_a30_dosbox_rotation_degrees()
++{
++	static bool initialized = false;
++	static int degrees = 0;
++	if (initialized) {
++		return degrees;
++	}
++	initialized = true;
++
++	const auto env = getenv("PLUMOS_A30_DOSBOX_ROTATION");
++	if (!env || !*env) {
++		return degrees;
++	}
++
++	std::string value = env;
++	lowcase(value);
++	if (value == "cw" || value == "90") {
++		degrees = 90;
++	} else if (value == "ccw" || value == "270") {
++		degrees = 270;
++	} else if (value == "180") {
++		degrees = 180;
++	} else if (value != "none" && value != "0") {
++		LOG_WARNING("plumOS A30 display rotation: unsupported value '%s'",
++		            env);
++	}
++
++	if (degrees) {
++		LOG_MSG("plumOS A30 display rotation: %d", degrees);
++	}
++	return degrees;
++}
++
++static void destroy_plumos_a30_dosbox_output()
++{
++	if (sdl.texture.a30_output) {
++		SDL_DestroyTexture(sdl.texture.a30_output);
++		sdl.texture.a30_output = nullptr;
++	}
++	sdl.texture.a30_output_width  = 0;
++	sdl.texture.a30_output_height = 0;
++}
++
++static bool ensure_plumos_a30_dosbox_output(const int width, const int height)
++{
++	if (sdl.texture.a30_output &&
++	    sdl.texture.a30_output_width == width &&
++	    sdl.texture.a30_output_height == height) {
++		return true;
++	}
++
++	destroy_plumos_a30_dosbox_output();
++
++	uint32_t pixel_format = 0;
++	SDL_QueryTexture(sdl.texture.texture, &pixel_format, nullptr, nullptr, nullptr);
++
++	sdl.texture.a30_output = SDL_CreateTexture(sdl.renderer,
++	                                           pixel_format,
++	                                           SDL_TEXTUREACCESS_TARGET,
++	                                           width,
++	                                           height);
++	if (!sdl.texture.a30_output) {
++		LOG_WARNING("plumOS A30 display rotation: failed creating %dx%d target texture: %s",
++		            width,
++		            height,
++		            SDL_GetError());
++		return false;
++	}
++
++	SDL_SetTextureBlendMode(sdl.texture.a30_output, SDL_BLENDMODE_NONE);
++	sdl.texture.a30_output_width  = width;
++	sdl.texture.a30_output_height = height;
++	return true;
++}
++
++static bool present_frame_texture_plumos_a30_rotated(const int degrees)
++{
++	int output_width  = 0;
++	int output_height = 0;
++	if (SDL_GetRendererOutputSize(sdl.renderer, &output_width, &output_height) != 0 ||
++	    output_width <= 0 || output_height <= 0) {
++		LOG_WARNING("plumOS A30 display rotation: failed reading renderer output size: %s",
++		            SDL_GetError());
++		return false;
++	}
++
++	const bool swaps_axes = (degrees == 90 || degrees == 270);
++	const int target_width = swaps_axes ? output_height : output_width;
++	const int target_height = swaps_axes ? output_width : output_height;
++	if (!ensure_plumos_a30_dosbox_output(target_width, target_height)) {
++		return false;
++	}
++
++	SDL_Rect previous_viewport = {};
++	SDL_RenderGetViewport(sdl.renderer, &previous_viewport);
++	const auto previous_target = SDL_GetRenderTarget(sdl.renderer);
++
++	if (SDL_SetRenderTarget(sdl.renderer, sdl.texture.a30_output) != 0) {
++		LOG_WARNING("plumOS A30 display rotation: failed setting target texture: %s",
++		            SDL_GetError());
++		return false;
++	}
++
++	SDL_RenderSetViewport(sdl.renderer, nullptr);
++	SDL_RenderClear(sdl.renderer);
++
++	const SDL_Rect target_viewport = to_sdl_rect(calc_draw_rect_in_pixels(
++	        DosBox::Rect(target_width, target_height)));
++	SDL_RenderSetViewport(sdl.renderer, &target_viewport);
++	SDL_RenderCopy(sdl.renderer, sdl.texture.texture, nullptr, nullptr);
++
++	SDL_SetRenderTarget(sdl.renderer, previous_target);
++	SDL_RenderSetViewport(sdl.renderer, nullptr);
++	SDL_RenderClear(sdl.renderer);
++
++	SDL_Rect destination = {};
++	if (swaps_axes) {
++		destination = {(output_width - target_width) / 2,
++		               (output_height - target_height) / 2,
++		               target_width,
++		               target_height};
++	} else {
++		destination = {0, 0, output_width, output_height};
++	}
++
++	SDL_RenderCopyEx(sdl.renderer,
++	                 sdl.texture.a30_output,
++	                 nullptr,
++	                 &destination,
++	                 degrees,
++	                 nullptr,
++	                 SDL_FLIP_NONE);
++
++	SDL_RenderSetViewport(sdl.renderer, &previous_viewport);
++	return true;
++}
++
+ static std::optional<RenderedImage> get_rendered_output_from_backbuffer()
+ {
+ 	// This should be impossible, but maybe the user is hitting the screen
+@@ -2674,7 +2811,11 @@ static bool present_frame_texture()
+ 	const auto is_presenting = render_pacer->CanRun();
+ 	if (is_presenting) {
+ 		SDL_RenderClear(sdl.renderer);
+-		SDL_RenderCopy(sdl.renderer, sdl.texture.texture, nullptr, nullptr);
++		const auto rotation_degrees = get_plumos_a30_dosbox_rotation_degrees();
++		if (!rotation_degrees ||
++		    !present_frame_texture_plumos_a30_rotated(rotation_degrees)) {
++			SDL_RenderCopy(sdl.renderer, sdl.texture.texture, nullptr, nullptr);
++		}
+ 
+ 		if (CAPTURE_IsCapturingPostRenderImage()) {
+ 			// glReadPixels() implicitly blocks until all pipelined rendering
+@@ -2800,6 +2941,7 @@ void GFX_UpdateDisplayDimensions(int width, int height)
+ 
+ static void clean_up_sdl_resources()
+ {
++	destroy_plumos_a30_dosbox_output();
+ 	if (sdl.texture.pixelFormat) {
+ 		SDL_FreeFormat(sdl.texture.pixelFormat);
+ 		sdl.texture.pixelFormat = nullptr;

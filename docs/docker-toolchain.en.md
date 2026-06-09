@@ -36,8 +36,19 @@ Outputs:
 ```text
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
+dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/ss
+dist/plumos-userland/plumos/gnu/bin/strace
+dist/plumos-userland/plumos/gnu/libexec/
+dist/plumos-userland/plumos/lib/
 dist/plumos-userland/plumos/share/doc/busybox/
+dist/plumos-userland/plumos/share/doc/gnu-userland/
 ```
+
+BusyBox applets are installed as wrapper scripts instead of symlinks for vfat.
+`iproute2` `ip`/`ss` and `strace` come from Debian armhf packages; the real
+binaries live in `plumos/gnu/libexec`, and `plumos/gnu/bin` wrappers run them
+through the plumOS-bundled dynamic loader and library path.
 
 Build the frontend prototype.
 
@@ -54,6 +65,8 @@ dist/plumos-frontend/plumos/bin/plumos-text-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
+dist/plumos-frontend/plumos/bin/plumos-safe-hotkeyd
+dist/plumos-frontend/plumos/bin/plumos-safe-shutdown
 dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
@@ -69,6 +82,9 @@ Outputs:
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
 dist/plumos-runtime-probe/plumos/bin/plumos-input-compare
+dist/plumos-runtime-probe/plumos/bin/plumos-shm-watch
+dist/plumos-runtime-probe/plumos/bin/plumos-serial-joy-probe
+dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
@@ -138,9 +154,10 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-Build the initial libretro smoke cores, `fceumm` and `gambatte`. The build uses
-upstream HEAD at build time and records the selected commits, flags, and NEEDED
-entries in the manifest.
+Build the libretro core package. The current target builds 41 Class A/B cores
+for the A30 armv7 hard-float environment and records selected commits, flags,
+and NEEDED entries in the manifest. You can also filter the build with values
+such as `PLUMOS_CORE_FILTER=vecx` or `PLUMOS_CORE_FILTER=class-a`.
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
@@ -149,12 +166,32 @@ entries in the manifest.
 Outputs:
 
 ```text
-dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
-dist/plumos-libretro-cores/plumos/retroarch/cores/gambatte_libretro.so
-dist/plumos-libretro-cores/plumos/retroarch/info/fceumm_libretro.info
-dist/plumos-libretro-cores/plumos/retroarch/info/gambatte_libretro.info
+dist/plumos-libretro-cores/plumos/retroarch/cores/*_libretro.so
+dist/plumos-libretro-cores/plumos/retroarch/info/*_libretro.info
 dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+Build the standalone emulator package. The current target builds PPSSPP,
+ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed for the A30 armv7
+hard-float environment and records selected tags/commits, NEEDED entries, and
+build logs in the manifest. You can filter the build with values such as
+`PLUMOS_STANDALONE_FILTER=ppsspp`. Set `FAIL_ON_STANDALONE_ERROR=1` to make the
+whole command fail when any emulator build fails.
+
+```sh
+./scripts/docker-build.sh standalone-emulators
+```
+
+Outputs:
+
+```text
+dist/plumos-standalone-emulators/plumos/emulators/<id>/bin/
+dist/plumos-standalone-emulators/plumos/emulators/ppsspp/assets/
+dist/plumos-standalone-emulators/plumos/bin/plumos-standalone-launch
+dist/plumos-standalone-emulators/plumos/lib/
+dist/plumos-standalone-emulators/docs/manifest.txt
+dist/plumos-standalone-emulators/docs/build-logs/
 ```
 
 ## Deploy And Run On A30
@@ -262,6 +299,10 @@ framebuffer, then restarts it afterward. As of 2026-06-07, `fceumm` + NES and
 screens were visually confirmed on the A30. The current
 `retroarch-minimal.cfg` disables audio, so sound remains part of the full
 runtime validation.
+
+As of 2026-06-07, the bulk core build stages 41 cores. Real-device screen,
+audio, and input validation is still only done for `fceumm`/`gambatte`; the rest
+must be checked per system after deployment.
 
 ```sh
 ./scripts/docker-build.sh libretro-cores

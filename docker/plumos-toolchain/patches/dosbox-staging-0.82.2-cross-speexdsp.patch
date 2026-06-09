@@ -1,0 +1,26 @@
+diff --git a/meson.build b/meson.build
+index 8b1c42b..f7c02a1 100644
+--- a/meson.build
++++ b/meson.build
+@@ -911,13 +911,14 @@ speexdsp_dep = dependency(
+     include_type: 'system',
+ )
+ 
+-# The library needs to be available and testable to be trusted
+-can_trust_system_speexdsp = (
+-    speexdsp_dep.found()
+-    and meson.can_run_host_binaries()
+-)
++# The library normally needs to be testable to be trusted. In the plumOS
++# cross-build container we cannot run armhf test binaries, so keep the system
++# armhf SpeexDSP package instead of falling back to a wrap that also tries to
++# execute target binaries during setup.
++speexdsp_summary_msg = 'system library (cross, untested)'
++can_trust_system_speexdsp = speexdsp_dep.found()
+ 
+ # Test the library. Trust is dropped if the test fails.
+-if can_trust_system_speexdsp
++if can_trust_system_speexdsp and meson.can_run_host_binaries()
+     system_speexdsp_test = cxx.run(
+         files('contrib/check-speexdsp/test_speexdsp_float_api.cpp'),
+         dependencies: speexdsp_dep,
