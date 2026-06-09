@@ -98,6 +98,24 @@
   list項目より強くなりすぎない明度にする。
 - System list の主要文字は `2x` を基準にする。
 - TOP/ROM list の入力は、上下で1項目移動、右で1ページ送り、左で1ページ戻しを行う。
+
+## Graphic Mode
+
+`UI Mode` を `Graphic` にした場合の TOP/ROM/Favorites/Recent は、画像が未整備でも
+成立するカード/プレビュー型UIを基準にする。Settings、HELP、SAFE、Network、System系の
+操作画面は視認性と誤操作防止を優先し、当面は現行の青バー付きlist UIを使う。
+
+- TOP は `SYSTEMS` のカードグリッドにする。1ページは6件を基準にし、右/左でページ送りする。
+- TOP card は system 名、ROM数、fallback initials を表示する。画像がなくても空に見せない。
+- ROM list は左に選択リスト、右に選択中ROMのプレビューパネルを置く。1ページは8件を基準にする。
+- ROM名は日本語を含めて正確に表示するため、GraphicのROM listではFreeType描画を優先する。
+- アートワーク未検出時は `NO ART` ではなく initials/fallback panel を表示し、将来の画像読み込みに
+  差し替えられる領域として扱う。
+- TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
+- 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。
+  紫・青一色、ベージュ一色などの単調なpaletteにはしない。
+- Graphic modeでも文字は `1x` 未満にしない。主要項目は `2x`、カード内の大きいfallback initialsは
+  装飾兼識別子として `4x` 程度を使ってよい。
 - 上下の1項目移動はソフトウェア key repeat を持つ。物理 input event が repeat event を
   出さない場合でも、押しっぱなしで連続移動できるようにする。
 - TOP では A で選択 system に入る。ROM list では A で選択 ROM を起動し、B で TOP へ戻る。

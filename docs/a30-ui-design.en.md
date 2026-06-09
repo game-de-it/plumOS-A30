@@ -166,6 +166,28 @@ The current Linux-console-style TOP/list UI should follow these rules.
   `plumos-controller-ui-mali.bin` processes can mix multiple UI frames and make
   design review misleading.
 
+## Graphic Mode
+
+When `UI Mode` is `Graphic`, TOP/ROM/Favorites/Recent use a card/preview UI that
+still works before artwork is curated. Settings, HELP, SAFE, Network, and System
+operation screens keep the current blue-accent list UI for readability and
+misclick prevention.
+
+- TOP uses a `SYSTEMS` card grid. One page shows 6 entries; Right/Left page.
+- TOP cards show system name, ROM count, and fallback initials so they never look
+  empty when artwork is missing.
+- ROM lists put the selectable list on the left and a selected-ROM preview panel
+  on the right. One page shows 8 entries.
+- ROM names prefer FreeType rendering so Japanese names and symbols remain
+  accurate.
+- Missing artwork uses an initials/fallback panel, treated as the future
+  replacement area for real images.
+- TOP/ROM/Favorites/Recent keep the same orange left accent bar as Text mode.
+- Use a near-black neutral background, dark gray/teal cards, and orange selection
+  outlines. Avoid one-note palettes such as all-purple, all-blue, or all-beige.
+- Graphic mode also keeps all text at `1x` or larger. Primary labels use `2x`;
+  large fallback initials may use about `4x` as visual identifiers.
+
 ## Interaction And Rendering Performance
 
 - TOP and ROM lists should feel similar during Up/Down key repeat. ROM lists

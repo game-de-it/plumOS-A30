@@ -458,6 +458,7 @@ struct ui_state {
   char wifi_result_gateway_ping[32];
   char wifi_result_stage[64];
   int wifi_result_success;
+  struct frontend_settings frontend_settings;
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
@@ -2584,16 +2585,27 @@ static int resolve_theme_font_path(const struct theme_state *theme, char *out,
   return 0;
 }
 
+static int font_path_is_bitmap_only(const char *path) {
+  const char *ext;
+
+  if (!path) {
+    return 0;
+  }
+  ext = strrchr(path, '.');
+  return ext && (strcmp(ext, ".bdf") == 0 || strcmp(ext, ".pcf") == 0);
+}
+
 static int choose_mali_font_path(struct ui_state *ui, const char *requested,
                                  char *out, size_t out_size) {
   static const char *rel_candidates[] = {
       "plumos/fonts/ui.ttf",
       "plumos/fonts/default.ttf",
       "plumos/fonts/default.otf",
-      "plumos/fonts/default.bdf",
       "RetroArch/.retroarch/assets/pkg/chinese-fallback-font.ttf",
       "RetroArch/.retroarch/system/msyh.ttf",
+      "miyoo/res/wqy-microhei.ttc",
       "miyoo/res/MicrosoftYaHeiGB.ttf",
+      "App/commander/res/wqy-microhei.ttc",
       "Themes/MakoVII/wqy-microhei.ttf",
   };
   size_t i;
@@ -2608,9 +2620,11 @@ static int choose_mali_font_path(struct ui_state *ui, const char *requested,
     }
     return copy_string(out, out_size, requested);
   }
-  if (resolve_theme_font_path(&ui->theme, out, out_size)) {
+  if (resolve_theme_font_path(&ui->theme, out, out_size) &&
+      !font_path_is_bitmap_only(out)) {
     return 1;
   }
+  out[0] = '\0';
   for (i = 0; i < sizeof(rel_candidates) / sizeof(rel_candidates[0]); i++) {
     char candidate[PATH_MAX];
     if (join_path(candidate, sizeof(candidate), ui->sdcard_root, rel_candidates[i]) &&
@@ -3539,6 +3553,7 @@ static int load_settings_entries(struct ui_state *ui) {
   if (!load_settings(ui->settings_path, &settings)) {
     return 0;
   }
+  ui->frontend_settings = settings;
   load_theme_state(ui, settings.theme_id);
   switch (ui->settings_category) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
@@ -3619,6 +3634,7 @@ static int load_top_entries(struct ui_state *ui) {
   if (!load_settings(ui->settings_path, &settings)) {
     copy_string(ui->status, sizeof(ui->status), "settings read failed");
   }
+  ui->frontend_settings = settings;
 
   json = read_file(ui->top_cache_path, &json_size);
   if (!json) {
@@ -3902,6 +3918,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   if (!load_settings(ui->settings_path, &settings)) {
     copy_string(ui->status, sizeof(ui->status), "settings read failed; using scan defaults");
   }
+  ui->frontend_settings = settings;
   cache_exists = file_exists(path);
   scan_on_enter = rom_scan_policy_is_on_enter(settings.rom_scan_policy);
   if ((scan_on_enter || !cache_exists || ui->refresh) &&
@@ -4020,7 +4037,21 @@ static void clear_screen(struct ui_state *ui) {
   }
 }
 
+static int ui_uses_graphic_mode(const struct ui_state *ui) {
+  return ui && ui->renderer_mali &&
+         strcmp(ui->frontend_settings.ui_mode, "graphic") == 0;
+}
+
 static size_t ui_list_window_size(const struct ui_state *ui) {
+  if (ui_uses_graphic_mode(ui)) {
+    if (ui->screen == SCREEN_TOP) {
+      return 6;
+    }
+    if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+        ui->screen == SCREEN_RECENT) {
+      return 8;
+    }
+  }
   if (ui && ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
     if (strcmp(ui->mali_tty_entry_scale, "2") == 0 ||
         strcmp(ui->mali_tty_entry_scale, "2.0") == 0 ||
@@ -4034,6 +4065,26 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
     return 15;
   }
   return 10;
+}
+
+static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
+  size_t i;
+
+  ui_printf(ui, "plumOS controller UI - TOP\n");
+  ui_printf(ui, "graphic_mode=top\n");
+  ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->top_count,
+            ui->top_count ? ui->top_cursor + 1 : 0);
+  for (i = start; i < end; i++) {
+    const struct top_entry *entry = &ui->top_entries[i];
+    ui_printf(ui, "graphic_entry\t%d\t%s\t%ld ROMS\n",
+              i == ui->top_cursor ? 1 : 0, entry->display_name, entry->rom_count);
+  }
+  if (ui->top_count == 0) {
+    ui_printf(ui, "graphic_entry\t1\tNo Systems\t0 ROMS\n");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "status: %s\n", ui->status);
+  }
 }
 
 static void ui_cursor_page_down(size_t *cursor, size_t count, size_t page_size) {
@@ -4079,6 +4130,11 @@ static void render_top(struct ui_state *ui) {
     end = ui->top_count;
   }
 
+  if (ui_uses_graphic_mode(ui)) {
+    render_top_graphic(ui, start, end);
+    return;
+  }
+
   ui_printf(ui, "plumOS controller UI - TOP\n");
   ui_printf(ui, "A: open  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
@@ -4094,6 +4150,37 @@ static void render_top(struct ui_state *ui) {
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
+static void render_roms_graphic(struct ui_state *ui, const char *title,
+                                size_t start, size_t end) {
+  size_t i;
+  const char *mode = "roms";
+
+  if (ui->screen == SCREEN_FAVORITES) {
+    mode = "favorites";
+  } else if (ui->screen == SCREEN_RECENT) {
+    mode = "recent";
+  }
+
+  ui_printf(ui, "plumOS controller UI - %s\n", title);
+  ui_printf(ui, "graphic_mode=%s\n", mode);
+  ui_printf(ui, "graphic_system=%s\n",
+            ui->current_system_name[0] ? ui->current_system_name : title);
+  ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
+            ui->rom_count ? ui->rom_cursor + 1 : 0);
+  for (i = start; i < end; i++) {
+    const struct rom_entry *entry = &ui->rom_entries[i];
+    const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
+    ui_printf(ui, "graphic_entry\t%d\t%s\t%s\n",
+              i == ui->rom_cursor ? 1 : 0, entry->title, detail);
+  }
+  if (ui->rom_count == 0) {
+    ui_printf(ui, "graphic_entry\t1\tNo Entries\t-\n");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "status: %s\n", ui->status);
   }
 }
 
@@ -4123,6 +4210,11 @@ static void render_roms(struct ui_state *ui) {
     title = "RECENT";
     subtitle =
         "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+  }
+
+  if (ui_uses_graphic_mode(ui)) {
+    render_roms_graphic(ui, title, start, end);
+    return;
   }
 
   ui_printf(ui, "plumOS controller UI - %s\n", title);
@@ -7816,6 +7908,10 @@ int main(int argc, char **argv) {
 
   memset(&initial_settings, 0, sizeof(initial_settings));
   initial_settings_loaded = load_settings(ui.settings_path, &initial_settings);
+  if (!initial_settings_loaded) {
+    init_frontend_settings(&initial_settings);
+  }
+  ui.frontend_settings = initial_settings;
   load_theme_state(&ui, initial_settings_loaded ? initial_settings.theme_id : "default");
   choose_mali_font_path(&ui, mali_font_env, ui.mali_font_path, sizeof(ui.mali_font_path));
 

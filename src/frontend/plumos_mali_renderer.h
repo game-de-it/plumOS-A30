@@ -2144,6 +2144,311 @@ static int plumos_mali_has_prefixed_line(
   return 0;
 }
 
+struct plumos_mali_graphic_entry {
+  int selected;
+  char title[PLUMOS_MALI_RENDER_LINE_MAX];
+  char detail[PLUMOS_MALI_RENDER_LINE_MAX];
+};
+
+static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
+                                           const char *start, const char *end) {
+  size_t len;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!start) {
+    return;
+  }
+  if (!end) {
+    end = start + strlen(start);
+  }
+  len = (size_t)(end - start);
+  if (len >= out_size) {
+    len = out_size - 1;
+  }
+  memcpy(out, start, len);
+  out[len] = '\0';
+}
+
+static int plumos_mali_graphic_parse_entry(
+    const char *line, struct plumos_mali_graphic_entry *entry) {
+  const char *prefix = "graphic_entry\t";
+  const char *p;
+  const char *tab;
+  char *endptr;
+  long selected;
+
+  if (!line || !entry || !plumos_mali_starts_with(line, prefix)) {
+    return 0;
+  }
+  memset(entry, 0, sizeof(*entry));
+  p = line + strlen(prefix);
+  selected = strtol(p, &endptr, 10);
+  if (endptr == p || *endptr != '\t') {
+    return 0;
+  }
+  entry->selected = selected != 0;
+  p = endptr + 1;
+  tab = strchr(p, '\t');
+  if (!tab) {
+    plumos_mali_graphic_copy_field(entry->title, sizeof(entry->title), p, NULL);
+    return entry->title[0] != '\0';
+  }
+  plumos_mali_graphic_copy_field(entry->title, sizeof(entry->title), p, tab);
+  plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, NULL);
+  return entry->title[0] != '\0';
+}
+
+static void plumos_mali_graphic_initials(const char *title, char *out, size_t out_size) {
+  const unsigned char *p = (const unsigned char *)title;
+  size_t n = 0;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  while (p && *p && n + 1 < out_size && n < 3) {
+    if ((*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9')) {
+      out[n++] = (char)*p;
+    } else if (*p >= 'a' && *p <= 'z') {
+      out[n++] = (char)(*p - 'a' + 'A');
+    } else if (*p & 0x80) {
+      break;
+    }
+    p++;
+  }
+  out[n] = '\0';
+  if (!out[0]) {
+    snprintf(out, out_size, "ROM");
+  }
+}
+
+static void plumos_mali_graphic_top_bar(struct plumos_mali_renderer *renderer,
+                                        const char *title) {
+  char time_label[16];
+  char wifi_label[16];
+  char battery_label[24];
+  char right[64];
+  int right_width;
+
+  plumos_mali_time_label(time_label, sizeof(time_label));
+  plumos_mali_wifi_label(wifi_label, sizeof(wifi_label));
+  plumos_mali_battery_label(battery_label, sizeof(battery_label));
+  snprintf(right, sizeof(right), "%s  %s  %s", time_label, wifi_label, battery_label);
+  right_width = plumos_mali_text_width(right, 2);
+
+  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 40.0f,
+                   0.015f, 0.018f, 0.020f, 1.0f);
+  plumos_mali_rect(renderer, 0.0f, 40.0f, (float)renderer->width, 2.0f,
+                   0.18f, 0.24f, 0.27f, 1.0f);
+  plumos_mali_text(renderer, title && title[0] ? title : "PLUMOS A30",
+                   16.0f, 12.0f, 2, 0.86f, 0.92f, 0.90f, 1.0f);
+  plumos_mali_text(renderer, right, (float)(renderer->width - 14 - right_width),
+                   12.0f, 2, 0.62f, 0.76f, 0.76f, 1.0f);
+}
+
+static void plumos_mali_graphic_draw_top(
+    struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
+    const char *status) {
+  const size_t columns = 3;
+  const float grid_x = 22.0f;
+  const float grid_y = 70.0f;
+  const float gap = 10.0f;
+  const float tile_w = ((float)renderer->width - grid_x - 14.0f -
+                        gap * (float)(columns - 1)) /
+                       (float)columns;
+  const float tile_h = 126.0f;
+  size_t i;
+
+  plumos_mali_graphic_top_bar(renderer, "SYSTEMS");
+  plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                   1.0f, 0.52f, 0.05f, 1.0f);
+
+  for (i = 0; i < entry_count; i++) {
+    size_t col = i % columns;
+    size_t row = i / columns;
+    float x = grid_x + (float)col * (tile_w + gap);
+    float y = grid_y + (float)row * (tile_h + gap);
+    int selected = entries[i].selected;
+    char title[96];
+    char detail[96];
+    char initials[8];
+    int initials_width;
+    int detail_width;
+
+    plumos_mali_copy_utf8_cells(entries[i].title, title, sizeof(title), 18);
+    plumos_mali_copy_utf8_cells(entries[i].detail, detail, sizeof(detail), 18);
+    plumos_mali_graphic_initials(entries[i].title, initials, sizeof(initials));
+
+    if (selected) {
+      plumos_mali_rect(renderer, x, y, tile_w, tile_h, 1.0f, 0.56f, 0.10f, 1.0f);
+      plumos_mali_rect(renderer, x + 4.0f, y + 4.0f, tile_w - 8.0f, tile_h - 8.0f,
+                       0.08f, 0.14f, 0.15f, 1.0f);
+    } else {
+      plumos_mali_rect(renderer, x, y, tile_w, tile_h, 0.12f, 0.17f, 0.18f, 1.0f);
+      plumos_mali_rect(renderer, x + 2.0f, y + 2.0f, tile_w - 4.0f, tile_h - 4.0f,
+                       0.025f, 0.032f, 0.034f, 1.0f);
+    }
+    plumos_mali_rect(renderer, x + 10.0f, y + 12.0f, tile_w - 20.0f, 54.0f,
+                     selected ? 0.22f : 0.10f,
+                     selected ? 0.32f : 0.18f,
+                     selected ? 0.30f : 0.20f, 1.0f);
+    initials_width = plumos_mali_text_width(initials, 4);
+    plumos_mali_text(renderer, initials,
+                     x + (tile_w - (float)initials_width) * 0.5f,
+                     y + 24.0f, 4,
+                     selected ? 1.0f : 0.72f,
+                     selected ? 0.88f : 0.82f,
+                     selected ? 0.38f : 0.78f, 1.0f);
+    plumos_mali_text_clipped(renderer, title, x + 12.0f, y + 78.0f, 2, 1,
+                             x + 12.0f, x + tile_w - 12.0f,
+                             selected ? 0.98f : 0.72f,
+                             selected ? 0.94f : 0.82f,
+                             selected ? 0.76f : 0.80f, 1.0f);
+    detail_width = plumos_mali_text_width(detail, 1);
+    plumos_mali_text(renderer, detail,
+                     x + tile_w - 12.0f - (float)detail_width,
+                     y + tile_h - 22.0f, 1,
+                     0.55f, 0.68f, 0.68f, 1.0f);
+  }
+  if (entry_count == 0) {
+    plumos_mali_text(renderer, "NO SYSTEMS", 28.0f, 90.0f, 3,
+                     0.70f, 0.78f, 0.76f, 1.0f);
+  }
+  (void)status;
+}
+
+static void plumos_mali_graphic_draw_roms(
+    struct plumos_mali_renderer *renderer, const char *mode, const char *system,
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
+    const char *status) {
+  size_t i;
+  const struct plumos_mali_graphic_entry *selected = NULL;
+  float list_x = 18.0f;
+  float list_y = 70.0f;
+  float list_w = 360.0f;
+  float row_h = 38.0f;
+  float preview_x = 394.0f;
+  float preview_y = 72.0f;
+  float preview_w = (float)renderer->width - preview_x - 16.0f;
+  float preview_h = 310.0f;
+  char header[96];
+  char display_title[PLUMOS_MALI_RENDER_LINE_MAX];
+  char initials[8];
+  int initials_width;
+
+  plumos_mali_copy_utf8_cells(
+      system && system[0] ? system :
+          (mode && strcmp(mode, "favorites") == 0 ? "FAVORITES" :
+           mode && strcmp(mode, "recent") == 0 ? "RECENT" : "ROMS"),
+      header, sizeof(header), 24);
+  plumos_mali_graphic_top_bar(renderer, header);
+  plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                   1.0f, 0.52f, 0.05f, 1.0f);
+
+  for (i = 0; i < entry_count; i++) {
+    float y = list_y + (float)i * row_h;
+    float r = 0.72f;
+    float g = 0.80f;
+    float b = 0.78f;
+
+    if (entries[i].selected || !selected) {
+      selected = &entries[i];
+    }
+    if (entries[i].selected) {
+      plumos_mali_rect(renderer, list_x - 6.0f, y - 7.0f, list_w, row_h - 4.0f,
+                       0.14f, 0.23f, 0.20f, 1.0f);
+      plumos_mali_rect(renderer, list_x - 6.0f, y - 7.0f, 6.0f, row_h - 4.0f,
+                       1.0f, 0.56f, 0.10f, 1.0f);
+      r = 1.0f;
+      g = 0.90f;
+      b = 0.48f;
+    }
+    plumos_mali_text(renderer, entries[i].selected ? ">" : " ", list_x, y, 2,
+                     r, g, b, 1.0f);
+    plumos_mali_text_clipped(renderer, entries[i].title, list_x + 24.0f, y,
+                             2, 1, list_x + 24.0f, list_x + list_w - 10.0f,
+                             r, g, b, 1.0f);
+  }
+
+  plumos_mali_rect(renderer, preview_x, preview_y, preview_w, preview_h,
+                   0.12f, 0.17f, 0.18f, 1.0f);
+  plumos_mali_rect(renderer, preview_x + 3.0f, preview_y + 3.0f,
+                   preview_w - 6.0f, preview_h - 6.0f,
+                   0.020f, 0.026f, 0.028f, 1.0f);
+  plumos_mali_rect(renderer, preview_x + 16.0f, preview_y + 18.0f,
+                   preview_w - 32.0f, 156.0f,
+                   0.11f, 0.16f, 0.18f, 1.0f);
+
+  if (selected) {
+    plumos_mali_graphic_initials(selected->title, initials, sizeof(initials));
+    initials_width = plumos_mali_text_width(initials, 4);
+    plumos_mali_text(renderer, initials,
+                     preview_x + (preview_w - (float)initials_width) * 0.5f,
+                     preview_y + 76.0f, 4,
+                     0.72f, 0.86f, 0.86f, 1.0f);
+    plumos_mali_copy_utf8_cells(selected->title, display_title,
+                                sizeof(display_title), 28);
+    plumos_mali_text_clipped(renderer, display_title,
+                             preview_x + 16.0f, preview_y + 200.0f,
+                             2, 1, preview_x + 16.0f,
+                             preview_x + preview_w - 16.0f,
+                             0.92f, 0.94f, 0.88f, 1.0f);
+    plumos_mali_text_limited(renderer,
+                             selected->detail[0] ? selected->detail : "-",
+                             preview_x + 16.0f, preview_y + 232.0f,
+                             1, 1, preview_x + preview_w - 16.0f,
+                             0.52f, 0.66f, 0.66f, 1.0f);
+  } else {
+    plumos_mali_text(renderer, "NO ART", preview_x + 48.0f, preview_y + 120.0f,
+                     3, 0.54f, 0.66f, 0.66f, 1.0f);
+  }
+  (void)status;
+}
+
+static int plumos_mali_render_lines_graphic(
+    struct plumos_mali_renderer *renderer,
+    const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
+    size_t line_count) {
+  size_t i;
+  char mode[32];
+  char system[128];
+  char status[160];
+  struct plumos_mali_graphic_entry entries[12];
+  size_t entry_count = 0;
+
+  plumos_mali_find_prefixed_line(lines, line_count, "graphic_mode=",
+                                 mode, sizeof(mode));
+  plumos_mali_find_prefixed_line(lines, line_count, "graphic_system=",
+                                 system, sizeof(system));
+  plumos_mali_find_prefixed_line(lines, line_count, "status:",
+                                 status, sizeof(status));
+
+  for (i = 0; i < line_count && entry_count < sizeof(entries) / sizeof(entries[0]);
+       i++) {
+    if (plumos_mali_graphic_parse_entry(lines[i], &entries[entry_count])) {
+      entry_count++;
+    }
+  }
+
+  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
+  renderer->gl.UseProgram(renderer->program);
+  renderer->gl.ClearColor(0.010f, 0.012f, 0.013f, 1.0f);
+  renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
+
+  if (strcmp(mode, "top") == 0) {
+    plumos_mali_graphic_draw_top(renderer, entries, entry_count, status);
+  } else {
+    plumos_mali_graphic_draw_roms(renderer, mode, system, entries, entry_count, status);
+  }
+
+  renderer->gl.Finish();
+  return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
+}
+
 static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
                                       size_t line_count,
                                       char *title, size_t title_size,
@@ -2962,6 +3267,10 @@ static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
   float margin = 14.0f;
   float y;
   float line_height = 28.0f;
+
+  if (plumos_mali_has_prefixed_line(lines, line_count, "graphic_mode=")) {
+    return plumos_mali_render_lines_graphic(renderer, lines, line_count);
+  }
 
   if (renderer->style == PLUMOS_MALI_STYLE_TTY) {
     return plumos_mali_render_lines_tty(renderer, lines, line_count);
