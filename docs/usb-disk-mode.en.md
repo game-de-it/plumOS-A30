@@ -69,6 +69,24 @@ PLUMOS_USB_DISK_MODE_CONFIRM=UNMOUNT_SDCARD \
 By default, `enter` also refuses to run from SSH because USB Disk Mode unmounts
 `/mnt/SDCARD` and stops the SSH daemon.
 
+## Validation Logs
+
+Normal plumOS files live under `/mnt/SDCARD/plumos/`. During USB Disk Mode,
+however, `/mnt/SDCARD` is intentionally unmounted, so a failure followed by an OS
+reboot cannot leave diagnostics on the SD card.
+
+For validation only, the helper also writes a diagnostic log to the stockOS
+`/config` partition:
+
+```text
+/config/plumos-usb-disk-mode.log
+```
+
+When the helper returns normally, it also copies the log to
+`/mnt/SDCARD/plumos/logs/usb-disk-mode-last.log`. Before making the feature
+normal, decide whether to keep this `/config` diagnostic exception or replace it
+with an on-device recovery screen.
+
 ## Expected UI Flow
 
 The validation entry lives at `Network Settings -> USB Disk Mode`. To avoid

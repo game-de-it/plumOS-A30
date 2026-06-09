@@ -64,6 +64,20 @@ PLUMOS_USB_DISK_MODE_CONFIRM=UNMOUNT_SDCARD \
 SSH からの `enter` は既定で拒否します。USB Disk Mode は `/mnt/SDCARD` を unmount し、
 SSH daemon も停止するためです。
 
+## 検証ログ
+
+通常の plumOS ファイルは `/mnt/SDCARD/plumos/` に置きます。ただし USB Disk Mode 中は
+`/mnt/SDCARD` 自体を unmount するため、失敗してOS再起動した場合にSD上へログを残せません。
+
+そのため検証中だけ、次の診断ログを stockOS 側の `/config` に書きます。
+
+```text
+/config/plumos-usb-disk-mode.log
+```
+
+正常復帰できた場合は、同じ内容を `/mnt/SDCARD/plumos/logs/usb-disk-mode-last.log` にも退避します。
+正式化前に `/config` への診断ログを残すか、UI上の復帰表示に置き換えるかを決めます。
+
 ## 想定 UI flow
 
 検証用の入口は `Network Settings -> USB Disk Mode` に置きます。誤操作を避けるため、

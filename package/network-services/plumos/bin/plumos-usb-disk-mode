@@ -13,12 +13,19 @@ EXIT_FLAG="${STATE_DIR}/exit"
 RUN_COPY="${STATE_DIR}/plumos-usb-disk-mode.run"
 USB_USERLAND_STATE="${STATE_DIR}/usb-userland"
 PERSIST_LOG_FILE="${PLUMOS_ROOT}/logs/usb-disk-mode-last.log"
+RECOVERY_LOG_FILE="${PLUMOS_USB_DISK_RECOVERY_LOG:-/config/plumos-usb-disk-mode.log}"
 USB_ATTACH_GRACE_SEC="${PLUMOS_USB_DISK_ATTACH_GRACE_SEC:-30}"
+USB_REENUM_SETTLE_SEC="${PLUMOS_USB_DISK_REENUM_SETTLE_SEC:-1}"
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 log() {
-  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+  line="$(printf '%s %s' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*")"
+  printf '%s\n' "$line" >> "$LOG_FILE" 2>/dev/null || true
+  if [ -n "$RECOVERY_LOG_FILE" ]; then
+    printf '%s\n' "$line" >> "$RECOVERY_LOG_FILE" 2>/dev/null || true
+    sync "$RECOVERY_LOG_FILE" 2>/dev/null || true
+  fi
 }
 
 die() {
@@ -67,6 +74,14 @@ restore_usb_function() {
 
 log_usb_state() {
   log "usb state=$(read_value "${ANDROID_USB}/state") functions=$(read_value "${ANDROID_USB}/functions") enabled=$(read_value "${ANDROID_USB}/enable") lun=$(read_value "${LUN}/file")"
+}
+
+usb_settle() {
+  sec="$USB_REENUM_SETTLE_SEC"
+  case "$sec" in
+    *[!0-9]*|'') sec=1 ;;
+  esac
+  [ "$sec" -gt 0 ] && sleep "$sec"
 }
 
 print_status() {
@@ -193,6 +208,7 @@ stop_usb_userland() {
     kill -TERM $pids 2>/dev/null || true
     sleep 1
     kill -KILL $pids 2>/dev/null || true
+    usb_settle
   fi
 }
 
@@ -214,6 +230,14 @@ persist_log_if_possible() {
   if [ -d "$PLUMOS_ROOT" ]; then
     mkdir -p "${PLUMOS_ROOT}/logs" 2>/dev/null || true
     cp "$LOG_FILE" "$PERSIST_LOG_FILE" 2>/dev/null || true
+  fi
+}
+
+reset_attempt_logs() {
+  : > "$LOG_FILE" 2>/dev/null || true
+  if [ -n "$RECOVERY_LOG_FILE" ]; then
+    : > "$RECOVERY_LOG_FILE" 2>/dev/null || true
+    sync "$RECOVERY_LOG_FILE" 2>/dev/null || true
   fi
 }
 
@@ -330,7 +354,9 @@ enable_mass_storage() {
   log "enabling USB disk mode"
   log_usb_state
   write_value "${ANDROID_USB}/enable" 0 || die "cannot disable android usb"
+  usb_settle
   write_value "${LUN}/file" "" || true
+  write_value "${ANDROID_USB}/functions" "" || true
   write_value "${ANDROID_USB}/functions" "mass_storage" || die "cannot select mass_storage"
   write_value "${ANDROID_USB}/idVendor" "1f3a" || true
   write_value "${ANDROID_USB}/idProduct" "1000" || true
@@ -338,6 +364,7 @@ enable_mass_storage() {
   write_value "${LUN}/nofua" 0 || true
   write_value "${MASS_STORAGE}/inquiry_string" "plumOS A30 SD Card" || true
   write_value "${LUN}/file" "$SD_DEVICE" || die "cannot attach SD block device"
+  usb_settle
   write_value "${ANDROID_USB}/enable" 1 || die "cannot enable android usb"
   log_usb_state
 }
@@ -390,6 +417,8 @@ wait_for_disconnect_or_flag() {
 }
 
 internal_enter() {
+  reset_attempt_logs
+  log "USB disk mode begin"
   require_paths
   save_usb_state
   stop_usb_userland
