@@ -50,7 +50,7 @@ System Settings reads and writes
 Current keys:
 
 - `volume`: `0..20`
-- `brightness`: `3..50`
+- `brightness`: `3..255`
 - `lumination`: `0..10`
 - `contrast`: `0..20`
 - `hue`: `0..20`
@@ -63,7 +63,7 @@ A30 runtime when saved and once during FE startup. `volume` uses ALSA
 `Soft Volume Master`, `brightness` uses
 `/sys/devices/virtual/disp/disp/attr/lcdbl`, and `lumination` / `contrast` /
 `hue` / `saturation` use `/sys/devices/virtual/disp/disp/attr/enhance`.
-Brightness currently maps directly to the same experimental `lcdbl 3..50`
+Brightness currently maps directly to the same experimental `lcdbl 3..255`
 range.
 
 ## Performance Settings

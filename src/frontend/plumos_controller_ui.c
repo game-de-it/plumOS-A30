@@ -172,6 +172,7 @@ struct input_event {
 #define UI_RENDER_LINE_MAX 512
 #define UI_KEY_REPEAT_DELAY_MS 350
 #define UI_KEY_REPEAT_INTERVAL_MS 95
+#define UI_SETTING_VALUE_REPEAT_INTERVAL_MS 250
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
@@ -815,7 +816,7 @@ static int apply_runtime_brightness(const struct device_settings *device) {
   if (!device || !runtime_lcd_backend_available()) {
     return 0;
   }
-  brightness = clamp_long(device->brightness, 3, 50);
+  brightness = clamp_long(device->brightness, 3, 255);
   backlight_value = brightness;
   snprintf(value, sizeof(value), "%ld\n", backlight_value);
   return write_text_file(A30_LCD_BACKLIGHT_PATH, value);
@@ -1669,7 +1670,7 @@ static int load_device_settings(struct ui_state *ui) {
   ui->device.loaded = 1;
   ui->device.volume = json_get_long(json, json_end, "volume", ui->device.volume);
   ui->device.brightness = json_get_long(json, json_end, "brightness", ui->device.brightness);
-  ui->device.brightness = clamp_long(ui->device.brightness, 3, 50);
+  ui->device.brightness = clamp_long(ui->device.brightness, 3, 255);
   ui->device.lumination = json_get_long(json, json_end, "lumination", ui->device.lumination);
   ui->device.contrast = json_get_long(json, json_end, "contrast", ui->device.contrast);
   ui->device.hue = json_get_long(json, json_end, "hue", ui->device.hue);
@@ -4504,7 +4505,7 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   } else if (strcmp(id, "system_brightness") == 0) {
     system_key = "brightness";
     min_value = 3;
-    max_value = 50;
+    max_value = 255;
   } else if (strcmp(id, "system_lumination") == 0) {
     system_key = "lumination";
     min_value = 0;
@@ -5091,8 +5092,34 @@ static enum ui_action action_from_script_token(const char *token) {
   return ACTION_NONE;
 }
 
-static int action_repeats_while_held(enum ui_action action) {
-  return action == ACTION_UP || action == ACTION_DOWN;
+static int settings_value_action_repeats(const struct ui_state *ui,
+                                         enum ui_action action) {
+  const struct setting_entry *entry;
+  enum setting_control_type control;
+
+  if (!ui || ui->screen != SCREEN_SETTINGS ||
+      (action != ACTION_LEFT && action != ACTION_RIGHT) ||
+      ui->setting_count == 0 || ui->settings_cursor >= ui->setting_count) {
+    return 0;
+  }
+  entry = &ui->setting_entries[ui->settings_cursor];
+  control = setting_control_type_for_id(entry->id);
+  if (control != SETTING_CONTROL_NUMBER && control != SETTING_CONTROL_CHOICE) {
+    return 0;
+  }
+  return setting_is_writable(entry->id) ||
+         strncmp(entry->id, "performance_", 12) == 0;
+}
+
+static int action_repeat_interval_ms(const struct ui_state *ui,
+                                     enum ui_action action) {
+  if (action == ACTION_UP || action == ACTION_DOWN) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
+  if (settings_value_action_repeats(ui, action)) {
+    return UI_SETTING_VALUE_REPEAT_INTERVAL_MS;
+  }
+  return 0;
 }
 
 static int discover_input_event(char *out, size_t out_size) {
@@ -5314,8 +5341,15 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     if (rc <= 0) {
       if (ui->repeat_action != ACTION_NONE &&
           current_time_ms() >= ui->repeat_next_ms) {
-        action = ui->repeat_action;
-        ui->repeat_next_ms = current_time_ms() + UI_KEY_REPEAT_INTERVAL_MS;
+        int repeat_interval_ms = action_repeat_interval_ms(ui, ui->repeat_action);
+        if (repeat_interval_ms > 0) {
+          action = ui->repeat_action;
+          ui->repeat_next_ms = current_time_ms() + repeat_interval_ms;
+        } else {
+          ui->repeat_action = ACTION_NONE;
+          ui->repeat_key_code = 0;
+          ui->repeat_next_ms = 0;
+        }
       }
       if (action != ACTION_NONE) {
         handle_action(ui, action);
@@ -5363,13 +5397,15 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
             continue;
           }
           if (ev.value == 1 || ev.value == 2) {
+            int repeat_interval_ms;
             action = event_action;
-            if (action_repeats_while_held(event_action)) {
+            repeat_interval_ms = action_repeat_interval_ms(ui, event_action);
+            if (repeat_interval_ms > 0) {
               ui->repeat_action = event_action;
               ui->repeat_key_code = ev.code;
               ui->repeat_next_ms = current_time_ms() +
                                    (ev.value == 1 ? UI_KEY_REPEAT_DELAY_MS
-                                                  : UI_KEY_REPEAT_INTERVAL_MS);
+                                                  : repeat_interval_ms);
             }
           }
           if (event_action == ACTION_NONE && ev.value == 1) {
@@ -5393,8 +5429,15 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
 
     if (action == ACTION_NONE && ui->repeat_action != ACTION_NONE &&
         current_time_ms() >= ui->repeat_next_ms) {
-      action = ui->repeat_action;
-      ui->repeat_next_ms = current_time_ms() + UI_KEY_REPEAT_INTERVAL_MS;
+      int repeat_interval_ms = action_repeat_interval_ms(ui, ui->repeat_action);
+      if (repeat_interval_ms > 0) {
+        action = ui->repeat_action;
+        ui->repeat_next_ms = current_time_ms() + repeat_interval_ms;
+      } else {
+        ui->repeat_action = ACTION_NONE;
+        ui->repeat_key_code = 0;
+        ui->repeat_next_ms = 0;
+      }
     }
 
     if (action == ACTION_NONE && ui_needs_periodic_refresh(ui)) {

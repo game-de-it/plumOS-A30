@@ -142,7 +142,8 @@
   `lcdbl 12,18,26,36,50,68,90,118,160,255` の体感寄せ table へ変更した。その後、
   1〜3で最も大きく変化するとの追加フィードバックを受け、実験値として
   `lcdbl 1,2,3,4,5,6,7,8,9,10` へ変更した。`lcdbl=2` 以下は真っ暗になり復帰不能に
-  近いため、最低値を3にし、上限探索用に `Brightness 3..50` = `lcdbl 3..50` へ変更した。
+  近いため、最低値を3にし、上限探索用に `Brightness 3..255` = `lcdbl 3..255` へ変更した。
+  Settings の左右値変更は既存 repeat delay 後に 250ms 間隔、約4段階/秒で repeat する。
 - [x] framebuffer/input/audio の最小 runtime probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の最小 linked/window/input probe binary を A30 上で動かす。
 - [x] plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証し、upstream SDL3+sdl2-compat では実画面 backend がなく dummy/offscreen/evdev software renderer までであることを確認する。

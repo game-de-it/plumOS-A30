@@ -28,7 +28,7 @@ are applied immediately to the A30 runtime backend.
 
 - `Volume`: `volume`; Left/Right changes `0..20`. Later
   this should track the physical volume buttons
-- `Brightness`: `brightness`; Left/Right changes `3..50` and applies the same
+- `Brightness`: `brightness`; Left/Right changes `3..255` and applies the same
   value to `lcdbl`. `0..2` is not exposed because it maps to a display
   blackout. Later this should track a hotkey such as START + volume
 - `Lumination`: `lumination`; Left/Right changes `0..10`
@@ -93,8 +93,8 @@ files. plumOS stores `brightness`, `lumination`, `contrast`, `hue`, and
 The UI updates `brightness`, `lumination`, `contrast`, `hue`, and `saturation`
 in plumOS system settings using backed-up atomic writes, then applies them to
 `/sys/devices/virtual/disp/disp/attr/lcdbl` and
-`/sys/devices/virtual/disp/disp/attr/enhance`. `brightness 3..50` maps directly
-to the same `lcdbl 3..50` values. `0..2` is avoided because it behaves like a
+`/sys/devices/virtual/disp/disp/attr/enhance`. `brightness 3..255` maps directly
+to the same `lcdbl 3..255` values. `0..2` is avoided because it behaves like a
 display blackout.
 
 ## Volume
