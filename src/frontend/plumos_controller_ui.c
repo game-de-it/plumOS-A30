@@ -4736,7 +4736,7 @@ static int run_usb_disk_mode(struct ui_state *ui) {
   }
 
   cmd[0] = '\0';
-  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+  if (!append_string(cmd, sizeof(cmd), &pos, "cd / && PLUMOS_SDCARD_ROOT=") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
       !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
