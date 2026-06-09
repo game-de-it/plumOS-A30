@@ -15,7 +15,10 @@ USB_USERLAND_STATE="${STATE_DIR}/usb-userland"
 PERSIST_LOG_FILE="${PLUMOS_ROOT}/logs/usb-disk-mode-last.log"
 RECOVERY_LOG_FILE="${PLUMOS_USB_DISK_RECOVERY_LOG:-/config/plumos-usb-disk-mode.log}"
 USB_ATTACH_GRACE_SEC="${PLUMOS_USB_DISK_ATTACH_GRACE_SEC:-30}"
-USB_REENUM_SETTLE_SEC="${PLUMOS_USB_DISK_REENUM_SETTLE_SEC:-1}"
+USB_REENUM_SETTLE_SEC="${PLUMOS_USB_DISK_REENUM_SETTLE_SEC:-}"
+USB_REENUM_SETTLE_US="${PLUMOS_USB_DISK_REENUM_SETTLE_US:-250000}"
+PROCESS_TERM_GRACE_US="${PLUMOS_USB_DISK_TERM_GRACE_US:-300000}"
+PROCESS_KILL_GRACE_US="${PLUMOS_USB_DISK_KILL_GRACE_US:-200000}"
 FAILURE_CLEANUP_ENABLED=0
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
@@ -81,11 +84,56 @@ log_usb_state() {
 }
 
 usb_settle() {
-  sec="$USB_REENUM_SETTLE_SEC"
-  case "$sec" in
-    *[!0-9]*|'') sec=1 ;;
+  if [ -n "$USB_REENUM_SETTLE_SEC" ]; then
+    sec="$USB_REENUM_SETTLE_SEC"
+    case "$sec" in
+      *[!0-9]*|'') sec=1 ;;
+    esac
+    [ "$sec" -gt 0 ] && sleep "$sec"
+    return
+  fi
+  fast_sleep_us "$USB_REENUM_SETTLE_US"
+}
+
+fast_sleep_us() {
+  usec="$1"
+  case "$usec" in
+    *[!0-9]*|'') usec=250000 ;;
   esac
-  [ "$sec" -gt 0 ] && sleep "$sec"
+  [ "$usec" -gt 0 ] || return 0
+  if command -v usleep >/dev/null 2>&1; then
+    usleep "$usec"
+  else
+    sleep 1
+  fi
+}
+
+any_pid_alive() {
+  for pid in $1; do
+    kill -0 "$pid" 2>/dev/null && return 0
+  done
+  return 1
+}
+
+wait_pids_gone() {
+  pids="$1"
+  timeout="$2"
+  case "$timeout" in
+    *[!0-9]*|'') timeout=0 ;;
+  esac
+  elapsed=0
+  step=50000
+  if ! command -v usleep >/dev/null 2>&1; then
+    [ "$timeout" -gt 0 ] && sleep 1
+    any_pid_alive "$pids" && return 1
+    return 0
+  fi
+  while any_pid_alive "$pids"; do
+    [ "$elapsed" -ge "$timeout" ] && return 1
+    fast_sleep_us "$step"
+    elapsed=$((elapsed + step))
+  done
+  return 0
 }
 
 print_status() {
@@ -217,10 +265,7 @@ stop_usb_userland() {
     esac
   done
   if [ -n "$pids" ]; then
-    log "stopping stock usb userland:${pids}"
-    kill -TERM $pids 2>/dev/null || true
-    sleep 1
-    kill -KILL $pids 2>/dev/null || true
+    terminate_pids "stopping stock usb userland" "$pids"
     usb_settle
   fi
 }
@@ -315,9 +360,9 @@ terminate_pids() {
   if [ -n "$pids" ]; then
     log "${reason}:${pids}"
     kill -TERM $pids 2>/dev/null || true
-    sleep 1
-    kill -KILL $pids 2>/dev/null || true
-    sleep 1
+    wait_pids_gone "$pids" "$PROCESS_TERM_GRACE_US" ||
+      kill -KILL $pids 2>/dev/null || true
+    wait_pids_gone "$pids" "$PROCESS_KILL_GRACE_US" || true
   fi
 }
 
