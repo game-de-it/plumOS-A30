@@ -13,6 +13,7 @@ EXIT_FLAG="${STATE_DIR}/exit"
 RUN_COPY="${STATE_DIR}/plumos-usb-disk-mode.run"
 USB_USERLAND_STATE="${STATE_DIR}/usb-userland"
 PERSIST_LOG_FILE="${PLUMOS_ROOT}/logs/usb-disk-mode-last.log"
+USB_ATTACH_GRACE_SEC="${PLUMOS_USB_DISK_ATTACH_GRACE_SEC:-30}"
 
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
@@ -357,7 +358,12 @@ finish() {
 
 wait_for_disconnect_or_flag() {
   last_state=""
-  log "waiting for USB disconnect or ${EXIT_FLAG}"
+  seen_attached=0
+  attach_wait_left="$USB_ATTACH_GRACE_SEC"
+  case "$attach_wait_left" in
+    *[!0-9]*|'') attach_wait_left=30 ;;
+  esac
+  log "waiting for USB attach/disconnect or ${EXIT_FLAG}"
   while :; do
     [ -e "$EXIT_FLAG" ] && break
     state="$(read_value "${ANDROID_USB}/state")"
@@ -366,9 +372,20 @@ wait_for_disconnect_or_flag() {
       last_state="$state"
     fi
     case "$state" in
-      DISCONNECTED|NOTATTACHED|'') break ;;
+      CONNECTED|CONFIGURED) seen_attached=1 ;;
     esac
-    sleep 2
+    if [ "$seen_attached" = 1 ]; then
+      case "$state" in
+        DISCONNECTED|NOTATTACHED|'') break ;;
+      esac
+    else
+      if [ "$attach_wait_left" -le 0 ]; then
+        log "usb attach grace expired state=${state}"
+        break
+      fi
+      attach_wait_left=$((attach_wait_left - 1))
+    fi
+    sleep 1
   done
 }
 

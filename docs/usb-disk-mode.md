@@ -20,6 +20,8 @@ plumOS でも同じ原則を守ります。
 - USB Disk Mode に入る前に FE、emulator、file-transfer service、SSH を停止する。
 - StockOS の `MtpDaemon` / `adbd` は USB gadget を触るため、USB Disk Mode 中だけ停止し、
   終了時に必要なら再起動する。
+- USB cable は USB Disk Mode 開始前に接続されていてよい。開始時に gadget を
+  disable -> mass_storage -> enable して host PC 側へ再 enumerate させる。
 - `/mnt/SDCARD` を unmount できた場合だけ USB mass storage を有効化する。
 - PC 側で eject した後に USB Disk Mode を抜け、fsck、remount、FE/SSH restart を行う。
 
@@ -78,7 +80,7 @@ SSH daemon も停止するためです。
 ## 未解決項目
 
 - Windows で mass_storage として enumerate されない初回症状があったため、
-  `MtpDaemon` / `adbd` 停止後に再検証する。
+  `MtpDaemon` / `adbd` 停止と attach grace 後に再検証する。
 - A30 側で USB cable disconnect 以外の復帰入力をどう受けるか。
 - USB Disk Mode 中に画面へ案内を出し続ける rootfs/tmpfs resident UI が必要か。
 - `nofua=0` と `nofua=1` の速度/安定性比較。

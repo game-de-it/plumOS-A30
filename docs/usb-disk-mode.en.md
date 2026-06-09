@@ -23,6 +23,9 @@ plumOS follows the same rule.
   and SSH.
 - Stop StockOS `MtpDaemon` / `adbd` while USB Disk Mode is active because they
   also touch the USB gadget, then restart them on return if they were running.
+- The USB cable may already be connected before entering USB Disk Mode. On
+  entry, the helper disables the gadget, switches to mass_storage, and re-enables
+  it so the host PC re-enumerates the device.
 - Enable USB mass storage only after `/mnt/SDCARD` is unmounted.
 - After the host PC ejects the drive, leave USB Disk Mode, run fsck, remount the
   SD card, and restart FE/SSH.
@@ -83,7 +86,8 @@ mode, and B returns to Network Settings.
 ## Open Items
 
 - Re-test Windows mass-storage enumeration after stopping `MtpDaemon` / `adbd`;
-  the first attempt did not appear as a drive.
+  the first attempt did not appear as a drive, and the helper now waits through
+  the attach grace window before treating disconnect as an exit.
 - Decide how to return from USB Disk Mode without relying only on USB disconnect.
 - Decide whether a rootfs/tmpfs-resident screen is needed while the SD card is
   unmounted.
