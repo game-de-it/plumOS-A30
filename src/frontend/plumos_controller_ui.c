@@ -355,7 +355,8 @@ enum ui_screen {
   SCREEN_CORE_SELECT = 8,
   SCREEN_NETWORK_RESCUE = 9,
   SCREEN_WIFI_CONNECT = 10,
-  SCREEN_USB_DISK_CONFIRM = 11
+  SCREEN_USB_DISK_CONFIRM = 11,
+  SCREEN_USB_DISK_STARTING = 12
 };
 
 enum wifi_connect_stage {
@@ -433,7 +434,7 @@ struct ui_state {
   size_t wifi_count;
   size_t wifi_cursor;
   enum wifi_connect_stage wifi_stage;
-  int usb_disk_entering;
+  long long usb_disk_start_due_ms;
   size_t wifi_key_row;
   size_t wifi_key_col;
   int wifi_key_shift;
@@ -4351,21 +4352,27 @@ static void render_usb_disk_confirm(struct ui_state *ui) {
   ui_printf(ui, "A: enter  B: Network Settings  Q: quit\n");
   ui_printf(ui, "entries=4 cursor=1\n");
   ui_printf(ui, "\n");
-  if (ui->usb_disk_entering) {
-    ui_printf(ui, ">   1  USB DISK MODE STARTING\n");
-    ui_printf(ui, "    2  Please wait\n");
-    ui_printf(ui, "    3  Preparing SD card\n");
-    ui_printf(ui, "    4  Do not unplug yet\n");
-    ui_printf(ui, "footer1=%s\n", "Starting USB Disk Mode.");
-    ui_printf(ui, "footer2=%s\n", "Windows will detect the drive shortly.");
-  } else {
-    ui_printf(ui, ">   1  READY TO ENTER\n");
-    ui_printf(ui, "    2  SD Card: /mnt/SDCARD\n");
-    ui_printf(ui, "    3  PC eject is required\n");
-    ui_printf(ui, "    4  USB disconnect returns to plumOS\n");
-    ui_printf(ui, "footer1=%s\n", "A exposes the SD card as a USB drive.");
-    ui_printf(ui, "footer2=%s\n", "Eject on PC, then unplug USB to finish.");
+  ui_printf(ui, ">   1  READY TO ENTER\n");
+  ui_printf(ui, "    2  SD Card: /mnt/SDCARD\n");
+  ui_printf(ui, "    3  PC eject is required\n");
+  ui_printf(ui, "    4  USB disconnect returns to plumOS\n");
+  ui_printf(ui, "footer1=%s\n", "A exposes the SD card as a USB drive.");
+  ui_printf(ui, "footer2=%s\n", "Eject on PC, then unplug USB to finish.");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
+}
+
+static void render_usb_disk_starting(struct ui_state *ui) {
+  ui_printf(ui, "plumOS controller UI - Network Settings - USB Disk Mode\n");
+  ui_printf(ui, "entries=4 cursor=1\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, ">   1  USB DISK MODE STARTING\n");
+  ui_printf(ui, "    2  Please wait\n");
+  ui_printf(ui, "    3  Preparing SD card\n");
+  ui_printf(ui, "    4  Do not unplug yet\n");
+  ui_printf(ui, "footer1=%s\n", "Starting USB Disk Mode.");
+  ui_printf(ui, "footer2=%s\n", "Windows will detect the drive shortly.");
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -4394,6 +4401,8 @@ static void render_ui(struct ui_state *ui) {
     render_wifi_connect(ui);
   } else if (ui->screen == SCREEN_USB_DISK_CONFIRM) {
     render_usb_disk_confirm(ui);
+  } else if (ui->screen == SCREEN_USB_DISK_STARTING) {
+    render_usb_disk_starting(ui);
   } else {
     render_top(ui);
   }
@@ -4660,8 +4669,14 @@ static void open_network_rescue_screen(struct ui_state *ui) {
 
 static void open_usb_disk_confirm_screen(struct ui_state *ui) {
   ui->screen = SCREEN_USB_DISK_CONFIRM;
-  ui->usb_disk_entering = 0;
+  ui->usb_disk_start_due_ms = 0;
   set_status(ui, "USB Disk Mode confirmation");
+}
+
+static void open_usb_disk_starting_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_USB_DISK_STARTING;
+  ui->usb_disk_start_due_ms = current_time_ms() + 500;
+  set_status(ui, "USB Disk Mode starting");
 }
 
 static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) {
@@ -4761,12 +4776,8 @@ static int run_usb_disk_mode(struct ui_state *ui) {
     return 0;
   }
 
-  ui->usb_disk_entering = 1;
-  set_status(ui, "USB Disk Mode starting");
-  render_ui(ui);
-  usleep(500000);
   rc = system(cmd);
-  ui->usb_disk_entering = 0;
+  ui->usb_disk_start_due_ms = 0;
   if (rc == -1) {
     set_status(ui, "USB Disk Mode system call failed");
     return 0;
@@ -6180,7 +6191,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
 
   if (ui->screen == SCREEN_USB_DISK_CONFIRM) {
     if (action == ACTION_A) {
-      run_usb_disk_mode(ui);
+      open_usb_disk_starting_screen(ui);
       return;
     }
     if (action == ACTION_B) {
@@ -6193,6 +6204,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       open_start_menu(ui);
       return;
     }
+    return;
+  }
+
+  if (ui->screen == SCREEN_USB_DISK_STARTING) {
     return;
   }
 
@@ -6815,6 +6830,21 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     long long now_ms;
     int poll_timeout = ui->repeat_action != ACTION_NONE ? 50 :
                        (ui_needs_periodic_refresh(ui) ? 60 : 250);
+
+    now_ms = current_time_ms();
+    if (ui->screen == SCREEN_USB_DISK_STARTING && ui->usb_disk_start_due_ms > 0) {
+      if (now_ms >= ui->usb_disk_start_due_ms) {
+        run_usb_disk_mode(ui);
+        render_ui(ui);
+        if (ui_needs_periodic_refresh(ui)) {
+          next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
+        }
+        continue;
+      }
+      if (ui->usb_disk_start_due_ms - now_ms < poll_timeout) {
+        poll_timeout = (int)(ui->usb_disk_start_due_ms - now_ms);
+      }
+    }
 
     if (event_fd >= 0) {
       pfds[count].fd = event_fd;
