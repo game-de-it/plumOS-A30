@@ -5,8 +5,12 @@ PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/network-control.log"
 WPA_STATUS="${PLUMOS_A30_WPA_STATUS:-/tmp/wpa_status.txt}"
+WPA_CONFIG="${PLUMOS_A30_WPA_CONFIG:-/config/wpa_supplicant.conf}"
+WIFI_IFACE="${PLUMOS_WIFI_INTERFACE:-wlan0}"
+SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
 
 ACTION=status
+CONNECT_FILE=
 
 usage() {
   cat <<'USAGE'
@@ -16,6 +20,9 @@ Options:
   --wifi on       Start Wi-Fi runtime through plumOS network recovery.
   --wifi off      Stop wlan0 runtime without editing saved credentials.
   --wifi status   Print redacted runtime status. Default.
+  --scan          Print visible SSIDs as tab-separated network rows.
+  --connect-file FILE
+                  Connect using SSID/PSK read from a mode-0600 temp file.
   -h, --help      Show this help.
 USAGE
 }
@@ -40,11 +47,14 @@ process_running() {
 }
 
 get_wlan_ip() {
-  ifconfig wlan0 2>/dev/null | sed -n 's/.*inet addr:\([^ ]*\).*/\1/p' | sed -n '1p'
+  ifconfig "$WIFI_IFACE" 2>/dev/null |
+    sed -n -e 's/.*inet addr:\([^ ]*\).*/\1/p' \
+           -e 's/.*inet \([0-9][0-9.]*\).*/\1/p' |
+    sed -n '1p'
 }
 
 wifi_runtime_on() {
-  if ifconfig wlan0 2>/dev/null | sed -n '1p' | grep -q 'UP'; then
+  if ifconfig "$WIFI_IFACE" 2>/dev/null | sed -n '1p' | grep -q 'UP'; then
     return 0
   fi
   process_running "wpa_supplicant"
@@ -60,6 +70,25 @@ write_runtime_status_off() {
   } > "$WPA_STATUS" 2>/dev/null || true
 }
 
+write_runtime_status_current() {
+  ip="$(get_wlan_ip || true)"
+  state="$(wpa_cli -i "$WIFI_IFACE" status 2>/dev/null |
+    sed -n 's/^wpa_state=//p' | sed -n '1p')"
+  rssi="$(wpa_cli -i "$WIFI_IFACE" signal_poll 2>/dev/null |
+    sed -n 's/^RSSI=//p' | sed -n '1p')"
+  linkspeed="$(wpa_cli -i "$WIFI_IFACE" signal_poll 2>/dev/null |
+    sed -n 's/^LINKSPEED=//p' | sed -n '1p')"
+  frequency="$(wpa_cli -i "$WIFI_IFACE" signal_poll 2>/dev/null |
+    sed -n 's/^FREQUENCY=//p' | sed -n '1p')"
+  {
+    echo "wpa_state=${state:-CONNECTED}"
+    echo "ip_address=${ip}"
+    echo "RSSI=${rssi}"
+    echo "LINKSPEED=${linkspeed}"
+    echo "FREQUENCY=${frequency}"
+  } > "$WPA_STATUS" 2>/dev/null || true
+}
+
 stop_processes() {
   killall udhcpc 2>/dev/null || true
   killall wpa_supplicant 2>/dev/null || true
@@ -68,15 +97,15 @@ stop_processes() {
 wifi_off() {
   log "wifi_off begin"
   stop_processes
-  if ifconfig wlan0 0.0.0.0 >> "$LOG_FILE" 2>&1; then
-    log "ifconfig wlan0 clear_ip rc=0"
+  if ifconfig "$WIFI_IFACE" 0.0.0.0 >> "$LOG_FILE" 2>&1; then
+    log "ifconfig ${WIFI_IFACE} clear_ip rc=0"
   else
-    log "ifconfig wlan0 clear_ip rc=$?"
+    log "ifconfig ${WIFI_IFACE} clear_ip rc=$?"
   fi
-  if ifconfig wlan0 down >> "$LOG_FILE" 2>&1; then
-    log "ifconfig wlan0 down rc=0"
+  if ifconfig "$WIFI_IFACE" down >> "$LOG_FILE" 2>&1; then
+    log "ifconfig ${WIFI_IFACE} down rc=0"
   else
-    log "ifconfig wlan0 down rc=$?"
+    log "ifconfig ${WIFI_IFACE} down rc=$?"
   fi
   write_runtime_status_off
   log "wifi_off end ip=$(get_wlan_ip || true)"
@@ -111,6 +140,289 @@ print_status() {
   fi
 }
 
+scan_networks() {
+  log "scan begin iface=${WIFI_IFACE}"
+  ifconfig "$WIFI_IFACE" up >/dev/null 2>&1 || true
+  if command -v wpa_cli >/dev/null 2>&1; then
+    wpa_cli -i "$WIFI_IFACE" scan >/dev/null 2>&1 || true
+    sleep 2
+    if wpa_cli -i "$WIFI_IFACE" scan_results 2>/dev/null |
+      awk '
+        BEGIN { FS = "\t" }
+        NR > 1 {
+          ssid = $5
+          for (i = 6; i <= NF; i++) {
+            ssid = ssid "\t" $i
+          }
+          if (ssid == "") {
+            next
+          }
+          security = ($4 ~ /WPA|WEP/) ? "secured" : "open"
+          print "network\t" security "\t" $3 "\t" ssid
+        }
+      '; then
+      log "scan end source=wpa_cli"
+      return 0
+    fi
+  fi
+  if command -v iwlist >/dev/null 2>&1; then
+    iwlist "$WIFI_IFACE" scanning 2>/dev/null |
+      awk -F: '
+        function flush() {
+          if (ssid != "") {
+            print "network\t" security "\t" signal "\t" ssid
+          }
+        }
+        /Cell [0-9]+/ {
+          flush()
+          ssid = ""
+          signal = "-"
+          security = "secured"
+        }
+        /Encryption key:off/ { security = "open" }
+        /Signal level=/ {
+          signal = $0
+          sub(/^.*Signal level=/, "", signal)
+          sub(/ .*/, "", signal)
+        }
+        /ESSID:/ {
+          ssid = $2
+          sub(/^"/, "", ssid)
+          sub(/"$/, "", ssid)
+        }
+        END { flush() }
+      '
+    log "scan end source=iwlist"
+    return 0
+  fi
+  log "scan failed no_backend"
+  echo "error: Wi-Fi scan backend missing" >&2
+  return 1
+}
+
+wpa_quote() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/^/"/; s/$/"/'
+}
+
+is_hex64() {
+  case "$1" in
+    ????????????????????????????????????????????????????????????????)
+      case "$1" in
+        *[!0-9A-Fa-f]*)
+          return 1
+          ;;
+        *)
+          return 0
+          ;;
+      esac
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+read_connect_file() {
+  file="$1"
+  if [ ! -r "$file" ]; then
+    echo "error: connection input missing" >&2
+    return 1
+  fi
+  IFS= read -r CONNECT_SSID < "$file" || CONNECT_SSID=
+  CONNECT_SSID="$(printf '%s' "$CONNECT_SSID" | tr -d '\r')"
+  CONNECT_PSK="$(sed -n '2p' "$file" 2>/dev/null | tr -d '\r' || true)"
+  case "$CONNECT_SSID$CONNECT_PSK" in
+    *'
+'*)
+      echo "error: connection input contains newline" >&2
+      return 1
+      ;;
+  esac
+  if [ -z "$CONNECT_SSID" ]; then
+    echo "error: SSID is empty" >&2
+    return 1
+  fi
+  if [ -n "$CONNECT_PSK" ]; then
+    psk_len=${#CONNECT_PSK}
+    if [ "$psk_len" -lt 8 ] || [ "$psk_len" -gt 64 ]; then
+      echo "error: password must be 8..63 chars or 64 hex chars" >&2
+      return 1
+    fi
+    if [ "$psk_len" -eq 64 ] && ! is_hex64 "$CONNECT_PSK"; then
+      echo "error: 64-char password must be hex PSK" >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
+write_candidate_config() {
+  ssid="$1"
+  psk="$2"
+  out="$3"
+  {
+    echo "ctrl_interface=/var/run/wpa_supplicant"
+    echo "ap_scan=1"
+    echo "update_config=1"
+    echo
+    echo "network={"
+    printf '\tssid=%s\n' "$(wpa_quote "$ssid")"
+    if [ -n "$psk" ]; then
+      if is_hex64 "$psk"; then
+        printf '\tpsk=%s\n' "$psk"
+      else
+        printf '\tpsk=%s\n' "$(wpa_quote "$psk")"
+      fi
+    else
+      echo '	key_mgmt=NONE'
+    fi
+    echo "}"
+  } > "$out"
+  chmod 0600 "$out" 2>/dev/null || true
+}
+
+wait_for_wpa_completed() {
+  n=0
+  while [ "$n" -lt 20 ]; do
+    state="$(wpa_cli -i "$WIFI_IFACE" status 2>/dev/null |
+      sed -n 's/^wpa_state=//p' | sed -n '1p')"
+    if [ "$state" = "COMPLETED" ]; then
+      return 0
+    fi
+    sleep 1
+    n=$((n + 1))
+  done
+  return 1
+}
+
+wait_for_ip_seconds() {
+  limit="$1"
+  n=0
+  while [ "$n" -lt "$limit" ]; do
+    ip="$(get_wlan_ip || true)"
+    if [ -n "$ip" ]; then
+      printf '%s' "$ip"
+      return 0
+    fi
+    sleep 1
+    n=$((n + 1))
+  done
+  return 1
+}
+
+default_gateway() {
+  route -n 2>/dev/null | awk '$1 == "0.0.0.0" { print $2; exit }'
+}
+
+restore_wpa_config() {
+  backup="$1"
+  if [ -n "$backup" ] && [ -r "$backup" ]; then
+    cp "$backup" "$WPA_CONFIG" 2>/dev/null || true
+    chmod 0600 "$WPA_CONFIG" 2>/dev/null || true
+  fi
+}
+
+restart_existing_config_best_effort() {
+  stop_processes
+  ifconfig "$WIFI_IFACE" 0.0.0.0 >/dev/null 2>&1 || true
+  ifconfig "$WIFI_IFACE" up >/dev/null 2>&1 || true
+  if [ -x /etc/init.d/wpa_supplicant ]; then
+    /etc/init.d/wpa_supplicant start >> "$LOG_FILE" 2>&1 || true
+  elif command -v wpa_supplicant >/dev/null 2>&1 && [ -r "$WPA_CONFIG" ]; then
+    wpa_supplicant -B -D nl80211 -i "$WIFI_IFACE" -c "$WPA_CONFIG" >> "$LOG_FILE" 2>&1 || true
+  fi
+  udhcpc -i "$WIFI_IFACE" -n -q -t 5 >> "$LOG_FILE" 2>&1 || true
+  write_runtime_status_current
+}
+
+connect_wifi_from_file() {
+  candidate="/tmp/plumos-wpa_supplicant.conf.$$"
+  backup=""
+  ip=""
+  gateway=""
+  gateway_ping="skipped"
+  config_dir="${PLUMOS_ROOT}/config/network"
+  backup_dir="${PLUMOS_ROOT}/backups/network"
+
+  umask 077
+  if ! read_connect_file "$1"; then
+    return 2
+  fi
+  mkdir -p "$config_dir" "$backup_dir" 2>/dev/null || true
+  write_candidate_config "$CONNECT_SSID" "$CONNECT_PSK" "$candidate"
+  log "connect begin iface=${WIFI_IFACE} input=tempfile"
+
+  if [ -r "$WPA_CONFIG" ]; then
+    backup="${backup_dir}/wpa_supplicant.conf.$(date '+%Y%m%d-%H%M%S' 2>/dev/null || echo unknown).bak"
+    cp "$WPA_CONFIG" "$backup" 2>/dev/null || backup=""
+    [ -n "$backup" ] && chmod 0600 "$backup" 2>/dev/null || true
+  fi
+
+  stop_processes
+  ifconfig "$WIFI_IFACE" 0.0.0.0 >> "$LOG_FILE" 2>&1 || true
+  ifconfig "$WIFI_IFACE" up >> "$LOG_FILE" 2>&1 || true
+  if ! wpa_supplicant -B -D nl80211 -i "$WIFI_IFACE" -c "$candidate" >> "$LOG_FILE" 2>&1; then
+    log "connect fail stage=wpa_supplicant_start"
+    restore_wpa_config "$backup"
+    rm -f "$candidate"
+    restart_existing_config_best_effort
+    echo "result=failed"
+    echo "stage=wpa_supplicant_start"
+    return 1
+  fi
+  if ! wait_for_wpa_completed; then
+    log "connect fail stage=wpa_completed"
+    restore_wpa_config "$backup"
+    rm -f "$candidate"
+    restart_existing_config_best_effort
+    echo "result=failed"
+    echo "stage=wpa_completed"
+    return 1
+  fi
+  if ! udhcpc -i "$WIFI_IFACE" -n -q -t 5 >> "$LOG_FILE" 2>&1; then
+    log "connect warn stage=dhcp command_nonzero"
+  fi
+  ip="$(wait_for_ip_seconds 10 || true)"
+  if [ -z "$ip" ]; then
+    log "connect fail stage=dhcp_ip"
+    restore_wpa_config "$backup"
+    rm -f "$candidate"
+    restart_existing_config_best_effort
+    echo "result=failed"
+    echo "stage=dhcp_ip"
+    return 1
+  fi
+
+  gateway="$(default_gateway || true)"
+  if [ -n "$gateway" ]; then
+    if ping -c 1 -W 2 "$gateway" >> "$LOG_FILE" 2>&1; then
+      gateway_ping="ok"
+    else
+      gateway_ping="failed"
+    fi
+  fi
+
+  cp "$candidate" "$config_dir/wpa_supplicant.conf" 2>/dev/null || true
+  chmod 0600 "$config_dir/wpa_supplicant.conf" 2>/dev/null || true
+  tmp_config="${WPA_CONFIG}.plumos-tmp"
+  if cp "$candidate" "$tmp_config" 2>/dev/null && mv "$tmp_config" "$WPA_CONFIG" 2>/dev/null; then
+    chmod 0600 "$WPA_CONFIG" 2>/dev/null || true
+  else
+    log "connect warn stage=commit_config"
+  fi
+  rm -f "$candidate"
+  write_runtime_status_current
+  if [ -x "$SSH_START" ]; then
+    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  fi
+  log "connect success ip=${ip} gateway_ping=${gateway_ping}"
+  echo "result=connected"
+  echo "ip=${ip}"
+  echo "gateway=${gateway:-none}"
+  echo "gateway_ping=${gateway_ping}"
+  return 0
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --wifi)
@@ -128,6 +440,18 @@ while [ "$#" -gt 0 ]; do
           exit 2
           ;;
       esac
+      ;;
+    --scan)
+      ACTION=scan
+      ;;
+    --connect-file)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --connect-file expects a path" >&2
+        exit 2
+      fi
+      ACTION=connect
+      CONNECT_FILE="$1"
       ;;
     -h|--help)
       usage
@@ -148,6 +472,12 @@ case "$ACTION" in
     ;;
   off)
     wifi_off
+    ;;
+  scan)
+    scan_networks
+    ;;
+  connect)
+    connect_wifi_from_file "$CONNECT_FILE"
     ;;
   status)
     print_status

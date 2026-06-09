@@ -92,7 +92,8 @@ This file tracks current work items only. Put work history, probe logs, and rati
 - [ ] Link physical volume buttons and brightness hotkeys to System Settings.
 - [ ] Implement localization for UI language strings.
 - [ ] Decide Theme selection names, paths, and scope.
-- [ ] Design a safe Wi-Fi editor flow with backup and rollback.
+- [x] Design a safe Wi-Fi editor flow with backup and rollback.
+- [ ] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 

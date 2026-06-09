@@ -14,7 +14,8 @@
 - A30 本体設定の write-enabled UI は、backup、atomic write、`sync`、復旧方針を
   持つ項目だけに限定する。
 - stock 側の仕様を採用する場合は、事前に理由とリスクを確認する。
-- Wi-Fi の SSID、PSK、`/config/wpa_supplicant.conf` の内容は git、log、UI に出さない。
+- Wi-Fi の PSK、`/config/wpa_supplicant.conf` の内容は git、log、UI に出さない。
+  SSID は `Connect Wi-Fi` のユーザ選択画面でのみ表示し、log/git には残さない。
 
 ## controller UI の現在値表示
 
@@ -48,6 +49,8 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 
 - `Wi-Fi`: checkbox。A で runtime ON/OFF を切り替える。ON は `plumos-network-rescue`、
   OFF は `plumos-network-control --wifi off` を呼び、保存済み認証情報は編集しない。
+- `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
+  IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
 - `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する。
 - `INFORMATION`: read-only の network 情報サブ項目を開く。
 
@@ -123,13 +126,22 @@ runtime 状態は `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, `/proc/net/wireless` 
 接続設定は `/config/wpa_supplicant.conf` ですが、この file は機微情報なので直接表示
 しません。
 
-write 対応を行う場合は、少なくとも次を満たしてから実装します。
+`Connect Wi-Fi` は、A30 の stock `wpa_supplicant` init が `/config/wpa_supplicant.conf`
+を読む制約に合わせ、成功時だけこの file を更新します。plumOS 側では
+`/mnt/SDCARD/plumos/backups/network/` に事前 backup を作り、
+`/mnt/SDCARD/plumos/config/network/wpa_supplicant.conf` に成功後の copy を保持します。
+接続試行は `/tmp` の一時 file から `wpa_supplicant` を起動し、DHCP で IP を取得し、
+default gateway があれば ping を 1 回実行します。IP 取得に失敗した場合は以前の
+`/config/wpa_supplicant.conf` へ戻し、既存設定での再起動を試みます。
 
-- 既存の Wi-Fi power sequence を再現できること
-- 設定 file を backup できること
-- 一時 file へ書いてから atomic rename できること
-- service restart 後に DHCP と status 更新を確認できること
-- 失敗時に以前の設定へ戻せること
+接続フローの順序は次の通りです。
+
+- SSID 検索
+- パスワード入力
+- `wpa_supplicant` 起動
+- DHCP で IP address 取得
+- default gateway が存在すれば ping 1 回
+- 接続完了画面に IP address を表示
 
 ## keymap/input
 

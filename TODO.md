@@ -92,7 +92,8 @@
 - [ ] 物理音量ボタンと brightness hotkey を System Settings と連動する。
 - [ ] UI 文言の language localization を実装する。
 - [ ] Theme selection の候補名/path/適用範囲を決める。
-- [ ] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
+- [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
+- [ ] Connect Wi-Fi の SSID 検索、password 入力、DHCP、gateway ping、IP 表示を実機で確認する。
 
 ## Phase 7 - RetroArch, Libretro, and Standalone Runtime
 

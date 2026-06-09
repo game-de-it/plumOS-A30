@@ -15,8 +15,9 @@ setting, then connects that backend to plumOS UI and services.
 - Make A30 write-enabled controls available only for entries that have backup,
   atomic write, `sync`, and a recovery policy.
 - Confirm the reason and risk before adopting a stock behavior.
-- Never expose Wi-Fi SSID, PSK, or `/config/wpa_supplicant.conf` contents in
-  git, logs, or UI.
+- Never expose Wi-Fi PSK or `/config/wpa_supplicant.conf` contents in git,
+  logs, or UI. SSIDs are shown only in the explicit `Connect Wi-Fi` selection
+  screen and must not be written to logs or git.
 
 ## Current Values In Controller UI
 
@@ -60,6 +61,10 @@ The first Network Settings layer owns only actionable items:
 - `Wi-Fi`: checkbox. A toggles the runtime on/off. ON runs
   `plumos-network-rescue`; OFF runs `plumos-network-control --wifi off` and
   does not edit saved credentials.
+- `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
+  DHCP, one default-gateway ping when available, then an IP-address result
+  screen. The PSK is passed to the backend through a temporary file and is not
+  logged.
 - `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery.
 - `INFORMATION`: opens the read-only network information subpage.
 
@@ -134,13 +139,24 @@ Runtime state is available in `/tmp/wpa_status.txt`, `/tmp/.wpa2_log`, and
 `/proc/net/wireless`. Connection settings live in `/config/wpa_supplicant.conf`,
 which is sensitive and must not be displayed directly.
 
-Write support should meet at least these requirements:
+`Connect Wi-Fi` updates `/config/wpa_supplicant.conf` only after a successful
+connection because the A30 stock `wpa_supplicant` init reads that path. plumOS
+creates a pre-change backup under `/mnt/SDCARD/plumos/backups/network/` and
+keeps a successful copy under
+`/mnt/SDCARD/plumos/config/network/wpa_supplicant.conf`. Connection attempts
+start `wpa_supplicant` from a `/tmp` candidate file, acquire an IP address with
+DHCP, and run one ping to the default gateway when one exists. If IP acquisition
+fails, plumOS restores the previous `/config/wpa_supplicant.conf` and tries to
+restart the previous configuration.
 
-- Reproduce the existing Wi-Fi power sequence.
-- Back up the settings file first.
-- Write through a temporary file followed by atomic rename.
-- Confirm DHCP and status updates after service restart.
-- Restore the previous settings on failure.
+The connection flow order is:
+
+- Scan SSIDs.
+- Enter password.
+- Start `wpa_supplicant`.
+- Acquire an IP address with DHCP.
+- Ping the default gateway once when present.
+- Show the assigned IP address on the completion screen.
 
 ## Keymap/Input
 

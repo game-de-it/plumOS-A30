@@ -173,6 +173,12 @@ struct input_event {
 #define UI_KEY_REPEAT_DELAY_MS 350
 #define UI_KEY_REPEAT_INTERVAL_MS 95
 #define UI_SETTING_VALUE_REPEAT_INTERVAL_MS 250
+#define UI_MAX_WIFI_NETWORKS 64
+#define UI_WIFI_SSID_MAX 160
+#define UI_WIFI_PASSWORD_MAX 64
+#define UI_WIFI_KEYBOARD_ROWS 11
+#define UI_WIFI_COMMAND_ROW 10
+#define UI_WIFI_COMMAND_COUNT 4
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
@@ -265,6 +271,12 @@ struct safe_entry {
   const char *detail;
 };
 
+struct wifi_network_entry {
+  char ssid[UI_WIFI_SSID_MAX];
+  char security[24];
+  char signal[24];
+};
+
 struct theme_state {
   int loaded;
   int fallback;
@@ -335,7 +347,14 @@ enum ui_screen {
   SCREEN_SAFE_MENU = 6,
   SCREEN_HELP = 7,
   SCREEN_CORE_SELECT = 8,
-  SCREEN_NETWORK_RESCUE = 9
+  SCREEN_NETWORK_RESCUE = 9,
+  SCREEN_WIFI_CONNECT = 10
+};
+
+enum wifi_connect_stage {
+  WIFI_CONNECT_SELECT = 0,
+  WIFI_CONNECT_PASSWORD,
+  WIFI_CONNECT_RESULT
 };
 
 enum settings_category {
@@ -385,6 +404,7 @@ struct ui_state {
   enum ui_screen back_screen;
   enum ui_screen safe_back_screen;
   enum ui_screen core_back_screen;
+  enum ui_screen wifi_back_screen;
   size_t top_cursor;
   size_t rom_cursor;
   size_t menu_cursor;
@@ -402,6 +422,19 @@ struct ui_state {
   size_t menu_count;
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
+  struct wifi_network_entry wifi_networks[UI_MAX_WIFI_NETWORKS];
+  size_t wifi_count;
+  size_t wifi_cursor;
+  enum wifi_connect_stage wifi_stage;
+  size_t wifi_key_row;
+  size_t wifi_key_col;
+  char wifi_password[UI_WIFI_PASSWORD_MAX + 1];
+  char wifi_result_title[96];
+  char wifi_result_ip[64];
+  char wifi_result_gateway[64];
+  char wifi_result_gateway_ping[32];
+  char wifi_result_stage[64];
+  int wifi_result_success;
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
@@ -444,6 +477,7 @@ struct ui_state {
 };
 
 static int load_top_entries(struct ui_state *ui);
+static void set_status(struct ui_state *ui, const char *text);
 
 static const struct safe_entry SAFE_ENTRIES[] = {
     {"sleep", "Sleep", "save state, flush SRAM, sync, enter sleep"},
@@ -466,6 +500,24 @@ static const size_t PERFORMANCE_CPU_PRESET_COUNT =
 static const long PERFORMANCE_CPU_CORE_PRESETS[] = {2, 4};
 static const size_t PERFORMANCE_CPU_CORE_PRESET_COUNT =
     sizeof(PERFORMANCE_CPU_CORE_PRESETS) / sizeof(PERFORMANCE_CPU_CORE_PRESETS[0]);
+
+static const char *WIFI_KEYBOARD_ROWS[UI_WIFI_KEYBOARD_ROWS] = {
+    "abcdefghij",
+    "klmnopqrst",
+    "uvwxyz",
+    "ABCDEFGHIJ",
+    "KLMNOPQRST",
+    "UVWXYZ",
+    "0123456789",
+    "-_.@#$%&!*",
+    "?+=:/\\\"'()",
+    "[]{}~,;^`|",
+    ""
+};
+
+static const char *WIFI_COMMAND_LABELS[UI_WIFI_COMMAND_COUNT] = {
+    "DEL", "SPACE", "CLEAR", "CONNECT"
+};
 
 static long long current_time_ms(void) {
   struct timeval tv;
@@ -490,6 +542,56 @@ static int copy_string(char *out, size_t out_size, const char *in) {
   }
   memcpy(out, in, len + 1);
   return 1;
+}
+
+static void copy_truncated_string(char *out, size_t out_size, const char *in) {
+  size_t len;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!in) {
+    return;
+  }
+  len = strlen(in);
+  if (len >= out_size) {
+    len = out_size - 1;
+  }
+  memcpy(out, in, len);
+  out[len] = '\0';
+}
+
+static void copy_prefixed_truncated_string(char *out, size_t out_size,
+                                           const char *prefix, const char *value) {
+  size_t prefix_len;
+  size_t value_len;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!prefix) {
+    prefix = "";
+  }
+  if (!value) {
+    value = "";
+  }
+  prefix_len = strlen(prefix);
+  if (prefix_len >= out_size) {
+    prefix_len = out_size - 1;
+  }
+  memcpy(out, prefix, prefix_len);
+  out[prefix_len] = '\0';
+  if (prefix_len + 1 >= out_size) {
+    return;
+  }
+  value_len = strlen(value);
+  if (value_len >= out_size - prefix_len) {
+    value_len = out_size - prefix_len - 1;
+  }
+  memcpy(out + prefix_len, value, value_len);
+  out[prefix_len + value_len] = '\0';
 }
 
 static int append_string(char *out, size_t out_size, size_t *pos, const char *in) {
@@ -720,6 +822,290 @@ static int write_text_file(const char *path, const char *text) {
     return 0;
   }
   return written == (ssize_t)len;
+}
+
+static int write_all_string(int fd, const char *text) {
+  size_t len;
+  size_t off = 0;
+
+  if (fd < 0 || !text) {
+    return 0;
+  }
+  len = strlen(text);
+  while (off < len) {
+    ssize_t n = write(fd, text + off, len - off);
+    if (n < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return 0;
+    }
+    if (n == 0) {
+      return 0;
+    }
+    off += (size_t)n;
+  }
+  return 1;
+}
+
+static void trim_line_end(char *s) {
+  size_t len;
+
+  if (!s) {
+    return;
+  }
+  len = strlen(s);
+  while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) {
+    s[--len] = '\0';
+  }
+}
+
+static int string_contains_line_break(const char *s) {
+  return s && (strchr(s, '\n') || strchr(s, '\r'));
+}
+
+static int wifi_network_exists(const struct ui_state *ui, const char *ssid) {
+  size_t i;
+
+  if (!ui || !ssid || !ssid[0]) {
+    return 0;
+  }
+  for (i = 0; i < ui->wifi_count; i++) {
+    if (strcmp(ui->wifi_networks[i].ssid, ssid) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void wifi_add_network(struct ui_state *ui, const char *ssid,
+                             const char *security, const char *signal) {
+  struct wifi_network_entry *entry;
+
+  if (!ui || !ssid || !ssid[0] || ui->wifi_count >= UI_MAX_WIFI_NETWORKS ||
+      wifi_network_exists(ui, ssid)) {
+    return;
+  }
+  entry = &ui->wifi_networks[ui->wifi_count++];
+  copy_truncated_string(entry->ssid, sizeof(entry->ssid), ssid);
+  copy_truncated_string(entry->security, sizeof(entry->security),
+                        security && security[0] ? security : "secured");
+  copy_truncated_string(entry->signal, sizeof(entry->signal),
+                        signal && signal[0] ? signal : "-");
+}
+
+static int wifi_scan_networks(struct ui_state *ui) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char line[512];
+  FILE *pipe;
+  size_t pos = 0;
+  int rc;
+
+  if (!ui) {
+    return 0;
+  }
+  ui->wifi_count = 0;
+  ui->wifi_cursor = 0;
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
+    set_status(ui, "network control path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "network control script missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " --scan 2>/dev/null")) {
+    set_status(ui, "Wi-Fi scan command too long");
+    return 0;
+  }
+
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    set_status(ui, "Wi-Fi scan failed to start");
+    return 0;
+  }
+  while (fgets(line, sizeof(line), pipe)) {
+    char *security;
+    char *signal;
+    char *ssid;
+    char *tab;
+
+    trim_line_end(line);
+    if (strncmp(line, "network\t", 8) != 0) {
+      continue;
+    }
+    security = line + 8;
+    tab = strchr(security, '\t');
+    if (!tab) {
+      continue;
+    }
+    *tab = '\0';
+    signal = tab + 1;
+    tab = strchr(signal, '\t');
+    if (!tab) {
+      continue;
+    }
+    *tab = '\0';
+    ssid = tab + 1;
+    if (!ssid[0]) {
+      continue;
+    }
+    wifi_add_network(ui, ssid, security, signal);
+  }
+  rc = pclose(pipe);
+  if (ui->wifi_count == 0) {
+    if (rc == -1 || !(WIFEXITED(rc) && WEXITSTATUS(rc) == 0)) {
+      set_status(ui, "Wi-Fi scan failed");
+      return 0;
+    }
+    set_status(ui, "No Wi-Fi networks found");
+    return 1;
+  }
+  snprintf(ui->status, sizeof(ui->status), "Wi-Fi scan found %zu", ui->wifi_count);
+  return 1;
+}
+
+static size_t wifi_keyboard_row_len(size_t row) {
+  if (row == UI_WIFI_COMMAND_ROW) {
+    return UI_WIFI_COMMAND_COUNT;
+  }
+  if (row >= UI_WIFI_KEYBOARD_ROWS) {
+    return 0;
+  }
+  return strlen(WIFI_KEYBOARD_ROWS[row]);
+}
+
+static void wifi_clamp_key_cursor(struct ui_state *ui) {
+  size_t row_len;
+
+  if (!ui) {
+    return;
+  }
+  if (ui->wifi_key_row >= UI_WIFI_KEYBOARD_ROWS) {
+    ui->wifi_key_row = UI_WIFI_KEYBOARD_ROWS - 1;
+  }
+  row_len = wifi_keyboard_row_len(ui->wifi_key_row);
+  if (row_len == 0) {
+    ui->wifi_key_col = 0;
+  } else if (ui->wifi_key_col >= row_len) {
+    ui->wifi_key_col = row_len - 1;
+  }
+}
+
+static void wifi_append_password_char(struct ui_state *ui, char c) {
+  size_t len;
+
+  if (!ui) {
+    return;
+  }
+  len = strlen(ui->wifi_password);
+  if (len >= UI_WIFI_PASSWORD_MAX) {
+    set_status(ui, "Password is already 64 chars");
+    return;
+  }
+  ui->wifi_password[len] = c;
+  ui->wifi_password[len + 1] = '\0';
+  snprintf(ui->status, sizeof(ui->status), "Password length %zu", len + 1);
+}
+
+static void wifi_delete_password_char(struct ui_state *ui) {
+  size_t len;
+
+  if (!ui) {
+    return;
+  }
+  len = strlen(ui->wifi_password);
+  if (len > 0) {
+    ui->wifi_password[len - 1] = '\0';
+  }
+  snprintf(ui->status, sizeof(ui->status), "Password length %zu",
+           strlen(ui->wifi_password));
+}
+
+static void wifi_mask_password(const char *password, char *out, size_t out_size) {
+  size_t len;
+  size_t i;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!password) {
+    return;
+  }
+  len = strlen(password);
+  if (len + 1 > out_size) {
+    len = out_size - 1;
+  }
+  for (i = 0; i < len; i++) {
+    out[i] = '*';
+  }
+  out[len] = '\0';
+}
+
+static void wifi_format_keyboard_row(const struct ui_state *ui, size_t row,
+                                     char *out, size_t out_size) {
+  size_t pos = 0;
+  size_t i;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (row == UI_WIFI_COMMAND_ROW) {
+    for (i = 0; i < UI_WIFI_COMMAND_COUNT; i++) {
+      if (i > 0 && !append_string(out, out_size, &pos, " ")) {
+        return;
+      }
+      if (ui && ui->wifi_key_row == row && ui->wifi_key_col == i) {
+        if (!append_string(out, out_size, &pos, "[")) {
+          return;
+        }
+        if (!append_string(out, out_size, &pos, WIFI_COMMAND_LABELS[i])) {
+          return;
+        }
+        if (!append_string(out, out_size, &pos, "]")) {
+          return;
+        }
+      } else if (!append_string(out, out_size, &pos, WIFI_COMMAND_LABELS[i])) {
+        return;
+      }
+    }
+    return;
+  }
+  if (row < UI_WIFI_KEYBOARD_ROWS) {
+    const char *keys = WIFI_KEYBOARD_ROWS[row];
+    for (i = 0; keys[i]; i++) {
+      char ch[2];
+      if (i > 0 && !append_string(out, out_size, &pos, " ")) {
+        return;
+      }
+      ch[0] = keys[i];
+      ch[1] = '\0';
+      if (ui && ui->wifi_key_row == row && ui->wifi_key_col == i) {
+        if (!append_string(out, out_size, &pos, "[")) {
+          return;
+        }
+        if (!append_string(out, out_size, &pos, ch)) {
+          return;
+        }
+        if (!append_string(out, out_size, &pos, "]")) {
+          return;
+        }
+      } else if (!append_string(out, out_size, &pos, ch)) {
+        return;
+      }
+    }
+  }
 }
 
 static long scale_setting_to_runtime(long value, long setting_max,
@@ -2128,7 +2514,8 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   if (!id) {
     return SETTING_CONTROL_READONLY;
   }
-  if (strcmp(id, "network_rescue") == 0 ||
+  if (strcmp(id, "network_connect_wifi") == 0 ||
+      strcmp(id, "network_rescue") == 0 ||
       strcmp(id, "network_information") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
       strcmp(id, "system_information") == 0 ||
@@ -2311,6 +2698,8 @@ static void add_network_settings_entries(struct ui_state *ui) {
 
   add_bool_setting_entry(ui, "network_wifi_enabled", "Wi-Fi",
                          device->wifi_runtime_enabled);
+  add_setting_entry(ui, "network_connect_wifi", "Connect Wi-Fi",
+                    "Scan SSID");
   add_setting_entry(ui, "network_rescue", "Run Network Recovery",
                     "Wi-Fi + DHCP + SSH");
   add_setting_entry(ui, "network_information", "INFORMATION", "");
@@ -3439,6 +3828,9 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "rom_scan_test_file_count") == 0) {
     copy_string(line1, line1_size, "Synthetic scan test count.");
     copy_string(line2, line2_size, "Used by scan performance checks.");
+  } else if (strcmp(id, "network_connect_wifi") == 0) {
+    copy_string(line1, line1_size, "Scan SSIDs and connect with password.");
+    copy_string(line2, line2_size, "Saves Wi-Fi config only after IP is acquired.");
   } else if (strcmp(id, "network_rescue") == 0) {
     copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
     copy_string(line2, line2_size, "Restores the usual remote access path.");
@@ -3757,6 +4149,83 @@ static void render_network_rescue(struct ui_state *ui) {
   }
 }
 
+static void render_wifi_connect(struct ui_state *ui) {
+  size_t i;
+  size_t window = ui_list_window_size(ui);
+  size_t start = 0;
+  size_t end = 0;
+  char masked[UI_WIFI_PASSWORD_MAX + 1];
+  char footer1[160];
+  char footer2[160];
+
+  if (window == 0) {
+    window = 1;
+  }
+  ui_printf(ui, "plumOS controller UI - Network Settings - Connect Wi-Fi\n");
+  if (ui->wifi_stage == WIFI_CONNECT_SELECT) {
+    start = (ui->wifi_cursor / window) * window;
+    end = start + window;
+    if (end > ui->wifi_count) {
+      end = ui->wifi_count;
+    }
+    ui_printf(ui, "A: select  B: back  SELECT: rescan  UP/DOWN: move  Q: quit\n");
+    ui_printf(ui, "entries=%zu cursor=%zu\n", ui->wifi_count,
+              ui->wifi_count ? ui->wifi_cursor + 1 : 0);
+    ui_printf(ui, "\n");
+    for (i = start; i < end; i++) {
+      const struct wifi_network_entry *entry = &ui->wifi_networks[i];
+      ui_printf(ui, "%c %3zu  %s  [%s]  %s dBm\n",
+                i == ui->wifi_cursor ? '>' : ' ', i + 1, entry->ssid,
+                entry->security, entry->signal);
+    }
+    if (ui->wifi_count == 0) {
+      ui_printf(ui, "(no SSIDs found)\n");
+    }
+    ui_printf(ui, "footer1=SSID scan results\n");
+    ui_printf(ui, "footer2=A selects a network; SELECT rescans.\n");
+  } else if (ui->wifi_stage == WIFI_CONNECT_PASSWORD) {
+    const char *ssid = ui->wifi_count > 0 && ui->wifi_cursor < ui->wifi_count
+                           ? ui->wifi_networks[ui->wifi_cursor].ssid
+                           : "-";
+    wifi_mask_password(ui->wifi_password, masked, sizeof(masked));
+    ui_printf(ui, "A: type/run  B: SSID list  UP/DOWN/LEFT/RIGHT: move  Q: quit\n");
+    ui_printf(ui, "target=%s\n", ssid);
+    ui_printf(ui, "entries=%d cursor=%zu\n", UI_WIFI_KEYBOARD_ROWS,
+              ui->wifi_key_row + 1);
+    ui_printf(ui, "\n");
+    for (i = 0; i < UI_WIFI_KEYBOARD_ROWS; i++) {
+      char row[128];
+      wifi_format_keyboard_row(ui, i, row, sizeof(row));
+      ui_printf(ui, "%c %3zu  %s\n",
+                i == ui->wifi_key_row ? '>' : ' ', i + 1, row);
+    }
+    snprintf(footer1, sizeof(footer1), "Password: %s (%zu chars)",
+             masked[0] ? masked : "-", strlen(ui->wifi_password));
+    snprintf(footer2, sizeof(footer2), "Use CONNECT after entering 8..63 chars.");
+    ui_printf(ui, "footer1=%s\n", footer1);
+    ui_printf(ui, "footer2=%s\n", footer2);
+  } else {
+    ui_printf(ui, "A: done  B: Network Settings  Q: quit\n");
+    ui_printf(ui, "entries=4 cursor=1\n");
+    ui_printf(ui, "\n");
+    ui_printf(ui, ">   1  %s\n",
+              ui->wifi_result_title[0] ? ui->wifi_result_title : "Connection result");
+    ui_printf(ui, "    2  IP Address: %s\n",
+              ui->wifi_result_ip[0] ? ui->wifi_result_ip : "-");
+    ui_printf(ui, "    3  Gateway: %s\n",
+              ui->wifi_result_gateway[0] ? ui->wifi_result_gateway : "-");
+    ui_printf(ui, "    4  Gateway Ping: %s\n",
+              ui->wifi_result_gateway_ping[0] ? ui->wifi_result_gateway_ping : "-");
+    ui_printf(ui, "footer1=%s\n",
+              ui->wifi_result_success ? "Connection complete." : "Connection failed.");
+    ui_printf(ui, "footer2=%s\n",
+              ui->wifi_result_stage[0] ? ui->wifi_result_stage : "B returns.");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
   if (ui->rescue_network) {
@@ -3776,6 +4245,8 @@ static void render_ui(struct ui_state *ui) {
     render_core_select(ui);
   } else if (ui->screen == SCREEN_NETWORK_RESCUE) {
     render_network_rescue(ui);
+  } else if (ui->screen == SCREEN_WIFI_CONNECT) {
+    render_wifi_connect(ui);
   } else {
     render_top(ui);
   }
@@ -4153,6 +4624,213 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
     return 1;
   }
   set_status(ui, "network control returned non-zero");
+  return 0;
+}
+
+static void wifi_clear_result(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  ui->wifi_result_title[0] = '\0';
+  ui->wifi_result_ip[0] = '\0';
+  ui->wifi_result_gateway[0] = '\0';
+  ui->wifi_result_gateway_ping[0] = '\0';
+  ui->wifi_result_stage[0] = '\0';
+  ui->wifi_result_success = 0;
+}
+
+static void open_wifi_connect_screen(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  ui->wifi_back_screen = ui->screen;
+  ui->screen = SCREEN_WIFI_CONNECT;
+  ui->wifi_stage = WIFI_CONNECT_SELECT;
+  ui->wifi_key_row = 0;
+  ui->wifi_key_col = 0;
+  ui->wifi_password[0] = '\0';
+  wifi_clear_result(ui);
+  set_status(ui, "Scanning Wi-Fi SSIDs");
+  render_ui(ui);
+  wifi_scan_networks(ui);
+}
+
+static void wifi_back_to_network_settings(struct ui_state *ui, const char *status) {
+  open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+  select_setting_entry_by_id(ui, "network_connect_wifi");
+  set_status(ui, status ? status : "back to Network Settings");
+}
+
+static int wifi_selected_network_is_open(const struct ui_state *ui) {
+  const struct wifi_network_entry *entry;
+
+  if (!ui || ui->wifi_count == 0 || ui->wifi_cursor >= ui->wifi_count) {
+    return 0;
+  }
+  entry = &ui->wifi_networks[ui->wifi_cursor];
+  return strcmp(entry->security, "open") == 0;
+}
+
+static int wifi_write_connect_tempfile(struct ui_state *ui, char *path, size_t path_size) {
+  char template_path[] = "/tmp/plumos-wifi-connect.XXXXXX";
+  int fd;
+  const char *ssid;
+
+  if (!ui || !path || path_size == 0 || ui->wifi_count == 0 ||
+      ui->wifi_cursor >= ui->wifi_count) {
+    return 0;
+  }
+  ssid = ui->wifi_networks[ui->wifi_cursor].ssid;
+  if (string_contains_line_break(ssid) || string_contains_line_break(ui->wifi_password)) {
+    set_status(ui, "SSID/password contains unsupported newline");
+    return 0;
+  }
+  fd = mkstemp(template_path);
+  if (fd < 0) {
+    set_status(ui, "cannot create Wi-Fi temp file");
+    return 0;
+  }
+  if (!write_all_string(fd, ssid) ||
+      !write_all_string(fd, "\n") ||
+      !write_all_string(fd, ui->wifi_password) ||
+      !write_all_string(fd, "\n")) {
+    close(fd);
+    unlink(template_path);
+    set_status(ui, "cannot write Wi-Fi temp file");
+    return 0;
+  }
+  if (close(fd) != 0) {
+    unlink(template_path);
+    set_status(ui, "cannot close Wi-Fi temp file");
+    return 0;
+  }
+  if (!copy_string(path, path_size, template_path)) {
+    unlink(template_path);
+    set_status(ui, "Wi-Fi temp path too long");
+    return 0;
+  }
+  return 1;
+}
+
+static void wifi_parse_connect_output_line(struct ui_state *ui, const char *line) {
+  const char *value;
+
+  if (!ui || !line) {
+    return;
+  }
+  if (strncmp(line, "result=", 7) == 0) {
+    value = line + 7;
+    if (strcmp(value, "connected") == 0) {
+      ui->wifi_result_success = 1;
+      copy_string(ui->wifi_result_title, sizeof(ui->wifi_result_title), "Connected");
+    } else {
+      ui->wifi_result_success = 0;
+      copy_string(ui->wifi_result_title, sizeof(ui->wifi_result_title), "Connection Failed");
+    }
+  } else if (strncmp(line, "ip=", 3) == 0) {
+    copy_truncated_string(ui->wifi_result_ip, sizeof(ui->wifi_result_ip), line + 3);
+  } else if (strncmp(line, "gateway=", 8) == 0) {
+    copy_truncated_string(ui->wifi_result_gateway, sizeof(ui->wifi_result_gateway),
+                          line + 8);
+  } else if (strncmp(line, "gateway_ping=", 13) == 0) {
+    copy_truncated_string(ui->wifi_result_gateway_ping,
+                          sizeof(ui->wifi_result_gateway_ping), line + 13);
+  } else if (strncmp(line, "stage=", 6) == 0) {
+    copy_prefixed_truncated_string(ui->wifi_result_stage, sizeof(ui->wifi_result_stage),
+                                   "Failed at ", line + 6);
+  }
+}
+
+static int run_wifi_connect_selected(struct ui_state *ui) {
+  char script[PATH_MAX];
+  char temp_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  char line[512];
+  FILE *pipe;
+  size_t pos = 0;
+  int rc;
+  size_t password_len;
+
+  if (!ui || ui->wifi_count == 0 || ui->wifi_cursor >= ui->wifi_count) {
+    set_status(ui, "No SSID selected");
+    return 0;
+  }
+  password_len = strlen(ui->wifi_password);
+  if (!wifi_selected_network_is_open(ui) &&
+      (password_len < 8 || password_len > UI_WIFI_PASSWORD_MAX)) {
+    set_status(ui, "Password must be 8..64 chars");
+    return 0;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
+    set_status(ui, "network control path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "network control script missing");
+    return 0;
+  }
+  if (!wifi_write_connect_tempfile(ui, temp_path, sizeof(temp_path))) {
+    return 0;
+  }
+
+  wifi_clear_result(ui);
+  copy_string(ui->wifi_result_title, sizeof(ui->wifi_result_title), "Connecting...");
+  copy_string(ui->wifi_result_stage, sizeof(ui->wifi_result_stage), "Waiting for IP address.");
+  ui->wifi_stage = WIFI_CONNECT_RESULT;
+  set_status(ui, "Connecting Wi-Fi");
+  render_ui(ui);
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " --connect-file ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, temp_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>/dev/null")) {
+    unlink(temp_path);
+    set_status(ui, "Wi-Fi connect command too long");
+    return 0;
+  }
+
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    unlink(temp_path);
+    set_status(ui, "Wi-Fi connect failed to start");
+    return 0;
+  }
+  while (fgets(line, sizeof(line), pipe)) {
+    trim_line_end(line);
+    wifi_parse_connect_output_line(ui, line);
+  }
+  rc = pclose(pipe);
+  unlink(temp_path);
+  settle_input_after_child(ui);
+
+  if (ui->wifi_result_success) {
+    if (!ui->wifi_result_stage[0]) {
+      snprintf(ui->wifi_result_stage, sizeof(ui->wifi_result_stage),
+               "Gateway ping: %s",
+               ui->wifi_result_gateway_ping[0] ? ui->wifi_result_gateway_ping : "skipped");
+    }
+    snprintf(ui->status, sizeof(ui->status), "Wi-Fi connected IP=%s",
+             ui->wifi_result_ip[0] ? ui->wifi_result_ip : "-");
+    return 1;
+  }
+  if (!ui->wifi_result_title[0]) {
+    copy_string(ui->wifi_result_title, sizeof(ui->wifi_result_title), "Connection Failed");
+  }
+  if (!ui->wifi_result_stage[0]) {
+    copy_string(ui->wifi_result_stage, sizeof(ui->wifi_result_stage),
+                "No connection result returned.");
+  }
+  if (rc == -1 || !(WIFEXITED(rc) && WEXITSTATUS(rc) == 0)) {
+    set_status(ui, "Wi-Fi connection failed");
+  } else {
+    set_status(ui, "Wi-Fi connection did not complete");
+  }
   return 0;
 }
 
@@ -4924,6 +5602,10 @@ static int is_network_setting_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_rescue") == 0;
 }
 
+static int is_network_connect_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "network_connect_wifi") == 0;
+}
+
 static int is_network_information_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_information") == 0;
 }
@@ -4988,6 +5670,144 @@ static int handle_brightness_test_action(struct ui_state *ui, enum ui_action act
     return 0;
   }
   ui->settings_cursor = cursor;
+  return 1;
+}
+
+static int handle_wifi_password_key(struct ui_state *ui) {
+  if (!ui) {
+    return 0;
+  }
+  wifi_clamp_key_cursor(ui);
+  if (ui->wifi_key_row == UI_WIFI_COMMAND_ROW) {
+    switch (ui->wifi_key_col) {
+    case 0:
+      wifi_delete_password_char(ui);
+      return 1;
+    case 1:
+      wifi_append_password_char(ui, ' ');
+      return 1;
+    case 2:
+      ui->wifi_password[0] = '\0';
+      set_status(ui, "Password cleared");
+      return 1;
+    case 3:
+      run_wifi_connect_selected(ui);
+      return 1;
+    default:
+      return 1;
+    }
+  }
+  if (ui->wifi_key_row < UI_WIFI_KEYBOARD_ROWS &&
+      ui->wifi_key_col < strlen(WIFI_KEYBOARD_ROWS[ui->wifi_key_row])) {
+    wifi_append_password_char(ui, WIFI_KEYBOARD_ROWS[ui->wifi_key_row][ui->wifi_key_col]);
+    return 1;
+  }
+  return 1;
+}
+
+static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action) {
+  if (!ui || ui->screen != SCREEN_WIFI_CONNECT) {
+    return 0;
+  }
+  if (ui->wifi_stage == WIFI_CONNECT_RESULT) {
+    if (action == ACTION_A || action == ACTION_B) {
+      wifi_back_to_network_settings(ui, ui->wifi_result_success
+                                            ? "Wi-Fi connection complete"
+                                            : "back to Network Settings");
+      return 1;
+    }
+    return 1;
+  }
+  if (ui->wifi_stage == WIFI_CONNECT_SELECT) {
+    if (action == ACTION_UP) {
+      if (ui->wifi_cursor > 0) {
+        ui->wifi_cursor--;
+      }
+      return 1;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->wifi_cursor + 1 < ui->wifi_count) {
+        ui->wifi_cursor++;
+      }
+      return 1;
+    }
+    if (action == ACTION_RIGHT) {
+      ui_cursor_page_down(&ui->wifi_cursor, ui->wifi_count, ui_list_window_size(ui));
+      return 1;
+    }
+    if (action == ACTION_LEFT) {
+      ui_cursor_page_up(&ui->wifi_cursor, ui_list_window_size(ui));
+      return 1;
+    }
+    if (action == ACTION_SELECT) {
+      set_status(ui, "Rescanning Wi-Fi SSIDs");
+      render_ui(ui);
+      wifi_scan_networks(ui);
+      return 1;
+    }
+    if (action == ACTION_B) {
+      wifi_back_to_network_settings(ui, "back to Network Settings");
+      return 1;
+    }
+    if (action == ACTION_A) {
+      if (ui->wifi_count == 0 || ui->wifi_cursor >= ui->wifi_count) {
+        set_status(ui, "No SSID selected");
+        return 1;
+      }
+      ui->wifi_password[0] = '\0';
+      if (wifi_selected_network_is_open(ui)) {
+        run_wifi_connect_selected(ui);
+        return 1;
+      }
+      ui->wifi_stage = WIFI_CONNECT_PASSWORD;
+      ui->wifi_key_row = 0;
+      ui->wifi_key_col = 0;
+      set_status(ui, "Enter Wi-Fi password");
+      return 1;
+    }
+    return 1;
+  }
+  if (ui->wifi_stage == WIFI_CONNECT_PASSWORD) {
+    if (action == ACTION_B) {
+      ui->wifi_stage = WIFI_CONNECT_SELECT;
+      set_status(ui, "back to SSID list");
+      return 1;
+    }
+    if (action == ACTION_UP) {
+      if (ui->wifi_key_row > 0) {
+        ui->wifi_key_row--;
+      }
+      wifi_clamp_key_cursor(ui);
+      return 1;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->wifi_key_row + 1 < UI_WIFI_KEYBOARD_ROWS) {
+        ui->wifi_key_row++;
+      }
+      wifi_clamp_key_cursor(ui);
+      return 1;
+    }
+    if (action == ACTION_LEFT) {
+      if (ui->wifi_key_col > 0) {
+        ui->wifi_key_col--;
+      }
+      wifi_clamp_key_cursor(ui);
+      return 1;
+    }
+    if (action == ACTION_RIGHT) {
+      size_t row_len = wifi_keyboard_row_len(ui->wifi_key_row);
+      if (ui->wifi_key_col + 1 < row_len) {
+        ui->wifi_key_col++;
+      }
+      wifi_clamp_key_cursor(ui);
+      return 1;
+    }
+    if (action == ACTION_A) {
+      handle_wifi_password_key(ui);
+      return 1;
+    }
+    return 1;
+  }
   return 1;
 }
 
@@ -5078,6 +5898,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       open_start_menu(ui);
       return;
     }
+    return;
+  }
+
+  if (ui->screen == SCREEN_WIFI_CONNECT) {
+    handle_wifi_connect_action(ui, action);
     return;
   }
 
@@ -5226,6 +6051,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
       char msg[256];
       if (handle_setting_control(ui, action)) {
+        return;
+      }
+      if (is_network_connect_entry(entry)) {
+        open_wifi_connect_screen(ui);
         return;
       }
       if (is_network_setting_entry(entry)) {
@@ -5477,6 +6306,11 @@ static int settings_value_action_repeats(const struct ui_state *ui,
 static int action_repeat_interval_ms(const struct ui_state *ui,
                                      enum ui_action action) {
   if (action == ACTION_UP || action == ACTION_DOWN) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
+  if (ui && ui->screen == SCREEN_WIFI_CONNECT &&
+      ui->wifi_stage == WIFI_CONNECT_PASSWORD &&
+      (action == ACTION_LEFT || action == ACTION_RIGHT)) {
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
   if (ui && ui->screen == SCREEN_SETTINGS &&
