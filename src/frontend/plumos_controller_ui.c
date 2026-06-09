@@ -180,6 +180,7 @@ struct input_event {
 #define UI_WIFI_COMMAND_ROW 6
 #define UI_WIFI_COMMAND_COUNT 5
 #define UI_USB_DISK_START_DELAY_MS 2000
+#define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
 
@@ -412,6 +413,7 @@ struct ui_state {
   int renderer_mali;
   int rescue_network;
   int render_failed;
+  int fe_ready_flag_written;
   int timeout_sec;
   enum ui_screen screen;
   enum ui_screen back_screen;
@@ -925,6 +927,26 @@ static int write_text_file(const char *path, const char *text) {
     return 0;
   }
   fd = open(path, O_WRONLY);
+  if (fd < 0) {
+    return 0;
+  }
+  len = strlen(text);
+  written = write(fd, text, len);
+  if (close(fd) != 0) {
+    return 0;
+  }
+  return written == (ssize_t)len;
+}
+
+static int write_text_file_create(const char *path, const char *text) {
+  int fd;
+  size_t len;
+  ssize_t written;
+
+  if (!path || !path[0] || !text) {
+    return 0;
+  }
+  fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd < 0) {
     return 0;
   }
@@ -4801,6 +4823,20 @@ static void render_ui(struct ui_state *ui) {
   }
 }
 
+static void mark_frontend_ready_if_needed(struct ui_state *ui) {
+  char content[128];
+
+  if (!ui || ui->fe_ready_flag_written || !ui->renderer_mali ||
+      !ui->renderer_active || ui->render_failed || ui->rescue_network) {
+    return;
+  }
+  snprintf(content, sizeof(content), "pid=%ld\nscreen=%d\n",
+           (long)getpid(), (int)ui->screen);
+  if (write_text_file_create(UI_FE_READY_FLAG_PATH, content)) {
+    ui->fe_ready_flag_written = 1;
+  }
+}
+
 static void set_status(struct ui_state *ui, const char *text) {
   copy_string(ui->status, sizeof(ui->status), text);
 }
@@ -7374,6 +7410,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   }
 
   render_ui(ui);
+  mark_frontend_ready_if_needed(ui);
   if (ui_needs_periodic_refresh(ui)) {
     next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
   }

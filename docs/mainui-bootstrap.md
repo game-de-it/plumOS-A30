@@ -17,8 +17,11 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
   plumOS 管理の `ntpd` を起動する
 - START menu の `Network Recovery` から Network Recovery 画面へ入り、A ボタンで
   Wi-Fi 起動処理、DHCP、SSH start を再実行できる
-- controller UI が無い/異常終了した場合は旧 `plumos-frontend`、それも失敗した場合は
-  stock MainUI へ fallback する
+- 通常FEが Mali renderer の初期化と初回描画に成功したら
+  `/tmp/plumos-fe-ready` を作る。wrapper はこの flag がある場合、FE がその後
+  終了しても stock MainUI へ fallback しない
+- controller UI が初回描画前に無い/異常終了した場合は旧 `plumos-frontend`、
+  それも失敗した場合は stock MainUI へ fallback する
 - log は `/mnt/SDCARD/plumos/logs/` へ出す
 - SD カード上のファイル操作だけで rollback できるようにする
 

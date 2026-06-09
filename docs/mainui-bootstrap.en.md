@@ -18,8 +18,11 @@ uses that path as a small wrapper and moves the actual frontend entry point to
   to start plumOS-managed `ntpd`.
 - Open `Network Recovery` from the START menu; pressing A there reruns Wi-Fi
   init, DHCP, and dropbear SSH start.
-- Fall back to the legacy `plumos-frontend`, then stock MainUI, if the
-  controller UI is missing or exits with an error.
+- After the normal FE initializes the Mali renderer and completes its first
+  frame, it creates `/tmp/plumos-fe-ready`. If this flag exists, the wrapper
+  does not fall back to stock MainUI even if the FE exits later.
+- Fall back to the legacy `plumos-frontend`, then stock MainUI, only if the
+  controller UI is missing or exits before that first successful frame.
 - Write logs under `/mnt/SDCARD/plumos/logs/`.
 - Keep rollback possible through SD-card file changes only.
 

@@ -16,6 +16,7 @@ SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
 SYSTEM_SETTINGS="${PLUMOS_SYSTEM_SETTINGS_JSON:-${PLUMOS_ROOT}/config/system/settings.json}"
+FE_READY_FLAG="${PLUMOS_FE_READY_FLAG:-/tmp/plumos-fe-ready}"
 UI_ROTATION="${PLUMOS_MALI_ROTATION:-auto}"
 UI_STYLE="${PLUMOS_MALI_STYLE:-tty}"
 UI_ENTRY_SCALE="${PLUMOS_MALI_TTY_ENTRY_SCALE:-2}"
@@ -54,6 +55,14 @@ apply_timezone() {
       cp /etc/TZ "$backup_file" 2>/dev/null || printf 'missing\n' > "$backup_file" 2>/dev/null || true
     fi
     printf '%s\n' "$timezone" > /etc/TZ 2>/dev/null || true
+  fi
+}
+
+exit_if_fe_ready() {
+  reason="$1"
+  if [ -e "$FE_READY_FLAG" ]; then
+    log "FE ready flag exists; skip fallback reason=${reason} flag=${FE_READY_FLAG}"
+    exit 0
   fi
 }
 
@@ -135,11 +144,13 @@ if [ -x "$CONTROLLER_UI" ]; then
   if [ "$status" -eq 0 ]; then
     exit 0
   fi
+  exit_if_fe_ready "controller-ui-exited-${status}"
   log "controller UI failed; trying legacy plumOS frontend"
 fi
 
 if [ ! -x "$FRONTEND" ]; then
   log "plumOS frontend is missing or not executable: ${FRONTEND}"
+  exit_if_fe_ready "legacy-frontend-missing"
   run_stock
 fi
 
@@ -159,4 +170,5 @@ if [ "$status" -eq 0 ]; then
   exit 0
 fi
 
+exit_if_fe_ready "legacy-frontend-exited-${status}"
 run_stock
