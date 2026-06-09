@@ -7,7 +7,7 @@
 - すべてのサービスの共有起点は `/mnt/SDCARD/` とする。
 - plumOS 側の実行ファイル、設定、ログ、永続状態は `/mnt/SDCARD/plumos/` 配下に置く。
 - stockOS の rootfs や `/config/system.json` は変更しない。
-- Network Settings の `FTP`, `SFTP`, `Samba` は checkbox として表示し、A ボタンで ON/OFF する。
+- Network Settings の `NW Service` サブ項目に `FTP`, `SFTP`, `Samba` を checkbox として表示し、A ボタンで ON/OFF する。
 - ON は service の start + enable、OFF は stop + disable と同じ扱いにし、再起動後も状態を維持する。
 - 小さい ROM ファイルをまとめて転送しやすいよう、各サービスの同時転送入口は 20 を目標にする。
   通常の推奨並列数は 10 とし、20 は余裕枠として扱う。

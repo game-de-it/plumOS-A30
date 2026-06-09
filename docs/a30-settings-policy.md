@@ -51,13 +51,18 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 
 - `Wi-Fi`: checkbox。A で runtime ON/OFF を切り替える。ON は `plumos-network-rescue`、
   OFF は `plumos-network-control --wifi off` を呼び、保存済み認証情報は編集しない。
+- `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
+  IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
+- `NW Service`: FTP/SFTP/Samba/USB Disk Mode をまとめた file transfer service サブ項目を開く。
+- `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する。
+- `INFORMATION`: read-only の network 情報サブ項目を開く。
+
+`NW Service` サブ項目には次の操作を置きます。
+
 - `FTP`: checkbox。A で BusyBox FTP service を ON/OFF する。共有起点は `/mnt/SDCARD/`。
 - `SFTP`: checkbox。A で Dropbear SFTP subsystem を ON/OFF する。OFF にしても SSH shell は止めない。
 - `Samba`: checkbox。A で `SDCARD` SMB share を ON/OFF する。Windows/macOS で認証を求められた場合は `plumos` / `plumos` を使う。
-- `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
-  IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
-- `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する。
-- `INFORMATION`: read-only の network 情報サブ項目を開く。
+- `USB Disk Mode`: A で確認画面を開き、A 再押下で SD card partition を USB Mass Storage として PC へ渡す。
 
 `INFORMATION` サブ項目には次の情報を置きます。
 

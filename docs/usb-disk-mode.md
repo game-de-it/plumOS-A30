@@ -83,8 +83,9 @@ SSH daemon も停止するためです。
 
 ## 想定 UI flow
 
-検証用の入口は `Network Settings -> USB Disk Mode` に置きます。誤操作を避けるため、
-項目選択後は確認画面を挟み、確認画面の A で開始、B で Network Settings へ戻ります。
+検証用の入口は `Network Settings -> NW Service -> USB Disk Mode` に置きます。
+誤操作を避けるため、項目選択後は確認画面を挟み、確認画面の A で開始、B で
+NW Service へ戻ります。
 
 1. 確認画面を出す。
 2. 「このモード中はA30からSDカードを使えません。PCで安全に取り外してからUSBを抜く」

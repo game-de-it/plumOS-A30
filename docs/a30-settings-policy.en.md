@@ -63,18 +63,25 @@ The first Network Settings layer owns only actionable items:
 - `Wi-Fi`: checkbox. A toggles the runtime on/off. ON runs
   `plumos-network-rescue`; OFF runs `plumos-network-control --wifi off` and
   does not edit saved credentials.
+- `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
+  DHCP, one default-gateway ping when available, then an IP-address result
+  screen. The PSK is passed to the backend through a temporary file and is not
+  logged.
+- `NW Service`: opens the file-transfer service subpage for FTP/SFTP/Samba/USB
+  Disk Mode.
+- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery.
+- `INFORMATION`: opens the read-only network information subpage.
+
+The `NW Service` subpage owns these actions:
+
 - `FTP`: checkbox. A toggles the BusyBox FTP service. The shared root is
   `/mnt/SDCARD/`.
 - `SFTP`: checkbox. A toggles the Dropbear SFTP subsystem. Turning it OFF does
   not stop SSH shell access.
 - `Samba`: checkbox. A toggles the `SDCARD` SMB share. If Windows/macOS asks for
   credentials, use `plumos` / `plumos`.
-- `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
-  DHCP, one default-gateway ping when available, then an IP-address result
-  screen. The PSK is passed to the backend through a temporary file and is not
-  logged.
-- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery.
-- `INFORMATION`: opens the read-only network information subpage.
+- `USB Disk Mode`: A opens a confirmation screen; pressing A again exposes the
+  SD card partition to the PC as USB Mass Storage.
 
 The `INFORMATION` subpage owns these read-only entries:
 

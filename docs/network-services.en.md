@@ -7,7 +7,8 @@ This document defines the initial file-transfer network services provided by plu
 - Every service uses `/mnt/SDCARD/` as the shared home/root.
 - plumOS executables, configuration, logs, and persistent state live under `/mnt/SDCARD/plumos/`.
 - Do not modify the stock rootfs or `/config/system.json`.
-- Network Settings shows `FTP`, `SFTP`, and `Samba` as checkboxes. A toggles each service.
+- Network Settings shows `FTP`, `SFTP`, and `Samba` as checkboxes under the
+  `NW Service` subpage. A toggles each service.
 - ON means start + enable, and OFF means stop + disable. The state persists across reboot.
 - To transfer many small ROM files efficiently, each service should expose a concurrent-transfer
   entry limit of 20. The normal recommendation is 10-way parallel transfer; 20 is headroom.

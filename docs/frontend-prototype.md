@@ -423,8 +423,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - Function: SAFE menu を開く。SAFE menu は `Sleep`, `Shutdown`, `Cancel` を持つ
 - UI Settings: checkbox は A/左右で保存し、選択系は左右で保存する。TOP/ROM の
   表示項目、並び順、ROM scan policy、boot resume は保存後の実挙動へ反映する
-- Network Settings: 第一階層は `Wi-Fi`、`Run Network Recovery`、`INFORMATION`。
-  `Wi-Fi` は runtime ON/OFF、`Run Network Recovery` は network rescue を実行する。
+- Network Settings: 第一階層は `Wi-Fi`、`Connect Wi-Fi`、`NW Service`、`Run Network Recovery`、`INFORMATION`。
+  `Wi-Fi` は runtime ON/OFF、`NW Service` は FTP/SFTP/Samba/USB Disk Mode、`Run Network Recovery` は network rescue を実行する。
   Connection/IP/Signal などの情報系は `INFORMATION` サブ項目へ置き、SSID/PSK は表示しない
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `f`, `q`
 

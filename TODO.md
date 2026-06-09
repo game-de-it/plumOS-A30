@@ -83,7 +83,7 @@
 - [x] Brightness は `1..20` を保存し、RAW lcdbl table `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190` に割り当てる。
 - [x] 検証用 brightness tile screen を通常ユーザー操作から隠し、`PLUMOS_CONTROLLER_BRIGHTNESS_TEST=1` の debug 機能にする。
 - [x] Network Settings の read-only status と network recovery action を実装する。
-- [x] Network Settings の FTP/SFTP/Samba checkbox と永続 ON/OFF を実装し、実機 smoke を行う。
+- [x] Network Settings -> NW Service の FTP/SFTP/Samba checkbox と永続 ON/OFF を実装し、実機 smoke を行う。
 - [x] Performance Settings を既存 CPU profile/core override 機能へ接続する。
 - [x] A30 UI design rules を `docs/a30-ui-design.md` にまとめる。
 - [ ] Graphic UI mode / gallery mode を実装する。

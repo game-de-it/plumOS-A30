@@ -94,9 +94,9 @@ with an on-device recovery screen.
 
 ## Expected UI Flow
 
-The validation entry lives at `Network Settings -> USB Disk Mode`. To avoid
-accidental entry, selecting the item opens a confirmation screen: A starts the
-mode, and B returns to Network Settings.
+The validation entry lives at `Network Settings -> NW Service -> USB Disk Mode`.
+To avoid accidental entry, selecting the item opens a confirmation screen: A
+starts the mode, and B returns to NW Service.
 
 1. Show a confirmation screen.
 2. Explain that the SD card is unavailable to A30 during this mode, and the user

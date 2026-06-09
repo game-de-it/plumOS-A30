@@ -449,10 +449,11 @@ Controls:
 - UI Settings: checkboxes save through A/Left/Right, and choices save through
   Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot resume are
   reflected in runtime behavior after saving.
-- Network Settings: the first layer contains `Wi-Fi`, `Run Network Recovery`,
-  and `INFORMATION`. `Wi-Fi` controls runtime on/off, and `Run Network Recovery`
-  runs network rescue. Connection/IP/Signal details live under `INFORMATION`.
-  SSID/PSK are not displayed.
+- Network Settings: the first layer contains `Wi-Fi`, `Connect Wi-Fi`,
+  `NW Service`, `Run Network Recovery`, and `INFORMATION`. `Wi-Fi` controls
+  runtime on/off, `NW Service` owns FTP/SFTP/Samba/USB Disk Mode, and
+  `Run Network Recovery` runs network rescue. Connection/IP/Signal details live
+  under `INFORMATION`. SSID/PSK are not displayed.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 SAFE menu:

@@ -373,6 +373,7 @@ enum settings_category {
   SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST,
   SETTINGS_CATEGORY_SYSTEM_INFORMATION,
   SETTINGS_CATEGORY_NETWORK,
+  SETTINGS_CATEGORY_NETWORK_SERVICE,
   SETTINGS_CATEGORY_NETWORK_INFORMATION,
   SETTINGS_CATEGORY_PERFORMANCE
 };
@@ -2596,6 +2597,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
     return SETTING_CONTROL_READONLY;
   }
   if (strcmp(id, "network_connect_wifi") == 0 ||
+      strcmp(id, "network_services") == 0 ||
       strcmp(id, "network_rescue") == 0 ||
       strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
@@ -2675,6 +2677,8 @@ static const char *settings_category_title(enum settings_category category) {
     return "System Settings";
   case SETTINGS_CATEGORY_NETWORK:
     return "Network Settings";
+  case SETTINGS_CATEGORY_NETWORK_SERVICE:
+    return "Network Settings - NW Service";
   case SETTINGS_CATEGORY_NETWORK_INFORMATION:
     return "Network Settings - INFORMATION";
   case SETTINGS_CATEGORY_PERFORMANCE:
@@ -2786,19 +2790,26 @@ static void add_network_settings_entries(struct ui_state *ui) {
 
   add_bool_setting_entry(ui, "network_wifi_enabled", "Wi-Fi",
                          device->wifi_runtime_enabled);
+  add_setting_entry(ui, "network_connect_wifi", "Connect Wi-Fi",
+                    "Scan SSID");
+  add_setting_entry(ui, "network_services", "NW Service",
+                    "File Transfer");
+  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
+                    "Wi-Fi + DHCP + SSH");
+  add_setting_entry(ui, "network_information", "INFORMATION", "");
+}
+
+static void add_network_service_entries(struct ui_state *ui) {
+  const struct device_settings *device = &ui->device;
+
   add_bool_setting_entry(ui, "network_ftp_enabled", "FTP",
                          device->ftp_service_running);
   add_bool_setting_entry(ui, "network_sftp_enabled", "SFTP",
                          device->sftp_service_running);
   add_bool_setting_entry(ui, "network_samba_enabled", "Samba",
                          device->samba_service_running);
-  add_setting_entry(ui, "network_connect_wifi", "Connect Wi-Fi",
-                    "Scan SSID");
-  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
-                    "Wi-Fi + DHCP + SSH");
   add_setting_entry(ui, "network_usb_disk_mode", "USB Disk Mode",
                     "USB drive");
-  add_setting_entry(ui, "network_information", "INFORMATION", "");
 }
 
 static void add_network_information_entries(struct ui_state *ui) {
@@ -3198,6 +3209,10 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_NETWORK:
     load_device_settings(ui);
     add_network_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_NETWORK_SERVICE:
+    load_device_settings(ui);
+    add_network_service_entries(ui);
     break;
   case SETTINGS_CATEGORY_NETWORK_INFORMATION:
     load_device_settings(ui);
@@ -3933,6 +3948,9 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "network_rescue") == 0) {
     copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
     copy_string(line2, line2_size, "Restores the usual remote access path.");
+  } else if (strcmp(id, "network_services") == 0) {
+    copy_string(line1, line1_size, "Open file transfer services.");
+    copy_string(line2, line2_size, "FTP, SFTP, Samba, and USB Disk Mode.");
   } else if (strcmp(id, "network_usb_disk_mode") == 0) {
     copy_string(line1, line1_size, "Expose the SD card as a USB drive.");
     copy_string(line2, line2_size, "Requires PC eject and USB disconnect to return.");
@@ -4349,8 +4367,8 @@ static void render_wifi_connect(struct ui_state *ui) {
 }
 
 static void render_usb_disk_confirm(struct ui_state *ui) {
-  ui_printf(ui, "plumOS controller UI - Network Settings - USB Disk Mode\n");
-  ui_printf(ui, "A: enter  B: Network Settings  Q: quit\n");
+  ui_printf(ui, "plumOS controller UI - Network Settings - NW Service - USB Disk Mode\n");
+  ui_printf(ui, "A: enter  B: NW Service  Q: quit\n");
   ui_printf(ui, "entries=4 cursor=1\n");
   ui_printf(ui, "\n");
   ui_printf(ui, ">   1  READY TO ENTER\n");
@@ -4365,7 +4383,7 @@ static void render_usb_disk_confirm(struct ui_state *ui) {
 }
 
 static void render_usb_disk_starting(struct ui_state *ui) {
-  ui_printf(ui, "plumOS controller UI - Network Settings - USB Disk Mode\n");
+  ui_printf(ui, "plumOS controller UI - Network Settings - NW Service - USB Disk Mode\n");
   ui_printf(ui, "usb_disk_starting=1\n");
   ui_printf(ui, "entries=4 cursor=1\n");
   ui_printf(ui, "\n");
@@ -4781,13 +4799,19 @@ static int run_usb_disk_mode(struct ui_state *ui) {
   rc = system(cmd);
   ui->usb_disk_start_due_ms = 0;
   if (rc == -1) {
+    open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_SERVICE);
+    select_setting_entry_by_id(ui, "network_usb_disk_mode");
     set_status(ui, "USB Disk Mode system call failed");
     return 0;
   }
   if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_SERVICE);
+    select_setting_entry_by_id(ui, "network_usb_disk_mode");
     set_status(ui, "USB Disk Mode finished");
     return 1;
   }
+  open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_SERVICE);
+  select_setting_entry_by_id(ui, "network_usb_disk_mode");
   set_status(ui, "USB Disk Mode returned non-zero");
   return 0;
 }
@@ -5881,6 +5905,10 @@ static int is_network_connect_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_connect_wifi") == 0;
 }
 
+static int is_network_services_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "network_services") == 0;
+}
+
 static int is_network_information_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_information") == 0;
 }
@@ -6197,9 +6225,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       return;
     }
     if (action == ACTION_B) {
-      open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+      open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_SERVICE);
       select_setting_entry_by_id(ui, "network_usb_disk_mode");
-      set_status(ui, "back to Network Settings");
+      set_status(ui, "back to NW Service");
       return;
     }
     if (action == ACTION_START) {
@@ -6350,6 +6378,12 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         set_status(ui, "back to Network Settings");
         return;
       }
+      if (ui->settings_category == SETTINGS_CATEGORY_NETWORK_SERVICE) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+        select_setting_entry_by_id(ui, "network_services");
+        set_status(ui, "back to Network Settings");
+        return;
+      }
       ui->screen = SCREEN_START_MENU;
       set_status(ui, "back to START");
       return;
@@ -6362,6 +6396,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_network_connect_entry(entry)) {
         open_wifi_connect_screen(ui);
+        return;
+      }
+      if (is_network_services_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_SERVICE);
         return;
       }
       if (is_network_setting_entry(entry)) {
