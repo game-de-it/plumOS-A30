@@ -1,0 +1,652 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_ROOT}/logs"
+LOG_FILE="${LOG_DIR}/safe-shutdown.log"
+RESUME_SESSION="${PLUMOS_ROOT}/state/frontend/resume-session.json"
+RESUME_HOLD="${PLUMOS_ROOT}/state/frontend/resume-hold.json"
+UDP="${PLUMOS_ROOT}/bin/plumos-udp-send"
+LOCK_DIR=/tmp/plumos-safe-shutdown.lock
+
+ACTION=shutdown
+POWER_OFF=0
+DRY_RUN=0
+HOLD_RESUME=auto
+SAFE_STATE_SLOT="${PLUMOS_RA_SAFE_STATE_SLOT:-999}"
+POWER_BACKEND="${PLUMOS_SAFE_SHUTDOWN_POWER_BACKEND:-auto}"
+SLEEP_BACKEND="${PLUMOS_SAFE_SHUTDOWN_SLEEP_BACKEND:-pseudo}"
+WAKEUP_SEC="${PLUMOS_SAFE_SLEEP_WAKEUP_SEC:-0}"
+WAIT_SEC="${PLUMOS_SAFE_SHUTDOWN_WAIT_SEC:-15}"
+FALLBACK_WAIT_SEC="${PLUMOS_SAFE_SHUTDOWN_FALLBACK_WAIT_SEC:-5}"
+
+usage() {
+  cat <<'USAGE'
+Usage: plumos-safe-shutdown [options]
+
+Options:
+  --shutdown             Hold resume as a shutdown. Default.
+  --sleep                Hold resume as a pseudo sleep.
+  --poweroff             Run poweroff after save/exit/sync.
+  --no-poweroff          Do not power off. Default.
+  --power-backend NAME   Power backend: auto, poweroff, halt, busybox, sysrq, none.
+                         Default: auto.
+  --sleep-backend NAME   Sleep backend: pseudo, standby, mem, bootfast, none.
+                         Default: pseudo.
+  --wakeup-sec N         Set RTC wakealarm before real sleep backends. Default: 0.
+  --hold-resume          Always write the resume hold marker.
+  --no-hold-resume       Do not write the resume hold marker.
+  --dry-run              Log actions without sending signals.
+  --wait-sec N           Seconds to wait for launchers to exit. Default: 15.
+  -h, --help             Show this help.
+USAGE
+}
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+uptime_now() {
+  if [ -r /proc/uptime ]; then
+    read -r up _ < /proc/uptime || up=unknown
+    printf '%s' "$up"
+  else
+    printf '%s' "unknown"
+  fi
+}
+
+log() {
+  printf '%s uptime=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+is_positive_int() {
+  case "$1" in
+    ""|*[!0-9]*|0)
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+is_non_negative_int() {
+  case "$1" in
+    ""|*[!0-9]*)
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+is_state_slot() {
+  case "$1" in
+    0|[1-9]|[1-9][0-9]|[1-9][0-9][0-9])
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --shutdown)
+      ACTION=shutdown
+      ;;
+    --sleep)
+      ACTION=sleep
+      ;;
+    --poweroff)
+      POWER_OFF=1
+      ;;
+    --no-poweroff)
+      POWER_OFF=0
+      ;;
+    --power-backend)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --power-backend expects a value" >&2
+        exit 2
+      fi
+      POWER_BACKEND="$1"
+      ;;
+    --sleep-backend)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --sleep-backend expects a value" >&2
+        exit 2
+      fi
+      SLEEP_BACKEND="$1"
+      ;;
+    --wakeup-sec)
+      shift
+      if [ "$#" -eq 0 ] || ! is_non_negative_int "$1"; then
+        echo "error: --wakeup-sec expects a non-negative integer" >&2
+        exit 2
+      fi
+      WAKEUP_SEC="$1"
+      ;;
+    --hold-resume)
+      HOLD_RESUME=1
+      ;;
+    --no-hold-resume)
+      HOLD_RESUME=0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    --wait-sec)
+      shift
+      if [ "$#" -eq 0 ] || ! is_positive_int "$1"; then
+        echo "error: --wait-sec expects a positive integer" >&2
+        exit 2
+      fi
+      WAIT_SEC="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ! is_positive_int "$WAIT_SEC"; then
+  log "invalid WAIT_SEC=${WAIT_SEC}; using 15"
+  WAIT_SEC=15
+fi
+if ! is_state_slot "$SAFE_STATE_SLOT"; then
+  log "invalid SAFE_STATE_SLOT=${SAFE_STATE_SLOT}; using 999"
+  SAFE_STATE_SLOT=999
+fi
+case "$POWER_BACKEND" in
+  auto|poweroff|halt|busybox|sysrq|none)
+    ;;
+  *)
+    echo "error: invalid power backend: $POWER_BACKEND" >&2
+    exit 2
+    ;;
+esac
+case "$SLEEP_BACKEND" in
+  pseudo|standby|mem|bootfast|none)
+    ;;
+  *)
+    echo "error: invalid sleep backend: $SLEEP_BACKEND" >&2
+    exit 2
+    ;;
+esac
+if [ "$ACTION" = sleep ] && [ "$POWER_OFF" -eq 1 ]; then
+  echo "error: --sleep cannot be combined with --poweroff" >&2
+  exit 2
+fi
+if ! is_non_negative_int "$WAKEUP_SEC"; then
+  log "invalid WAKEUP_SEC=${WAKEUP_SEC}; using 0"
+  WAKEUP_SEC=0
+fi
+if ! is_positive_int "$FALLBACK_WAIT_SEC"; then
+  log "invalid FALLBACK_WAIT_SEC=${FALLBACK_WAIT_SEC}; using 5"
+  FALLBACK_WAIT_SEC=5
+fi
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  log "safe_shutdown already_running"
+  echo "result=plumos_safe_shutdown_already_running"
+  exit 0
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true; exit 143' INT TERM
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+
+pid_alive() {
+  [ -n "${1:-}" ] && [ -d "/proc/$1" ] && kill -0 "$1" >/dev/null 2>&1
+}
+
+cmdline_one_line() {
+  pid=$1
+  if [ -r "/proc/${pid}/cmdline" ]; then
+    tr '\000' ' ' <"/proc/${pid}/cmdline" 2>/dev/null | sed 's/[[:space:]][[:space:]]*/ /g'
+  else
+    printf '%s' "-"
+  fi
+}
+
+cmdline_lines() {
+  pid=$1
+  if [ -r "/proc/${pid}/cmdline" ]; then
+    tr '\000' '\n' <"/proc/${pid}/cmdline" 2>/dev/null || true
+  fi
+}
+
+find_pids_by_arg() {
+  for d in /proc/[0-9]*; do
+    [ -r "$d/cmdline" ] || continue
+    pid=${d#/proc/}
+    [ "$pid" = "$$" ] && continue
+    lines=$(cmdline_lines "$pid")
+    lines="
+${lines}
+"
+    matched=0
+    for needle in "$@"; do
+      base=${needle##*/}
+      case "$lines" in
+        *"
+${needle}
+"*|*"
+${base}
+"*)
+          matched=1
+          ;;
+      esac
+    done
+    [ "$matched" -eq 1 ] && printf '%s\n' "$pid"
+  done
+}
+
+find_text_ui_launch_pids() {
+  for pid in $(find_pids_by_arg "${PLUMOS_ROOT}/bin/plumos-text-ui" "plumos-text-ui"); do
+    lines=$(cmdline_lines "$pid")
+    lines="
+${lines}
+"
+    case "$lines" in
+      *"
+launch
+"*)
+        ;;
+      *)
+        continue
+        ;;
+    esac
+    case "$lines" in
+      *"
+--execute
+"*)
+        printf '%s\n' "$pid"
+        ;;
+    esac
+  done
+}
+
+find_retroarch_launcher_pids() {
+  find_pids_by_arg "${PLUMOS_ROOT}/bin/plumos-retroarch-launch" "plumos-retroarch-launch"
+}
+
+find_standalone_launcher_pids() {
+  find_pids_by_arg "${PLUMOS_ROOT}/bin/plumos-standalone-launch" "plumos-standalone-launch"
+}
+
+find_retroarch_pids() {
+  find_pids_by_arg "${PLUMOS_ROOT}/retroarch/bin/retroarch.bin" "retroarch.bin"
+}
+
+find_standalone_emulator_pids() {
+  find_pids_by_arg \
+    "${PLUMOS_ROOT}/emulators/ppsspp/bin/PPSSPPSDL" \
+    "${PLUMOS_ROOT}/emulators/ppsspp-vanilla/bin/PPSSPPSDL" \
+    "${PLUMOS_ROOT}/emulators/ppsspp-display-ui/bin/PPSSPPSDL" \
+    "${PLUMOS_ROOT}/emulators/scummvm/bin/scummvm" \
+    "${PLUMOS_ROOT}/emulators/easyrpg/bin/easyrpg-player" \
+    "${PLUMOS_ROOT}/emulators/dosbox-staging/bin/dosbox" \
+    "${PLUMOS_ROOT}/emulators/pcsx_rearmed/bin/pcsx" \
+    "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx"
+}
+
+resume_session_pending() {
+  [ -r "$RESUME_SESSION" ] || return 1
+  grep -q '"pending"[[:space:]]*:[[:space:]]*true' "$RESUME_SESSION" 2>/dev/null
+}
+
+write_resume_hold() {
+  text_ui_pids=$(find_text_ui_launch_pids)
+  case "$HOLD_RESUME" in
+    0)
+      log "resume_hold skipped mode=disabled"
+      return 0
+      ;;
+    auto)
+      if [ -z "$text_ui_pids" ]; then
+        log "resume_hold skipped mode=auto reason=text_ui_launch_missing"
+        return 0
+      fi
+      if ! resume_session_pending; then
+        log "resume_hold skipped mode=auto reason=pending_resume_missing"
+        return 0
+      fi
+      ;;
+  esac
+
+  hold_dir=${RESUME_HOLD%/*}
+  tmp="${RESUME_HOLD}.tmp.$$"
+  mkdir -p "$hold_dir" 2>/dev/null || true
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "resume_hold dry_run action=${ACTION} text_ui_pids=${text_ui_pids:-none}"
+    return 0
+  fi
+  {
+    printf '{\n'
+    printf '  "version": 1,\n'
+    printf '  "reason": "%s",\n' "$ACTION"
+    printf '  "auto_state_load": true\n'
+    printf '}\n'
+  } >"$tmp" && mv "$tmp" "$RESUME_HOLD"
+  rc=$?
+  rm -f "$tmp" 2>/dev/null || true
+  log "resume_hold write rc=${rc} action=${ACTION} text_ui_pids=${text_ui_pids:-none}"
+  return "$rc"
+}
+
+signal_pids() {
+  sig=$1
+  label=$2
+  pids=$3
+  if [ -z "$pids" ]; then
+    log "${label} signal=${sig} pids=none"
+    return 0
+  fi
+  for pid in $pids; do
+    if pid_alive "$pid"; then
+      log "${label} signal=${sig} pid=${pid} cmd=$(cmdline_one_line "$pid")"
+      if [ "$DRY_RUN" -eq 0 ]; then
+        kill "-${sig}" "$pid" >/dev/null 2>&1 || true
+      fi
+    else
+      log "${label} already_gone pid=${pid}"
+    fi
+  done
+}
+
+wait_pids_gone() {
+  label=$1
+  pids=$2
+  limit=$3
+  elapsed=0
+
+  [ -n "$pids" ] || return 0
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "${label} wait skipped dry_run"
+    return 0
+  fi
+  while [ "$elapsed" -lt "$limit" ]; do
+    alive=0
+    for pid in $pids; do
+      if pid_alive "$pid"; then
+        alive=1
+      fi
+    done
+    if [ "$alive" -eq 0 ]; then
+      log "${label} gone elapsed=${elapsed}s"
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  log "${label} timeout elapsed=${elapsed}s pids=$(printf '%s' "$pids" | tr '\n' ',')"
+  return 1
+}
+
+ensure_loopback_up() {
+  if command -v ip >/dev/null 2>&1; then
+    ip link set lo up >>"$LOG_FILE" 2>&1 || true
+  elif command -v ifconfig >/dev/null 2>&1; then
+    ifconfig lo up >>"$LOG_FILE" 2>&1 || true
+  fi
+}
+
+send_netcmd() {
+  command=$1
+  recv_ms=${2:-0}
+  if [ ! -x "$UDP" ]; then
+    log "netcmd skipped command=${command} reason=udp_helper_missing path=${UDP}"
+    return 1
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "netcmd dry_run command=${command}"
+    return 0
+  fi
+  ensure_loopback_up
+  if [ "$recv_ms" -gt 0 ]; then
+    "$UDP" --recv-ms "$recv_ms" "$command" >>"$LOG_FILE" 2>&1
+  else
+    "$UDP" "$command" >>"$LOG_FILE" 2>&1
+  fi
+  rc=$?
+  log "netcmd command=${command} rc=${rc}"
+  return "$rc"
+}
+
+retroarch_netcmd_exit() {
+  log "retroarch_netcmd begin"
+  send_netcmd "SAVE_STATE_SLOT ${SAFE_STATE_SLOT}" 0 || true
+  sleep 1
+  send_netcmd SAVE_FILES 0 || true
+  sleep 1
+  send_netcmd CLOSE_CONTENT 0 || true
+  sleep 1
+  send_netcmd GET_STATUS 1500 || true
+  send_netcmd QUIT 0 || true
+  log "retroarch_netcmd end"
+}
+
+stop_retroarch_launchers() {
+  pids=$(find_retroarch_launcher_pids)
+  signal_pids TERM retroarch_launcher "$pids"
+  wait_pids_gone retroarch_launcher "$pids" "$WAIT_SEC" || true
+}
+
+kill_stuck_retroarch_launchers() {
+  pids=$(find_retroarch_launcher_pids)
+  if [ -z "$pids" ]; then
+    return 0
+  fi
+  signal_pids KILL retroarch_launcher "$pids"
+  wait_pids_gone retroarch_launcher "$pids" "$FALLBACK_WAIT_SEC" || true
+}
+
+stop_standalone_launchers() {
+  pids=$(find_standalone_launcher_pids)
+  signal_pids TERM standalone_launcher "$pids"
+  wait_pids_gone standalone_launcher "$pids" "$WAIT_SEC" || true
+  pids=$(find_standalone_launcher_pids)
+  if [ -n "$pids" ]; then
+    signal_pids KILL standalone_launcher "$pids"
+    wait_pids_gone standalone_launcher "$pids" "$FALLBACK_WAIT_SEC" || true
+  fi
+}
+
+stop_leftover_retroarch() {
+  pids=$(find_retroarch_pids)
+  if [ -z "$pids" ]; then
+    log "retroarch leftover pids=none"
+    return 0
+  fi
+  log "retroarch leftover pids=$(printf '%s' "$pids" | tr '\n' ',')"
+  retroarch_netcmd_exit
+  wait_pids_gone retroarch_after_netcmd "$pids" "$FALLBACK_WAIT_SEC" || true
+  pids=$(find_retroarch_pids)
+  signal_pids TERM retroarch_leftover "$pids"
+  wait_pids_gone retroarch_leftover "$pids" "$FALLBACK_WAIT_SEC" || true
+  pids=$(find_retroarch_pids)
+  signal_pids KILL retroarch_leftover "$pids"
+  wait_pids_gone retroarch_leftover "$pids" "$FALLBACK_WAIT_SEC" || true
+}
+
+stop_leftover_standalone_emulators() {
+  pids=$(find_standalone_emulator_pids)
+  if [ -z "$pids" ]; then
+    log "standalone_emulator leftover pids=none"
+    return 0
+  fi
+  signal_pids TERM standalone_emulator "$pids"
+  wait_pids_gone standalone_emulator "$pids" "$FALLBACK_WAIT_SEC" || true
+  pids=$(find_standalone_emulator_pids)
+  signal_pids KILL standalone_emulator "$pids"
+  wait_pids_gone standalone_emulator "$pids" "$FALLBACK_WAIT_SEC" || true
+}
+
+active_before() {
+  {
+    find_retroarch_launcher_pids
+    find_standalone_launcher_pids
+    find_retroarch_pids
+    find_standalone_emulator_pids
+  } | sed '/^$/d' | sort -u
+}
+
+run_power_command() {
+  label=$1
+  shift
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "poweroff dry_run backend=${label} command=$*"
+    return 0
+  fi
+  "$@" >>"$LOG_FILE" 2>&1
+  rc=$?
+  log "poweroff backend=${label} rc=${rc} command=$*"
+  return "$rc"
+}
+
+request_poweroff() {
+  log "poweroff begin backend=${POWER_BACKEND}"
+
+  case "$POWER_BACKEND" in
+    none)
+      log "poweroff skipped backend=none"
+      return 0
+      ;;
+    poweroff)
+      run_power_command poweroff poweroff
+      ;;
+    halt)
+      run_power_command halt halt -p
+      ;;
+    busybox)
+      run_power_command busybox /bin/busybox poweroff
+      ;;
+    sysrq)
+      if [ "$DRY_RUN" -eq 1 ]; then
+        log "poweroff dry_run backend=sysrq path=/proc/sysrq-trigger value=o"
+        return 0
+      fi
+      if [ -w /proc/sysrq-trigger ]; then
+        echo o >/proc/sysrq-trigger
+        rc=$?
+        log "poweroff backend=sysrq rc=${rc}"
+        return "$rc"
+      fi
+      log "poweroff backend=sysrq rc=1 reason=sysrq_trigger_not_writable"
+      return 1
+      ;;
+    auto)
+      run_power_command poweroff poweroff && return 0
+      run_power_command halt halt -p && return 0
+      run_power_command busybox /bin/busybox poweroff && return 0
+      log "poweroff backend=auto rc=1 reason=no_backend_succeeded"
+      return 1
+      ;;
+  esac
+}
+
+set_rtc_wakealarm() {
+  rtc=/sys/class/rtc/rtc0
+  if [ "$WAKEUP_SEC" -le 0 ]; then
+    return 0
+  fi
+  if [ ! -r "$rtc/since_epoch" ] || [ ! -w "$rtc/wakealarm" ]; then
+    log "sleep wakealarm skipped reason=rtc_unavailable wakeup_sec=${WAKEUP_SEC}"
+    return 1
+  fi
+  now=$(cat "$rtc/since_epoch" 2>/dev/null || echo 0)
+  case "$now" in
+    ""|*[!0-9]*)
+      log "sleep wakealarm skipped reason=invalid_rtc_now value=${now}"
+      return 1
+      ;;
+  esac
+  wake=$((now + WAKEUP_SEC))
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "sleep wakealarm dry_run rtc=${rtc} wakeup_sec=${WAKEUP_SEC} wake=${wake}"
+    return 0
+  fi
+  echo 0 >"$rtc/wakealarm" 2>>"$LOG_FILE" || true
+  echo "$wake" >"$rtc/wakealarm" 2>>"$LOG_FILE"
+  rc=$?
+  log "sleep wakealarm set rc=${rc} wakeup_sec=${WAKEUP_SEC} wake=${wake}"
+  return "$rc"
+}
+
+request_sleep() {
+  log "sleep begin backend=${SLEEP_BACKEND} wakeup_sec=${WAKEUP_SEC}"
+
+  case "$SLEEP_BACKEND" in
+    none)
+      log "sleep skipped backend=none"
+      return 0
+      ;;
+    pseudo)
+      log "sleep pseudo result=ok"
+      return 0
+      ;;
+  esac
+
+  if [ ! -r /sys/power/state ] || [ ! -w /sys/power/state ]; then
+    log "sleep backend=${SLEEP_BACKEND} rc=1 reason=sys_power_state_unavailable"
+    return 1
+  fi
+  states=$(cat /sys/power/state 2>/dev/null || true)
+  case " $states " in
+    *" ${SLEEP_BACKEND} "*)
+      ;;
+    *)
+      log "sleep backend=${SLEEP_BACKEND} rc=1 reason=unsupported states=${states:-none}"
+      return 1
+      ;;
+  esac
+  set_rtc_wakealarm || true
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "sleep dry_run backend=${SLEEP_BACKEND} path=/sys/power/state"
+    return 0
+  fi
+  echo "$SLEEP_BACKEND" >/sys/power/state
+  rc=$?
+  log "sleep returned backend=${SLEEP_BACKEND} rc=${rc}"
+  return "$rc"
+}
+
+log "safe_shutdown begin action=${ACTION} poweroff=${POWER_OFF} dry_run=${DRY_RUN} hold_resume=${HOLD_RESUME} wait_sec=${WAIT_SEC} safe_state_slot=${SAFE_STATE_SLOT} power_backend=${POWER_BACKEND} sleep_backend=${SLEEP_BACKEND} wakeup_sec=${WAKEUP_SEC}"
+active_pids=$(active_before)
+if [ -n "$active_pids" ]; then
+  log "active_before pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
+  write_resume_hold || true
+else
+  log "active_before pids=none"
+fi
+
+stop_retroarch_launchers
+stop_standalone_launchers
+stop_leftover_retroarch
+kill_stuck_retroarch_launchers
+stop_leftover_standalone_emulators
+
+log "sync begin"
+if [ "$DRY_RUN" -eq 0 ]; then
+  sync
+fi
+log "sync end"
+
+if [ "$ACTION" = sleep ]; then
+  request_sleep || true
+elif [ "$POWER_OFF" -eq 1 ]; then
+  request_poweroff || true
+fi
+
+remaining=$(active_before)
+if [ -n "$remaining" ]; then
+  log "safe_shutdown end remaining=$(printf '%s' "$remaining" | tr '\n' ',')"
+  echo "result=plumos_safe_shutdown_remaining pids=$(printf '%s' "$remaining" | tr '\n' ',')"
+  exit 1
+fi
+
+log "safe_shutdown end result=ok"
+echo "result=plumos_safe_shutdown_ok action=${ACTION} poweroff=${POWER_OFF} sleep_backend=${SLEEP_BACKEND} power_backend=${POWER_BACKEND}"
