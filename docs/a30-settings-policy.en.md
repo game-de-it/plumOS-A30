@@ -37,6 +37,10 @@ are applied immediately to the A30 runtime backend.
 - `Lumination`: `lumination`; Left/Right changes `0..10`
 - `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
   each change in the `0..20` range
+- `Time Settings`: A opens the time settings subpage. `Timezone` changes with
+  Left/Right and is applied to both the `TZ` environment and runtime `/etc/TZ`
+  after saving to plumOS config. `Manual Time` opens a dedicated editor for
+  Year/Month/Day/Hour/Minute and applies the OS clock with A.
 - `Language`: `language`; Left/Right selects `English`, `Japanese`, `Chinese`,
   `Traditional Chinese`, `Korean`, `Spanish`, or `Portuguese`
 - `Theme`: theme setting candidate for graphical mode; read-only until candidate
@@ -57,6 +61,16 @@ The `INFORMATION` subpage owns these read-only entries:
 - `Display Backend`: detected display backend. On A30 this is
   `disp attr lcdbl/enhance`
 - `Write Policy`: save under plumOS only; stockOS remains untouched
+
+`Time Settings` uses `/mnt/SDCARD/plumos/config/system/settings.json`
+`timezone` as the persistent source of truth. It does not use stockOS
+`/config/system.json`. To match the user expectation of changing the OS
+timezone, plumOS applies that value to the `TZ` environment and runtime
+`/etc/TZ` when saved, at FE startup, and from the MainUI wrapper. Manual time
+entry is interpreted as local time in the selected timezone, converted to UTC
+epoch, and applied with `settimeofday()`. Manual apply stops the plumOS-managed
+NTP service for that session so it does not immediately overwrite the user's
+manual value.
 
 The first Network Settings layer owns only actionable items:
 

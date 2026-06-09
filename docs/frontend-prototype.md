@@ -447,12 +447,14 @@ system 設定も表示します。UI Settings の `Show Empty Systems`、
 `/mnt/SDCARD/plumos/config/system/settings.json` から volume、brightness、lumination、
 display color、language、theme 情報を読みます。
 System Settings の第一階層は `Volume`、`Brightness`、`Lumination`、`Display Color`、
-`Language`、`Theme`、`INFORMATION` で、`Volume`、`Brightness`、`Lumination`、
-`Language` は左右で plumOS system settings へ保存します。`Display Color` は A で
-`Contrast`、`Hue`、`Saturation` のサブ項目へ入り、それぞれ左右で保存します。保存は
-初回 backup、tmp file、fsync、rename、sync を通しますが、未検証の mixer/sysfs backend
-へ即時反映する処理はまだ行いません。現在値や backend/policy 情報は `INFORMATION`
-サブ項目へ集約します。redacted Wi-Fi runtime status は Network Settings で扱い、
+`Time Settings`、`Language`、`Theme`、`INFORMATION` です。`Volume`、`Brightness`、
+`Lumination`、`Language` は左右で plumOS system settings へ保存します。`Display Color`
+は A で `Contrast`、`Hue`、`Saturation` のサブ項目へ入り、それぞれ左右で保存します。
+`Time Settings` は `Timezone` と `Manual Time` を持ち、timezone は `TZ` 環境と runtime
+`/etc/TZ` へ適用します。手動時刻は選択中 timezone のローカル時刻として入力し、
+OS 時刻へ反映します。保存は初回 backup、tmp file、fsync、rename、sync を通します。
+現在値や backend/policy 情報は `INFORMATION` サブ項目へ集約します。
+redacted Wi-Fi runtime status は Network Settings で扱い、
 SSID/PSK は読みません。CPU mode は Performance Settings で扱います。
 Performance Settings は既存の `plumos-text-ui core system ... --cpu --freq --cores`
 経路へ接続済みで、system ごとの `CPU freq` と `CPU Cores` を

@@ -478,12 +478,14 @@ as `Show Empty Systems`, `Favorites On TOP`, `Recent On TOP`, `Sort Systems`,
 UI behavior after saving. System Settings reads volume, brightness, lumination,
 display color, language, and theme information from
 `/mnt/SDCARD/plumos/config/system/settings.json`. Its top level is `Volume`,
-`Brightness`, `Lumination`, `Display Color`, `Language`, `Theme`, and
-`INFORMATION`. `Volume`, `Brightness`, `Lumination`, and `Language` save to
-plumOS system settings with Left/Right. `Display Color` opens a subpage for
-`Contrast`, `Hue`, and `Saturation`, which also save with Left/Right. Writes
-use a first backup, temporary file, fsync, rename, and sync, but direct
-unvalidated mixer/sysfs backend application is not implemented yet.
+`Brightness`, `Lumination`, `Display Color`, `Time Settings`, `Language`,
+`Theme`, and `INFORMATION`. `Volume`, `Brightness`, `Lumination`, and
+`Language` save to plumOS system settings with Left/Right. `Display Color`
+opens a subpage for `Contrast`, `Hue`, and `Saturation`, which also save with
+Left/Right. `Time Settings` owns `Timezone` and `Manual Time`; timezone is
+applied to the `TZ` environment and runtime `/etc/TZ`, and manual time is
+entered as local time in the selected timezone before applying it to the OS
+clock. Writes use a first backup, temporary file, fsync, rename, and sync.
 Current-value, backend, and policy details live under the `INFORMATION` subpage.
 Redacted Wi-Fi runtime status belongs to Network Settings, which does not read
 SSID or PSK. CPU mode belongs to Performance Settings. Performance Settings now

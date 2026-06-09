@@ -305,6 +305,7 @@ struct device_settings {
   long saturation;
   char language[64];
   char theme[UI_PATH_MAX];
+  char timezone[64];
   char model[64];
   char kernel_version[128];
   char sdcard_storage[128];
@@ -371,6 +372,8 @@ enum settings_category {
   SETTINGS_CATEGORY_SYSTEM,
   SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR,
   SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST,
+  SETTINGS_CATEGORY_SYSTEM_TIME,
+  SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL,
   SETTINGS_CATEGORY_SYSTEM_INFORMATION,
   SETTINGS_CATEGORY_NETWORK,
   SETTINGS_CATEGORY_NETWORK_SERVICE,
@@ -437,6 +440,12 @@ struct ui_state {
   size_t wifi_cursor;
   enum wifi_connect_stage wifi_stage;
   long long usb_disk_start_due_ms;
+  int manual_time_initialized;
+  long manual_time_year;
+  long manual_time_month;
+  long manual_time_day;
+  long manual_time_hour;
+  long manual_time_minute;
   size_t wifi_key_row;
   size_t wifi_key_col;
   int wifi_key_shift;
@@ -1196,6 +1205,51 @@ static int command_succeeds_quiet(const char *cmd) {
     return 0;
   }
   return system_command_succeeded(system(cmd));
+}
+
+static const char *plumos_default_timezone(void) {
+  return "JST-9";
+}
+
+static int valid_timezone_value(const char *timezone) {
+  const unsigned char *p = (const unsigned char *)timezone;
+
+  if (!timezone || !timezone[0]) {
+    return 0;
+  }
+  while (*p) {
+    if (!(isalnum(*p) || *p == '_' || *p == '-' || *p == '+' ||
+          *p == '/' || *p == ':' || *p == ',' || *p == '.')) {
+      return 0;
+    }
+    p++;
+  }
+  return 1;
+}
+
+static void apply_plumos_timezone_value(const char *timezone) {
+  const char *value = valid_timezone_value(timezone) ? timezone : plumos_default_timezone();
+
+  setenv("TZ", value, 1);
+  tzset();
+}
+
+static void format_current_time_local(char *out, size_t out_size) {
+  time_t now;
+  struct tm tm_value;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  now = time(NULL);
+  if (now == (time_t)-1 || !localtime_r(&now, &tm_value)) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tm_value) == 0) {
+    copy_string(out, out_size, "unavailable");
+  }
 }
 
 static int runtime_wifi_enabled(void) {
@@ -2050,10 +2104,17 @@ static int replace_json_key_value_atomic(const char *path, const char *key,
   char tmp_path[PATH_MAX];
   size_t json_size;
   const char *json_end;
-  const char *value;
-  const char *end_value;
+  const char *value = NULL;
+  const char *end_value = NULL;
+  const char *insert_at = NULL;
+  const char *content_end = NULL;
+  const char *object_start = NULL;
+  const char *body = NULL;
+  int append_key = 0;
+  int has_entries = 0;
   FILE *f;
   int fd;
+  int write_ok = 0;
   int ok = 0;
 
   if (!path || !key || !key[0] || !literal ||
@@ -2067,12 +2128,37 @@ static int replace_json_key_value_atomic(const char *path, const char *key,
   }
   json_end = json + json_size;
   if (!json_find_key_value(json, json_end, key, &value)) {
-    free(json);
-    return 0;
+    object_start = skip_ws_range(json, json_end);
+    if (object_start >= json_end || *object_start != '{') {
+      free(json);
+      return 0;
+    }
+    insert_at = json_end;
+    while (insert_at > object_start && isspace((unsigned char)insert_at[-1])) {
+      insert_at--;
+    }
+    if (insert_at <= object_start || insert_at[-1] != '}') {
+      free(json);
+      return 0;
+    }
+    insert_at--;
+    content_end = insert_at;
+    while (content_end > object_start + 1 &&
+           isspace((unsigned char)content_end[-1])) {
+      content_end--;
+    }
+    body = skip_ws_range(object_start + 1, content_end);
+    has_entries = body < content_end;
+    append_key = 1;
+  } else {
+    value = skip_ws_range(value, json_end);
+    end_value = json_value_end(value, json_end);
+    if (!end_value || end_value < value) {
+      free(json);
+      return 0;
+    }
   }
-  value = skip_ws_range(value, json_end);
-  end_value = json_value_end(value, json_end);
-  if (!end_value || end_value < value || !ensure_system_config_backup(path, json, json_size)) {
+  if (!ensure_system_config_backup(path, json, json_size)) {
     free(json);
     return 0;
   }
@@ -2082,10 +2168,35 @@ static int replace_json_key_value_atomic(const char *path, const char *key,
     free(json);
     return 0;
   }
-  if (fwrite(json, 1, (size_t)(value - json), f) == (size_t)(value - json) &&
-      fputs(literal, f) >= 0 &&
-      fwrite(end_value, 1, (size_t)(json_end - end_value), f) ==
-          (size_t)(json_end - end_value)) {
+  if (append_key) {
+    write_ok = fwrite(json, 1, (size_t)(content_end - json), f) ==
+               (size_t)(content_end - json);
+    if (write_ok && has_entries) {
+      write_ok = fputs(",\n", f) >= 0;
+    }
+    if (write_ok && !has_entries) {
+      write_ok = fputs("\n", f) >= 0;
+    }
+    if (write_ok) {
+      write_ok = fputs("  ", f) >= 0;
+    }
+    if (write_ok) {
+      fprint_json_string(f, key);
+      write_ok = ferror(f) == 0 && fprintf(f, ": %s\n", literal) >= 0;
+    }
+    if (write_ok) {
+      write_ok = fputc('}', f) != EOF &&
+                 fwrite(insert_at + 1, 1, (size_t)(json_end - (insert_at + 1)), f) ==
+                     (size_t)(json_end - (insert_at + 1));
+    }
+  } else {
+    write_ok = fwrite(json, 1, (size_t)(value - json), f) ==
+                   (size_t)(value - json) &&
+               fputs(literal, f) >= 0 &&
+               fwrite(end_value, 1, (size_t)(json_end - end_value), f) ==
+                   (size_t)(json_end - end_value);
+  }
+  if (write_ok) {
     fd = fileno(f);
     if (fflush(f) == 0 && (fd < 0 || fsync(fd) == 0)) {
       int close_ok = fclose(f) == 0;
@@ -2123,6 +2234,68 @@ static int save_system_config_string(struct ui_state *ui, const char *key,
   return replace_json_key_value_atomic(ui->system_config_path, key, literal);
 }
 
+static int ensure_os_timezone_backup(struct ui_state *ui) {
+  char backup_dir[PATH_MAX];
+  char backup_system_dir[PATH_MAX];
+  char backup_path[PATH_MAX];
+  char backup_tmp_path[PATH_MAX];
+  char *data;
+  size_t data_size = 0;
+  int ok;
+
+  if (!ui ||
+      !join_path(backup_dir, sizeof(backup_dir), ui->plumos_root, "backups") ||
+      !join_path(backup_system_dir, sizeof(backup_system_dir), backup_dir, "system") ||
+      !join_path(backup_path, sizeof(backup_path), backup_system_dir, "etc-TZ.stock") ||
+      snprintf(backup_tmp_path, sizeof(backup_tmp_path), "%s.tmp", backup_path) >=
+          (int)sizeof(backup_tmp_path)) {
+    return 0;
+  }
+  if (file_exists(backup_path)) {
+    return 1;
+  }
+  mkdir(backup_dir, 0755);
+  mkdir(backup_system_dir, 0755);
+  data = read_file("/etc/TZ", &data_size);
+  if (!data) {
+    data = strdup("missing\n");
+    data_size = strlen(data ? data : "");
+  }
+  if (!data) {
+    return 0;
+  }
+  ok = write_buffer_atomic(backup_path, backup_tmp_path, data, data_size);
+  free(data);
+  return ok;
+}
+
+static int write_os_timezone_file(struct ui_state *ui, const char *timezone) {
+  char value[96];
+
+  if (!valid_timezone_value(timezone)) {
+    return 0;
+  }
+  if (snprintf(value, sizeof(value), "%s\n", timezone) >= (int)sizeof(value)) {
+    return 0;
+  }
+  ensure_os_timezone_backup(ui);
+  return write_text_file("/etc/TZ", value);
+}
+
+static int apply_system_timezone_runtime(struct ui_state *ui, const char *timezone,
+                                         char *status, size_t status_size) {
+  const char *value = valid_timezone_value(timezone) ? timezone : plumos_default_timezone();
+  int wrote_etc_tz;
+
+  apply_plumos_timezone_value(value);
+  wrote_etc_tz = write_os_timezone_file(ui, value);
+  if (status && status_size > 0) {
+    snprintf(status, status_size, wrote_etc_tz ? "OS TZ=%s" : "TZ env=%s; /etc/TZ unchanged",
+             value);
+  }
+  return wrote_etc_tz;
+}
+
 static void init_device_settings(struct device_settings *device) {
   memset(device, 0, sizeof(*device));
   device->volume = 14;
@@ -2133,6 +2306,7 @@ static void init_device_settings(struct device_settings *device) {
   device->saturation = 10;
   copy_string(device->language, sizeof(device->language), "en.lang");
   copy_string(device->theme, sizeof(device->theme), "default");
+  copy_string(device->timezone, sizeof(device->timezone), plumos_default_timezone());
   copy_string(device->model, sizeof(device->model), "Miyoo A30");
   copy_string(device->kernel_version, sizeof(device->kernel_version), "unknown");
   copy_string(device->sdcard_storage, sizeof(device->sdcard_storage), "unavailable");
@@ -2200,6 +2374,7 @@ static int load_device_settings(struct ui_state *ui) {
   json = read_file(ui->system_config_path, &json_size);
   if (!json) {
     copy_string(ui->device.status, sizeof(ui->device.status), "plumOS config missing; defaults active");
+    apply_system_timezone_runtime(ui, ui->device.timezone, NULL, 0);
     return 1;
   }
 
@@ -2222,6 +2397,13 @@ static int load_device_settings(struct ui_state *ui) {
                   sizeof(ui->device.language));
   json_get_string(json, json_end, "theme", ui->device.theme,
                   sizeof(ui->device.theme));
+  json_get_string(json, json_end, "timezone", ui->device.timezone,
+                  sizeof(ui->device.timezone));
+  if (!valid_timezone_value(ui->device.timezone)) {
+    copy_string(ui->device.timezone, sizeof(ui->device.timezone),
+                plumos_default_timezone());
+  }
+  apply_system_timezone_runtime(ui, ui->device.timezone, NULL, 0);
   copy_string(ui->device.status, sizeof(ui->device.status), "plumOS config loaded");
   free(json);
   return 1;
@@ -2466,6 +2648,19 @@ static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
     {"pt.lang", "Portuguese"},
 };
 
+static const struct setting_choice SYSTEM_TIMEZONE_CHOICES[] = {
+    {"JST-9", "Japan"},
+    {"UTC0", "UTC"},
+    {"KST-9", "Korea"},
+    {"CST-8", "China"},
+    {"PST8PDT,M3.2.0/2,M11.1.0/2", "US Pacific"},
+    {"MST7MDT,M3.2.0/2,M11.1.0/2", "US Mountain"},
+    {"CST6CDT,M3.2.0/2,M11.1.0/2", "US Central"},
+    {"EST5EDT,M3.2.0/2,M11.1.0/2", "US Eastern"},
+    {"GMT0BST,M3.5.0/1,M10.5.0", "UK"},
+    {"CET-1CEST,M3.5.0/2,M10.5.0/3", "Central EU"},
+};
+
 static const long BRIGHTNESS_TEST_VALUES[] = {
     10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 255,
 };
@@ -2517,6 +2712,12 @@ static const struct setting_choice *setting_choices(const char *id, size_t *coun
       *count_out = sizeof(SYSTEM_LANGUAGE_CHOICES) / sizeof(SYSTEM_LANGUAGE_CHOICES[0]);
     }
     return SYSTEM_LANGUAGE_CHOICES;
+  }
+  if (strcmp(id, "system_timezone") == 0) {
+    if (count_out) {
+      *count_out = sizeof(SYSTEM_TIMEZONE_CHOICES) / sizeof(SYSTEM_TIMEZONE_CHOICES[0]);
+    }
+    return SYSTEM_TIMEZONE_CHOICES;
   }
   return NULL;
 }
@@ -2602,6 +2803,9 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
+      strcmp(id, "system_time_settings") == 0 ||
+      strcmp(id, "system_manual_time") == 0 ||
+      strcmp(id, "system_manual_time_apply") == 0 ||
       strcmp(id, "system_information") == 0 ||
       strcmp(id, "performance_clear_cpu_override") == 0 ||
       strcmp(id, "performance_core_details") == 0) {
@@ -2632,7 +2836,12 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "system_lumination") == 0 ||
       strcmp(id, "system_contrast") == 0 ||
       strcmp(id, "system_hue") == 0 ||
-      strcmp(id, "system_saturation") == 0) {
+      strcmp(id, "system_saturation") == 0 ||
+      strcmp(id, "system_manual_time_year") == 0 ||
+      strcmp(id, "system_manual_time_month") == 0 ||
+      strcmp(id, "system_manual_time_day") == 0 ||
+      strcmp(id, "system_manual_time_hour") == 0 ||
+      strcmp(id, "system_manual_time_minute") == 0) {
     return SETTING_CONTROL_NUMBER;
   }
   return SETTING_CONTROL_READONLY;
@@ -2656,6 +2865,12 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "system_hue") == 0 ||
                 strcmp(id, "system_saturation") == 0 ||
                 strcmp(id, "system_language") == 0 ||
+                strcmp(id, "system_timezone") == 0 ||
+                strcmp(id, "system_manual_time_year") == 0 ||
+                strcmp(id, "system_manual_time_month") == 0 ||
+                strcmp(id, "system_manual_time_day") == 0 ||
+                strcmp(id, "system_manual_time_hour") == 0 ||
+                strcmp(id, "system_manual_time_minute") == 0 ||
                 strcmp(id, "network_wifi_enabled") == 0 ||
                 strcmp(id, "network_ftp_enabled") == 0 ||
                 strcmp(id, "network_sftp_enabled") == 0 ||
@@ -2671,6 +2886,10 @@ static const char *settings_category_title(enum settings_category category) {
     return "System Settings - Display Color";
   case SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST:
     return "System Settings - Brightness Test";
+  case SETTINGS_CATEGORY_SYSTEM_TIME:
+    return "System Settings - Time Settings";
+  case SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL:
+    return "System Settings - Manual Time";
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     return "System Settings - INFORMATION";
   case SETTINGS_CATEGORY_SYSTEM:
@@ -2718,6 +2937,117 @@ static void add_ui_settings_entries(struct ui_state *ui,
                          ui->theme.force_no_icons);
 }
 
+static int days_in_month(long year, long month) {
+  static const int days[] = {
+      31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  };
+  int leap;
+
+  if (month < 1 || month > 12) {
+    return 31;
+  }
+  if (month != 2) {
+    return days[month - 1];
+  }
+  leap = ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0);
+  return leap ? 29 : 28;
+}
+
+static void clamp_manual_time_fields(struct ui_state *ui) {
+  long max_day;
+
+  if (!ui) {
+    return;
+  }
+  ui->manual_time_year = clamp_long(ui->manual_time_year, 2024, 2037);
+  ui->manual_time_month = clamp_long(ui->manual_time_month, 1, 12);
+  max_day = days_in_month(ui->manual_time_year, ui->manual_time_month);
+  ui->manual_time_day = clamp_long(ui->manual_time_day, 1, max_day);
+  ui->manual_time_hour = clamp_long(ui->manual_time_hour, 0, 23);
+  ui->manual_time_minute = clamp_long(ui->manual_time_minute, 0, 59);
+}
+
+static void init_manual_time_from_current(struct ui_state *ui) {
+  time_t now;
+  struct tm tm_value;
+
+  if (!ui) {
+    return;
+  }
+  apply_plumos_timezone_value(ui->device.timezone);
+  now = time(NULL);
+  if (now == (time_t)-1 || !localtime_r(&now, &tm_value)) {
+    ui->manual_time_year = 2026;
+    ui->manual_time_month = 1;
+    ui->manual_time_day = 1;
+    ui->manual_time_hour = 0;
+    ui->manual_time_minute = 0;
+  } else {
+    ui->manual_time_year = tm_value.tm_year + 1900;
+    ui->manual_time_month = tm_value.tm_mon + 1;
+    ui->manual_time_day = tm_value.tm_mday;
+    ui->manual_time_hour = tm_value.tm_hour;
+    ui->manual_time_minute = tm_value.tm_min;
+  }
+  clamp_manual_time_fields(ui);
+  ui->manual_time_initialized = 1;
+}
+
+static void format_manual_time_value(const struct ui_state *ui,
+                                     char *out, size_t out_size) {
+  if (!out || out_size == 0) {
+    return;
+  }
+  if (!ui || !ui->manual_time_initialized) {
+    copy_string(out, out_size, "-");
+    return;
+  }
+  snprintf(out, out_size, "%04ld-%02ld-%02ld %02ld:%02ld",
+           ui->manual_time_year, ui->manual_time_month, ui->manual_time_day,
+           ui->manual_time_hour, ui->manual_time_minute);
+}
+
+static void add_system_time_entries(struct ui_state *ui) {
+  char value[256];
+  const struct device_settings *device = &ui->device;
+
+  format_current_time_local(value, sizeof(value));
+  add_setting_entry(ui, "system_current_time", "Current Time", value);
+  add_setting_entry(ui, "system_timezone", "Timezone",
+                    setting_choice_display_value("system_timezone", device->timezone));
+  if (!ui->manual_time_initialized) {
+    init_manual_time_from_current(ui);
+  }
+  format_manual_time_value(ui, value, sizeof(value));
+  add_setting_entry(ui, "system_manual_time", "Manual Time", value);
+}
+
+static void add_system_time_manual_entries(struct ui_state *ui) {
+  char value[256];
+
+  if (!ui->manual_time_initialized) {
+    init_manual_time_from_current(ui);
+  }
+  clamp_manual_time_fields(ui);
+  format_current_time_local(value, sizeof(value));
+  add_setting_entry(ui, "system_current_time", "Current Time", value);
+  add_setting_entry(ui, "system_manual_timezone", "Timezone",
+                    setting_choice_display_value("system_timezone",
+                                                 ui->device.timezone));
+  snprintf(value, sizeof(value), "%ld", ui->manual_time_year);
+  add_setting_entry(ui, "system_manual_time_year", "Year", value);
+  snprintf(value, sizeof(value), "%ld", ui->manual_time_month);
+  add_setting_entry(ui, "system_manual_time_month", "Month", value);
+  snprintf(value, sizeof(value), "%ld", ui->manual_time_day);
+  add_setting_entry(ui, "system_manual_time_day", "Day", value);
+  snprintf(value, sizeof(value), "%ld", ui->manual_time_hour);
+  add_setting_entry(ui, "system_manual_time_hour", "Hour", value);
+  snprintf(value, sizeof(value), "%ld", ui->manual_time_minute);
+  add_setting_entry(ui, "system_manual_time_minute", "Minute", value);
+  format_manual_time_value(ui, value, sizeof(value));
+  add_setting_entry(ui, "system_manual_time_apply", "Apply Manual Time", value);
+}
+
 static void add_system_settings_entries(struct ui_state *ui) {
   char value[256];
   const struct device_settings *device = &ui->device;
@@ -2733,6 +3063,8 @@ static void add_system_settings_entries(struct ui_state *ui) {
            device->contrast, device->hue, device->saturation);
   add_setting_entry(ui, "system_display_color", "Display Color", value);
 
+  add_setting_entry(ui, "system_time_settings", "Time Settings",
+                    setting_choice_display_value("system_timezone", device->timezone));
   add_setting_entry(ui, "system_language", "Language",
                     setting_choice_display_value("system_language", device->language));
   add_setting_entry(ui, "system_theme", "Theme",
@@ -3197,6 +3529,14 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST:
     load_device_settings(ui);
     add_system_brightness_test_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM_TIME:
+    load_device_settings(ui);
+    add_system_time_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL:
+    load_device_settings(ui);
+    add_system_time_manual_entries(ui);
     break;
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     load_device_settings(ui);
@@ -4032,6 +4372,24 @@ static void setting_help_lines(const struct setting_entry *entry,
     } else if (strcmp(id, "system_display_color") == 0) {
       copy_string(line1, line1_size, "Open display color tuning.");
       copy_string(line2, line2_size, "Contrast, hue, and saturation are changed inside.");
+    } else if (strcmp(id, "system_time_settings") == 0) {
+      copy_string(line1, line1_size, "Open OS time and timezone settings.");
+      copy_string(line2, line2_size, "Timezone is saved in plumOS and applied to /etc/TZ.");
+    } else if (strcmp(id, "system_current_time") == 0) {
+      copy_string(line1, line1_size, "Current OS time in the selected timezone.");
+      copy_string(line2, line2_size, "NTP normally keeps the underlying clock correct.");
+    } else if (strcmp(id, "system_timezone") == 0) {
+      copy_string(line1, line1_size, "OS runtime timezone.");
+      copy_string(line2, line2_size, "LEFT/RIGHT saves and applies it immediately.");
+    } else if (strcmp(id, "system_manual_time") == 0) {
+      copy_string(line1, line1_size, "Open manual time editor.");
+      copy_string(line2, line2_size, "Values are interpreted in the selected timezone.");
+    } else if (strcmp(id, "system_manual_time_apply") == 0) {
+      copy_string(line1, line1_size, "Apply the manual OS time.");
+      copy_string(line2, line2_size, "A stops plumOS NTP for this session, then sets time.");
+    } else if (strncmp(id, "system_manual_time_", 19) == 0) {
+      copy_string(line1, line1_size, "Manual time field.");
+      copy_string(line2, line2_size, "LEFT/RIGHT changes the value; A applies at bottom.");
     } else if (strcmp(id, "system_contrast") == 0) {
       copy_string(line1, line1_size, "Display contrast setting.");
       copy_string(line2, line2_size, "Applies to A30 enhance and saves to plumOS.");
@@ -4920,6 +5278,78 @@ static int run_network_service_control(struct ui_state *ui, const char *service,
   return 0;
 }
 
+static void stop_ntp_for_manual_time(struct ui_state *ui) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+
+  if (!ui ||
+      !join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-stock-services") ||
+      !file_exists(script)) {
+    return;
+  }
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ntp-stop >/dev/null 2>&1")) {
+    return;
+  }
+  system(cmd);
+}
+
+static int apply_manual_system_time(struct ui_state *ui) {
+  struct tm local_tm;
+  struct tm check_tm;
+  time_t epoch;
+  struct timeval tv;
+  char value[64];
+
+  if (!ui) {
+    return 0;
+  }
+  if (!ui->manual_time_initialized) {
+    init_manual_time_from_current(ui);
+  }
+  clamp_manual_time_fields(ui);
+  apply_system_timezone_runtime(ui, ui->device.timezone, NULL, 0);
+
+  memset(&local_tm, 0, sizeof(local_tm));
+  local_tm.tm_year = (int)ui->manual_time_year - 1900;
+  local_tm.tm_mon = (int)ui->manual_time_month - 1;
+  local_tm.tm_mday = (int)ui->manual_time_day;
+  local_tm.tm_hour = (int)ui->manual_time_hour;
+  local_tm.tm_min = (int)ui->manual_time_minute;
+  local_tm.tm_sec = 0;
+  local_tm.tm_isdst = -1;
+  epoch = mktime(&local_tm);
+  if (epoch == (time_t)-1 || !localtime_r(&epoch, &check_tm) ||
+      check_tm.tm_year != local_tm.tm_year ||
+      check_tm.tm_mon != local_tm.tm_mon ||
+      check_tm.tm_mday != local_tm.tm_mday ||
+      check_tm.tm_hour != local_tm.tm_hour ||
+      check_tm.tm_min != local_tm.tm_min) {
+    set_status(ui, "manual time is invalid for this timezone");
+    return 0;
+  }
+
+  stop_ntp_for_manual_time(ui);
+  tv.tv_sec = epoch;
+  tv.tv_usec = 0;
+  if (settimeofday(&tv, NULL) != 0) {
+    snprintf(ui->status, sizeof(ui->status), "manual time failed: %s",
+             strerror(errno));
+    return 0;
+  }
+  apply_system_timezone_runtime(ui, ui->device.timezone, NULL, 0);
+  ui->manual_time_initialized = 0;
+  update_settings_entries_after_save(ui);
+  format_current_time_local(value, sizeof(value));
+  snprintf(ui->status, sizeof(ui->status), "manual time set: %s; NTP stopped", value);
+  return 1;
+}
+
 static void wifi_clear_result(struct ui_state *ui) {
   if (!ui) {
     return;
@@ -5682,6 +6112,22 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
     return 1;
   }
 
+  if (strcmp(id, "system_timezone") == 0) {
+    char runtime_status[128];
+    if (!save_system_config_string(ui, "timezone", raw)) {
+      set_status(ui, "plumOS system config write failed");
+      return 0;
+    }
+    copy_string(ui->device.timezone, sizeof(ui->device.timezone), raw);
+    apply_system_timezone_runtime(ui, raw, runtime_status, sizeof(runtime_status));
+    ui->manual_time_initialized = 0;
+    update_settings_entries_after_save(ui);
+    settings_start_arrow_blink(ui, direction);
+    snprintf(ui->status, sizeof(ui->status), "saved Timezone=%s; %s",
+             choices[index].display, runtime_status);
+    return 1;
+  }
+
   if (!load_settings(ui->settings_path, &settings)) {
     set_status(ui, "settings read failed");
     return 0;
@@ -5711,6 +6157,38 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
   return 1;
 }
 
+static int save_manual_time_number(struct ui_state *ui, const char *id,
+                                   int direction) {
+  long *target = NULL;
+
+  if (!ui || !id || direction == 0) {
+    return 0;
+  }
+  if (!ui->manual_time_initialized) {
+    init_manual_time_from_current(ui);
+  }
+  if (strcmp(id, "system_manual_time_year") == 0) {
+    target = &ui->manual_time_year;
+  } else if (strcmp(id, "system_manual_time_month") == 0) {
+    target = &ui->manual_time_month;
+  } else if (strcmp(id, "system_manual_time_day") == 0) {
+    target = &ui->manual_time_day;
+  } else if (strcmp(id, "system_manual_time_hour") == 0) {
+    target = &ui->manual_time_hour;
+  } else if (strcmp(id, "system_manual_time_minute") == 0) {
+    target = &ui->manual_time_minute;
+  }
+  if (!target) {
+    return 0;
+  }
+  *target += direction > 0 ? 1 : -1;
+  clamp_manual_time_fields(ui);
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  set_status(ui, "manual time draft updated");
+  return 1;
+}
+
 static int save_setting_number(struct ui_state *ui, const char *id,
                                const char *display_value, int direction) {
   struct frontend_settings settings;
@@ -5724,6 +6202,10 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   if (direction == 0) {
     set_status(ui, "setting needs LEFT/RIGHT");
     return 0;
+  }
+  if (strncmp(id, "system_manual_time_", 19) == 0 &&
+      strcmp(id, "system_manual_time_apply") != 0) {
+    return save_manual_time_number(ui, id, direction);
   }
   value = strtol(display_value ? display_value : "0", NULL, 10);
   if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
@@ -5923,6 +6405,14 @@ static int is_system_display_color_entry(const struct setting_entry *entry) {
 
 static int is_system_brightness_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "system_brightness") == 0;
+}
+
+static int is_system_time_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_time_settings") == 0;
+}
+
+static int is_system_manual_time_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_manual_time") == 0;
 }
 
 static int is_system_information_entry(const struct setting_entry *entry) {
@@ -6366,6 +6856,18 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         set_status(ui, "back to System Settings");
         return;
       }
+      if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_TIME) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+        select_setting_entry_by_id(ui, "system_time_settings");
+        set_status(ui, "back to System Settings");
+        return;
+      }
+      if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_TIME);
+        select_setting_entry_by_id(ui, "system_manual_time");
+        set_status(ui, "back to Time Settings");
+        return;
+      }
       if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_INFORMATION) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
         select_setting_entry_by_id(ui, "system_information");
@@ -6416,6 +6918,19 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_system_display_color_entry(entry)) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR);
+        return;
+      }
+      if (is_system_time_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_TIME);
+        return;
+      }
+      if (is_system_manual_time_entry(entry)) {
+        init_manual_time_from_current(ui);
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL);
+        return;
+      }
+      if (strcmp(entry->id, "system_manual_time_apply") == 0) {
+        apply_manual_system_time(ui);
         return;
       }
       if (is_system_brightness_entry(entry)) {

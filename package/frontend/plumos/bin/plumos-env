@@ -1,0 +1,48 @@
+#!/bin/sh
+# plumOS runtime environment entry point. Keep this POSIX-sh compatible.
+
+PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}"
+PLUMOS_ROOT="${PLUMOS_ROOT:-${PLUMOS_SDCARD_ROOT}/plumos}"
+SYSTEM_SETTINGS="${PLUMOS_SYSTEM_SETTINGS_JSON:-${PLUMOS_ROOT}/config/system/settings.json}"
+
+json_string_value() {
+  key="$1"
+  file="$2"
+  [ -r "$file" ] || return 1
+  sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$file" | sed -n '1p'
+}
+
+valid_timezone() {
+  case "$1" in
+    *[!A-Za-z0-9_+/:.,-]*|'') return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+apply_timezone() {
+  timezone="$(json_string_value timezone "$SYSTEM_SETTINGS" 2>/dev/null || true)"
+  valid_timezone "$timezone" || timezone="JST-9"
+  TZ="$timezone"
+  export TZ
+
+  if [ -e /etc/TZ ]; then
+    backup_dir="${PLUMOS_ROOT}/backups/system"
+    backup_file="${backup_dir}/etc-TZ.stock"
+    mkdir -p "$backup_dir" 2>/dev/null || true
+    if [ ! -e "$backup_file" ]; then
+      cp /etc/TZ "$backup_file" 2>/dev/null || printf 'missing\n' > "$backup_file" 2>/dev/null || true
+    fi
+    printf '%s\n' "$timezone" > /etc/TZ 2>/dev/null || true
+  fi
+}
+
+apply_timezone
+
+PATH="${PLUMOS_ROOT}/gnu/bin:${PLUMOS_ROOT}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH PLUMOS_ROOT PLUMOS_SDCARD_ROOT
+
+if [ "$#" -eq 0 ]; then
+  exec sh
+fi
+
+exec "$@"

@@ -26,7 +26,7 @@ plumOS configuration.
     lookup.
 - `/mnt/SDCARD/plumos/config/system/settings.json`
   - plumOS-owned device settings: Volume, Brightness, Lumination, Display Color,
-    Language, and Theme.
+    Time Settings, Language, and Theme.
 
 ## Future Candidates
 
@@ -56,6 +56,7 @@ Current keys:
 - `hue`: `0..20`
 - `saturation`: `0..20`
 - `language`: `en.lang`, `ja.lang`, etc.
+- `timezone`: POSIX TZ string. Default is `JST-9`
 - `theme`: plumOS theme id
 
 As of 2026-06-10, values other than `Language` and `Theme` are applied to the
@@ -65,6 +66,11 @@ A30 runtime when saved and once during FE startup. `volume` uses ALSA
 `hue` / `saturation` use `/sys/devices/virtual/disp/disp/attr/enhance`.
 Brightness stores `1..20`; RAW lcdbl is mapped to
 `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190`.
+`timezone` is sourced from plumOS config and applied to the `TZ` environment
+and runtime `/etc/TZ` when saved, at FE startup, and from the MainUI wrapper.
+plumOS still does not write stockOS `/config/system.json`. Manual time entry is
+interpreted as local time in the selected timezone, converted to UTC epoch, and
+then applied to the OS clock.
 
 ## Performance Settings
 

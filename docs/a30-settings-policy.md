@@ -31,6 +31,7 @@ A30 runtime backend へ即時反映します。
 - `Brightness`: `brightness`。左右で `1..20` を変更し、下記の表で `/sys/devices/virtual/disp/disp/attr/lcdbl` の RAW 値へ反映する。将来は START + 音量ボタンなどの hotkey と連動する
 - `Lumination`: `lumination`。左右で `0..10` を変更し、display `enhance` へ反映する
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
+- `Time Settings`: A で時刻設定サブ項目を開く。`Timezone` は左右で変更し、plumOS config 保存後に `TZ` 環境と runtime `/etc/TZ` へ反映する。`Manual Time` は専用画面で Year/Month/Day/Hour/Minute を変更し、A で OS 時刻へ適用する
 - `Language`: `language`。左右で `English`, `Japanese`, `Chinese`, `Traditional Chinese`, `Korean`, `Spanish`, `Portuguese` を選択する
 - `Theme`: graphical mode 向けの theme 設定候補。候補名と path の扱いが固まるまで read-only
 - `INFORMATION`: 現在値や backend/policy などの情報系サブ項目
@@ -46,6 +47,14 @@ A30 runtime backend へ即時反映します。
 - `Audio Backend`: 検出した mixer backend。A30 では `Soft Volume Master (amixer)`
 - `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
 - `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針
+
+`Time Settings` の永続値は `/mnt/SDCARD/plumos/config/system/settings.json` の
+`timezone` を原本にします。これは stockOS `/config/system.json` ではありません。
+ただしユーザーが期待する「OS のタイムゾーン変更」にするため、保存時、FE 起動時、
+MainUI wrapper 起動時に `TZ` 環境と runtime `/etc/TZ` へ適用します。手動時刻設定は
+選択中 timezone のローカル時刻として入力し、UTC epoch に変換して `settimeofday()` で
+OS 時刻へ反映します。NTP が直後に上書きしないよう、手動適用時は plumOS 管理 NTP を
+そのセッションで停止します。
 
 Network Settings の第一階層では次の操作項目だけを扱います。
 

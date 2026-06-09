@@ -15,6 +15,7 @@ STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-service
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
+SYSTEM_SETTINGS="${PLUMOS_SYSTEM_SETTINGS_JSON:-${PLUMOS_ROOT}/config/system/settings.json}"
 UI_ROTATION="${PLUMOS_MALI_ROTATION:-auto}"
 UI_STYLE="${PLUMOS_MALI_STYLE:-tty}"
 UI_ENTRY_SCALE="${PLUMOS_MALI_TTY_ENTRY_SCALE:-2}"
@@ -23,6 +24,37 @@ mkdir -p "$LOG_DIR" "${PLUMOS_ROOT}/config" 2>/dev/null || true
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+json_string_value() {
+  key="$1"
+  file="$2"
+  [ -r "$file" ] || return 1
+  sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$file" | sed -n '1p'
+}
+
+valid_timezone() {
+  case "$1" in
+    *[!A-Za-z0-9_+/:.,-]*|'') return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+apply_timezone() {
+  timezone="$(json_string_value timezone "$SYSTEM_SETTINGS" 2>/dev/null || true)"
+  valid_timezone "$timezone" || timezone="JST-9"
+  TZ="$timezone"
+  export TZ
+
+  if [ -e /etc/TZ ]; then
+    backup_dir="${PLUMOS_ROOT}/backups/system"
+    backup_file="${backup_dir}/etc-TZ.stock"
+    mkdir -p "$backup_dir" 2>/dev/null || true
+    if [ ! -e "$backup_file" ]; then
+      cp /etc/TZ "$backup_file" 2>/dev/null || printf 'missing\n' > "$backup_file" 2>/dev/null || true
+    fi
+    printf '%s\n' "$timezone" > /etc/TZ 2>/dev/null || true
+  fi
 }
 
 run_stock() {
@@ -43,12 +75,24 @@ run_controller_ui() {
   fi
 
   log "starting plumOS controller UI: ${CONTROLLER_UI}"
-  PLUMOS_ROOT="$PLUMOS_ROOT" \
-  PLUMOS_MALI_STYLE="$UI_STYLE" \
-  PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
-    "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
-    --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
+  if [ -x "$ENV_WRAPPER" ]; then
+    PLUMOS_ROOT="$PLUMOS_ROOT" \
+    PLUMOS_SYSTEM_SETTINGS_JSON="$SYSTEM_SETTINGS" \
+    PLUMOS_MALI_STYLE="$UI_STYLE" \
+    PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
+      "$ENV_WRAPPER" "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
+      --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
+  else
+    PLUMOS_ROOT="$PLUMOS_ROOT" \
+    PLUMOS_SYSTEM_SETTINGS_JSON="$SYSTEM_SETTINGS" \
+    PLUMOS_MALI_STYLE="$UI_STYLE" \
+    PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
+      "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
+      --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
+  fi
 }
+
+apply_timezone
 
 log "wrapper start pid=$$ pwd=$(pwd)"
 
