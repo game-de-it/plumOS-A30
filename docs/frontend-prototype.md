@@ -414,7 +414,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - A: TOP では ROM list へ入る。ROM list/Favorites/Recent では launch を実行する
 - B: ROM list、Favorites、Recent から TOP へ戻る。Settings/HELP/Network Recovery では
   START menu へ戻り、System Settings の `Display Color` / `INFORMATION` サブ項目では
-  System Settings へ戻る。START menu では元の画面へ戻る
+  System Settings へ戻り、Network Settings の `INFORMATION` サブ項目では
+  Network Settings へ戻る。START menu では元の画面へ戻る
 - START: START menu を開く
 - START menu: Settings/Favorites/Recent/Network Recovery は実画面へ遷移し、Shutdown は `plumos-safe-shutdown --shutdown --no-poweroff` を実行する。その他は action preview を出す
 - 左右キーは決定/実行/戻る/キャンセルには使わない。決定/実行はA、戻る/キャンセルはBで統一する
@@ -422,8 +423,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - Function: SAFE menu を開く。SAFE menu は `Sleep`, `Shutdown`, `Cancel` を持つ
 - UI Settings: checkbox は A/左右で保存し、選択系は左右で保存する。TOP/ROM の
   表示項目、並び順、ROM scan policy、boot resume は保存後の実挙動へ反映する
-- Network Settings: Wi-Fi runtime 情報は read-only。`Run Network Recovery` 行の A だけが
-  network rescue を実行する。SSID/PSK は表示しない
+- Network Settings: 第一階層は `Wi-Fi`、`Run Network Recovery`、`INFORMATION`。
+  `Wi-Fi` は runtime ON/OFF、`Run Network Recovery` は network rescue を実行する。
+  Connection/IP/Signal などの情報系は `INFORMATION` サブ項目へ置き、SSID/PSK は表示しない
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `f`, `q`
 
 SAFE menu:

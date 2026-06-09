@@ -44,9 +44,15 @@ A30 runtime backend へ即時反映します。
 - `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
 - `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針
 
-Network Settings では次の項目を扱います。
+Network Settings の第一階層では次の操作項目だけを扱います。
 
-- `Wi-Fi`: plumOS runtime
+- `Wi-Fi`: checkbox。A で runtime ON/OFF を切り替える。ON は `plumos-network-rescue`、
+  OFF は `plumos-network-control --wifi off` を呼び、保存済み認証情報は編集しない。
+- `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する。
+- `INFORMATION`: read-only の network 情報サブ項目を開く。
+
+`INFORMATION` サブ項目には次の情報を置きます。
+
 - `Connection`: `/tmp/wpa_status.txt` の `wpa_state`
 - `IP Address`: `/tmp/wpa_status.txt` の `ip_address`
 - `Signal`: `/tmp/wpa_status.txt` の `RSSI`
@@ -56,8 +62,8 @@ Network Settings では次の項目を扱います。
 - `Status Source`: runtime status の読み取り元
 - `Config Source`: plumOS network runtime
 - `Credentials`: `hidden`
-- `Run Network Recovery`: A ボタンで Wi-Fi、DHCP、SSH recovery を実行する
-- `Write Policy`: safe Wi-Fi editor 実装まで read-only
+- `Runtime Control`: runtime helper の状態
+- `Write Policy`: runtime control のみ有効。safe Wi-Fi editor 実装まで認証情報は read-only
 
 Wi-Fi 状態、IP、信号などの情報行で A を押しても recovery は実行しません。
 Performance Settings では launcher/core profile 由来の CPU 方針を扱います。

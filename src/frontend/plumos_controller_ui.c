@@ -283,6 +283,7 @@ struct theme_state {
 struct device_settings {
   int loaded;
   int wpa_loaded;
+  int wifi_runtime_enabled;
   long volume;
   long brightness;
   long lumination;
@@ -295,6 +296,7 @@ struct device_settings {
   char kernel_version[128];
   char sdcard_storage[128];
   char network_status_source[128];
+  char network_control_status[128];
   char ssh_status[128];
   char brightness_backend[128];
   char volume_backend[128];
@@ -343,6 +345,7 @@ enum settings_category {
   SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST,
   SETTINGS_CATEGORY_SYSTEM_INFORMATION,
   SETTINGS_CATEGORY_NETWORK,
+  SETTINGS_CATEGORY_NETWORK_INFORMATION,
   SETTINGS_CATEGORY_PERFORMANCE
 };
 
@@ -730,6 +733,32 @@ static long scale_setting_to_runtime(long value, long setting_max,
 
 static int system_command_succeeded(int rc) {
   return rc != -1 && WIFEXITED(rc) && WEXITSTATUS(rc) == 0;
+}
+
+static int command_succeeds_quiet(const char *cmd) {
+  if (!cmd || !cmd[0]) {
+    return 0;
+  }
+  return system_command_succeeded(system(cmd));
+}
+
+static int runtime_wifi_enabled(void) {
+  char operstate[32];
+
+  if (read_first_line_file("/sys/class/net/wlan0/operstate",
+                           operstate, sizeof(operstate)) &&
+      strcmp(operstate, "down") != 0) {
+    return 1;
+  }
+  if (command_succeeds_quiet(
+          "ifconfig wlan0 2>/dev/null | grep -q 'UP' >/dev/null 2>&1")) {
+    return 1;
+  }
+  if (command_succeeds_quiet(
+          "ps w 2>/dev/null | grep '[w]pa_supplicant' >/dev/null 2>&1")) {
+    return 1;
+  }
+  return 0;
 }
 
 static const char *runtime_volume_backend_path(void) {
@@ -1653,6 +1682,8 @@ static void init_device_settings(struct device_settings *device) {
   copy_string(device->sdcard_storage, sizeof(device->sdcard_storage), "unavailable");
   copy_string(device->network_status_source, sizeof(device->network_status_source),
               "runtime status missing");
+  copy_string(device->network_control_status, sizeof(device->network_control_status),
+              "plumOS runtime control");
   copy_string(device->ssh_status, sizeof(device->ssh_status), "Dropbear port 2222");
   copy_string(device->brightness_backend, sizeof(device->brightness_backend),
               "runtime backend unknown");
@@ -1664,6 +1695,7 @@ static void init_device_settings(struct device_settings *device) {
 static void load_device_runtime_status(struct ui_state *ui) {
   struct device_settings *device = &ui->device;
 
+  device->wifi_runtime_enabled = runtime_wifi_enabled();
   copy_string(device->network_status_source, sizeof(device->network_status_source),
               file_exists(ui->wpa_status_path) ? ui->wpa_status_path : "runtime status missing");
   if (read_key_value_file(ui->wpa_status_path, "wpa_state", device->wifi_state,
@@ -2097,6 +2129,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
     return SETTING_CONTROL_READONLY;
   }
   if (strcmp(id, "network_rescue") == 0 ||
+      strcmp(id, "network_information") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
       strcmp(id, "system_information") == 0 ||
       strcmp(id, "performance_clear_cpu_override") == 0 ||
@@ -2106,7 +2139,8 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   if (strcmp(id, "show_empty_systems") == 0 ||
       strcmp(id, "show_favorites_on_top") == 0 ||
       strcmp(id, "show_recent_on_top") == 0 ||
-      strcmp(id, "rom_scan_policy") == 0) {
+      strcmp(id, "rom_scan_policy") == 0 ||
+      strcmp(id, "network_wifi_enabled") == 0) {
     return SETTING_CONTROL_CHECKBOX;
   }
   if (setting_choices(id, NULL)) {
@@ -2148,6 +2182,7 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "system_hue") == 0 ||
                 strcmp(id, "system_saturation") == 0 ||
                 strcmp(id, "system_language") == 0 ||
+                strcmp(id, "network_wifi_enabled") == 0 ||
                 strcmp(id, "performance_system") == 0 ||
                 strcmp(id, "performance_cpu_policy") == 0 ||
                 strcmp(id, "performance_cpu_cores") == 0);
@@ -2165,6 +2200,8 @@ static const char *settings_category_title(enum settings_category category) {
     return "System Settings";
   case SETTINGS_CATEGORY_NETWORK:
     return "Network Settings";
+  case SETTINGS_CATEGORY_NETWORK_INFORMATION:
+    return "Network Settings - INFORMATION";
   case SETTINGS_CATEGORY_PERFORMANCE:
     return "Performance Settings";
   case SETTINGS_CATEGORY_UI:
@@ -2270,10 +2307,19 @@ static void add_system_information_entries(struct ui_state *ui) {
 }
 
 static void add_network_settings_entries(struct ui_state *ui) {
+  const struct device_settings *device = &ui->device;
+
+  add_bool_setting_entry(ui, "network_wifi_enabled", "Wi-Fi",
+                         device->wifi_runtime_enabled);
+  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
+                    "Wi-Fi + DHCP + SSH");
+  add_setting_entry(ui, "network_information", "INFORMATION", "");
+}
+
+static void add_network_information_entries(struct ui_state *ui) {
   char value[256];
   const struct device_settings *device = &ui->device;
 
-  add_setting_entry(ui, "network_wifi_enabled", "Wi-Fi", "plumOS runtime");
   add_setting_entry(ui, "network_connection", "Connection",
                     device->wifi_state[0] ? device->wifi_state : "No Runtime Status");
   add_setting_entry(ui, "network_ip_address", "IP Address",
@@ -2302,10 +2348,10 @@ static void add_network_settings_entries(struct ui_state *ui) {
   add_setting_entry(ui, "network_config_source", "Config Source",
                     "plumOS network runtime");
   add_setting_entry(ui, "network_credentials", "Credentials", "hidden");
-  add_setting_entry(ui, "network_rescue", "Run Network Recovery",
-                    "Wi-Fi + DHCP + SSH");
+  add_setting_entry(ui, "network_runtime_control", "Runtime Control",
+                    device->network_control_status);
   add_setting_entry(ui, "network_write_policy", "Write Policy",
-                    "read-only until safe Wi-Fi editor");
+                    "runtime only; credentials read-only");
 }
 
 static int performance_top_entry_is_real(const struct top_entry *entry) {
@@ -2673,6 +2719,10 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_NETWORK:
     load_device_settings(ui);
     add_network_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_NETWORK_INFORMATION:
+    load_device_settings(ui);
+    add_network_information_entries(ui);
     break;
   case SETTINGS_CATEGORY_PERFORMANCE:
     load_device_settings(ui);
@@ -3401,11 +3451,16 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "network_rescue") == 0) {
     copy_string(line1, line1_size, "Run Wi-Fi, DHCP, and SSH recovery.");
     copy_string(line2, line2_size, "Restores the usual remote access path.");
+  } else if (strcmp(id, "network_information") == 0) {
+    copy_string(line1, line1_size, "Open read-only network information.");
+    copy_string(line2, line2_size, "Connection, IP, signal, SSH, source, and policy.");
   } else if (strncmp(id, "network_", 8) == 0) {
-    if (strcmp(id, "network_wifi_enabled") == 0 ||
-        strcmp(id, "network_config_source") == 0) {
+    if (strcmp(id, "network_wifi_enabled") == 0) {
+      copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
+      copy_string(line2, line2_size, "On runs recovery; Off stops wlan0 runtime.");
+    } else if (strcmp(id, "network_config_source") == 0) {
       copy_string(line1, line1_size, "Read-only Wi-Fi config inventory.");
-      copy_string(line2, line2_size, "Wi-Fi editing waits for backup and rollback.");
+      copy_string(line2, line2_size, "Credential editing waits for backup and rollback.");
     } else if (strcmp(id, "network_connection") == 0 ||
                strcmp(id, "network_ip_address") == 0 ||
                strcmp(id, "network_signal") == 0 ||
@@ -3420,6 +3475,9 @@ static void setting_help_lines(const struct setting_entry *entry,
     } else if (strcmp(id, "network_credentials") == 0) {
       copy_string(line1, line1_size, "Wi-Fi credentials are intentionally hidden.");
       copy_string(line2, line2_size, "Do not expose SSID or PSK in UI/logs/git.");
+    } else if (strcmp(id, "network_runtime_control") == 0) {
+      copy_string(line1, line1_size, "Runtime control helper used by this screen.");
+      copy_string(line2, line2_size, "It does not edit saved Wi-Fi credentials.");
     } else {
       copy_string(line1, line1_size, "Read-only network setting.");
       copy_string(line2, line2_size, "Write support needs safe Wi-Fi editor flow.");
@@ -4014,6 +4072,8 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   reset_marquee(ui);
 }
 
+static int update_settings_entries_after_save(struct ui_state *ui);
+
 static int run_network_rescue(struct ui_state *ui) {
   char script[PATH_MAX];
   char cmd[UI_COMMAND_MAX];
@@ -4050,6 +4110,58 @@ static int run_network_rescue(struct ui_state *ui) {
     return 1;
   }
   set_status(ui, "network rescue returned non-zero");
+  return 0;
+}
+
+static int run_network_wifi_control(struct ui_state *ui, int enable) {
+  char script[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui) {
+    return 0;
+  }
+  if (enable) {
+    if (!run_network_rescue(ui)) {
+      return 0;
+    }
+    update_settings_entries_after_save(ui);
+    set_status(ui, "Wi-Fi runtime on");
+    return 1;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
+    set_status(ui, "network control path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "network control script missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " --wifi off")) {
+    set_status(ui, "network control command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (rc == -1) {
+    set_status(ui, "network control system call failed");
+    return 0;
+  }
+  if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    update_settings_entries_after_save(ui);
+    set_status(ui, "Wi-Fi runtime off");
+    return 1;
+  }
+  set_status(ui, "network control returned non-zero");
   return 0;
 }
 
@@ -4784,6 +4896,9 @@ static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
     } else {
       return 0;
     }
+    if (strcmp(id, "network_wifi_enabled") == 0) {
+      return run_network_wifi_control(ui, next);
+    }
     save_setting_bool(ui, id, next);
     return 1;
   }
@@ -4816,6 +4931,10 @@ static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
 
 static int is_network_setting_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_rescue") == 0;
+}
+
+static int is_network_information_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "network_information") == 0;
 }
 
 static int is_system_display_color_entry(const struct setting_entry *entry) {
@@ -5102,6 +5221,12 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         set_status(ui, "back to System Settings");
         return;
       }
+      if (ui->settings_category == SETTINGS_CATEGORY_NETWORK_INFORMATION) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
+        select_setting_entry_by_id(ui, "network_information");
+        set_status(ui, "back to Network Settings");
+        return;
+      }
       ui->screen = SCREEN_START_MENU;
       set_status(ui, "back to START");
       return;
@@ -5114,6 +5239,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_network_setting_entry(entry)) {
         run_network_rescue(ui);
+        return;
+      }
+      if (is_network_information_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK_INFORMATION);
         return;
       }
       if (is_system_display_color_entry(entry)) {

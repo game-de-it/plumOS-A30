@@ -1,0 +1,155 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_ROOT}/logs"
+LOG_FILE="${LOG_DIR}/network-control.log"
+WPA_STATUS="${PLUMOS_A30_WPA_STATUS:-/tmp/wpa_status.txt}"
+
+ACTION=status
+
+usage() {
+  cat <<'USAGE'
+Usage: plumos-network-control [options]
+
+Options:
+  --wifi on       Start Wi-Fi runtime through plumOS network recovery.
+  --wifi off      Stop wlan0 runtime without editing saved credentials.
+  --wifi status   Print redacted runtime status. Default.
+  -h, --help      Show this help.
+USAGE
+}
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+uptime_now() {
+  if [ -r /proc/uptime ]; then
+    read -r up _ < /proc/uptime || up=unknown
+    printf '%s' "$up"
+  else
+    printf '%s' "unknown"
+  fi
+}
+
+log() {
+  printf '%s uptime=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+process_running() {
+  ps w 2>/dev/null | grep "$1" | grep -v grep >/dev/null 2>&1
+}
+
+get_wlan_ip() {
+  ifconfig wlan0 2>/dev/null | sed -n 's/.*inet addr:\([^ ]*\).*/\1/p' | sed -n '1p'
+}
+
+wifi_runtime_on() {
+  if ifconfig wlan0 2>/dev/null | sed -n '1p' | grep -q 'UP'; then
+    return 0
+  fi
+  process_running "wpa_supplicant"
+}
+
+write_runtime_status_off() {
+  {
+    echo "wpa_state=DISCONNECTED"
+    echo "ip_address="
+    echo "RSSI="
+    echo "LINKSPEED="
+    echo "FREQUENCY="
+  } > "$WPA_STATUS" 2>/dev/null || true
+}
+
+stop_processes() {
+  killall udhcpc 2>/dev/null || true
+  killall wpa_supplicant 2>/dev/null || true
+}
+
+wifi_off() {
+  log "wifi_off begin"
+  stop_processes
+  if ifconfig wlan0 0.0.0.0 >> "$LOG_FILE" 2>&1; then
+    log "ifconfig wlan0 clear_ip rc=0"
+  else
+    log "ifconfig wlan0 clear_ip rc=$?"
+  fi
+  if ifconfig wlan0 down >> "$LOG_FILE" 2>&1; then
+    log "ifconfig wlan0 down rc=0"
+  else
+    log "ifconfig wlan0 down rc=$?"
+  fi
+  write_runtime_status_off
+  log "wifi_off end ip=$(get_wlan_ip || true)"
+}
+
+wifi_on() {
+  helper="${PLUMOS_ROOT}/bin/plumos-network-rescue"
+  log "wifi_on begin"
+  if [ ! -x "$helper" ]; then
+    log "wifi_on missing_helper=$helper"
+    echo "error: plumos-network-rescue missing" >&2
+    return 1
+  fi
+  "$helper"
+  rc=$?
+  log "wifi_on end rc=$rc ip=$(get_wlan_ip || true)"
+  return "$rc"
+}
+
+print_status() {
+  ip="$(get_wlan_ip || true)"
+  if wifi_runtime_on; then
+    echo "wifi=on"
+  else
+    echo "wifi=off"
+  fi
+  echo "ip=${ip:-none}"
+  if process_running "wpa_supplicant"; then
+    echo "wpa_supplicant=running"
+  else
+    echo "wpa_supplicant=stopped"
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --wifi)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --wifi expects on, off, or status" >&2
+        exit 2
+      fi
+      case "$1" in
+        on|off|status)
+          ACTION="$1"
+          ;;
+        *)
+          echo "error: invalid --wifi value: $1" >&2
+          exit 2
+          ;;
+      esac
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+case "$ACTION" in
+  on)
+    wifi_on
+    ;;
+  off)
+    wifi_off
+    ;;
+  status)
+    print_status
+    ;;
+esac

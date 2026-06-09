@@ -434,8 +434,9 @@ Controls:
 - A: enter ROM list on TOP; execute launch on ROM list/Favorites/Recent.
 - B: return from ROM list, Favorites, or Recent to TOP. Settings, HELP, and
   Network Recovery return to START; the System Settings `Display Color` and
-  `INFORMATION` subpages return to System Settings. START returns to the previous
-  screen.
+  `INFORMATION` subpages return to System Settings; the Network Settings
+  `INFORMATION` subpage returns to Network Settings. START returns to the
+  previous screen.
 - START: open START menu.
 - START menu: Settings/Favorites/Recent/Network Recovery open real screens;
   Shutdown runs `plumos-safe-shutdown --shutdown --no-poweroff`; other actions
@@ -448,8 +449,10 @@ Controls:
 - UI Settings: checkboxes save through A/Left/Right, and choices save through
   Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot resume are
   reflected in runtime behavior after saving.
-- Network Settings: Wi-Fi runtime rows are read-only. Only A on
-  `Run Network Recovery` runs network rescue. SSID/PSK are not displayed.
+- Network Settings: the first layer contains `Wi-Fi`, `Run Network Recovery`,
+  and `INFORMATION`. `Wi-Fi` controls runtime on/off, and `Run Network Recovery`
+  runs network rescue. Connection/IP/Signal details live under `INFORMATION`.
+  SSID/PSK are not displayed.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
 
 SAFE menu:

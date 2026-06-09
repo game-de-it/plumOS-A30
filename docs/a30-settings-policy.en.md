@@ -55,9 +55,16 @@ The `INFORMATION` subpage owns these read-only entries:
   `disp attr lcdbl/enhance`
 - `Write Policy`: save under plumOS only; stockOS remains untouched
 
-Network Settings owns these entries:
+The first Network Settings layer owns only actionable items:
 
-- `Wi-Fi`: plumOS runtime
+- `Wi-Fi`: checkbox. A toggles the runtime on/off. ON runs
+  `plumos-network-rescue`; OFF runs `plumos-network-control --wifi off` and
+  does not edit saved credentials.
+- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery.
+- `INFORMATION`: opens the read-only network information subpage.
+
+The `INFORMATION` subpage owns these read-only entries:
+
 - `Connection`: `wpa_state` from `/tmp/wpa_status.txt`
 - `IP Address`: `ip_address` from `/tmp/wpa_status.txt`
 - `Signal`: `RSSI` from `/tmp/wpa_status.txt`
@@ -67,10 +74,10 @@ Network Settings owns these entries:
 - `Status Source`: runtime status source
 - `Config Source`: plumOS network runtime
 - `Credentials`: `hidden`
-- `Run Network Recovery`: A runs Wi-Fi, DHCP, and SSH recovery
-- `Write Policy`: read-only until a safe Wi-Fi editor exists
+- `Runtime Control`: runtime helper state
+- `Write Policy`: runtime control only; credentials stay read-only until a safe Wi-Fi editor exists
 
-Pressing A on Wi-Fi status, IP, or signal rows does not run recovery.
+Pressing A on Wi-Fi status, IP, signal, or other information rows does not run recovery.
 Performance Settings owns launcher/core-profile CPU policy. As of 2026-06-09,
 the user can choose a system and change `CPU freq` and `CPU Cores` with
 Left/Right. `CPU freq` exposes only fixed `648/816/1200/1344 MHz` values, and
