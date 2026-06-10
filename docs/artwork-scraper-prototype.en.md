@@ -292,11 +292,21 @@ the thumbnail index had no PNG with that canonical name.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
 stall the UI path indefinitely.
 
-FE START -> Apps exposes these entries. Results are written to
+FE START -> Apps exposes these entries. `Thumbnail Plan` and `Fetch Thumbnails`
+show a `Thumbnail Running` screen while they execute, then automatically open
+`Thumbnail Results` when the run finishes. `Thumbnail Results` reads only the
+latest `frontend-apps-latest.log`, so users can tell the result belongs to the
+run they just started. Detailed logs are still written to
 `/mnt/SDCARD/plumos/logs/frontend-apps.log` and the runner log.
 
 - `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
 - `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
+- `Thumbnail Results`: summarizes the latest log as readable multi-line rows.
+  `Thumbnail Plan` system rows are split into the system name,
+  `ROMs N, existing N`, and `missing N`. `Fetch Thumbnails` system rows are
+  split into the system name, `ROMs N, downloaded N`, and
+  `no match N, failed N`. The screen scrolls one row with up/down and one page
+  with left/right.
 
 Source definitions live in
 `package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are

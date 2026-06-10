@@ -170,6 +170,7 @@ struct input_event {
 #define UI_PATH_MAX 1024
 #define UI_RENDER_MAX_LINES 64
 #define UI_RENDER_LINE_MAX 512
+#define UI_THUMBNAIL_RESULT_MAX_LINES 96
 #define UI_KEY_REPEAT_DELAY_MS 350
 #define UI_KEY_REPEAT_INTERVAL_MS 95
 #define UI_SETTING_VALUE_REPEAT_INTERVAL_MS 250
@@ -180,6 +181,7 @@ struct input_event {
 #define UI_WIFI_COMMAND_ROW 6
 #define UI_WIFI_COMMAND_COUNT 5
 #define UI_USB_DISK_START_DELAY_MS 2000
+#define UI_THUMBNAIL_RESULT_WINDOW 11
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
@@ -249,6 +251,8 @@ struct menu_entry {
   char kind[64];
   char action[256];
   int confirm;
+  int background;
+  int show_results;
 };
 
 struct setting_entry {
@@ -389,7 +393,9 @@ enum ui_screen {
   SCREEN_NETWORK_RESCUE = 9,
   SCREEN_WIFI_CONNECT = 10,
   SCREEN_USB_DISK_CONFIRM = 11,
-  SCREEN_USB_DISK_STARTING = 12
+  SCREEN_USB_DISK_STARTING = 12,
+  SCREEN_THUMBNAIL_RESULTS = 13,
+  SCREEN_THUMBNAIL_RUNNING = 14
 };
 
 enum wifi_connect_stage {
@@ -476,6 +482,10 @@ struct ui_state {
   size_t menu_count;
   char menu_id[64];
   char menu_title[128];
+  char thumbnail_result_lines[UI_THUMBNAIL_RESULT_MAX_LINES][UI_RENDER_LINE_MAX];
+  size_t thumbnail_result_count;
+  size_t thumbnail_result_cursor;
+  char thumbnail_running_title[128];
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
   struct wifi_network_entry wifi_networks[UI_MAX_WIFI_NETWORKS];
@@ -4315,6 +4325,8 @@ static int load_apps_menu_entries(struct ui_state *ui) {
                     sizeof(entry.action));
     json_get_string(obj_start, obj_end, "menu", menu_id, sizeof(menu_id));
     entry.confirm = json_get_bool(obj_start, obj_end, "confirm", 0);
+    entry.background = json_get_bool(obj_start, obj_end, "background", 0);
+    entry.show_results = json_get_bool(obj_start, obj_end, "show_results", 0);
     if (!visible || !entry.id[0] || strcmp(menu_id, "apps") != 0) {
       continue;
     }
@@ -4339,6 +4351,128 @@ static void select_menu_entry_by_id(struct ui_state *ui, const char *id) {
       return;
     }
   }
+}
+
+static void add_thumbnail_result_line(struct ui_state *ui, const char *line) {
+  if (!ui || !line || !line[0]) {
+    return;
+  }
+  if (ui->thumbnail_result_count >= UI_THUMBNAIL_RESULT_MAX_LINES) {
+    memmove(ui->thumbnail_result_lines, ui->thumbnail_result_lines + 1,
+            sizeof(ui->thumbnail_result_lines[0]) *
+                (UI_THUMBNAIL_RESULT_MAX_LINES - 1));
+    ui->thumbnail_result_count = UI_THUMBNAIL_RESULT_MAX_LINES - 1;
+  }
+  copy_truncated_string(ui->thumbnail_result_lines[ui->thumbnail_result_count],
+                        sizeof(ui->thumbnail_result_lines[ui->thumbnail_result_count]), line);
+  ui->thumbnail_result_count++;
+}
+
+static const char *thumbnail_action_label(const char *id) {
+  if (!id) {
+    return "Thumbnail Task";
+  }
+  if (strcmp(id, "thumbnail-plan") == 0) {
+    return "Thumbnail Plan";
+  }
+  if (strcmp(id, "thumbnail-fetch") == 0) {
+    return "Fetch Thumbnails";
+  }
+  return id;
+}
+
+static void clamp_thumbnail_result_cursor(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  if (ui->thumbnail_result_count == 0) {
+    ui->thumbnail_result_cursor = 0;
+  } else if (ui->thumbnail_result_cursor >= ui->thumbnail_result_count) {
+    ui->thumbnail_result_cursor = ui->thumbnail_result_count - 1;
+  }
+}
+
+static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *line) {
+  char buf[UI_RENDER_LINE_MAX];
+  char *fields[20];
+  char *save = NULL;
+  char *token;
+  size_t count = 0;
+  char out[UI_RENDER_LINE_MAX];
+
+  if (!ui || !line || !line[0] || strncmp(line, "status\t", 7) == 0) {
+    return;
+  }
+  copy_truncated_string(buf, sizeof(buf), line);
+  for (token = strtok_r(buf, "\t", &save);
+       token && count < sizeof(fields) / sizeof(fields[0]);
+       token = strtok_r(NULL, "\t", &save)) {
+    fields[count++] = token;
+  }
+  if (count == 0) {
+    return;
+  }
+  if (strcmp(fields[0], "plan") == 0 && count >= 8) {
+    snprintf(out, sizeof(out), "%s", fields[1]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "ROMs %s, existing %s", fields[5], fields[6]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "missing %s", fields[7]);
+    add_thumbnail_result_line(ui, out);
+  } else if (strcmp(fields[0], "fetch") == 0 && count >= 15) {
+    snprintf(out, sizeof(out), "%s", fields[1]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "ROMs %s, downloaded %s", fields[5], fields[10]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "no match %s, failed %s", fields[11], fields[14]);
+    add_thumbnail_result_line(ui, out);
+  } else if (strcmp(fields[0], "app_start") == 0 && count >= 2) {
+    snprintf(out, sizeof(out), "%s", thumbnail_action_label(fields[1]));
+    add_thumbnail_result_line(ui, out);
+    add_thumbnail_result_line(ui, "started");
+  } else if (strcmp(fields[0], "app_finish") == 0 && count >= 3) {
+    snprintf(out, sizeof(out), "%s", thumbnail_action_label(fields[1]));
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "finished %s", fields[2]);
+    add_thumbnail_result_line(ui, out);
+  } else if (strcmp(fields[0], "app_already_running") == 0 && count >= 2) {
+    snprintf(out, sizeof(out), "%s is already running",
+             thumbnail_action_label(fields[1]));
+    add_thumbnail_result_line(ui, out);
+  }
+}
+
+static int load_thumbnail_results(struct ui_state *ui) {
+  char log_path[PATH_MAX];
+  FILE *f;
+  char line[UI_RENDER_LINE_MAX];
+
+  if (!ui) {
+    return 0;
+  }
+  ui->thumbnail_result_count = 0;
+  if (!join_path(log_path, sizeof(log_path), ui->plumos_root,
+                 "logs/frontend-apps-latest.log")) {
+    add_thumbnail_result_line(ui, "result log path is too long");
+    clamp_thumbnail_result_cursor(ui);
+    return 0;
+  }
+  f = fopen(log_path, "rb");
+  if (!f) {
+    add_thumbnail_result_line(ui, "No thumbnail result yet");
+    clamp_thumbnail_result_cursor(ui);
+    return 1;
+  }
+  while (fgets(line, sizeof(line), f)) {
+    trim_line_end(line);
+    add_thumbnail_result_from_log_line(ui, line);
+  }
+  fclose(f);
+  if (ui->thumbnail_result_count == 0) {
+    add_thumbnail_result_line(ui, "No thumbnail result yet");
+  }
+  clamp_thumbnail_result_cursor(ui);
+  return 1;
 }
 
 static int load_favorite_entries(struct ui_state *ui) {
@@ -5609,6 +5743,59 @@ static void render_core_select(struct ui_state *ui) {
   }
 }
 
+static void render_thumbnail_results(struct ui_state *ui) {
+  size_t i;
+  size_t window = UI_THUMBNAIL_RESULT_WINDOW;
+  size_t start = 0;
+  size_t end;
+
+  ui_printf(ui, "plumOS controller UI - Thumbnail Results\n");
+  ui_printf(ui, "UP/DOWN: scroll  LEFT/RIGHT: page  A/SELECT: refresh  B: Apps  Q: quit\n");
+  clamp_thumbnail_result_cursor(ui);
+  if (ui->thumbnail_result_count > 0) {
+    start = (ui->thumbnail_result_cursor / window) * window;
+  }
+  end = start + window;
+  if (end > ui->thumbnail_result_count) {
+    end = ui->thumbnail_result_count;
+  }
+  ui_printf(ui, "entries=%zu cursor=%zu\n", ui->thumbnail_result_count,
+            ui->thumbnail_result_count ? ui->thumbnail_result_cursor + 1 : 0);
+  ui_printf(ui, "\n");
+  for (i = start; i < end; i++) {
+    ui_printf(ui, "%c   %2zu  %s\n",
+              i == ui->thumbnail_result_cursor ? '>' : ' ',
+              i + 1, ui->thumbnail_result_lines[i]);
+  }
+  if (ui->thumbnail_result_count == 0) {
+    ui_printf(ui, "(no thumbnail result yet)\n");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
+static void render_thumbnail_running(struct ui_state *ui) {
+  const char *title = ui->thumbnail_running_title[0]
+                          ? ui->thumbnail_running_title
+                          : "Thumbnail Task";
+
+  ui_printf(ui, "plumOS controller UI - Thumbnail Running\n");
+  ui_printf(ui, "thumbnail_running=1\n");
+  ui_printf(ui, "thumbnail_running_title=%s\n", title);
+  ui_printf(ui, "entries=4 cursor=1\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, ">   1  RUNNING: %s\n", title);
+  ui_printf(ui, "    2  Please wait\n");
+  ui_printf(ui, "    3  Results will open automatically\n");
+  ui_printf(ui, "    4  Do not power off\n");
+  ui_printf(ui, "footer1=%s\n", "Thumbnail task is running.");
+  ui_printf(ui, "footer2=%s\n", "The latest result will open when it finishes.");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_network_rescue(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - Network Recovery Disabled\n");
   ui_printf(ui, "B: back  Q: quit\n");
@@ -5757,6 +5944,10 @@ static void render_ui(struct ui_state *ui) {
     render_help(ui);
   } else if (ui->screen == SCREEN_CORE_SELECT) {
     render_core_select(ui);
+  } else if (ui->screen == SCREEN_THUMBNAIL_RESULTS) {
+    render_thumbnail_results(ui);
+  } else if (ui->screen == SCREEN_THUMBNAIL_RUNNING) {
+    render_thumbnail_running(ui);
   } else if (ui->screen == SCREEN_NETWORK_RESCUE) {
     render_network_rescue(ui);
   } else if (ui->screen == SCREEN_WIFI_CONNECT) {
@@ -5973,6 +6164,16 @@ static void open_system_brightness_test_screen(struct ui_state *ui) {
 static void open_help_screen(struct ui_state *ui) {
   ui->screen = SCREEN_HELP;
   set_status(ui, "help ready");
+}
+
+static void open_thumbnail_results_screen(struct ui_state *ui) {
+  ui->screen = SCREEN_THUMBNAIL_RESULTS;
+  ui->thumbnail_result_cursor = 0;
+  if (!load_thumbnail_results(ui)) {
+    set_status(ui, "cannot load thumbnail results");
+  } else {
+    set_status(ui, "thumbnail results ready");
+  }
 }
 
 static int load_core_select_lines(struct ui_state *ui, const char *system_id,
@@ -6714,6 +6915,8 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
 static int run_menu_shell_action(struct ui_state *ui, const struct menu_entry *entry) {
   char log_dir[PATH_MAX];
   char log_path[PATH_MAX];
+  char latest_path[PATH_MAX];
+  char lock_dir[PATH_MAX];
   char path_value[PATH_MAX * 2];
   char cmd[UI_COMMAND_MAX];
   const char *shell_cmd;
@@ -6735,6 +6938,11 @@ static int run_menu_shell_action(struct ui_state *ui, const struct menu_entry *e
     set_status(ui, "app log path too long");
     return 0;
   }
+  if (entry->show_results &&
+      !join_path(latest_path, sizeof(latest_path), log_dir, "frontend-apps-latest.log")) {
+    set_status(ui, "app latest log path too long");
+    return 0;
+  }
   path_value[0] = '\0';
   if (!append_string(path_value, sizeof(path_value), &path_pos, ui->plumos_root) ||
       !append_string(path_value, sizeof(path_value), &path_pos, "/bin:") ||
@@ -6744,26 +6952,102 @@ static int run_menu_shell_action(struct ui_state *ui, const struct menu_entry *e
     set_status(ui, "app PATH too long");
     return 0;
   }
-
-  cmd[0] = '\0';
-  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
-      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
-      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
-      !append_string(cmd, sizeof(cmd), &pos, " PATH=") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, path_value) ||
-      !append_string(cmd, sizeof(cmd), &pos, " /bin/sh -c ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, shell_cmd) ||
-      !append_string(cmd, sizeof(cmd), &pos, " >>") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
-      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
-    set_status(ui, "app command too long");
-    return 0;
+  lock_dir[0] = '\0';
+  if (entry->background) {
+    if (!valid_system_id(entry->id)) {
+      set_status(ui, "background app id is invalid");
+      return 0;
+    }
+    snprintf(lock_dir, sizeof(lock_dir), "/tmp/plumos-app-%s.lock", entry->id);
   }
 
-  snprintf(ui->status, sizeof(ui->status), "running %.80s", entry->display_name);
+  cmd[0] = '\0';
+  if (entry->show_results) {
+    if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; { printf 'app_start\\t%s\\n' ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->id) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PATH=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, path_value) ||
+        !append_string(cmd, sizeof(cmd), &pos, " /bin/sh -c ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, shell_cmd) ||
+        !append_string(cmd, sizeof(cmd), &pos,
+                       "; app_rc=$?; printf 'app_finish\\t%s\\trc=%s\\n' ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->id) ||
+        !append_string(cmd, sizeof(cmd), &pos,
+                       " \"$app_rc\"; [ \"$app_rc\" -eq 0 ]; } >") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, latest_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, " 2>&1; rc=$?; cat ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, latest_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; exit \"$rc\"")) {
+      set_status(ui, "app command too long");
+      return 0;
+    }
+  } else if (entry->background) {
+    if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; trap '' HUP; if mkdir ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, lock_dir) ||
+        !append_string(cmd, sizeof(cmd), &pos, " 2>/dev/null; then ( trap 'rm -rf ") ||
+        !append_string(cmd, sizeof(cmd), &pos, lock_dir) ||
+        !append_string(cmd, sizeof(cmd), &pos, "' EXIT INT TERM; printf 'app_start\\t%s\\n' ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->id) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PATH=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, path_value) ||
+        !append_string(cmd, sizeof(cmd), &pos, " /bin/sh -c ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, shell_cmd) ||
+        !append_string(cmd, sizeof(cmd), &pos,
+                       "; rc=$?; printf 'app_finish\\t%s\\trc=%s\\n' ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->id) ||
+        !append_string(cmd, sizeof(cmd), &pos, " \"$rc\"; exit \"$rc\" ) >>") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+        !append_string(cmd, sizeof(cmd), &pos,
+                       " 2>&1 </dev/null & else printf 'app_already_running\\t%s\\n' ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, entry->id) ||
+        !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; exit 3; fi")) {
+      set_status(ui, "app command too long");
+      return 0;
+    }
+  } else {
+    if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+        !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PATH=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, path_value) ||
+        !append_string(cmd, sizeof(cmd), &pos, " /bin/sh -c ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, shell_cmd) ||
+        !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+        !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+      set_status(ui, "app command too long");
+      return 0;
+    }
+  }
+
+  if (entry->show_results) {
+    copy_string(ui->thumbnail_running_title, sizeof(ui->thumbnail_running_title),
+                entry->display_name);
+    ui->screen = SCREEN_THUMBNAIL_RUNNING;
+    snprintf(ui->status, sizeof(ui->status), "running %.80s", entry->display_name);
+  } else {
+    snprintf(ui->status, sizeof(ui->status), "%s %.80s",
+             entry->background ? "starting" : "running", entry->display_name);
+  }
   render_ui(ui);
   shutdown_ui_renderer(ui);
   rc = system(cmd);
@@ -6771,12 +7055,32 @@ static int run_menu_shell_action(struct ui_state *ui, const struct menu_entry *e
     ui->renderer_mali = 0;
   }
   settle_input_after_child(ui);
+  if (entry->show_results) {
+    ui->screen = SCREEN_THUMBNAIL_RESULTS;
+    ui->thumbnail_result_cursor = 0;
+    load_thumbnail_results(ui);
+    if (system_command_succeeded(rc)) {
+      snprintf(ui->status, sizeof(ui->status), "%.80s finished", entry->display_name);
+      return 1;
+    }
+    if (rc == -1) {
+      set_status(ui, "app system call failed");
+      return 0;
+    }
+    set_status(ui, "app returned non-zero; see latest result");
+    return 0;
+  }
   if (system_command_succeeded(rc)) {
-    snprintf(ui->status, sizeof(ui->status), "%.80s finished", entry->display_name);
+    snprintf(ui->status, sizeof(ui->status), "%.80s %s", entry->display_name,
+             entry->background ? "started; see frontend-apps.log" : "finished");
     return 1;
   }
   if (rc == -1) {
     set_status(ui, "app system call failed");
+    return 0;
+  }
+  if (entry->background && WIFEXITED(rc) && WEXITSTATUS(rc) == 3) {
+    snprintf(ui->status, sizeof(ui->status), "%.80s already running", entry->display_name);
     return 0;
   }
   set_status(ui, "app returned non-zero; see frontend-apps.log");
@@ -7808,6 +8112,47 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
 
+  if (ui->screen == SCREEN_THUMBNAIL_RESULTS) {
+    if (action == ACTION_UP) {
+      if (ui->thumbnail_result_cursor > 0) {
+        ui->thumbnail_result_cursor--;
+      }
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      if (ui->thumbnail_result_cursor + 1 < ui->thumbnail_result_count) {
+        ui->thumbnail_result_cursor++;
+      }
+      return;
+    }
+    if (action == ACTION_RIGHT) {
+      ui_cursor_page_down(&ui->thumbnail_result_cursor, ui->thumbnail_result_count,
+                          UI_THUMBNAIL_RESULT_WINDOW);
+      return;
+    }
+    if (action == ACTION_LEFT) {
+      ui_cursor_page_up(&ui->thumbnail_result_cursor, UI_THUMBNAIL_RESULT_WINDOW);
+      return;
+    }
+    if (action == ACTION_B) {
+      open_apps_menu(ui);
+      return;
+    }
+    if (action == ACTION_A || action == ACTION_SELECT) {
+      if (!load_thumbnail_results(ui)) {
+        set_status(ui, "cannot refresh thumbnail results");
+      } else {
+        set_status(ui, "thumbnail results refreshed");
+      }
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
+      return;
+    }
+    return;
+  }
+
   if (ui->screen == SCREEN_NETWORK_RESCUE) {
     if (action == ACTION_A) {
       set_status(ui, "Network Recovery is disabled");
@@ -7948,6 +8293,8 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         open_settings_screen(ui, SETTINGS_CATEGORY_NETWORK);
       } else if (strcmp(entry->action, "internal:help") == 0) {
         open_help_screen(ui);
+      } else if (strcmp(entry->action, "internal:thumbnail-results") == 0) {
+        open_thumbnail_results_screen(ui);
       } else if (strcmp(entry->action, "system:shutdown") == 0) {
         run_safe_shutdown(ui, "shutdown", 1);
       } else if (strcmp(entry->action, "menu:apps") == 0) {

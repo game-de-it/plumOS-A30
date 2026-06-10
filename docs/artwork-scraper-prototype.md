@@ -259,11 +259,19 @@ DAT/index を取得しません。最初の missing thumbnail が見つかった
 network 待ちで UI 操作を長時間止めないよう、`wget` / `curl` には
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` の timeout をかけます。
 
-FE の START -> Apps には以下の入口を置きます。実行結果は
-`/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log に残します。
+FE の START -> Apps には以下の入口を置きます。`Thumbnail Plan` と `Fetch Thumbnails` は
+実行中に `Thumbnail Running` 画面を表示し、完了後に自動で `Thumbnail Results` へ遷移します。
+`Thumbnail Results` は直近 1 回分の `frontend-apps-latest.log` だけを表示するため、
+いま実行した結果かどうかを判断できます。詳細 log は
+`/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log にも残します。
 
 - `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
 - `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
+- `Thumbnail Results`: 最新 log を読みやすい複数行にまとめて表示する。
+  `Thumbnail Plan` の system 行は system 名、`ROMs N, existing N`、
+  `missing N` に分ける。`Fetch Thumbnails` の system 行は system 名、
+  `ROMs N, downloaded N`、`no match N, failed N` に分ける。
+  画面は上下で 1 行スクロール、左右でページ移動できる。
 
 source 定義は `package/frontend/plumos/config/frontend/scraper-sources.tsv` です。列は
 `system_id`, `libretro_playlist`, `libretro_dat_path` です。`systems.json` の
