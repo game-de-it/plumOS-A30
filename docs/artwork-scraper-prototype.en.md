@@ -118,6 +118,51 @@ CRC miss handling:
 - Candidate matches are never auto-saved; only the user-selected candidate is
   saved.
 
+## Concurrency
+
+The scraper uses separate CRC and download queues.
+
+Initial values:
+
+```text
+CRC workers default: 1
+CRC workers bulk:    2
+PNG download default: 2
+PNG download bulk:    3
+PNG download hard cap: 4
+```
+
+CRC workers are overridable per system. Systems with many small ROMs can be
+raised after real-device validation, while large-ROM systems such as N64 can
+stay at `1`. Unvalidated systems use `default=1`, `bulk=2`, and `max=2`.
+Validation can probe up to `max=5`, but the normal FE UI should not expose
+unbounded values.
+
+Example future `systems.json` field:
+
+```json
+{
+  "id": "nes",
+  "scraper": {
+    "enabled": true,
+    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+  }
+}
+```
+
+Use `scripts/benchmark-a30-crc-workers.sh` for real-device CRC worker tests. It
+does not print ROM filenames; it reports only system, worker count, file count,
+and timing.
+
+```sh
+A30_TARGET=root@192.168.10.165 \
+  scripts/benchmark-a30-crc-workers.sh --system nes --workers "1 2 3 4 5" --limit 100
+```
+
+Save measurement results under `artifacts/` before turning them into per-system
+policy.
+
 ## Test Inputs
 
 Current host-side test ROM roots:
@@ -217,6 +262,9 @@ PLUMOS_SDCARD_ROOT=/mnt/SDCARD \
 - Decide where `--loose-index` is worthwhile.
 - If serial HEAD/download is too slow, determine shell prototype concurrency
   before moving the design into an FE queue.
+- Measure per-system CRC worker counts on the A30 with
+  `scripts/benchmark-a30-crc-workers.sh` before writing them into
+  `systems.json` policy.
 - Keep originals under `Images/<system_id>` and put disposable resized render
   cache under something like `/mnt/SDCARD/plumos/cache/frontend/render-cache`.
 - On-device testing must confirm network service availability, free space, and

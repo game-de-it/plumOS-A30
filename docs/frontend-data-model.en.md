@@ -110,6 +110,9 @@ Important fields:
 - `extensions`: ROM extensions without dots.
 - `artwork.lookup`: thumbnail/cover lookup path. Normal systems use only
   `/mnt/SDCARD/Images/<system_id>`.
+- `scraper`: optional per-system policy for thumbnail scraper eligibility and
+  CRC/download worker counts. When omitted, treat the system as scraper-excluded
+  or use the global default.
 - `launch_profiles`: launcher-side candidates; the frontend does not execute
   cores directly.
 
@@ -213,6 +216,39 @@ Rules:
   `RomEntry` representative file stem, not from every file in the set.
 - If no thumbnail is found, gallery mode shows a text fallback or the theme
   placeholder.
+
+### Scraper Policy
+
+`SystemDefinition.scraper` is future thumbnail-scraping policy. It is separate
+from normal frontend thumbnail lookup, so systems with `scraper.enabled=false`
+or no scraper field still display user-provided thumbnails normally.
+
+Example:
+
+```json
+{
+  "scraper": {
+    "enabled": true,
+    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+  }
+}
+```
+
+Rules:
+
+- `crc_workers.default` is the normal UI initial value. Unvalidated systems use
+  `1`.
+- `crc_workers.bulk` is used for explicit bulk scraping. Unvalidated systems use
+  `2`.
+- `crc_workers.max` is the per-system cap determined by real A30 validation.
+  Unvalidated systems use `2`.
+- Validation may test `1..5`, but the normal FE UI must not exceed the
+  per-system `max`.
+- `download_workers` uses system-wide initial values of `default=2`, `bulk=3`,
+  and `max=4` unless a later measurement says otherwise.
+- Update per-system `crc_workers` only after saving
+  `scripts/benchmark-a30-crc-workers.sh` results under `artifacts/`.
 
 ### `AppDefinition`
 

@@ -110,6 +110,48 @@ CRC miss の扱い:
 - filename 由来の候補探索は、ユーザーが明示的に選ぶ確認用 option に限定する。
 - 候補探索で見つかった画像は自動保存せず、ユーザーが選択したものだけ保存する。
 
+## 並列度
+
+scraper は CRC queue と download queue を分けます。
+
+初期値:
+
+```text
+CRC workers default: 1
+CRC workers bulk:    2
+PNG download default: 2
+PNG download bulk:    3
+PNG download hard cap: 4
+```
+
+CRC workers は system ごとに override できるようにします。小さい ROM が多い system は
+実機検証後に上げられますが、N64 のように ROM が大きい system は `1` のままにできます。
+未検証 system は `default=1`, `bulk=2`, `max=2` を使います。検証用の上限探索は
+`max=5` までに抑え、FE の通常UIで無制限な値を選ばせません。
+
+将来 `systems.json` に入れる場合の例:
+
+```json
+{
+  "id": "nes",
+  "scraper": {
+    "enabled": true,
+    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+  }
+}
+```
+
+実機で CRC worker 数を測る入口は `scripts/benchmark-a30-crc-workers.sh` です。ROM file 名は
+出力せず、system、worker 数、処理件数、秒数だけを出します。
+
+```sh
+A30_TARGET=root@192.168.10.165 \
+  scripts/benchmark-a30-crc-workers.sh --system nes --workers "1 2 3 4 5" --limit 100
+```
+
+測定結果は system 別 policy の根拠として `artifacts/` に保存します。
+
 ## 試験対象
 
 現時点の host-side 試験対象:
@@ -205,6 +247,8 @@ PLUMOS_SDCARD_ROOT=/mnt/SDCARD \
 - `no_match` の内訳を見て、CRC miss と thumbnail miss を分ける。
 - `--loose-index` が必要な system と不要な system を切り分ける。
 - 直列 HEAD/download が遅い場合は、shell prototype で並列数を決めてから FE queue へ移す。
+- system 別 CRC worker 数は、A30 実機で `scripts/benchmark-a30-crc-workers.sh` を使って
+  測定してから `systems.json` policy へ反映する。
 - ダウンロード済み PNG の resize/cache は、原本 `Images/<system_id>` を壊さず
   `/mnt/SDCARD/plumos/cache/frontend/render-cache` のような破棄可能 cache に分ける。
 - 実機では network service の有無、空き容量、途中中断時の `.tmp` cleanup を確認する。
