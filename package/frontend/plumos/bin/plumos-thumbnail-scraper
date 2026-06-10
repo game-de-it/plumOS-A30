@@ -252,6 +252,18 @@ lower_ext() {
   esac
 }
 
+ignored_sidecar_file() {
+  file_path="$1"
+  file_name="${file_path##*/}"
+  case "$file_name" in
+    ._*|.DS_Store|Thumbs.db|desktop.ini) return 0 ;;
+  esac
+  case "$file_path" in
+    */__MACOSX/*) return 0 ;;
+  esac
+  return 1
+}
+
 extension_allowed() {
   wanted="$1"
   allowed_list="$2"
@@ -283,6 +295,7 @@ build_thumbnail_lookup() {
   [ -d "$thumb_root" ] || return 0
 
   find "$thumb_root" -type f 2>/dev/null | while IFS= read -r thumb_path; do
+    ignored_sidecar_file "$thumb_path" && continue
     [ -s "$thumb_path" ] || continue
     image_ext="$(lower_ext "$thumb_path" 2>/dev/null || true)"
     case "$image_ext" in
@@ -631,6 +644,7 @@ first_zip_member() {
     case "$member" in
       ""|*/|*"/") continue ;;
     esac
+    ignored_sidecar_file "$member" && continue
     ext="$(lower_ext "$member" 2>/dev/null || true)"
     [ -n "$ext" ] || continue
     case "$ext" in
@@ -719,6 +733,7 @@ plan_system() {
 
       find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
       while IFS= read -r rom_path; do
+        ignored_sidecar_file "$rom_path" && continue
         ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
         [ -n "$ext" ] || continue
         extension_allowed "$ext" "$extensions" || continue
@@ -835,6 +850,7 @@ fetch_system() {
 
       find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
       while IFS= read -r rom_path; do
+        ignored_sidecar_file "$rom_path" && continue
         ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
         [ -n "$ext" ] || continue
         extension_allowed "$ext" "$extensions" || continue

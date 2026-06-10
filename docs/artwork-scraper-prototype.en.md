@@ -265,6 +265,8 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 ```
 
 `rom_candidates` counts files matching `scraper.extensions` from `systems.json`.
+macOS AppleDouble (`._*`), `.DS_Store`, `Thumbs.db`, `desktop.ini`, and files
+under `__MACOSX` are ignored as ROM/thumbnail sidecars.
 `existing_thumbnails` uses the same `/mnt/SDCARD/Images/<system_id>` lookup
 order as the frontend, including subdirectory thumbnails before flat fallback
 thumbnails. Only `missing_thumbnails` should enter the next CRC/DAT/download
