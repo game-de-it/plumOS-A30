@@ -4,12 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 CACHE_ROOT="${PLUMOS_THUMB_CACHE:-"${ROOT_DIR}/artifacts/thumb-scraper/cache"}"
 REPORT_PATH=""
+CANDIDATE_REPORT_PATH=""
 MODE="dry-run"
 KIND="Named_Boxarts"
 SYSTEM_FILTER="all"
 LIMIT=0
 RETRY_NEGATIVE=0
 LOOSE_INDEX=0
+CANDIDATE_LIMIT=5
+CANDIDATE_MIN_SCORE=60
 
 if [ -n "${PLUMOS_IMAGE_ROOT:-}" ]; then
   IMAGE_ROOT="$PLUMOS_IMAGE_ROOT"
@@ -42,6 +45,14 @@ Options:
   --image-root PATH    Destination image root. Final A30 root is /mnt/SDCARD/Images.
   --cache-root PATH    Download/index cache root.
   --report PATH        Write tab-separated report.
+  --candidate-report PATH
+                      Write ranked thumbnail suggestions for no_match ROMs.
+                      Suggestions are advisory and are never auto-downloaded.
+  --candidate-limit N  Number of suggestions per no_match ROM.
+                      Default: 5.
+  --candidate-min-score N
+                      Minimum suggestion score from 0 to 100.
+                      Default: 60.
   --limit N            Stop after N candidate ROMs.
   --retry-negative     Ignore previous negative cache entries.
   --loose-index        Fetch the large thumbnail directory index and try
@@ -91,13 +102,15 @@ PY
 }
 
 html_index_to_names() {
-  python3 - <<'PY'
+  python3 - "$1" <<'PY'
 import html
 import re
 import sys
 
-text = sys.stdin.read()
-for href, label in re.findall(r'<a href="([^"]+\.png)">([^<]+\.png)</a>', text, re.I):
+with open(sys.argv[1], encoding="utf-8") as handle:
+    text = handle.read()
+
+for href, label in re.findall(r'<a\s+[^>]*href="([^"]+\.png)"[^>]*>([^<]+\.png)</a>', text, re.I):
     print(html.unescape(label))
 PY
 }
@@ -220,7 +233,7 @@ ensure_thumb_names() {
     mv "${html}.tmp" "$html"
   fi
   if [ ! -s "$names" ] || [ "$html" -nt "$names" ]; then
-    html_index_to_names <"$html" >"${names}.tmp"
+    html_index_to_names "$html" >"${names}.tmp"
     mv "${names}.tmp" "$names"
   fi
   printf '%s\n' "$names"
@@ -248,19 +261,34 @@ name_exists_in_index() {
 loose_name_from_index() {
   local names="$1"
   local wanted="$2"
-  local key
-  key="$(normalize_key "$wanted")"
-  [ -n "$key" ] || return 1
-  while IFS= read -r name; do
-    local base this_key
-    base="${name%.png}"
-    this_key="$(normalize_key "$base")"
-    if [ "$this_key" = "$key" ]; then
-      printf '%s\n' "$base"
-      return 0
-    fi
-  done <"$names"
-  return 1
+  python3 - "$names" "$wanted" <<'PY'
+import re
+import sys
+import unicodedata
+
+names_path, wanted = sys.argv[1], sys.argv[2]
+
+def normalize_key(value):
+    value = unicodedata.normalize("NFKC", value)
+    value = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", value)
+    value = re.sub(r"\[[^\]]*\]", "", value)
+    value = re.sub(r"\([^)]*\)", "", value)
+    value = value.casefold()
+    return "".join(ch for ch in value if ch.isalnum())
+
+wanted_key = normalize_key(wanted)
+if not wanted_key:
+    sys.exit(1)
+
+with open(names_path, encoding="utf-8") as handle:
+    for line in handle:
+        name = line.rstrip("\n")
+        base = name[:-4] if name.lower().endswith(".png") else name
+        if normalize_key(base) == wanted_key:
+            print(base)
+            sys.exit(0)
+sys.exit(1)
+PY
 }
 
 is_png_file() {
@@ -288,23 +316,33 @@ choose_thumbnail_name() {
   local rom_stem="$3"
   local names match url
 
+  if [ "$LOOSE_INDEX" -eq 1 ] || [ -n "$CANDIDATE_REPORT_PATH" ]; then
+    names="$(ensure_thumb_names "$system")"
+  fi
+
   if [ -n "$canonical" ]; then
-    url="$(thumb_url_for_name "$system" "$canonical")"
-    if remote_png_exists "$url"; then
+    if [ -n "$names" ] && name_exists_in_index "$names" "$canonical"; then
+      printf 'crc-exact\t%s\n' "$canonical"
+      return 0
+    fi
+    if [ -z "$names" ] && url="$(thumb_url_for_name "$system" "$canonical")" && remote_png_exists "$url"; then
       printf 'crc-exact\t%s\n' "$canonical"
       return 0
     fi
   fi
   if [ -n "$rom_stem" ] && [ "$rom_stem" != "$canonical" ]; then
-    url="$(thumb_url_for_name "$system" "$rom_stem")"
-    if remote_png_exists "$url"; then
+    if [ -n "$names" ] && name_exists_in_index "$names" "$rom_stem"; then
+      printf 'name-exact\t%s\n' "$rom_stem"
+      return 0
+    fi
+    if [ -z "$names" ] && url="$(thumb_url_for_name "$system" "$rom_stem")" && remote_png_exists "$url"; then
       printf 'name-exact\t%s\n' "$rom_stem"
       return 0
     fi
   fi
 
   [ "$LOOSE_INDEX" -eq 1 ] || return 1
-  names="$(ensure_thumb_names "$system")"
+  [ -n "$names" ] || names="$(ensure_thumb_names "$system")"
   if [ -n "$canonical" ] && match="$(loose_name_from_index "$names" "$canonical")"; then
     printf 'crc-loose\t%s\n' "$match"
     return 0
@@ -314,6 +352,160 @@ choose_thumbnail_name() {
     return 0
   fi
   return 1
+}
+
+candidate_names_from_index() {
+  local names="$1"
+  local canonical="$2"
+  local rom_stem="$3"
+  python3 - "$names" "$canonical" "$rom_stem" "$CANDIDATE_LIMIT" "$CANDIDATE_MIN_SCORE" <<'PY'
+import difflib
+import re
+import sys
+import unicodedata
+
+names_path, canonical, rom_stem = sys.argv[1], sys.argv[2], sys.argv[3]
+limit, min_score = int(sys.argv[4]), int(sys.argv[5])
+
+def strip_noise(value):
+    value = unicodedata.normalize("NFKC", value)
+    value = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", value)
+    value = re.sub(r"\[[^\]]*\]", " ", value)
+    value = re.sub(r"\([^)]*\)", " ", value)
+    value = re.sub(r"[_\-:;,.!?/\\+&'’]+", " ", value)
+    value = re.sub(r"([A-Za-z])([0-9])", r"\1 \2", value)
+    value = re.sub(r"([0-9])([A-Za-z])", r"\1 \2", value)
+    return value.casefold()
+
+def tokens_for(value):
+    value = strip_noise(value)
+    return re.findall(r"[a-z0-9]+|[\u3040-\u30ff\u3400-\u9fff]+", value)
+
+def compact(tokens):
+    return "".join(tokens)
+
+def dedupe_key(value):
+    return compact(tokens_for(value))
+
+def quality_for(value):
+    penalty = 0
+    if "[" in value or "]" in value:
+        penalty += 20
+    if re.search(r"\((?:19|20)\d\d", value):
+        penalty += 5
+    if re.search(r"\((?:JP|US|EU|AS)\)", value):
+        penalty += 2
+    return -penalty
+
+def has_rough_match(query_tokens, candidate_tokens, query_key, candidate_key):
+    if query_key in candidate_key or candidate_key in query_key:
+        return True
+    if set(query_tokens) & set(candidate_tokens):
+        return True
+    for token in query_tokens:
+        if len(token) >= 4 and token in candidate_key:
+            return True
+    for token in candidate_tokens:
+        if len(token) >= 4 and token in query_key:
+            return True
+    return False
+
+def score(query, candidate):
+    query_tokens = tokens_for(query)
+    candidate_tokens = tokens_for(candidate)
+    query_key = compact(query_tokens)
+    candidate_key = compact(candidate_tokens)
+    if not query_key or not candidate_key:
+        return 0
+
+    if query_key == candidate_key:
+        return 100
+
+    if not has_rough_match(query_tokens, candidate_tokens, query_key, candidate_key):
+        return 0
+
+    contain = 0
+    if query_key in candidate_key:
+        contain = min(96, 70 + int(30 * len(query_key) / max(len(candidate_key), 1)))
+    elif candidate_key in query_key:
+        contain = min(90, 58 + int(32 * len(candidate_key) / max(len(query_key), 1)))
+
+    query_set = set(query_tokens)
+    candidate_set = set(candidate_tokens)
+    overlap = query_set & candidate_set
+    token_score = 0
+    if overlap:
+        query_weight = sum(len(token) for token in query_tokens)
+        overlap_weight = sum(len(token) for token in query_tokens if token in overlap)
+        coverage = overlap_weight / max(query_weight, 1)
+        precision = len(overlap) / max(len(candidate_set), 1)
+        token_score = int(round((coverage * 0.75 + precision * 0.25) * 100))
+
+    ratio = int(round(difflib.SequenceMatcher(None, query_key, candidate_key).ratio() * 100))
+
+    best = max(ratio, contain, token_score)
+    query_numbers = {token for token in query_tokens if token.isdigit()}
+    candidate_numbers = {token for token in candidate_tokens if token.isdigit()}
+    if query_numbers and not query_numbers <= candidate_numbers:
+        best = min(best, 64)
+    return best
+
+queries = []
+if canonical:
+    queries.append(("crc-canonical", canonical))
+if rom_stem and rom_stem != canonical:
+    queries.append(("rom-stem", rom_stem))
+
+if not queries:
+    sys.exit(0)
+
+best_by_key = {}
+with open(names_path, encoding="utf-8") as handle:
+    for line in handle:
+        name = line.rstrip("\n")
+        if not name.lower().endswith(".png"):
+            continue
+        base = name[:-4]
+        key = dedupe_key(base)
+        if not key:
+            continue
+        for source, query in queries:
+            candidate_score = score(query, base)
+            if candidate_score < min_score:
+                continue
+            current = best_by_key.get(key)
+            next_value = (candidate_score, quality_for(base), source, query, base)
+            if current is None or (candidate_score, quality_for(base), source) > (current[0], current[1], current[2]):
+                best_by_key[key] = next_value
+
+ranked = sorted(
+    best_by_key.values(),
+    key=lambda item: (-item[0], -item[1], item[2] != "crc-canonical", item[4].casefold()),
+)
+for candidate_score, quality, source, query, base in ranked[:limit]:
+    print(f"{source}\t{candidate_score}\t{query}\t{base}")
+PY
+}
+
+candidate_report_line() {
+  local line="$*"
+  line="${line//\\t/$'\t'}"
+  [ -n "$CANDIDATE_REPORT_PATH" ] || return 0
+  mkdir -p "$(dirname "$CANDIDATE_REPORT_PATH")"
+  printf '%s\n' "$line" >>"$CANDIDATE_REPORT_PATH"
+}
+
+report_candidates() {
+  local system="$1" crc="$2" rom="$3" dest="$4" canonical="$5" rom_stem="$6"
+  local names source score query thumb_name url
+
+  [ -n "$CANDIDATE_REPORT_PATH" ] || return 0
+  names="$(ensure_thumb_names "$system")"
+  while IFS=$'\t' read -r source score query thumb_name; do
+    [ -n "$thumb_name" ] || continue
+    url="$(thumb_url_for_name "$system" "$thumb_name")"
+    candidate_report_line "candidate\t$system\t$source\t$score\t$crc\t$rom\t$dest\t$query\t${thumb_name}.png\t$url"
+  done < <(candidate_names_from_index "$names" "$canonical" "$rom_stem")
 }
 
 report_line() {
@@ -419,6 +611,7 @@ process_rom() {
   canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
   choice="$(choose_thumbnail_name "$system" "$canonical" "$rom_stem" || true)"
   if [ -z "$choice" ]; then
+    report_candidates "$system" "$crc" "$rom" "$dest" "$canonical" "$rom_stem"
     [ "$MODE" = "fetch" ] && negative_add "$key"
     report_line "no_match\t$system\t-\t$crc\t$rom\t$dest\t-\t-"
     return 0
@@ -462,6 +655,9 @@ while [ "$#" -gt 0 ]; do
     --image-root) IMAGE_ROOT="${2:-}"; shift 2 ;;
     --cache-root) CACHE_ROOT="${2:-}"; shift 2 ;;
     --report) REPORT_PATH="${2:-}"; rm -f "$REPORT_PATH"; shift 2 ;;
+    --candidate-report) CANDIDATE_REPORT_PATH="${2:-}"; rm -f "$CANDIDATE_REPORT_PATH"; shift 2 ;;
+    --candidate-limit) CANDIDATE_LIMIT="${2:-5}"; shift 2 ;;
+    --candidate-min-score) CANDIDATE_MIN_SCORE="${2:-60}"; shift 2 ;;
     --limit) LIMIT="${2:-0}"; shift 2 ;;
     --retry-negative) RETRY_NEGATIVE=1; shift ;;
     --loose-index) LOOSE_INDEX=1; shift ;;
@@ -478,6 +674,10 @@ case "$SYSTEM_FILTER" in
   all|nes|fds|gb) ;;
   *) die "invalid --system: $SYSTEM_FILTER" ;;
 esac
+[[ "$CANDIDATE_LIMIT" =~ ^[0-9]+$ ]] || die "invalid --candidate-limit: $CANDIDATE_LIMIT"
+[[ "$CANDIDATE_MIN_SCORE" =~ ^[0-9]+$ ]] || die "invalid --candidate-min-score: $CANDIDATE_MIN_SCORE"
+[ "$CANDIDATE_LIMIT" -gt 0 ] || die "--candidate-limit must be greater than 0"
+[ "$CANDIDATE_MIN_SCORE" -le 100 ] || die "--candidate-min-score must be 0..100"
 
 need_cmd awk
 need_cmd crc32
@@ -494,6 +694,9 @@ mkdir -p "$CACHE_ROOT"
 printf 'mode=%s kind=%s loose_index=%s image_root=%s cache_root=%s\n' \
   "$MODE" "$KIND" "$LOOSE_INDEX" "$IMAGE_ROOT" "$CACHE_ROOT" >&2
 report_line "status\tsystem\tmethod\tcrc\trom_path\tdest_path\tthumbnail_name\turl"
+if [ -n "$CANDIDATE_REPORT_PATH" ]; then
+  candidate_report_line "status\tsystem\tsource\tscore\tcrc\trom_path\tdest_path\tquery_name\tthumbnail_name\turl"
+fi
 
 processed=0
 case "$SYSTEM_FILTER" in

@@ -68,6 +68,18 @@ The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
 
 Dry-run does not update the negative cache.
 
+When `--candidate-report <path>` is passed, each `no_match` ROM gets ranked
+suggestions from the thumbnail directory index. Suggestions are advisory and
+are never auto-downloaded. If the CRC lookup produced a canonical name, that
+name is preferred; otherwise the ROM file stem is used for candidate matching.
+By default, up to 5 suggestions with score `60` or higher are emitted per ROM.
+
+Candidate TSV columns:
+
+```text
+status system source score crc rom_path dest_path query_name thumbnail_name url
+```
+
 ## Examples
 
 Resolve only:
@@ -89,6 +101,15 @@ scripts/prototype-thumbnail-scraper.sh \
   --fetch \
   --limit 5 \
   --image-root /tmp/plumos-thumb-images
+```
+
+Write candidate suggestions for unmatched ROMs:
+
+```sh
+scripts/prototype-thumbnail-scraper.sh \
+  --dry-run \
+  --retry-negative \
+  --candidate-report artifacts/thumb-scraper/reports/candidates.tsv
 ```
 
 Fetch into the final A30 root:

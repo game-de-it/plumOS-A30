@@ -65,6 +65,17 @@ thumbnail 種別は初期値を `Named_Boxarts` にします。試作 script で
 
 通常 dry-run は negative cache を更新しません。
 
+`--candidate-report <path>` を指定した場合、`no_match` になった ROM について thumbnail
+directory index から近い候補を順位付き TSV で出力します。候補は確認用であり、曖昧な一致を
+自動保存しません。CRC 由来の canonical 名がある場合はそれを優先し、なければ ROM file stem
+から候補を作ります。既定では ROM ごとに最大 5 件、score `60` 以上を出力します。
+
+候補 TSV の列:
+
+```text
+status system source score crc rom_path dest_path query_name thumbnail_name url
+```
+
 ## 実行例
 
 照合だけ:
@@ -86,6 +97,15 @@ scripts/prototype-thumbnail-scraper.sh \
   --fetch \
   --limit 5 \
   --image-root /tmp/plumos-thumb-images
+```
+
+未マッチ ROM の候補一覧を出す:
+
+```sh
+scripts/prototype-thumbnail-scraper.sh \
+  --dry-run \
+  --retry-negative \
+  --candidate-report artifacts/thumb-scraper/reports/candidates.tsv
 ```
 
 A30 の正式 root へ取得する場合:
