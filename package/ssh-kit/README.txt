@@ -11,6 +11,10 @@ plumOS A30 SSH kit
 4. 作業用PCから接続する:
    ssh -p 2222 root@A30_IP_ADDRESS
 
+SSH shell の PATH:
+   /mnt/SDCARD/plumos/gnu/bin と /mnt/SDCARD/plumos/bin が自動で先頭に入ります。
+   例: crc32, unzip, wget, plumos-fe-control などを full path なしで実行できます。
+
 logの出力先:
    plumos/ssh/log/dropbear.log
    plumos/ssh/log/network.txt

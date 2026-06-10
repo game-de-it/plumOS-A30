@@ -2,6 +2,7 @@
 set -eu
 
 BASE_DIR="${PLUMOS_SSH_HOME:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}"
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 BIN_DIR="${BASE_DIR}/bin"
 ETC_DIR="${BASE_DIR}/etc"
 RUN_DIR="${BASE_DIR}/run"
@@ -13,6 +14,9 @@ HOST_KEY="${ETC_DIR}/dropbear_ed25519_host_key"
 PID_FILE="${RUN_DIR}/dropbear.pid"
 LOG_FILE="${LOG_DIR}/dropbear.log"
 DROPBEAR_BIN="${PLUMOS_SSH_DROPBEAR_BIN:-${BIN_DIR}/dropbear}"
+PLUMOS_SSH_DEFAULT_PATH="${PLUMOS_ROOT}/gnu/bin:${PLUMOS_ROOT}/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PATH="${PLUMOS_SSH_PATH:-${PLUMOS_SSH_DEFAULT_PATH}}"
+export PATH PLUMOS_ROOT
 
 if [ -z "${PLUMOS_SSH_DROPBEAR_BIN:-}" ] && [ -x "${BIN_DIR}/dropbear-sftp" ]; then
   DROPBEAR_BIN="${BIN_DIR}/dropbear-sftp"

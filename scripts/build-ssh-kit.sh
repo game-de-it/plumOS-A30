@@ -73,6 +73,8 @@ prepare_source() {
 #define DROPBEAR_SVR_REMOTETCPFWD 0
 #define DROPBEAR_SVR_LOCALSTREAMFWD 0
 #define DROPBEAR_SVR_REMOTESTREAMFWD 0
+#define DEFAULT_PATH "/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/bin:/bin"
+#define DEFAULT_ROOT_PATH "/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 EOF
 
   # The A30 SD card is usually FAT/exFAT, and the stock rootfs may be

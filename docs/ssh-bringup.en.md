@@ -76,6 +76,20 @@ If you use a non-default key:
 ssh -i ~/.ssh/YOUR_KEY -p 2222 root@A30_IP_ADDRESS
 ```
 
+The SSH shell and `ssh host command` PATH prefer the plumOS runtime. This is
+set in both the Dropbear build-time defaults and `start-ssh.sh`.
+
+```text
+/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+
+This makes `crc32`, `unzip`, `wget`, `plumos-fe-control`, and other plumOS
+tools available without full paths immediately after login. Starting
+`start-ssh.sh` with `PLUMOS_SSH_PATH` overrides only the launcher-side PATH.
+The per-session default PATH is compiled into Dropbear, so release changes
+should update `DEFAULT_ROOT_PATH` in `scripts/build-ssh-kit.sh` and rebuild the
+SSH kit.
+
 ## Collect Device Information
 
 After SSH works:

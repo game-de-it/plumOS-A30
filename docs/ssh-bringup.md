@@ -76,6 +76,19 @@ default 以外の key を使う場合:
 ssh -i ~/.ssh/YOUR_KEY -p 2222 root@A30_IP_ADDRESS
 ```
 
+SSH shell と `ssh host command` の PATH は、plumOS runtime を優先するように build 時の
+Dropbear default と `start-ssh.sh` の両方で設定します。
+
+```text
+/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+
+これにより、ログイン直後から `crc32`, `unzip`, `wget`, `plumos-fe-control` などを
+full path なしで実行できます。`PLUMOS_SSH_PATH` を指定して `start-ssh.sh` を起動した場合は、
+起動 script 側の PATH だけを上書きできます。ただし session 内の default PATH は
+Dropbear build に固定されるため、release 用には `scripts/build-ssh-kit.sh` の
+`DEFAULT_ROOT_PATH` を更新して rebuild します。
+
 ## 実機情報の収集
 
 SSH 接続できるようになったら、作業用 PC 側で以下を実行します。
