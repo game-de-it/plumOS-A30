@@ -251,14 +251,19 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 
 `--fetch` は `PLUMOS_ROOT/bin` を PATH 先頭に追加し、plumOS 同梱 BusyBox の `crc32`, `wget`,
 `unzip` などを使います。DAT/index はまず `PLUMOS_THUMBNAIL_PRELOAD_DIR` を見て、無い場合だけ
-`PLUMOS_THUMBNAIL_CACHE_DIR` へ取得します。thumbnail PNG は libretro thumbnail server の
-HTTP URL から取得し、`/mnt/SDCARD/Images/<system_id>/<relative stem>.png` へ保存します。
+`PLUMOS_THUMBNAIL_CACHE_DIR` へ取得します。thumbnail PNG は
+`https://raw.githubusercontent.com/libretro-thumbnails/` の system 別 repository から取得し、
+PNG ではなく `.png` 名だけの参照 file が返った場合は同じ directory の参照先を再取得します。
+従来の `https://thumbnails.libretro.com/` からの PNG fallback は遅い server 待ちを避けるため
+default では無効で、`PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` を指定した時だけ使います。
+保存先は `/mnt/SDCARD/Images/<system_id>/<relative stem>.png` です。
 `--fetch --all` でも、ROM 候補が無い system や既存 thumbnail だけで足りる system では
 DAT/index を取得しません。最初の missing thumbnail が見つかった時だけ、その system の DAT/index を
 用意します。
 `no_match` は `crc_miss + thumbnail_miss` の合計です。`crc_miss` は CRC が DAT に無い場合、
 `thumbnail_miss` は CRC は一致したが thumbnail index に同名 PNG が無い場合です。
-thumbnail index と PNG は `https://thumbnails.libretro.com/` から取得します。
+thumbnail index は `https://thumbnails.libretro.com/` 由来の directory index を使い、
+PNG 本体は GitHub raw を標準取得元にします。
 network 待ちで UI 操作を長時間止めないよう、`wget` / `curl` には
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` の timeout をかけます。
 

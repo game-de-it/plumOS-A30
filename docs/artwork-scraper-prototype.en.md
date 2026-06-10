@@ -282,9 +282,14 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 `--fetch` prepends `PLUMOS_ROOT/bin` to `PATH` and uses plumOS BusyBox applets
 such as `crc32`, `wget`, and `unzip`. DAT/index lookup first checks
 `PLUMOS_THUMBNAIL_PRELOAD_DIR`; missing indexes are fetched into
-`PLUMOS_THUMBNAIL_CACHE_DIR`. Thumbnail PNGs are downloaded from the libretro
-thumbnail server over HTTP and saved to
-`/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+`PLUMOS_THUMBNAIL_CACHE_DIR`. Thumbnail PNGs are downloaded from the
+system-specific repositories under
+`https://raw.githubusercontent.com/libretro-thumbnails/`. If GitHub raw returns
+a small `.png` reference file instead of PNG bytes, the runner resolves that
+reference in the same directory and fetches it again. The old
+`https://thumbnails.libretro.com/` PNG fallback is disabled by default to avoid
+slow server waits; set `PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` to enable it.
+Images are saved to `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
 Even for `--fetch --all`, systems without ROM candidates, or systems whose
 existing thumbnails already cover all candidates, do not fetch DAT/index data.
 The runner prepares DAT/index data only after it sees the first missing
@@ -292,7 +297,8 @@ thumbnail for that system.
 `no_match` is the sum of `crc_miss + thumbnail_miss`. `crc_miss` means the ROM
 CRC was not present in the DAT index; `thumbnail_miss` means the CRC matched but
 the thumbnail index had no PNG with that canonical name.
-Thumbnail indexes and PNGs are fetched from `https://thumbnails.libretro.com/`.
+Thumbnail indexes still come from the `https://thumbnails.libretro.com/`
+directory index, while PNG bytes use GitHub raw by default.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
 stall the UI path indefinitely.
 

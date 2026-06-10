@@ -62,6 +62,7 @@ Environment:
   PLUMOS_THUMBNAIL_PRELOAD_DIR   Default: $PLUMOS_ROOT/share/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_FETCH_TIMEOUT Default: 45 seconds
   PLUMOS_THUMBNAIL_FETCH_RETRY   Default: 2 retries
+  PLUMOS_THUMBNAIL_SERVER_FALLBACK Set to 1 to fallback to thumbnails.libretro.com for PNGs
   PLUMOS_THUMBNAIL_PROGRESS      Print fetch progress TSV rows when set to 1
 
 Output:
@@ -370,6 +371,18 @@ thumb_base_url() {
   printf 'https://thumbnails.libretro.com/%s/%s\n' "$(space_encode "$playlist")" "$KIND"
 }
 
+github_thumb_repo() {
+  playlist="$(source_playlist "$1")" || return 1
+  [ -n "$playlist" ] || return 1
+  printf '%s\n' "$playlist" | sed 's/ /_/g'
+}
+
+github_thumb_base_url() {
+  repo="$(github_thumb_repo "$1")" || return 1
+  [ -n "$repo" ] || return 1
+  printf 'https://raw.githubusercontent.com/libretro-thumbnails/%s/master/%s\n' "$repo" "$KIND"
+}
+
 fetch_url() {
   url="$1"
   output="$2"
@@ -378,12 +391,13 @@ fetch_url() {
   rm -f "$tmp" 2>/dev/null || true
   mkdir -p "$(dirname "$output")" 2>/dev/null || true
   if command -v curl >/dev/null 2>&1; then
-    if curl -fsSL --retry "$FETCH_RETRY" --connect-timeout 10 --max-time "$FETCH_TIMEOUT" -o "$tmp" "$url"; then
+    if curl -fsSL --retry "$FETCH_RETRY" --connect-timeout 10 --max-time "$FETCH_TIMEOUT" \
+      -o "$tmp" "$url" 2>/dev/null; then
       mv "$tmp" "$output"
       return 0
     fi
   elif command -v wget >/dev/null 2>&1; then
-    if wget -q -T "$FETCH_TIMEOUT" -O "$tmp" "$url"; then
+    if wget -q -T "$FETCH_TIMEOUT" -O "$tmp" "$url" 2>/dev/null; then
       mv "$tmp" "$output"
       return 0
     fi
@@ -392,6 +406,86 @@ fetch_url() {
   fi
 
   rm -f "$tmp" 2>/dev/null || true
+  return 1
+}
+
+png_reference_href() {
+  ref_file="$1"
+  ref_size=0
+  ref_name=""
+
+  [ -s "$ref_file" ] || return 1
+  ref_size="$(wc -c < "$ref_file" 2>/dev/null | tr -d ' ')"
+  case "$ref_size" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$ref_size" -le 512 ] || return 1
+
+  ref_name="$(sed -n '1{s/\r$//;p;q;}' "$ref_file" 2>/dev/null)"
+  case "$ref_name" in
+    ''|*'/'*|*'\'*|*'..'*|*'<'*|*'>'*|*'|'*|*'"'*|*':'*|*'?'*|*'*'*)
+      return 1
+      ;;
+    *.png) ;;
+    *) return 1 ;;
+  esac
+
+  space_encode "$ref_name"
+}
+
+FETCH_THUMBNAIL_ERROR=download_failed
+
+thumbnail_server_fallback_enabled() {
+  case "${PLUMOS_THUMBNAIL_SERVER_FALLBACK:-0}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+  esac
+  return 1
+}
+
+fetch_thumbnail_png() {
+  fetch_system="$1"
+  href="$2"
+  output="$3"
+  github_base="$(github_thumb_base_url "$fetch_system" 2>/dev/null || true)"
+  server_base="$(thumb_base_url "$fetch_system" 2>/dev/null || true)"
+  ref_href=""
+
+  FETCH_THUMBNAIL_ERROR=download_failed
+  rm -f "$output" 2>/dev/null || true
+
+  if [ -n "$github_base" ]; then
+    if fetch_url "${github_base}/${href}" "$output"; then
+      if is_png_file "$output"; then
+        return 0
+      fi
+
+      ref_href="$(png_reference_href "$output" 2>/dev/null || true)"
+      if [ -n "$ref_href" ]; then
+        rm -f "$output" 2>/dev/null || true
+        if fetch_url "${github_base}/${ref_href}" "$output" && is_png_file "$output"; then
+          return 0
+        fi
+      fi
+      FETCH_THUMBNAIL_ERROR=invalid_png
+    fi
+  fi
+
+  thumbnail_server_fallback_enabled || {
+    rm -f "$output" 2>/dev/null || true
+    return 1
+  }
+
+  rm -f "$output" 2>/dev/null || true
+  if [ -n "$server_base" ]; then
+    if fetch_url "${server_base}/${href}" "$output"; then
+      if is_png_file "$output"; then
+        return 0
+      fi
+      FETCH_THUMBNAIL_ERROR=invalid_png
+    fi
+  fi
+
+  rm -f "$output" 2>/dev/null || true
   return 1
 }
 
@@ -832,15 +926,14 @@ fetch_system() {
             thumbnail_miss=$((thumbnail_miss + 1))
           else
             dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
-            url="${thumb_base}/${href}"
             mkdir -p "$(dirname "$dest")" 2>/dev/null || true
             tmp_dest="${dest}.tmp.$$"
-            if ! fetch_url "$url" "$tmp_dest"; then
+            if ! fetch_thumbnail_png "$fetch_system_id" "$href" "$tmp_dest"; then
               rm -f "$tmp_dest" 2>/dev/null || true
-              download_failed=$((download_failed + 1))
-            elif ! is_png_file "$tmp_dest"; then
-              rm -f "$tmp_dest" 2>/dev/null || true
-              invalid_png=$((invalid_png + 1))
+              case "$FETCH_THUMBNAIL_ERROR" in
+                invalid_png) invalid_png=$((invalid_png + 1)) ;;
+                *) download_failed=$((download_failed + 1)) ;;
+              esac
             else
               mv "$tmp_dest" "$dest"
               thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
