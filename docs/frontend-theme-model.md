@@ -11,6 +11,9 @@ importer として検討します。
 - Text mode は theme の color、layout、asset、font を使用しない。
 - `settings.json` では `graphic_theme_id` が選択中の Graphic theme を表す。
 - 互換のため `theme_id` は当面保存するが、新規実装では `graphic_theme_id` を使う。
+- ユーザーが `Theme Settings` で変更した `graphic_top_layout`、`graphic_transition`、
+  `graphic_transition_ms`、`graphic_transition_axis`、`graphic_transition_easing` は
+  theme JSON を書き換えず、`settings.json` の上書き値として扱う。
 - theme は button mapping、menu action、launch profile、ROM scan、resume、CPU/Wi-Fi/power
   policy を変更できない。
 - theme が behavior control を要求した場合は block し、built-in Graphic fallback を使う。
@@ -146,6 +149,9 @@ theme が扱えないもの:
 `transition_axis` は `vertical` / `horizontal`、`transition_easing` は `smoothstep` / `linear`
 を指定できます。
 theme は入力割り当て、ページサイズ、決定/戻る動作を変更できません。
+`Theme Settings` で保存された `settings.json` 側の上書き値は、theme JSON 読み込み後に
+適用します。`Theme` を別 package に変更した時は上書き値をクリアし、新しい package の
+初期値に戻します。
 
 `behavior_policy` は安全確認用です。ここに `true` がある theme は controller UI では
 behavior control を要求したものとして block し、built-in Graphic fallback を使います。

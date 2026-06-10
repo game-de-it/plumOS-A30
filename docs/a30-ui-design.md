@@ -75,6 +75,11 @@
 - Graphic theme 関連は `UI Settings` 直下に並べず、`Theme Settings` サブ項目へ
   まとめる。選択中 theme を変更する行の項目名は、右側の値と衝突しないよう
   `Graphic Theme` ではなく `Theme` と表示する。
+- `Theme Settings` では、theme package 由来の `Name`、`Status`、`Layout`、`Font` は
+  情報行として表示する。`TOP Layout`、`Transition`、`Time`、`Axis`、`Easing` は
+  `/mnt/SDCARD/plumos/config/frontend/settings.json` にユーザー上書き値として保存し、
+  theme JSON 自体は書き換えない。`Theme` を切り替えた時は個別上書きをクリアし、
+  新しい theme の初期値から始める。
 - ON/OFF、Enable/Disable、true/false 系は Settings list では checkbox として表示する。
   表記は `[x] 項目名` / `[ ] 項目名` を基準にする。Aでtoggle、右でON、左でOFF。
   `Scan On Enter` のように肯定形の項目名へ置き換えられる二択も checkbox として扱う。

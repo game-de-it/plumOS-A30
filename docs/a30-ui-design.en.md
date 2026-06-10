@@ -91,6 +91,12 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - Keep Graphic theme rows under a `Theme Settings` subpage instead of listing
   them directly in `UI Settings`. Label the selected-theme choice `Theme`, not
   `Graphic Theme`, so the right-aligned value does not collide with the label.
+- In `Theme Settings`, package-derived `Name`, `Status`, `Layout`, and `Font`
+  stay as information rows. `TOP Layout`, `Transition`, `Time`, `Axis`, and
+  `Easing` are saved as user overrides in
+  `/mnt/SDCARD/plumos/config/frontend/settings.json`; do not rewrite the theme
+  JSON package. Changing `Theme` clears those per-theme overrides so the newly
+  selected package starts from its own defaults.
 - ON/OFF, Enable/Disable, and true/false values appear as checkboxes in
   Settings lists. Use `[x] Name` / `[ ] Name`; A toggles, Right turns ON, and
   Left turns OFF.

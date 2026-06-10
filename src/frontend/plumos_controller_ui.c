@@ -363,6 +363,11 @@ struct frontend_settings {
   char rom_mode[32];
   char theme_id[64];
   char graphic_theme_id[64];
+  char graphic_top_layout[32];
+  char graphic_transition[32];
+  char graphic_transition_axis[32];
+  char graphic_transition_easing[32];
+  long graphic_transition_ms;
   char sort_systems[64];
   char sort_roms[64];
   char rom_scan_policy[64];
@@ -1874,6 +1879,7 @@ static void init_frontend_settings(struct frontend_settings *settings) {
   copy_string(settings->rom_mode, sizeof(settings->rom_mode), "text");
   copy_string(settings->theme_id, sizeof(settings->theme_id), "default");
   copy_string(settings->graphic_theme_id, sizeof(settings->graphic_theme_id), "default");
+  settings->graphic_transition_ms = 0;
   copy_string(settings->sort_systems, sizeof(settings->sort_systems), "sort_order");
   copy_string(settings->sort_roms, sizeof(settings->sort_roms), "name");
   copy_string(settings->rom_scan_policy, sizeof(settings->rom_scan_policy), "on_enter");
@@ -1913,6 +1919,20 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
     copy_string(settings->graphic_theme_id, sizeof(settings->graphic_theme_id),
                 settings->theme_id);
   }
+  json_get_string(json, json + json_size, "graphic_top_layout",
+                  settings->graphic_top_layout,
+                  sizeof(settings->graphic_top_layout));
+  json_get_string(json, json + json_size, "graphic_transition",
+                  settings->graphic_transition,
+                  sizeof(settings->graphic_transition));
+  json_get_string(json, json + json_size, "graphic_transition_axis",
+                  settings->graphic_transition_axis,
+                  sizeof(settings->graphic_transition_axis));
+  json_get_string(json, json + json_size, "graphic_transition_easing",
+                  settings->graphic_transition_easing,
+                  sizeof(settings->graphic_transition_easing));
+  settings->graphic_transition_ms =
+      json_get_long(json, json + json_size, "graphic_transition_ms", 0);
   json_get_string(json, json + json_size, "sort_systems", settings->sort_systems,
                   sizeof(settings->sort_systems));
   json_get_string(json, json + json_size, "sort_roms", settings->sort_roms,
@@ -2044,6 +2064,16 @@ static int save_settings(const char *path, const struct frontend_settings *setti
   fprint_json_string(f, settings->graphic_theme_id);
   fprintf(f, ",\n  \"graphic_theme_id\": ");
   fprint_json_string(f, settings->graphic_theme_id);
+  fprintf(f, ",\n  \"graphic_top_layout\": ");
+  fprint_json_string(f, settings->graphic_top_layout);
+  fprintf(f, ",\n  \"graphic_transition\": ");
+  fprint_json_string(f, settings->graphic_transition);
+  fprintf(f, ",\n  \"graphic_transition_ms\": %ld,\n",
+          settings->graphic_transition_ms);
+  fprintf(f, "  \"graphic_transition_axis\": ");
+  fprint_json_string(f, settings->graphic_transition_axis);
+  fprintf(f, ",\n  \"graphic_transition_easing\": ");
+  fprint_json_string(f, settings->graphic_transition_easing);
   fprintf(f, ",\n  \"last_system_id\": ");
   fprint_json_string(f, settings->last_system_id);
   fprintf(f, "\n}\n");
@@ -2533,6 +2563,65 @@ static int theme_behavior_is_blocked(const char *json, const char *end) {
   return 0;
 }
 
+static int valid_graphic_top_layout_value(const char *value) {
+  return value && (strcmp(value, "tile_grid") == 0 ||
+                   strcmp(value, "tile_strip") == 0);
+}
+
+static int valid_graphic_transition_value(const char *value) {
+  return value && (strcmp(value, "slide") == 0 ||
+                   strcmp(value, "none") == 0);
+}
+
+static int valid_graphic_transition_axis_value(const char *value) {
+  return value && (strcmp(value, "vertical") == 0 ||
+                   strcmp(value, "horizontal") == 0);
+}
+
+static int valid_graphic_transition_easing_value(const char *value) {
+  return value && (strcmp(value, "smoothstep") == 0 ||
+                   strcmp(value, "linear") == 0);
+}
+
+static long clamp_graphic_transition_ms(long value) {
+  if (value < 80) {
+    return 80;
+  }
+  if (value > 1000) {
+    return 1000;
+  }
+  return value;
+}
+
+static void apply_theme_setting_overrides(struct theme_state *theme,
+                                          const struct frontend_settings *settings) {
+  if (!theme || !settings) {
+    return;
+  }
+  if (valid_graphic_top_layout_value(settings->graphic_top_layout)) {
+    copy_string(theme->graphic_top_layout, sizeof(theme->graphic_top_layout),
+                settings->graphic_top_layout);
+  }
+  if (valid_graphic_transition_value(settings->graphic_transition)) {
+    copy_string(theme->graphic_transition, sizeof(theme->graphic_transition),
+                settings->graphic_transition);
+  }
+  if (valid_graphic_transition_axis_value(settings->graphic_transition_axis)) {
+    copy_string(theme->graphic_transition_axis,
+                sizeof(theme->graphic_transition_axis),
+                settings->graphic_transition_axis);
+  }
+  if (valid_graphic_transition_easing_value(settings->graphic_transition_easing)) {
+    copy_string(theme->graphic_transition_easing,
+                sizeof(theme->graphic_transition_easing),
+                settings->graphic_transition_easing);
+  }
+  if (settings->graphic_transition_ms > 0) {
+    theme->graphic_transition_ms =
+        clamp_graphic_transition_ms(settings->graphic_transition_ms);
+  }
+}
+
 static int load_theme_state(struct ui_state *ui, const char *theme_id) {
   char theme_path[PATH_MAX];
   char *json;
@@ -2651,23 +2740,19 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
     copy_string(ui->theme.graphic_transition,
                 sizeof(ui->theme.graphic_transition), "none");
   }
-  if (strcmp(ui->theme.graphic_transition, "slide") != 0 &&
-      strcmp(ui->theme.graphic_transition, "none") != 0) {
+  if (!valid_graphic_transition_value(ui->theme.graphic_transition)) {
     copy_string(ui->theme.graphic_transition,
                 sizeof(ui->theme.graphic_transition), "none");
   }
-  if (strcmp(ui->theme.graphic_top_layout, "tile_grid") != 0 &&
-      strcmp(ui->theme.graphic_top_layout, "tile_strip") != 0) {
+  if (!valid_graphic_top_layout_value(ui->theme.graphic_top_layout)) {
     copy_string(ui->theme.graphic_top_layout,
                 sizeof(ui->theme.graphic_top_layout), "tile_grid");
   }
-  if (strcmp(ui->theme.graphic_transition_axis, "vertical") != 0 &&
-      strcmp(ui->theme.graphic_transition_axis, "horizontal") != 0) {
+  if (!valid_graphic_transition_axis_value(ui->theme.graphic_transition_axis)) {
     copy_string(ui->theme.graphic_transition_axis,
                 sizeof(ui->theme.graphic_transition_axis), "vertical");
   }
-  if (strcmp(ui->theme.graphic_transition_easing, "smoothstep") != 0 &&
-      strcmp(ui->theme.graphic_transition_easing, "linear") != 0) {
+  if (!valid_graphic_transition_easing_value(ui->theme.graphic_transition_easing)) {
     copy_string(ui->theme.graphic_transition_easing,
                 sizeof(ui->theme.graphic_transition_easing), "smoothstep");
   }
@@ -3001,6 +3086,26 @@ static const struct setting_choice SORT_ROMS_CHOICES[] = {
     {"path", "Path"},
 };
 
+static const struct setting_choice GRAPHIC_TOP_LAYOUT_CHOICES[] = {
+    {"tile_grid", "Grid 3x2"},
+    {"tile_strip", "Strip 2x1"},
+};
+
+static const struct setting_choice GRAPHIC_TRANSITION_CHOICES[] = {
+    {"none", "None"},
+    {"slide", "Slide"},
+};
+
+static const struct setting_choice GRAPHIC_TRANSITION_AXIS_CHOICES[] = {
+    {"vertical", "Vertical"},
+    {"horizontal", "Horizontal"},
+};
+
+static const struct setting_choice GRAPHIC_TRANSITION_EASING_CHOICES[] = {
+    {"smoothstep", "Smooth"},
+    {"linear", "Linear"},
+};
+
 static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
     {"en.lang", "English"},
     {"ja.lang", "Japanese"},
@@ -3069,6 +3174,34 @@ static const struct setting_choice *setting_choices(const char *id, size_t *coun
       *count_out = sizeof(SORT_ROMS_CHOICES) / sizeof(SORT_ROMS_CHOICES[0]);
     }
     return SORT_ROMS_CHOICES;
+  }
+  if (strcmp(id, "theme_top_layout") == 0) {
+    if (count_out) {
+      *count_out = sizeof(GRAPHIC_TOP_LAYOUT_CHOICES) /
+                   sizeof(GRAPHIC_TOP_LAYOUT_CHOICES[0]);
+    }
+    return GRAPHIC_TOP_LAYOUT_CHOICES;
+  }
+  if (strcmp(id, "theme_transition") == 0) {
+    if (count_out) {
+      *count_out = sizeof(GRAPHIC_TRANSITION_CHOICES) /
+                   sizeof(GRAPHIC_TRANSITION_CHOICES[0]);
+    }
+    return GRAPHIC_TRANSITION_CHOICES;
+  }
+  if (strcmp(id, "theme_transition_axis") == 0) {
+    if (count_out) {
+      *count_out = sizeof(GRAPHIC_TRANSITION_AXIS_CHOICES) /
+                   sizeof(GRAPHIC_TRANSITION_AXIS_CHOICES[0]);
+    }
+    return GRAPHIC_TRANSITION_AXIS_CHOICES;
+  }
+  if (strcmp(id, "theme_transition_easing") == 0) {
+    if (count_out) {
+      *count_out = sizeof(GRAPHIC_TRANSITION_EASING_CHOICES) /
+                   sizeof(GRAPHIC_TRANSITION_EASING_CHOICES[0]);
+    }
+    return GRAPHIC_TRANSITION_EASING_CHOICES;
   }
   if (strcmp(id, "system_language") == 0) {
     if (count_out) {
@@ -3207,7 +3340,8 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "system_manual_time_month") == 0 ||
       strcmp(id, "system_manual_time_day") == 0 ||
       strcmp(id, "system_manual_time_hour") == 0 ||
-      strcmp(id, "system_manual_time_minute") == 0) {
+      strcmp(id, "system_manual_time_minute") == 0 ||
+      strcmp(id, "theme_transition_ms") == 0) {
     return SETTING_CONTROL_NUMBER;
   }
   return SETTING_CONTROL_READONLY;
@@ -3220,6 +3354,11 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "show_recent_on_top") == 0 ||
                 strcmp(id, "boot_resume_mode") == 0 ||
                 strcmp(id, "graphic_theme_id") == 0 ||
+                strcmp(id, "theme_top_layout") == 0 ||
+                strcmp(id, "theme_transition") == 0 ||
+                strcmp(id, "theme_transition_axis") == 0 ||
+                strcmp(id, "theme_transition_easing") == 0 ||
+                strcmp(id, "theme_transition_ms") == 0 ||
                 strcmp(id, "sort_systems") == 0 ||
                 strcmp(id, "sort_roms") == 0 ||
                 strcmp(id, "rom_scan_policy") == 0 ||
@@ -3312,15 +3451,19 @@ static void add_ui_theme_settings_entries(struct ui_state *ui,
   add_setting_entry(ui, "theme_status", "Status", ui->theme.status);
   add_setting_entry(ui, "theme_layout", "Layout", ui->theme.layout_preset);
   add_setting_entry(ui, "theme_top_layout", "TOP Layout",
-                    ui->theme.graphic_top_layout);
+                    setting_choice_display_value("theme_top_layout",
+                                                 ui->theme.graphic_top_layout));
   add_setting_entry(ui, "theme_transition", "Transition",
-                    ui->theme.graphic_transition);
+                    setting_choice_display_value("theme_transition",
+                                                 ui->theme.graphic_transition));
   snprintf(value, sizeof(value), "%ld ms", ui->theme.graphic_transition_ms);
   add_setting_entry(ui, "theme_transition_ms", "Time", value);
   add_setting_entry(ui, "theme_transition_axis", "Axis",
-                    ui->theme.graphic_transition_axis);
+                    setting_choice_display_value("theme_transition_axis",
+                                                 ui->theme.graphic_transition_axis));
   add_setting_entry(ui, "theme_transition_easing", "Easing",
-                    ui->theme.graphic_transition_easing);
+                    setting_choice_display_value("theme_transition_easing",
+                                                 ui->theme.graphic_transition_easing));
   add_setting_entry(ui, "theme_font", "Font",
                     ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
 }
@@ -3905,6 +4048,7 @@ static int load_settings_entries(struct ui_state *ui) {
   }
   ui->frontend_settings = settings;
   load_theme_state(ui, settings.graphic_theme_id);
+  apply_theme_setting_overrides(&ui->theme, &settings);
   switch (ui->settings_category) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
     load_device_settings(ui);
@@ -5015,17 +5159,27 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "graphic_theme_id") == 0) {
     copy_string(line1, line1_size, "Graphic mode theme package.");
     copy_string(line2, line2_size, "Text mode ignores theme colors, layout, and assets.");
+  } else if (strcmp(id, "theme_top_layout") == 0) {
+    copy_string(line1, line1_size, "Graphic TOP tile layout.");
+    copy_string(line2, line2_size, "Grid shows 6 tiles; Strip shows 2 wide tiles.");
+  } else if (strcmp(id, "theme_transition") == 0) {
+    copy_string(line1, line1_size, "Graphic TOP page transition.");
+    copy_string(line2, line2_size, "Presentation only; input behavior does not change.");
+  } else if (strcmp(id, "theme_transition_ms") == 0) {
+    copy_string(line1, line1_size, "Graphic TOP transition duration.");
+    copy_string(line2, line2_size, "LEFT/RIGHT changes 80..1000 ms.");
+  } else if (strcmp(id, "theme_transition_axis") == 0) {
+    copy_string(line1, line1_size, "Graphic TOP slide direction.");
+    copy_string(line2, line2_size, "Vertical or Horizontal animation axis.");
+  } else if (strcmp(id, "theme_transition_easing") == 0) {
+    copy_string(line1, line1_size, "Graphic TOP motion curve.");
+    copy_string(line2, line2_size, "Smooth is eased; Linear is constant speed.");
   } else if (strcmp(id, "theme_name") == 0 ||
              strcmp(id, "theme_status") == 0 ||
              strcmp(id, "theme_layout") == 0 ||
-             strcmp(id, "theme_top_layout") == 0 ||
-             strcmp(id, "theme_transition") == 0 ||
-             strcmp(id, "theme_transition_ms") == 0 ||
-             strcmp(id, "theme_transition_axis") == 0 ||
-             strcmp(id, "theme_transition_easing") == 0 ||
              strcmp(id, "theme_font") == 0) {
-    copy_string(line1, line1_size, "Current Graphic theme information.");
-    copy_string(line2, line2_size, "Only the Theme row is changed from this screen.");
+    copy_string(line1, line1_size, "Read-only Graphic theme information.");
+    copy_string(line2, line2_size, "Theme package metadata; values above can override motion.");
   } else if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
     copy_string(line1, line1_size, "Slow scan warning threshold.");
     copy_string(line2, line2_size, "Higher values make warnings less sensitive.");
@@ -6841,11 +6995,18 @@ static int save_graphic_theme_choice(struct ui_state *ui,
   copy_string(settings.graphic_theme_id, sizeof(settings.graphic_theme_id),
               choices[index].raw);
   copy_string(settings.theme_id, sizeof(settings.theme_id), choices[index].raw);
+  settings.graphic_top_layout[0] = '\0';
+  settings.graphic_transition[0] = '\0';
+  settings.graphic_transition_axis[0] = '\0';
+  settings.graphic_transition_easing[0] = '\0';
+  settings.graphic_transition_ms = 0;
   if (!save_settings(ui->settings_path, &settings)) {
     set_status(ui, "settings write failed");
     return 0;
   }
+  ui->frontend_settings = settings;
   load_theme_state(ui, settings.graphic_theme_id);
+  apply_theme_setting_overrides(&ui->theme, &settings);
   update_settings_entries_after_save(ui);
   settings_start_arrow_blink(ui, direction);
   snprintf(ui->status, sizeof(ui->status), "saved Graphic Theme=%s",
@@ -6916,6 +7077,16 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
     copy_string(settings.rom_mode, sizeof(settings.rom_mode), raw);
   } else if (strcmp(id, "boot_resume_mode") == 0) {
     copy_string(settings.boot_resume_mode, sizeof(settings.boot_resume_mode), raw);
+  } else if (strcmp(id, "theme_top_layout") == 0) {
+    copy_string(settings.graphic_top_layout, sizeof(settings.graphic_top_layout), raw);
+  } else if (strcmp(id, "theme_transition") == 0) {
+    copy_string(settings.graphic_transition, sizeof(settings.graphic_transition), raw);
+  } else if (strcmp(id, "theme_transition_axis") == 0) {
+    copy_string(settings.graphic_transition_axis,
+                sizeof(settings.graphic_transition_axis), raw);
+  } else if (strcmp(id, "theme_transition_easing") == 0) {
+    copy_string(settings.graphic_transition_easing,
+                sizeof(settings.graphic_transition_easing), raw);
   } else if (strcmp(id, "sort_systems") == 0) {
     copy_string(settings.sort_systems, sizeof(settings.sort_systems), raw);
   } else if (strcmp(id, "sort_roms") == 0) {
@@ -7018,6 +7189,10 @@ static int save_setting_number(struct ui_state *ui, const char *id,
     system_key = "saturation";
     min_value = 0;
     max_value = 20;
+  } else if (strcmp(id, "theme_transition_ms") == 0) {
+    step = 20;
+    min_value = 80;
+    max_value = 1000;
   } else {
     set_status(ui, "setting is read-only");
     return 0;
@@ -7049,6 +7224,8 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   }
   if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
     settings.rom_scan_slow_threshold_ms = value;
+  } else if (strcmp(id, "theme_transition_ms") == 0) {
+    settings.graphic_transition_ms = value;
   } else {
     settings.rom_scan_test_file_count = value;
   }
@@ -8680,6 +8857,7 @@ int main(int argc, char **argv) {
   }
   ui.frontend_settings = initial_settings;
   load_theme_state(&ui, initial_settings_loaded ? initial_settings.graphic_theme_id : "default");
+  apply_theme_setting_overrides(&ui.theme, &initial_settings);
   choose_mali_font_path(&ui, mali_font_env, ui.mali_font_path, sizeof(ui.mali_font_path));
 
   startup_resume_allowed =

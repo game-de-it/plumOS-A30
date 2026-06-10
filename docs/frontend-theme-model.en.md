@@ -13,6 +13,10 @@ an importer.
 - `settings.json` uses `graphic_theme_id` as the selected Graphic theme.
 - `theme_id` is still saved temporarily for compatibility, but new code should
   use `graphic_theme_id`.
+- User changes made in `Theme Settings` are stored as `settings.json` overrides:
+  `graphic_top_layout`, `graphic_transition`, `graphic_transition_ms`,
+  `graphic_transition_axis`, and `graphic_transition_easing`. Do not rewrite the
+  theme JSON package for those edits.
 - Themes cannot change button mappings, menu actions, launch profiles, ROM scan,
   resume, CPU/Wi-Fi, or power policy.
 - If a theme requests behavior control, it is blocked and the built-in Graphic
@@ -153,6 +157,9 @@ page size, confirm/back behavior, or menu actions. `transition_axis` supports
 `top_layout` supports `tile_grid` and `tile_strip`. `tile_grid` shows six
 entries in a 3x2 grid; `tile_strip` shows two entries in one row for horizontal
 scroll themes.
+Overrides saved by `Theme Settings` are applied after reading theme JSON.
+Changing `Theme` clears those overrides so the newly selected package starts
+from its own defaults.
 
 `behavior_policy` is a safety check. If any value is `true`, the controller UI
 treats the theme as requesting behavior control, blocks that request, and uses
