@@ -504,6 +504,9 @@ flow and saves per-system `CPU freq` and `CPU Cores` to `core-overrides.json`.
 `CPU freq` exposes only fixed `648/816/1200/1344 MHz` values; unpredictable
 `keep` is removed. `Reset to Default` falls back to the `systems.json`
 `648 MHz` / `2 cores` plumOS defaults.
+The TOP/ROM SELECT core menu is a shared screen. It does not show an operation
+prompt; it changes the `launch_profile` override with Left/Right through
+`Cores < core_name >`.
 `Theme` remains read-only
 until candidate names and paths are defined safely. In the Mali renderer, the
 first Settings row is `HELP`, which opens the
@@ -539,12 +542,12 @@ menu: start
   6. Refresh Current System   scan       scan:current             no
   7. Shutdown                 system     system:shutdown          yes
 
-plumOS text UI - core selection
-scope: system
-system: nes (NES)
-current: retroarch:fceumm (plumOS default)
-  1. retroarch:fceumm               yes      no       -        *
-  2. retroarch:nestopia             no       no       -
+plumOS controller UI - CORE
+target=nes
+source=plumOS default
+entries=1 cursor=1
+
+>   1  Cores < fceumm >
 
 plumOS text UI - Favorites
 count: 0

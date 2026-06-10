@@ -77,6 +77,9 @@ The current Linux-console-style TOP/list UI should follow these rules.
   `Network Settings`, `Performance Settings`, `Apps`, `HELP`, and `Shutdown`.
 - START, Settings subpages, and HELP use the blue left accent bar and do not
   show a command prompt. The screen title and list entries indicate location.
+- The TOP/ROM SELECT core menu is also a Text/Graphic shared list screen and
+  does not show an operation prompt. Launch candidates appear as
+  `Cores < core_name >` and change with Left/Right.
 - A is always confirm/run; B is always back/cancel. Left/Right may be used for
   page movement or setting value changes, but never for confirm/run/back/cancel.
 - START/Settings/HELP entries may use `1.5x` when needed to show full formal

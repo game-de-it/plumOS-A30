@@ -710,10 +710,12 @@ rules:
 - `cpu_policy` は `performance|fixed`。`fixed` のときだけ `cpu_freq_khz` を保存する。
   ユーザー向け UI では予測しづらい `keep` を表示・保存しない
 - `cpu_cores` は `2|4`。A30では2コアは CPU0+CPU1、4コアは CPU0-CPU3 を online にする
-- SELECT core menu には core候補と CPU frequency preset を同時に表示する
-- SELECT core menu には CPU core preset も表示する。2026-06-07 の dummy負荷測定では
-  4コアperformance負荷は2コアperformance負荷の約4倍の平均電力になったため、core数も
-  ユーザー設定対象にする
+- SELECT core menu は TOP/ROM 共通の `SCREEN_CORE_SELECT` で、起動候補を
+  `Cores < core_name >` として表示し、十字キー左右で `launch_profile` を変更する。
+- CPU frequency と CPU core count は `plumos-text-ui core ... --cpu --freq --cores` の
+  保存経路を使うが、controller UI では `Performance Settings` に分離して表示する。
+  2026-06-07 の dummy負荷測定では 4コアperformance負荷は2コアperformance負荷の
+  約4倍の平均電力になったため、core数もユーザー設定対象にする
 - CPU設定も `launch_profile` と同じく ROM override > system override > system default の順で解決する
 - per-ROM override の key は `system_id` と、ROM alias root からの `relative_path`
   の組み合わせとする

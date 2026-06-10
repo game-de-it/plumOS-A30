@@ -469,6 +469,8 @@ Performance Settings は既存の `plumos-text-ui core system ... --cpu --freq -
 `core-overrides.json` に保存します。`CPU freq` は `648/816/1200/1344 MHz` の
 固定値だけを見せ、予測しづらい `keep` は削除します。`Reset to Default` で
 `systems.json` の `648MHz` / `2 cores` plumOS default に戻します。
+TOP/ROM の SELECT core menu は共通画面で、操作説明promptは表示せず
+`Cores < core_name >` を左右で変更して `launch_profile` override を保存します。
 Theme は候補名と path の扱いが固まるまで read-only です。Mali renderer では Settings 先頭の `HELP` から操作説明画面へ入ります。
 通常画面の下部には常時操作説明を出しません。
 
@@ -502,12 +504,12 @@ menu: start
   6. Refresh Current System   scan       scan:current             no
   7. Shutdown                 system     system:shutdown          yes
 
-plumOS text UI - core selection
-scope: system
-system: nes (NES)
-current: retroarch:fceumm (plumOS default)
-  1. retroarch:fceumm               yes      no       -        *
-  2. retroarch:nestopia             no       no       -
+plumOS controller UI - CORE
+target=nes
+source=plumOS default
+entries=1 cursor=1
+
+>   1  Cores < fceumm >
 
 plumOS text UI - Favorites
 count: 0

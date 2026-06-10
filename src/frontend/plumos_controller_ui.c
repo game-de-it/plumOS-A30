@@ -167,6 +167,7 @@ struct input_event {
 #define UI_MAX_MENU 64
 #define UI_MAX_SETTINGS 64
 #define UI_MAX_SCRAPING_CHOICES 64
+#define UI_MAX_CORE_PROFILES 16
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
 #define UI_RENDER_MAX_LINES 64
@@ -202,6 +203,10 @@ struct scraping_choice {
   char id[64];
   char display_name[128];
   long rom_count;
+};
+
+struct core_profile_choice {
+  char id[128];
 };
 
 struct rom_entry {
@@ -561,6 +566,11 @@ struct ui_state {
   int renderer_active;
   char core_target_system_id[64];
   char core_target_relative_path[UI_PATH_MAX];
+  struct core_profile_choice core_profiles[UI_MAX_CORE_PROFILES];
+  size_t core_profile_count;
+  size_t core_profile_cursor;
+  char core_current_profile[128];
+  char core_current_source[64];
   char core_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t core_line_count;
   char safe_target_system_id[64];
@@ -806,6 +816,19 @@ static int valid_system_id(const char *s) {
   while (*s) {
     unsigned char c = (unsigned char)*s++;
     if (!(isalnum(c) || c == '_' || c == '-')) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int valid_launch_profile_id(const char *s) {
+  if (!s || !s[0]) {
+    return 0;
+  }
+  while (*s) {
+    unsigned char c = (unsigned char)*s++;
+    if (!(isalnum(c) || c == '_' || c == '-' || c == ':')) {
       return 0;
     }
   }
@@ -5163,6 +5186,129 @@ static void core_append_line(struct ui_state *ui, const char *line) {
   ui->core_line_count++;
 }
 
+static const char *core_profile_display_name(const char *profile) {
+  const char *colon;
+
+  if (!profile || !profile[0]) {
+    return "auto";
+  }
+  colon = strchr(profile, ':');
+  if (colon && colon[1]) {
+    return colon + 1;
+  }
+  return profile;
+}
+
+static void reset_core_profile_choices(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  memset(ui->core_profiles, 0, sizeof(ui->core_profiles));
+  ui->core_profile_count = 0;
+  ui->core_profile_cursor = 0;
+  ui->core_current_profile[0] = '\0';
+  ui->core_current_source[0] = '\0';
+  ui->core_line_count = 0;
+}
+
+static int add_core_profile_choice(struct ui_state *ui, const char *profile) {
+  size_t i;
+
+  if (!ui || !valid_launch_profile_id(profile)) {
+    return 0;
+  }
+  for (i = 0; i < ui->core_profile_count; i++) {
+    if (strcmp(ui->core_profiles[i].id, profile) == 0) {
+      return 1;
+    }
+  }
+  if (ui->core_profile_count >= UI_MAX_CORE_PROFILES) {
+    return 0;
+  }
+  if (!copy_string(ui->core_profiles[ui->core_profile_count].id,
+                   sizeof(ui->core_profiles[ui->core_profile_count].id), profile)) {
+    return 0;
+  }
+  ui->core_profile_count++;
+  return 1;
+}
+
+static void parse_core_current_profile_line(struct ui_state *ui, const char *line) {
+  const char *prefix = "current_profile:";
+  const char *value;
+  const char *source_start;
+  const char *source_end;
+
+  if (!ui || !line || strncmp(line, prefix, strlen(prefix)) != 0) {
+    return;
+  }
+  value = line + strlen(prefix);
+  while (*value == ' ') {
+    value++;
+  }
+  source_start = strstr(value, " (");
+  if (source_start) {
+    copy_trimmed_range(ui->core_current_profile, sizeof(ui->core_current_profile),
+                       value, (size_t)(source_start - value));
+    source_start += 2;
+    source_end = strchr(source_start, ')');
+    if (source_end) {
+      copy_trimmed_range(ui->core_current_source, sizeof(ui->core_current_source),
+                         source_start, (size_t)(source_end - source_start));
+    }
+  } else {
+    copy_truncated_string(ui->core_current_profile, sizeof(ui->core_current_profile), value);
+  }
+}
+
+static int parse_core_profile_choice_line(struct ui_state *ui, const char *line) {
+  const char *p = line;
+  char profile[128];
+  size_t len = 0;
+
+  if (!ui || !line) {
+    return 0;
+  }
+  while (*p == ' ') {
+    p++;
+  }
+  if (!isdigit((unsigned char)*p)) {
+    return 0;
+  }
+  while (isdigit((unsigned char)*p)) {
+    p++;
+  }
+  if (*p != '.') {
+    return 0;
+  }
+  p++;
+  while (*p == ' ') {
+    p++;
+  }
+  while (*p && *p != ' ' && len + 1 < sizeof(profile)) {
+    profile[len++] = *p++;
+  }
+  profile[len] = '\0';
+  if (!valid_launch_profile_id(profile)) {
+    return 0;
+  }
+  return add_core_profile_choice(ui, profile);
+}
+
+static void select_current_core_profile(struct ui_state *ui) {
+  size_t i;
+
+  if (!ui || !ui->core_current_profile[0]) {
+    return;
+  }
+  for (i = 0; i < ui->core_profile_count; i++) {
+    if (strcmp(ui->core_profiles[i].id, ui->core_current_profile) == 0) {
+      ui->core_profile_cursor = i;
+      return;
+    }
+  }
+}
+
 static void ui_vprintf(struct ui_state *ui, const char *fmt, va_list ap) {
   char buf[512];
   const char *start;
@@ -6166,19 +6312,29 @@ static void render_help(struct ui_state *ui) {
 
 static void render_core_select(struct ui_state *ui) {
   size_t i;
+  const char *profile = NULL;
 
   ui_printf(ui, "plumOS controller UI - CORE\n");
-  ui_printf(ui, "B: back  SELECT: refresh  Q: quit\n");
   ui_printf(ui, "target=%s", ui->core_target_system_id[0] ? ui->core_target_system_id : "-");
   if (ui->core_target_relative_path[0]) {
     ui_printf(ui, " / %s", ui->core_target_relative_path);
   }
-  ui_printf(ui, "\n\n");
+  ui_printf(ui, "\n");
+  if (ui->core_current_source[0]) {
+    ui_printf(ui, "source=%s\n", ui->core_current_source);
+  }
+  ui_printf(ui, "entries=1 cursor=1\n\n");
+  if (ui->core_profile_count > 0) {
+    if (ui->core_profile_cursor >= ui->core_profile_count) {
+      ui->core_profile_cursor = ui->core_profile_count - 1;
+    }
+    profile = ui->core_profiles[ui->core_profile_cursor].id;
+  } else if (ui->core_current_profile[0]) {
+    profile = ui->core_current_profile;
+  }
+  ui_printf(ui, ">   1  Cores < %s >\n", core_profile_display_name(profile));
   for (i = 0; i < ui->core_line_count; i++) {
     ui_printf(ui, "%s\n", ui->core_lines[i]);
-  }
-  if (ui->core_line_count == 0) {
-    ui_printf(ui, "(core selection output is empty)\n");
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
@@ -6712,8 +6868,9 @@ static int load_core_select_lines(struct ui_state *ui, const char *system_id,
   FILE *pipe;
   size_t pos = 0;
   int rc;
+  int in_launch_profiles = 0;
 
-  ui->core_line_count = 0;
+  reset_core_profile_choices(ui);
   if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
     core_append_line(ui, "error: plumos-text-ui path too long");
     return 0;
@@ -6756,10 +6913,122 @@ static int load_core_select_lines(struct ui_state *ui, const char *system_id,
     return 0;
   }
   while (fgets(line, sizeof(line), pipe)) {
-    core_append_line(ui, line);
+    trim_line_end(line);
+    if (strcmp(line, "Launch profiles") == 0) {
+      in_launch_profiles = 1;
+      continue;
+    }
+    if (strcmp(line, "CPU frequency presets") == 0) {
+      in_launch_profiles = 0;
+      continue;
+    }
+    parse_core_current_profile_line(ui, line);
+    if (in_launch_profiles && parse_core_profile_choice_line(ui, line)) {
+      continue;
+    }
+    if (strncmp(line, "error:", 6) == 0) {
+      core_append_line(ui, line);
+    }
   }
   rc = pclose(pipe);
+  select_current_core_profile(ui);
+  if (rc == 0 && ui->core_profile_count == 0 && ui->core_line_count == 0) {
+    core_append_line(ui, "no launch profiles for this system");
+  }
   return rc == 0;
+}
+
+static int run_core_set_profile(struct ui_state *ui, const char *profile) {
+  char text_ui[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui || !valid_launch_profile_id(profile)) {
+    return 0;
+  }
+  if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
+    set_status(ui, "core command path too long");
+    return 0;
+  }
+  if (!file_exists(text_ui)) {
+    set_status(ui, "plumos-text-ui missing");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, text_ui) ||
+      !append_string(cmd, sizeof(cmd), &pos,
+                     ui->core_target_relative_path[0] ? " core rom "
+                                                      : " core system ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->core_target_system_id)) {
+    set_status(ui, "core command too long");
+    return 0;
+  }
+  if (ui->core_target_relative_path[0]) {
+    if (!append_string(cmd, sizeof(cmd), &pos, " ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->core_target_relative_path)) {
+      set_status(ui, "core command too long");
+      return 0;
+    }
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, " --set ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, profile) ||
+      (ui->core_target_relative_path[0] &&
+       !append_string(cmd, sizeof(cmd), &pos, " --no-scan")) ||
+      !append_string(cmd, sizeof(cmd), &pos, " >/dev/null 2>&1")) {
+    set_status(ui, "core command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (system_command_succeeded(rc)) {
+    return 1;
+  }
+  set_status(ui, rc == -1 ? "core command failed to start" : "core command returned non-zero");
+  return 0;
+}
+
+static void cycle_core_profile(struct ui_state *ui, int direction) {
+  const char *profile;
+  char label[128];
+
+  if (!ui || direction == 0) {
+    return;
+  }
+  if (ui->core_profile_count == 0) {
+    set_status(ui, "no core choices");
+    return;
+  }
+  if (ui->core_profile_count == 1) {
+    set_status(ui, "only one core choice");
+    return;
+  }
+  if (direction > 0) {
+    ui->core_profile_cursor = (ui->core_profile_cursor + 1) % ui->core_profile_count;
+  } else if (ui->core_profile_cursor == 0) {
+    ui->core_profile_cursor = ui->core_profile_count - 1;
+  } else {
+    ui->core_profile_cursor--;
+  }
+  profile = ui->core_profiles[ui->core_profile_cursor].id;
+  copy_truncated_string(label, sizeof(label), core_profile_display_name(profile));
+  if (!run_core_set_profile(ui, profile)) {
+    return;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "core saved; reload failed");
+    return;
+  }
+  snprintf(ui->status, sizeof(ui->status), "Cores saved: %.80s", label);
 }
 
 static void open_core_select_screen(struct ui_state *ui, const char *system_id,
@@ -8911,6 +9180,14 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_B) {
       ui->screen = ui->core_back_screen;
       set_status(ui, "close CORE");
+      return;
+    }
+    if (action == ACTION_LEFT) {
+      cycle_core_profile(ui, -1);
+      return;
+    }
+    if (action == ACTION_RIGHT) {
+      cycle_core_profile(ui, 1);
       return;
     }
     if (action == ACTION_SELECT) {
