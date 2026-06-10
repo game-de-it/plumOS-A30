@@ -1652,6 +1652,9 @@ static void plumos_mali_draw_builtin_char_clipped(struct plumos_mali_renderer *r
   const unsigned char *rows;
   int row;
 
+  if (scale <= 0) {
+    return;
+  }
   if (ch < 32 || ch > 126) {
     ch = '?';
   }
@@ -1699,11 +1702,12 @@ static int plumos_mali_ft_set_size(struct plumos_mali_renderer *renderer, int sc
 
 static int plumos_mali_ft_advance(struct plumos_mali_renderer *renderer,
                                   unsigned int codepoint, int scale) {
-  int fallback = 8 * scale;
+  int fallback;
   int advance;
   size_t cache_index;
   struct plumos_mali_ft_advance_cache_entry *cached;
 
+  fallback = 8 * scale;
   if (fallback < 8) {
     fallback = 8;
   }
@@ -1810,8 +1814,9 @@ static int plumos_mali_draw_freetype_codepoint(struct plumos_mali_renderer *rend
 static int plumos_mali_codepoint_advance(struct plumos_mali_renderer *renderer,
                                          unsigned int codepoint, int scale,
                                          int prefer_freetype) {
-  int ascii_step = 6 * scale;
+  int ascii_step;
 
+  ascii_step = 6 * scale;
   if (ascii_step < 6) {
     ascii_step = 6;
   }
@@ -2046,7 +2051,10 @@ static void plumos_mali_text(struct plumos_mali_renderer *renderer, const char *
 }
 
 static int plumos_mali_text_width(const char *text, int scale) {
-  return text ? (int)strlen(text) * 6 * scale : 0;
+  if (!text || scale <= 0) {
+    return 0;
+  }
+  return (int)strlen(text) * 6 * scale;
 }
 
 static int plumos_mali_read_first_line(const char *path, char *out, size_t out_size) {
@@ -2556,6 +2564,18 @@ static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
   out[len] = '\0';
 }
 
+static void plumos_mali_graphic_normalize_text_field(char *text, size_t text_size) {
+  char normalized[PLUMOS_MALI_RENDER_LINE_MAX];
+
+  if (!text || text_size == 0 || !text[0]) {
+    return;
+  }
+  plumos_mali_normalize_kana_marks(text, normalized, sizeof(normalized));
+  if (normalized[0] && strcmp(normalized, text) != 0) {
+    snprintf(text, text_size, "%s", normalized);
+  }
+}
+
 static int plumos_mali_graphic_parse_entry(
     const char *line, struct plumos_mali_graphic_entry *entry) {
   const char *prefix = "graphic_entry\t";
@@ -2579,14 +2599,18 @@ static int plumos_mali_graphic_parse_entry(
   tab = strchr(p, '\t');
   if (!tab) {
     plumos_mali_graphic_copy_field(entry->title, sizeof(entry->title), p, NULL);
+    plumos_mali_graphic_normalize_text_field(entry->title, sizeof(entry->title));
     return entry->title[0] != '\0';
   }
   plumos_mali_graphic_copy_field(entry->title, sizeof(entry->title), p, tab);
+  plumos_mali_graphic_normalize_text_field(entry->title, sizeof(entry->title));
   tab2 = strchr(tab + 1, '\t');
   if (!tab2) {
     plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, NULL);
+    plumos_mali_graphic_normalize_text_field(entry->detail, sizeof(entry->detail));
   } else {
     plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, tab2);
+    plumos_mali_graphic_normalize_text_field(entry->detail, sizeof(entry->detail));
     plumos_mali_graphic_copy_field(entry->thumbnail, sizeof(entry->thumbnail), tab2 + 1,
                                    NULL);
   }
@@ -2700,11 +2724,12 @@ static void plumos_mali_graphic_draw_top(
                              selected ? 0.98f : 0.72f,
                              selected ? 0.94f : 0.82f,
                              selected ? 0.76f : 0.80f, 1.0f);
-    detail_width = plumos_mali_text_width(detail, 1);
-    plumos_mali_text(renderer, detail,
-                     x + tile_w - 12.0f - (float)detail_width,
-                     y + tile_h - 22.0f, 1,
-                     0.55f, 0.68f, 0.68f, 1.0f);
+    detail_width = plumos_mali_text_width(detail, 2);
+    plumos_mali_text_clipped(renderer, detail,
+                             x + tile_w - 12.0f - (float)detail_width,
+                             y + tile_h - 30.0f, 2, 0,
+                             x + 12.0f, x + tile_w - 12.0f,
+                             0.55f, 0.68f, 0.68f, 1.0f);
   }
   if (entry_count == 0) {
     plumos_mali_text(renderer, "NO SYSTEMS", 28.0f, 90.0f, 3,
@@ -2803,7 +2828,7 @@ static void plumos_mali_graphic_draw_roms(
     plumos_mali_text_limited(renderer,
                              selected->detail[0] ? selected->detail : "-",
                              preview_x + 16.0f, preview_y + 232.0f,
-                             1, 1, preview_x + preview_w - 16.0f,
+                             2, 1, preview_x + preview_w - 16.0f,
                              0.52f, 0.66f, 0.66f, 1.0f);
   } else {
     plumos_mali_text(renderer, "NO ART", preview_x + 48.0f, preview_y + 120.0f,
@@ -3456,10 +3481,10 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                        1.0f);
       if (current_tile) {
         const char *current_label = "CURRENT";
-        int current_width = plumos_mali_text_width(current_label, 1);
+        int current_width = plumos_mali_text_width(current_label, 2);
         plumos_mali_text(renderer, current_label,
                          x + (tile_w - (float)current_width) / 2.0f,
-                         tile_y + tile_h - 17.0f, 1,
+                         tile_y + tile_h - 22.0f, 2,
                          0.64f, 0.82f, 0.92f, 1.0f);
       }
     }
