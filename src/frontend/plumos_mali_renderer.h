@@ -6,9 +6,11 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <linux/fb.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <time.h>
@@ -29,6 +31,10 @@
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#endif
+
+#ifdef PLUMOS_ENABLE_MALI_PNG
+#include <png.h>
 #endif
 
 typedef int EGLint;
@@ -75,8 +81,21 @@ typedef char GLchar;
 
 #define GL_FALSE 0
 #define GL_COLOR_BUFFER_BIT 0x00004000
+#define GL_BLEND 0x0BE2
+#define GL_TEXTURE_2D 0x0DE1
+#define GL_UNSIGNED_BYTE 0x1401
 #define GL_FLOAT 0x1406
 #define GL_TRIANGLE_STRIP 0x0005
+#define GL_SRC_ALPHA 0x0302
+#define GL_ONE_MINUS_SRC_ALPHA 0x0303
+#define GL_TEXTURE_MAG_FILTER 0x2800
+#define GL_TEXTURE_MIN_FILTER 0x2801
+#define GL_TEXTURE_WRAP_S 0x2802
+#define GL_TEXTURE_WRAP_T 0x2803
+#define GL_RGBA 0x1908
+#define GL_LINEAR 0x2601
+#define GL_TEXTURE0 0x84C0
+#define GL_CLAMP_TO_EDGE 0x812F
 #define GL_VERTEX_SHADER 0x8b31
 #define GL_FRAGMENT_SHADER 0x8b30
 #define GL_COMPILE_STATUS 0x8b81
@@ -150,7 +169,20 @@ struct plumos_mali_gl_api {
   void (*UseProgram)(GLuint program);
   GLint (*GetUniformLocation)(GLuint program, const GLchar *name);
   void (*Uniform4f)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+  void (*Uniform1i)(GLint location, GLint v0);
+  void (*ActiveTexture)(GLenum texture);
+  void (*GenTextures)(GLsizei n, GLuint *textures);
+  void (*DeleteTextures)(GLsizei n, const GLuint *textures);
+  void (*BindTexture)(GLenum target, GLuint texture);
+  void (*TexParameteri)(GLenum target, GLenum pname, GLint param);
+  void (*TexImage2D)(GLenum target, GLint level, GLint internalformat,
+                     GLsizei width, GLsizei height, GLint border, GLenum format,
+                     GLenum type, const void *pixels);
+  void (*Enable)(GLenum cap);
+  void (*Disable)(GLenum cap);
+  void (*BlendFunc)(GLenum sfactor, GLenum dfactor);
   void (*EnableVertexAttribArray)(GLuint index);
+  void (*DisableVertexAttribArray)(GLuint index);
   void (*VertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized,
                               GLsizei stride, const void *pointer);
   void (*DrawArrays)(GLenum mode, GLint first, GLsizei count);
@@ -175,6 +207,14 @@ struct plumos_mali_renderer {
   EGLContext context;
   GLuint program;
   GLint color_uniform;
+#ifdef PLUMOS_ENABLE_MALI_PNG
+  GLuint texture_program;
+  GLint texture_sampler_uniform;
+  GLuint graphic_texture;
+  int graphic_texture_width;
+  int graphic_texture_height;
+  char graphic_texture_path[PATH_MAX];
+#endif
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
   FT_Library ft_library;
   FT_Face ft_face;
@@ -369,7 +409,19 @@ static int plumos_mali_load_gl(struct plumos_mali_renderer *renderer, const char
   PLUMOS_LOAD_GL(renderer, UseProgram, "glUseProgram", error, error_size);
   PLUMOS_LOAD_GL(renderer, GetUniformLocation, "glGetUniformLocation", error, error_size);
   PLUMOS_LOAD_GL(renderer, Uniform4f, "glUniform4f", error, error_size);
+  PLUMOS_LOAD_GL(renderer, Uniform1i, "glUniform1i", error, error_size);
+  PLUMOS_LOAD_GL(renderer, ActiveTexture, "glActiveTexture", error, error_size);
+  PLUMOS_LOAD_GL(renderer, GenTextures, "glGenTextures", error, error_size);
+  PLUMOS_LOAD_GL(renderer, DeleteTextures, "glDeleteTextures", error, error_size);
+  PLUMOS_LOAD_GL(renderer, BindTexture, "glBindTexture", error, error_size);
+  PLUMOS_LOAD_GL(renderer, TexParameteri, "glTexParameteri", error, error_size);
+  PLUMOS_LOAD_GL(renderer, TexImage2D, "glTexImage2D", error, error_size);
+  PLUMOS_LOAD_GL(renderer, Enable, "glEnable", error, error_size);
+  PLUMOS_LOAD_GL(renderer, Disable, "glDisable", error, error_size);
+  PLUMOS_LOAD_GL(renderer, BlendFunc, "glBlendFunc", error, error_size);
   PLUMOS_LOAD_GL(renderer, EnableVertexAttribArray, "glEnableVertexAttribArray", error,
+                 error_size);
+  PLUMOS_LOAD_GL(renderer, DisableVertexAttribArray, "glDisableVertexAttribArray", error,
                  error_size);
   PLUMOS_LOAD_GL(renderer, VertexAttribPointer, "glVertexAttribPointer", error, error_size);
   PLUMOS_LOAD_GL(renderer, DrawArrays, "glDrawArrays", error, error_size);
@@ -505,6 +557,67 @@ static int plumos_mali_setup_program(struct plumos_mali_renderer *renderer,
   return 1;
 }
 
+#ifdef PLUMOS_ENABLE_MALI_PNG
+static int plumos_mali_setup_texture_program(struct plumos_mali_renderer *renderer,
+                                             char *error, size_t error_size) {
+  static const char *vertex_source =
+      "attribute vec2 a_pos;\n"
+      "attribute vec2 a_tex;\n"
+      "varying vec2 v_tex;\n"
+      "void main() {\n"
+      "  gl_Position = vec4(a_pos, 0.0, 1.0);\n"
+      "  v_tex = a_tex;\n"
+      "}\n";
+  static const char *fragment_source =
+      "precision mediump float;\n"
+      "varying vec2 v_tex;\n"
+      "uniform sampler2D u_tex;\n"
+      "void main() {\n"
+      "  gl_FragColor = texture2D(u_tex, v_tex);\n"
+      "}\n";
+  GLuint vertex_shader;
+  GLuint fragment_shader;
+  GLint ok = 0;
+  GLsizei log_len = 0;
+  char log[256];
+
+  vertex_shader = plumos_mali_compile_shader(renderer, GL_VERTEX_SHADER, vertex_source,
+                                             error, error_size);
+  if (!vertex_shader) {
+    return 0;
+  }
+  fragment_shader = plumos_mali_compile_shader(renderer, GL_FRAGMENT_SHADER, fragment_source,
+                                               error, error_size);
+  if (!fragment_shader) {
+    renderer->gl.DeleteShader(vertex_shader);
+    return 0;
+  }
+
+  renderer->texture_program = renderer->gl.CreateProgram();
+  renderer->gl.AttachShader(renderer->texture_program, vertex_shader);
+  renderer->gl.AttachShader(renderer->texture_program, fragment_shader);
+  renderer->gl.BindAttribLocation(renderer->texture_program, 0, "a_pos");
+  renderer->gl.BindAttribLocation(renderer->texture_program, 1, "a_tex");
+  renderer->gl.LinkProgram(renderer->texture_program);
+  renderer->gl.GetProgramiv(renderer->texture_program, GL_LINK_STATUS, &ok);
+  renderer->gl.DeleteShader(vertex_shader);
+  renderer->gl.DeleteShader(fragment_shader);
+  if (!ok) {
+    log[0] = '\0';
+    renderer->gl.GetProgramInfoLog(renderer->texture_program, sizeof(log), &log_len, log);
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "texture program link failed: %.200s",
+               log[0] ? log : "-");
+    }
+    return 0;
+  }
+  renderer->texture_sampler_uniform =
+      renderer->gl.GetUniformLocation(renderer->texture_program, "u_tex");
+  renderer->gl.UseProgram(renderer->program);
+  return 1;
+}
+#endif
+
 static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, const char *fb_path,
                                      const char *egl_path, const char *gles_path,
                                      const char *rotation_mode, char *error,
@@ -612,6 +725,11 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
   if (!plumos_mali_setup_program(renderer, error, error_size)) {
     return 0;
   }
+#ifdef PLUMOS_ENABLE_MALI_PNG
+  if (!plumos_mali_setup_texture_program(renderer, error, error_size)) {
+    return 0;
+  }
+#endif
   return 1;
 }
 
@@ -670,6 +788,18 @@ static void plumos_mali_renderer_shutdown(struct plumos_mali_renderer *renderer)
   }
 #endif
   if (renderer->display != EGL_NO_DISPLAY) {
+#ifdef PLUMOS_ENABLE_MALI_PNG
+    if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle &&
+        renderer->graphic_texture) {
+      renderer->gl.DeleteTextures(1, &renderer->graphic_texture);
+      renderer->graphic_texture = 0;
+    }
+    if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle &&
+        renderer->texture_program) {
+      renderer->gl.DeleteProgram(renderer->texture_program);
+      renderer->texture_program = 0;
+    }
+#endif
     if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle && renderer->program) {
       renderer->gl.DeleteProgram(renderer->program);
     }
@@ -1205,17 +1335,14 @@ static void plumos_mali_copy_utf8_cells(const char *in, char *out, size_t out_si
   out[n] = '\0';
 }
 
-static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, float y,
-                             float w, float h, float red, float green, float blue,
-                             float alpha) {
+static void plumos_mali_rect_to_ndc(struct plumos_mali_renderer *renderer,
+                                    float x, float y, float w, float h,
+                                    GLfloat *x0, GLfloat *y0,
+                                    GLfloat *x1, GLfloat *y1) {
   float fx = x;
   float fy = y;
   float fw = w;
   float fh = h;
-  GLfloat x0;
-  GLfloat x1;
-  GLfloat y0;
-  GLfloat y1;
 
   if (renderer->rotation == PLUMOS_MALI_ROTATION_CCW) {
     fx = y;
@@ -1229,16 +1356,272 @@ static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, flo
     fh = w;
   }
 
-  x0 = (fx / (float)renderer->fb_width) * 2.0f - 1.0f;
-  x1 = ((fx + fw) / (float)renderer->fb_width) * 2.0f - 1.0f;
-  y0 = 1.0f - (fy / (float)renderer->fb_height) * 2.0f;
-  y1 = 1.0f - ((fy + fh) / (float)renderer->fb_height) * 2.0f;
-  GLfloat verts[8] = {x0, y0, x1, y0, x0, y1, x1, y1};
+  *x0 = (fx / (float)renderer->fb_width) * 2.0f - 1.0f;
+  *x1 = ((fx + fw) / (float)renderer->fb_width) * 2.0f - 1.0f;
+  *y0 = 1.0f - (fy / (float)renderer->fb_height) * 2.0f;
+  *y1 = 1.0f - ((fy + fh) / (float)renderer->fb_height) * 2.0f;
+}
+
+static void plumos_mali_point_to_ndc(struct plumos_mali_renderer *renderer,
+                                     float x, float y, GLfloat *out_x,
+                                     GLfloat *out_y) {
+  float fx = x;
+  float fy = y;
+
+  if (renderer->rotation == PLUMOS_MALI_ROTATION_CCW) {
+    fx = y;
+    fy = (float)renderer->fb_height - x;
+  } else if (renderer->rotation == PLUMOS_MALI_ROTATION_CW) {
+    fx = (float)renderer->fb_width - y;
+    fy = x;
+  }
+  *out_x = (fx / (float)renderer->fb_width) * 2.0f - 1.0f;
+  *out_y = 1.0f - (fy / (float)renderer->fb_height) * 2.0f;
+}
+
+static void plumos_mali_rect(struct plumos_mali_renderer *renderer, float x, float y,
+                             float w, float h, float red, float green, float blue,
+                             float alpha) {
+  GLfloat x0;
+  GLfloat x1;
+  GLfloat y0;
+  GLfloat y1;
+  GLfloat verts[8];
+
+  plumos_mali_rect_to_ndc(renderer, x, y, w, h, &x0, &y0, &x1, &y1);
+  verts[0] = x0;
+  verts[1] = y0;
+  verts[2] = x1;
+  verts[3] = y0;
+  verts[4] = x0;
+  verts[5] = y1;
+  verts[6] = x1;
+  verts[7] = y1;
 
   renderer->gl.Uniform4f(renderer->color_uniform, red, green, blue, alpha);
   renderer->gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
   renderer->gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
+
+#ifdef PLUMOS_ENABLE_MALI_PNG
+static int plumos_mali_path_has_png_ext(const char *path) {
+  const char *ext;
+
+  if (!path || !path[0]) {
+    return 0;
+  }
+  ext = strrchr(path, '.');
+  return ext && strcasecmp(ext, ".png") == 0;
+}
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclobbered"
+#endif
+static int plumos_mali_load_png_rgba(const char *path, unsigned char **pixels_out,
+                                     int *width_out, int *height_out) {
+  FILE *f;
+  png_structp png = NULL;
+  png_infop info = NULL;
+  png_bytep *rows = NULL;
+  png_bytep pixels = NULL;
+  png_uint_32 width;
+  png_uint_32 height;
+  int bit_depth;
+  int color_type;
+  int interlace_type;
+  size_t row_bytes;
+  png_uint_32 y;
+  int ok = 0;
+
+  if (!path || !pixels_out || !width_out || !height_out ||
+      !plumos_mali_path_has_png_ext(path)) {
+    return 0;
+  }
+  *pixels_out = NULL;
+  *width_out = 0;
+  *height_out = 0;
+  f = fopen(path, "rb");
+  if (!f) {
+    return 0;
+  }
+
+  png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if (!png) {
+    fclose(f);
+    return 0;
+  }
+  info = png_create_info_struct(png);
+  if (!info) {
+    png_destroy_read_struct(&png, NULL, NULL);
+    fclose(f);
+    return 0;
+  }
+  if (setjmp(png_jmpbuf(png))) {
+    goto done;
+  }
+
+  png_init_io(png, f);
+  png_read_info(png, info);
+  png_get_IHDR(png, info, &width, &height, &bit_depth, &color_type,
+               &interlace_type, NULL, NULL);
+  if (width == 0 || height == 0 || width > 2048 || height > 2048) {
+    goto done;
+  }
+  if (bit_depth == 16) {
+    png_set_strip_16(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_PALETTE) {
+    png_set_palette_to_rgb(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) {
+    png_set_expand_gray_1_2_4_to_8(png);
+  }
+  if (png_get_valid(png, info, PNG_INFO_tRNS)) {
+    png_set_tRNS_to_alpha(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+    png_set_gray_to_rgb(png);
+  }
+  if ((color_type & PNG_COLOR_MASK_ALPHA) == 0) {
+    png_set_filler(png, 0xff, PNG_FILLER_AFTER);
+  }
+  (void)png_set_interlace_handling(png);
+  png_read_update_info(png, info);
+  row_bytes = png_get_rowbytes(png, info);
+  if (row_bytes != (size_t)width * 4u) {
+    goto done;
+  }
+
+  pixels = (png_bytep)malloc(row_bytes * (size_t)height);
+  rows = (png_bytep *)malloc(sizeof(png_bytep) * (size_t)height);
+  if (!pixels || !rows) {
+    goto done;
+  }
+  for (y = 0; y < height; y++) {
+    rows[y] = pixels + row_bytes * (size_t)y;
+  }
+  png_read_image(png, rows);
+  png_read_end(png, NULL);
+  *pixels_out = pixels;
+  *width_out = (int)width;
+  *height_out = (int)height;
+  pixels = NULL;
+  ok = 1;
+
+done:
+  free(rows);
+  free(pixels);
+  png_destroy_read_struct(&png, &info, NULL);
+  fclose(f);
+  return ok;
+}
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+static int plumos_mali_graphic_load_texture(struct plumos_mali_renderer *renderer,
+                                            const char *path) {
+  unsigned char *pixels = NULL;
+  int width = 0;
+  int height = 0;
+  GLuint texture = 0;
+
+  if (!renderer || !path || !path[0] || !plumos_mali_path_has_png_ext(path)) {
+    return 0;
+  }
+  if (renderer->graphic_texture && strcmp(renderer->graphic_texture_path, path) == 0) {
+    return 1;
+  }
+  if (!plumos_mali_load_png_rgba(path, &pixels, &width, &height)) {
+    return 0;
+  }
+  renderer->gl.GenTextures(1, &texture);
+  if (!texture) {
+    free(pixels);
+    return 0;
+  }
+  renderer->gl.BindTexture(GL_TEXTURE_2D, texture);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  renderer->gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+                          GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+  free(pixels);
+
+  if (renderer->graphic_texture) {
+    renderer->gl.DeleteTextures(1, &renderer->graphic_texture);
+  }
+  renderer->graphic_texture = texture;
+  renderer->graphic_texture_width = width;
+  renderer->graphic_texture_height = height;
+  snprintf(renderer->graphic_texture_path, sizeof(renderer->graphic_texture_path),
+           "%s", path);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, 0);
+  renderer->gl.UseProgram(renderer->program);
+  return 1;
+}
+
+static int plumos_mali_graphic_draw_texture(struct plumos_mali_renderer *renderer,
+                                            const char *path, float x, float y,
+                                            float w, float h) {
+  float image_aspect;
+  float target_aspect;
+  float draw_w;
+  float draw_h;
+  float draw_x;
+  float draw_y;
+  GLfloat verts[8];
+  GLfloat tex[8] = {
+      0.0f, 0.0f,
+      1.0f, 0.0f,
+      0.0f, 1.0f,
+      1.0f, 1.0f,
+  };
+
+  if (!plumos_mali_graphic_load_texture(renderer, path) ||
+      renderer->graphic_texture_width <= 0 || renderer->graphic_texture_height <= 0) {
+    return 0;
+  }
+  image_aspect = (float)renderer->graphic_texture_width /
+                 (float)renderer->graphic_texture_height;
+  target_aspect = w / h;
+  draw_w = w;
+  draw_h = h;
+  if (image_aspect > target_aspect) {
+    draw_h = w / image_aspect;
+  } else {
+    draw_w = h * image_aspect;
+  }
+  draw_x = x + (w - draw_w) * 0.5f;
+  draw_y = y + (h - draw_h) * 0.5f;
+
+  plumos_mali_point_to_ndc(renderer, draw_x, draw_y, &verts[0], &verts[1]);
+  plumos_mali_point_to_ndc(renderer, draw_x + draw_w, draw_y, &verts[2], &verts[3]);
+  plumos_mali_point_to_ndc(renderer, draw_x, draw_y + draw_h, &verts[4], &verts[5]);
+  plumos_mali_point_to_ndc(renderer, draw_x + draw_w, draw_y + draw_h,
+                           &verts[6], &verts[7]);
+
+  renderer->gl.UseProgram(renderer->texture_program);
+  renderer->gl.ActiveTexture(GL_TEXTURE0);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, renderer->graphic_texture);
+  renderer->gl.Uniform1i(renderer->texture_sampler_uniform, 0);
+  renderer->gl.Enable(GL_BLEND);
+  renderer->gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  renderer->gl.EnableVertexAttribArray(0);
+  renderer->gl.EnableVertexAttribArray(1);
+  renderer->gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
+  renderer->gl.VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, tex);
+  renderer->gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  renderer->gl.DisableVertexAttribArray(1);
+  renderer->gl.Disable(GL_BLEND);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, 0);
+  renderer->gl.UseProgram(renderer->program);
+  renderer->gl.EnableVertexAttribArray(0);
+  return 1;
+}
+#endif
 
 static void plumos_mali_rect_clipped_x(struct plumos_mali_renderer *renderer,
                                        float x, float y, float w, float h,
@@ -2148,6 +2531,7 @@ struct plumos_mali_graphic_entry {
   int selected;
   char title[PLUMOS_MALI_RENDER_LINE_MAX];
   char detail[PLUMOS_MALI_RENDER_LINE_MAX];
+  char thumbnail[PLUMOS_MALI_RENDER_LINE_MAX];
 };
 
 static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
@@ -2177,6 +2561,7 @@ static int plumos_mali_graphic_parse_entry(
   const char *prefix = "graphic_entry\t";
   const char *p;
   const char *tab;
+  const char *tab2;
   char *endptr;
   long selected;
 
@@ -2197,7 +2582,14 @@ static int plumos_mali_graphic_parse_entry(
     return entry->title[0] != '\0';
   }
   plumos_mali_graphic_copy_field(entry->title, sizeof(entry->title), p, tab);
-  plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, NULL);
+  tab2 = strchr(tab + 1, '\t');
+  if (!tab2) {
+    plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, NULL);
+  } else {
+    plumos_mali_graphic_copy_field(entry->detail, sizeof(entry->detail), tab + 1, tab2);
+    plumos_mali_graphic_copy_field(entry->thumbnail, sizeof(entry->thumbnail), tab2 + 1,
+                                   NULL);
+  }
   return entry->title[0] != '\0';
 }
 
@@ -2339,6 +2731,7 @@ static void plumos_mali_graphic_draw_roms(
   char display_title[PLUMOS_MALI_RENDER_LINE_MAX];
   char initials[8];
   int initials_width;
+  int thumbnail_drawn = 0;
 
   plumos_mali_copy_utf8_cells(
       system && system[0] ? system :
@@ -2384,12 +2777,22 @@ static void plumos_mali_graphic_draw_roms(
                    0.11f, 0.16f, 0.18f, 1.0f);
 
   if (selected) {
+#ifdef PLUMOS_ENABLE_MALI_PNG
+    if (selected->thumbnail[0]) {
+      thumbnail_drawn =
+          plumos_mali_graphic_draw_texture(renderer, selected->thumbnail,
+                                           preview_x + 16.0f, preview_y + 18.0f,
+                                           preview_w - 32.0f, 156.0f);
+    }
+#endif
     plumos_mali_graphic_initials(selected->title, initials, sizeof(initials));
-    initials_width = plumos_mali_text_width(initials, 4);
-    plumos_mali_text(renderer, initials,
-                     preview_x + (preview_w - (float)initials_width) * 0.5f,
-                     preview_y + 76.0f, 4,
-                     0.72f, 0.86f, 0.86f, 1.0f);
+    if (!thumbnail_drawn) {
+      initials_width = plumos_mali_text_width(initials, 4);
+      plumos_mali_text(renderer, initials,
+                       preview_x + (preview_w - (float)initials_width) * 0.5f,
+                       preview_y + 76.0f, 4,
+                       0.72f, 0.86f, 0.86f, 1.0f);
+    }
     plumos_mali_copy_utf8_cells(selected->title, display_title,
                                 sizeof(display_title), 28);
     plumos_mali_text_clipped(renderer, display_title,

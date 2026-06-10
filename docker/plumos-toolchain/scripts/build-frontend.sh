@@ -128,11 +128,13 @@ build_mali_controller() {
     -Wextra \
     -DPLUMOS_ENABLE_MALI_RENDERER=1 \
     -DPLUMOS_ENABLE_MALI_FREETYPE=1 \
+    -DPLUMOS_ENABLE_MALI_PNG=1 \
     -I/usr/include/freetype2 \
     "$CONTROLLER_UI_SRC" \
     -o "$CONTROLLER_MALI_OUT" \
     -ldl \
     -lfreetype \
+    -lpng \
     -lm
 
   "$STRIP" "$CONTROLLER_MALI_OUT" 2>/dev/null || true

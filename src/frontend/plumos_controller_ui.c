@@ -198,6 +198,7 @@ struct rom_entry {
   char title[256];
   char relative_path[UI_PATH_MAX];
   char path[UI_PATH_MAX];
+  char thumbnail[UI_PATH_MAX];
   char launch_profile[128];
   char detail[256];
   int resume_available;
@@ -3789,6 +3790,8 @@ static int load_favorite_entries(struct ui_state *ui) {
   while (ui->rom_count < UI_MAX_ROMS) {
     const char *obj_start;
     const char *obj_end;
+    const char *media_start;
+    const char *media_end;
     struct rom_entry entry;
 
     if (!json_next_object(&cursor, end, &obj_start, &obj_end)) {
@@ -3801,6 +3804,10 @@ static int load_favorite_entries(struct ui_state *ui) {
     json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
                     sizeof(entry.relative_path));
     json_get_string(obj_start, obj_end, "path", entry.path, sizeof(entry.path));
+    if (json_find_object(obj_start, obj_end, "media", &media_start, &media_end)) {
+      json_get_string(media_start, media_end, "thumbnail", entry.thumbnail,
+                      sizeof(entry.thumbnail));
+    }
     if (!entry.title[0]) {
       copy_string(entry.title, sizeof(entry.title), entry.relative_path);
     }
@@ -3837,6 +3844,8 @@ static int load_recent_entries(struct ui_state *ui) {
   while (ui->rom_count < UI_MAX_ROMS) {
     const char *obj_start;
     const char *obj_end;
+    const char *media_start;
+    const char *media_end;
     struct rom_entry entry;
     char last_played_at[64] = "";
 
@@ -3850,6 +3859,10 @@ static int load_recent_entries(struct ui_state *ui) {
     json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
                     sizeof(entry.relative_path));
     json_get_string(obj_start, obj_end, "path", entry.path, sizeof(entry.path));
+    if (json_find_object(obj_start, obj_end, "media", &media_start, &media_end)) {
+      json_get_string(media_start, media_end, "thumbnail", entry.thumbnail,
+                      sizeof(entry.thumbnail));
+    }
     json_get_string(obj_start, obj_end, "launch_profile", entry.launch_profile,
                     sizeof(entry.launch_profile));
     json_get_string(obj_start, obj_end, "last_played_at", last_played_at,
@@ -3938,6 +3951,8 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   while (ui->rom_count < UI_MAX_ROMS) {
     const char *obj_start;
     const char *obj_end;
+    const char *media_start;
+    const char *media_end;
     struct rom_entry entry;
 
     if (!json_next_object(&cursor, end, &obj_start, &obj_end)) {
@@ -3949,6 +3964,10 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
     json_get_string(obj_start, obj_end, "relative_path", entry.relative_path,
                     sizeof(entry.relative_path));
     json_get_string(obj_start, obj_end, "path", entry.path, sizeof(entry.path));
+    if (json_find_object(obj_start, obj_end, "media", &media_start, &media_end)) {
+      json_get_string(media_start, media_end, "thumbnail", entry.thumbnail,
+                      sizeof(entry.thumbnail));
+    }
     if (!entry.title[0]) {
       copy_string(entry.title, sizeof(entry.title), entry.relative_path);
     }
@@ -4173,8 +4192,8 @@ static void render_roms_graphic(struct ui_state *ui, const char *title,
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
     const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
-    ui_printf(ui, "graphic_entry\t%d\t%s\t%s\n",
-              i == ui->rom_cursor ? 1 : 0, entry->title, detail);
+    ui_printf(ui, "graphic_entry\t%d\t%s\t%s\t%s\n",
+              i == ui->rom_cursor ? 1 : 0, entry->title, detail, entry->thumbnail);
   }
   if (ui->rom_count == 0) {
     ui_printf(ui, "graphic_entry\t1\tNo Entries\t-\n");

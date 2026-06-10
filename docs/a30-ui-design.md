@@ -109,8 +109,9 @@
 - TOP card は system 名、ROM数、fallback initials を表示する。画像がなくても空に見せない。
 - ROM list は左に選択リスト、右に選択中ROMのプレビューパネルを置く。1ページは8件を基準にする。
 - ROM名は日本語を含めて正確に表示するため、GraphicのROM listではFreeType描画を優先する。
-- アートワーク未検出時は `NO ART` ではなく initials/fallback panel を表示し、将来の画像読み込みに
-  差し替えられる領域として扱う。
+- ROM preview は既存ROM cacheの `media.thumbnail` を使う。PNG thumbnail が存在する場合は右側
+  preview panel に contain 表示し、画像が無い/読めない場合は initials/fallback panel を表示する。
+- JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。
   紫・青一色、ベージュ一色などの単調なpaletteにはしない。

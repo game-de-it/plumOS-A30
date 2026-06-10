@@ -180,8 +180,11 @@ misclick prevention.
   on the right. One page shows 8 entries.
 - ROM names prefer FreeType rendering so Japanese names and symbols remain
   accurate.
-- Missing artwork uses an initials/fallback panel, treated as the future
-  replacement area for real images.
+- ROM previews use `media.thumbnail` from the existing ROM cache. PNG
+  thumbnails are drawn into the right preview panel with contain fitting; missing
+  or unreadable artwork falls back to the initials panel.
+- JPEG/WEBP remain part of scanner lookup, but the Graphic renderer initially
+  prioritizes PNG rendering.
 - TOP/ROM/Favorites/Recent keep the same orange left accent bar as Text mode.
 - Use a near-black neutral background, dark gray/teal cards, and orange selection
   outlines. Avoid one-note palettes such as all-purple, all-blue, or all-beige.
