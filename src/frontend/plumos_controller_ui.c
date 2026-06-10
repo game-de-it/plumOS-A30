@@ -301,6 +301,8 @@ struct theme_state {
   char system_logo_root[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
   char graphic_transition[32];
+  char graphic_transition_axis[32];
+  char graphic_transition_easing[32];
   long graphic_transition_ms;
   char color_background[16];
   char color_foreground[16];
@@ -2499,6 +2501,10 @@ static void init_theme_state(struct theme_state *theme, const char *theme_id,
   copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
   copy_string(theme->system_logo_root, sizeof(theme->system_logo_root), "logos/systems");
   copy_string(theme->graphic_transition, sizeof(theme->graphic_transition), "none");
+  copy_string(theme->graphic_transition_axis, sizeof(theme->graphic_transition_axis),
+              "vertical");
+  copy_string(theme->graphic_transition_easing, sizeof(theme->graphic_transition_easing),
+              "smoothstep");
   theme->graphic_transition_ms = 0;
   copy_string(theme->status, sizeof(theme->status), "builtin graphic fallback");
   if (theme_path) {
@@ -2624,6 +2630,12 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
     json_get_string(graphic_start, graphic_end, "transition",
                     ui->theme.graphic_transition,
                     sizeof(ui->theme.graphic_transition));
+    json_get_string(graphic_start, graphic_end, "transition_axis",
+                    ui->theme.graphic_transition_axis,
+                    sizeof(ui->theme.graphic_transition_axis));
+    json_get_string(graphic_start, graphic_end, "transition_easing",
+                    ui->theme.graphic_transition_easing,
+                    sizeof(ui->theme.graphic_transition_easing));
     ui->theme.graphic_transition_ms =
         json_get_long(graphic_start, graphic_end, "transition_ms",
                       ui->theme.graphic_transition_ms);
@@ -2637,10 +2649,20 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
     copy_string(ui->theme.graphic_transition,
                 sizeof(ui->theme.graphic_transition), "none");
   }
+  if (strcmp(ui->theme.graphic_transition_axis, "vertical") != 0 &&
+      strcmp(ui->theme.graphic_transition_axis, "horizontal") != 0) {
+    copy_string(ui->theme.graphic_transition_axis,
+                sizeof(ui->theme.graphic_transition_axis), "vertical");
+  }
+  if (strcmp(ui->theme.graphic_transition_easing, "smoothstep") != 0 &&
+      strcmp(ui->theme.graphic_transition_easing, "linear") != 0) {
+    copy_string(ui->theme.graphic_transition_easing,
+                sizeof(ui->theme.graphic_transition_easing), "smoothstep");
+  }
   if (ui->theme.graphic_transition_ms < 0) {
     ui->theme.graphic_transition_ms = 0;
-  } else if (ui->theme.graphic_transition_ms > 500) {
-    ui->theme.graphic_transition_ms = 500;
+  } else if (ui->theme.graphic_transition_ms > 1000) {
+    ui->theme.graphic_transition_ms = 1000;
   }
 
   if (theme_behavior_is_blocked(json, json_end)) {
@@ -4408,8 +4430,8 @@ static long ui_graphic_top_transition_duration_ms(const struct ui_state *ui) {
                  : UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS;
   if (duration < 80) {
     duration = 80;
-  } else if (duration > 500) {
-    duration = 500;
+  } else if (duration > 1000) {
+    duration = 1000;
   }
   return duration;
 }
@@ -4550,6 +4572,10 @@ static void ui_emit_graphic_theme(struct ui_state *ui) {
                               ui->theme.color_selection_foreground);
   ui_emit_graphic_theme_color(ui, "danger", ui->theme.color_danger);
   ui_emit_graphic_theme_motion(ui, "transition", ui->theme.graphic_transition);
+  ui_emit_graphic_theme_motion(ui, "transition_axis",
+                               ui->theme.graphic_transition_axis);
+  ui_emit_graphic_theme_motion(ui, "transition_easing",
+                               ui->theme.graphic_transition_easing);
 }
 
 static void ui_emit_graphic_top_entry(struct ui_state *ui,

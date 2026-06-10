@@ -2611,6 +2611,8 @@ struct plumos_mali_graphic_theme {
   struct plumos_mali_rgb danger;
   char background_image[PLUMOS_MALI_RENDER_LINE_MAX];
   char placeholder_thumbnail[PLUMOS_MALI_RENDER_LINE_MAX];
+  char transition_axis[32];
+  char transition_easing[32];
 };
 
 static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
@@ -2659,6 +2661,9 @@ static void plumos_mali_graphic_theme_defaults(
   theme->selection_background = plumos_mali_rgb(0.14f, 0.23f, 0.20f);
   theme->selection_foreground = plumos_mali_rgb(1.0f, 0.90f, 0.48f);
   theme->danger = plumos_mali_rgb(1.0f, 0.08f, 0.04f);
+  snprintf(theme->transition_axis, sizeof(theme->transition_axis), "%s", "vertical");
+  snprintf(theme->transition_easing, sizeof(theme->transition_easing), "%s",
+           "smoothstep");
 }
 
 static int plumos_mali_hex_digit(char ch) {
@@ -2735,6 +2740,7 @@ static void plumos_mali_graphic_theme_parse_line(
     struct plumos_mali_graphic_theme *theme, const char *line) {
   const char *prefix_color = "graphic_theme_color\t";
   const char *prefix_asset = "graphic_theme_asset\t";
+  const char *prefix_motion = "graphic_theme_motion\t";
   const char *p;
   const char *tab;
   char key[64];
@@ -2747,6 +2753,8 @@ static void plumos_mali_graphic_theme_parse_line(
     p = line + strlen(prefix_color);
   } else if (plumos_mali_starts_with(line, prefix_asset)) {
     p = line + strlen(prefix_asset);
+  } else if (plumos_mali_starts_with(line, prefix_motion)) {
+    p = line + strlen(prefix_motion);
   } else {
     return;
   }
@@ -2758,6 +2766,16 @@ static void plumos_mali_graphic_theme_parse_line(
   plumos_mali_graphic_copy_field(value, sizeof(value), tab + 1, NULL);
   if (plumos_mali_starts_with(line, prefix_color)) {
     plumos_mali_graphic_theme_set_color(theme, key, value);
+  } else if (plumos_mali_starts_with(line, prefix_motion)) {
+    if (strcmp(key, "transition_axis") == 0 &&
+        (strcmp(value, "vertical") == 0 || strcmp(value, "horizontal") == 0)) {
+      snprintf(theme->transition_axis, sizeof(theme->transition_axis), "%s",
+               strcmp(value, "horizontal") == 0 ? "horizontal" : "vertical");
+    } else if (strcmp(key, "transition_easing") == 0 &&
+               (strcmp(value, "smoothstep") == 0 || strcmp(value, "linear") == 0)) {
+      snprintf(theme->transition_easing, sizeof(theme->transition_easing), "%s",
+               strcmp(value, "linear") == 0 ? "linear" : "smoothstep");
+    }
   } else if (strcmp(key, "background") == 0) {
     snprintf(theme->background_image, sizeof(theme->background_image),
              "%s", value);
@@ -2917,7 +2935,7 @@ static void plumos_mali_graphic_draw_top_entries(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
-    float y_offset) {
+    float x_offset, float y_offset) {
   const size_t columns = 3;
   const size_t rows = 2;
   const float horizontal_margin = 22.0f;
@@ -2948,7 +2966,7 @@ static void plumos_mali_graphic_draw_top_entries(
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;
     size_t row = i / columns;
-    float x = grid_x + (float)col * (tile_w + gap);
+    float x = grid_x + x_offset + (float)col * (tile_w + gap);
     float y = grid_y + y_offset + (float)row * (tile_h + gap);
     float media_x = x + 14.0f;
     float media_y = y + 14.0f;
@@ -3015,16 +3033,20 @@ static void plumos_mali_graphic_draw_top_entries(
                                      theme->muted, 1.0f);
   }
   if (entry_count == 0) {
-    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f, 90.0f + y_offset, 3,
-                             theme->foreground, 1.0f);
+    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f + x_offset,
+                             90.0f + y_offset, 3, theme->foreground, 1.0f);
   }
 }
 
-static float plumos_mali_graphic_ease_slide_progress(float progress) {
+static float plumos_mali_graphic_ease_slide_progress(float progress,
+                                                     const char *easing) {
   if (progress < 0.0f) {
     progress = 0.0f;
   } else if (progress > 1.0f) {
     progress = 1.0f;
+  }
+  if (easing && strcmp(easing, "linear") == 0) {
+    return progress;
   }
   return progress * progress * (3.0f - 2.0f * progress);
 }
@@ -3038,6 +3060,10 @@ static void plumos_mali_graphic_draw_top(
     const char *status) {
   float current_offset = 0.0f;
   float prev_offset = 0.0f;
+  float current_x_offset = 0.0f;
+  float current_y_offset = 0.0f;
+  float prev_x_offset = 0.0f;
+  float prev_y_offset = 0.0f;
   int slide_active = transition && strcmp(transition, "slide") == 0 &&
                      prev_entry_count > 0 && transition_progress < 1.0f;
 
@@ -3048,17 +3074,28 @@ static void plumos_mali_graphic_draw_top(
   }
 
   if (slide_active) {
-    float height = (float)renderer->height;
-    float eased_progress = plumos_mali_graphic_ease_slide_progress(transition_progress);
+    int horizontal = strcmp(theme->transition_axis, "horizontal") == 0;
+    float distance = horizontal ? (float)renderer->width : (float)renderer->height;
+    float eased_progress =
+        plumos_mali_graphic_ease_slide_progress(transition_progress,
+                                                theme->transition_easing);
     int direction = transition_direction < 0 ? -1 : 1;
-    prev_offset = -((float)direction) * height * eased_progress;
-    current_offset = ((float)direction) * height * (1.0f - eased_progress);
+    prev_offset = -((float)direction) * distance * eased_progress;
+    current_offset = ((float)direction) * distance * (1.0f - eased_progress);
+    if (horizontal) {
+      prev_x_offset = prev_offset;
+      current_x_offset = current_offset;
+    } else {
+      prev_y_offset = prev_offset;
+      current_y_offset = current_offset;
+    }
     plumos_mali_graphic_draw_top_entries(renderer, theme, prev_entries,
-                                         prev_entry_count, prev_offset);
+                                         prev_entry_count, prev_x_offset,
+                                         prev_y_offset);
   }
 
   plumos_mali_graphic_draw_top_entries(renderer, theme, entries, entry_count,
-                                       current_offset);
+                                       current_x_offset, current_y_offset);
   plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
   plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
                            theme->accent, 1.0f);

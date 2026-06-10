@@ -262,7 +262,9 @@ are not the official plumOS theme specification.
     "top_layout": "tile_grid",
     "rom_layout": "list_preview",
     "transition": "slide",
-    "transition_ms": 260,
+    "transition_ms": 1000,
+    "transition_axis": "vertical",
+    "transition_easing": "smoothstep",
     "thumbnail_fit": "contain",
     "missing_thumbnail": "text_fallback"
   },

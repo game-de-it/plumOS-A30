@@ -184,7 +184,8 @@ misclick prevention.
   `graphic_mode.transition`. The currently supported values are `none` and
   `slide`. `slide` is eased vertical motion: the next page rises from below and
   the previous page descends from above. Themes may not change input, page size,
-  confirm, or back behavior.
+  confirm, or back behavior. Transition duration, axis, and easing are controlled
+  by theme `transition_ms`, `transition_axis`, and `transition_easing`.
 - ROM lists put the selectable list on the left and a selected-ROM preview panel
   on the right. One page shows 8 entries.
 - ROM names prefer FreeType rendering so Japanese names and symbols remain
