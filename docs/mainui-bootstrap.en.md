@@ -66,6 +66,23 @@ backs/cancels.
 Network recovery for cases where SSH is unavailable should be designed as a
 separate shell script launched directly from StockOS MainUI, not as an FE route.
 
+## FE Control
+
+Use this single entry point for normal FE operations:
+
+```sh
+./scripts/a30-fe-control.sh status
+./scripts/a30-fe-control.sh restart
+./scripts/a30-fe-control.sh stop
+./scripts/a30-fe-control.sh start
+```
+
+`plumos-fe-control stop` creates `/tmp/plumos-fe-paused`, then stops the FE and
+wrapper. Stock `/etc/main` will run the wrapper again, but the wrapper waits
+while the pause file exists instead of launching the FE. `start` and `restart`
+remove the pause file and verify that `/dev/fb0` is owned by exactly one plumOS
+FE process after startup.
+
 ## Disable
 
 To keep the wrapper installed but boot stock MainUI directly, create this file

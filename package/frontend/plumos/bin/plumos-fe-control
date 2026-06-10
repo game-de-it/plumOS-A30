@@ -1,0 +1,310 @@
+#!/bin/sh
+# Start/stop/status helper for the single plumOS frontend instance on A30.
+
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
+LOG_FILE="${PLUMOS_FE_CONTROL_LOG:-${LOG_DIR}/plumos-fe-control.log}"
+MAINUI_APP="${PLUMOS_MAINUI_APP:-/mnt/SDCARD/miyoo/app/MainUI}"
+PAUSE_FILE="${PLUMOS_FE_PAUSE_FILE:-/tmp/plumos-fe-paused}"
+FE_READY_FLAG="${PLUMOS_FE_READY_FLAG:-/tmp/plumos-fe-ready}"
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") COMMAND
+
+Commands:
+  start     Start one frontend instance, resuming the MainUI wrapper if paused.
+  stop      Stop the frontend and keep the wrapper paused.
+  restart   Stop, resume, and wait for exactly one frontend instance.
+  status    Print wrapper/frontend/display state.
+
+Environment:
+  PLUMOS_ROOT          Default: ${PLUMOS_ROOT}
+  PLUMOS_FE_PAUSE_FILE Default: ${PAUSE_FILE}
+EOF
+}
+
+log() {
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+cmdline_of() {
+  tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null || true
+}
+
+add_pid() {
+  pid="$1"
+  case "$pid" in
+    ''|*[!0-9]*) return 0 ;;
+  esac
+  [ "$pid" = "$$" ] && return 0
+  case " $pids " in
+    *" $pid "*) return 0 ;;
+  esac
+  pids="$pids $pid"
+}
+
+is_frontend_cmd() {
+  case "$1" in
+    *"${PLUMOS_ROOT}/bin/plumos-controller-ui-mali"*|\
+    *"${PLUMOS_ROOT}/bin/plumos-controller-ui "*|\
+    *"${PLUMOS_ROOT}/bin/plumos-controller-ui" )
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+is_wrapper_cmd() {
+  case "$1" in
+    *'/tmp/plumos-mainui-wrapper.run'*|\
+    *'/mnt/SDCARD/miyoo/app/MainUI '*|\
+    *'/mnt/SDCARD/miyoo/app/MainUI'|\
+    *"${PLUMOS_ROOT}/bootstrap/MainUI.wrapper"*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+is_display_cmd() {
+  cmd="$1"
+  if is_frontend_cmd "$cmd"; then
+    return 0
+  fi
+  case "$cmd" in
+    *"${PLUMOS_ROOT}/emulators/"*|\
+    *"${PLUMOS_ROOT}/retroarch/bin/retroarch"*|\
+    *"${PLUMOS_ROOT}/bin/plumos-standalone-launch"*|\
+    *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+collect_frontend_pids() {
+  pids=""
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    pid="${f#/proc/}"
+    pid="${pid%/cmdline}"
+    cmd="$(cmdline_of "$pid")"
+    is_frontend_cmd "$cmd" && add_pid "$pid"
+  done
+  printf '%s\n' "$pids"
+}
+
+collect_wrapper_pids() {
+  pids=""
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    pid="${f#/proc/}"
+    pid="${pid%/cmdline}"
+    cmd="$(cmdline_of "$pid")"
+    is_wrapper_cmd "$cmd" && add_pid "$pid"
+  done
+  printf '%s\n' "$pids"
+}
+
+collect_display_pids() {
+  pids=""
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    pid="${f#/proc/}"
+    pid="${pid%/cmdline}"
+    cmd="$(cmdline_of "$pid")"
+    is_display_cmd "$cmd" && add_pid "$pid"
+  done
+  for fd in /proc/[0-9]*/fd/*; do
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    [ "$target" = /dev/fb0 ] || continue
+    pid="${fd#/proc/}"
+    pid="${pid%%/*}"
+    cmd="$(cmdline_of "$pid")"
+    is_display_cmd "$cmd" && add_pid "$pid"
+  done
+  printf '%s\n' "$pids"
+}
+
+collect_stop_pids() {
+  pids=""
+  for pid in $(collect_display_pids) $(collect_wrapper_pids); do
+    add_pid "$pid"
+  done
+  printf '%s\n' "$pids"
+}
+
+kill_pids() {
+  list="$1"
+  [ -n "$list" ] || return 0
+  log "killing pids:${list}"
+  kill -TERM $list 2>/dev/null || true
+  sleep 1
+  kill -KILL $list 2>/dev/null || true
+}
+
+fb0_owner_lines() {
+  seen=""
+  for fd in /proc/[0-9]*/fd/*; do
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    [ "$target" = /dev/fb0 ] || continue
+    pid="${fd#/proc/}"
+    pid="${pid%%/*}"
+    case " $seen " in
+      *" $pid "*) continue ;;
+    esac
+    seen="$seen $pid"
+    printf '%s\t%s\n' "$pid" "$(cmdline_of "$pid")"
+  done
+}
+
+fb0_owner_count() {
+  fb0_owner_lines | sed '/^$/d' | wc -l | tr -d ' '
+}
+
+have_etc_main() {
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    cmd="$(tr '\0' ' ' <"$f" 2>/dev/null || true)"
+    case "$cmd" in
+      *'/bin/sh /etc/main'*|*'sh /etc/main'*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+ensure_wrapper_started() {
+  if [ -n "$(collect_frontend_pids)" ] || [ -n "$(collect_wrapper_pids)" ]; then
+    return 0
+  fi
+  if have_etc_main; then
+    return 0
+  fi
+  if [ ! -x "$MAINUI_APP" ]; then
+    echo "error: MainUI wrapper is missing or not executable: $MAINUI_APP" >&2
+    return 1
+  fi
+  log "starting wrapper manually: $MAINUI_APP"
+  (
+    trap '' HUP
+    cd "$(dirname "$MAINUI_APP")" 2>/dev/null || cd / 2>/dev/null || true
+    PLUMOS_ROOT="$PLUMOS_ROOT" "$MAINUI_APP" >> "${LOG_DIR}/mainui-wrapper.log" 2>&1 &
+  )
+}
+
+wait_no_fb0_owner() {
+  timeout="${1:-5}"
+  elapsed=0
+  while [ "$elapsed" -lt "$timeout" ]; do
+    [ "$(fb0_owner_count)" = 0 ] && return 0
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  return 1
+}
+
+wait_single_frontend() {
+  timeout="${1:-10}"
+  elapsed=0
+  while [ "$elapsed" -lt "$timeout" ]; do
+    owners="$(fb0_owner_lines)"
+    count="$(printf '%s\n' "$owners" | sed '/^$/d' | wc -l | tr -d ' ')"
+    if [ "$count" = 1 ]; then
+      owner_cmd="$(printf '%s\n' "$owners" | cut -f2-)"
+      if is_frontend_cmd "$owner_cmd"; then
+        return 0
+      fi
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  return 1
+}
+
+cmd_stop() {
+  log "stop requested"
+  : > "$PAUSE_FILE"
+  kill_pids "$(collect_stop_pids)"
+  if wait_no_fb0_owner 8; then
+    echo "result=stopped"
+  else
+    echo "result=stopped_with_remaining_fb0_owner"
+    fb0_owner_lines
+    return 1
+  fi
+}
+
+cmd_start() {
+  log "start requested"
+  rm -f "$PAUSE_FILE"
+  rm -f "$FE_READY_FLAG" 2>/dev/null || true
+  ensure_wrapper_started
+  if wait_single_frontend 12; then
+    echo "result=single_frontend"
+  else
+    echo "result=start_not_clean"
+    cmd_status
+    return 1
+  fi
+}
+
+cmd_restart() {
+  log "restart requested"
+  : > "$PAUSE_FILE"
+  kill_pids "$(collect_stop_pids)"
+  wait_no_fb0_owner 8 || true
+  rm -f "$PAUSE_FILE"
+  rm -f "$FE_READY_FLAG" 2>/dev/null || true
+  ensure_wrapper_started
+  if wait_single_frontend 12; then
+    echo "result=single_frontend"
+  else
+    echo "result=restart_not_clean"
+    cmd_status
+    return 1
+  fi
+}
+
+cmd_status() {
+  if [ -e "$PAUSE_FILE" ]; then
+    echo "pause=on"
+  else
+    echo "pause=off"
+  fi
+  echo "wrapper_pids=$(collect_wrapper_pids | sed 's/^ *//;s/ *$//')"
+  echo "frontend_pids=$(collect_frontend_pids | sed 's/^ *//;s/ *$//')"
+  echo "display_pids=$(collect_display_pids | sed 's/^ *//;s/ *$//')"
+  echo "fb0_owner_count=$(fb0_owner_count)"
+  fb0_owner_lines | while IFS="$(printf '\t')" read -r pid cmd; do
+    [ -n "$pid" ] || continue
+    printf 'fb0_owner pid=%s cmd=%s\n' "$pid" "$cmd"
+  done
+}
+
+case "${1:-}" in
+  start)
+    cmd_start
+    ;;
+  stop)
+    cmd_stop
+    ;;
+  restart)
+    cmd_restart
+    ;;
+  status)
+    cmd_status
+    ;;
+  -h|--help|help|'')
+    usage
+    ;;
+  *)
+    echo "error: unknown command: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
