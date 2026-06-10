@@ -184,6 +184,7 @@ struct input_event {
 #define UI_USB_DISK_START_DELAY_MS 2000
 #define UI_THUMBNAIL_RESULT_WINDOW 11
 #define UI_SDCARD_CLEANUP_MIN_INTERVAL_MS 60000
+#define UI_ROM_SCAN_REFRESH_MIN_INTERVAL_MS 3000
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
@@ -539,6 +540,11 @@ struct ui_state {
   unsigned int repeat_key_code;
   long long repeat_next_ms;
   long long sdcard_cleanup_last_ms;
+  pid_t rom_scan_refresh_pid;
+  long long rom_scan_refresh_last_ms;
+  char rom_scan_refresh_system_id[64];
+  int rom_scan_refresh_suppressed;
+  int rom_scan_background_started;
   char mali_rotation[16];
   char mali_tty_entry_scale[8];
   char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
@@ -1939,6 +1945,88 @@ static void redirect_child_stdio_to_devnull(void) {
   }
 }
 
+static void close_child_extra_fds(void) {
+  long max_fd = sysconf(_SC_OPEN_MAX);
+  int fd;
+
+  if (max_fd < 0 || max_fd > 256) {
+    max_fd = 256;
+  }
+  for (fd = STDERR_FILENO + 1; fd < max_fd; fd++) {
+    close(fd);
+  }
+}
+
+static pid_t start_scanner_process(const char *plumos_root, const char *sdcard_root,
+                                   const char *system_id, int with_thumbnails) {
+  char scanner[PATH_MAX];
+  pid_t pid;
+
+  if (!join_path(scanner, sizeof(scanner), plumos_root, "bin/plumos-library-scan")) {
+    return -1;
+  }
+  if (!file_exists(scanner)) {
+    return -1;
+  }
+  if (system_id && !valid_system_id(system_id)) {
+    return -1;
+  }
+
+  pid = fork();
+  if (pid < 0) {
+    return -1;
+  }
+  if (pid == 0) {
+    setenv("PLUMOS_ROOT", plumos_root, 1);
+    setenv("PLUMOS_SDCARD_ROOT", sdcard_root, 1);
+    redirect_child_stdio_to_devnull();
+    close_child_extra_fds();
+    if (system_id) {
+      if (with_thumbnails) {
+        execl(scanner, scanner, "--on-enter", system_id, "--with-thumbnails",
+              (char *)NULL);
+      } else {
+        execl(scanner, scanner, "--on-enter", system_id, (char *)NULL);
+      }
+    } else {
+      execl(scanner, scanner, (char *)NULL);
+    }
+    _exit(127);
+  }
+  return pid;
+}
+
+static int trigger_rom_scan_refresh(struct ui_state *ui, const char *system_id,
+                                    int with_thumbnails) {
+  long long now;
+  pid_t pid;
+
+  if (!ui || !system_id || !valid_system_id(system_id)) {
+    return 0;
+  }
+  if (ui->rom_scan_refresh_pid > 0) {
+    return 0;
+  }
+  now = current_time_ms();
+  if (ui->rom_scan_refresh_last_ms > 0 &&
+      strcmp(ui->rom_scan_refresh_system_id, system_id) == 0 &&
+      now - ui->rom_scan_refresh_last_ms < UI_ROM_SCAN_REFRESH_MIN_INTERVAL_MS) {
+    return 0;
+  }
+
+  pid = start_scanner_process(ui->plumos_root, ui->sdcard_root, system_id,
+                              with_thumbnails);
+  if (pid <= 0) {
+    return 0;
+  }
+  ui->rom_scan_refresh_pid = pid;
+  ui->rom_scan_refresh_last_ms = now;
+  copy_string(ui->rom_scan_refresh_system_id, sizeof(ui->rom_scan_refresh_system_id),
+              system_id);
+  ui->rom_scan_background_started = 1;
+  return 1;
+}
+
 static int start_sdcard_cleanup_process(const char *plumos_root, const char *sdcard_root,
                                         int force, int invalidate_cache) {
   char cleanup[PATH_MAX];
@@ -1959,6 +2047,7 @@ static int start_sdcard_cleanup_process(const char *plumos_root, const char *sdc
     setenv("PLUMOS_ROOT", plumos_root, 1);
     setenv("PLUMOS_SDCARD_ROOT", sdcard_root, 1);
     redirect_child_stdio_to_devnull();
+    close_child_extra_fds();
     if (force && invalidate_cache) {
       execl(cleanup, cleanup, "--force", (char *)NULL);
     } else if (force && !invalidate_cache) {
@@ -4970,6 +5059,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
 
   ui->rom_count = 0;
   ui->rom_cursor = 0;
+  ui->rom_scan_background_started = 0;
   if (strcmp(system_id, "favorites") == 0) {
     return load_favorite_entries(ui);
   }
@@ -4984,10 +5074,19 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
       strcmp(settings.rom_mode[0] ? settings.rom_mode : settings.ui_mode, "graphic") == 0;
   cache_exists = file_exists(path);
   scan_on_enter = rom_scan_policy_is_on_enter(settings.rom_scan_policy);
-  if ((scan_on_enter || !cache_exists || ui->refresh) &&
-      !run_scanner(ui->plumos_root, ui->sdcard_root, system_id, with_thumbnails) &&
-      !cache_exists) {
-    return 0;
+  if (!cache_exists) {
+    if (!run_scanner(ui->plumos_root, ui->sdcard_root, system_id, 0)) {
+      return 0;
+    }
+    cache_exists = file_exists(path);
+    if (!cache_exists) {
+      return 0;
+    }
+    if (with_thumbnails && !ui->rom_scan_refresh_suppressed) {
+      trigger_rom_scan_refresh(ui, system_id, 1);
+    }
+  } else if ((scan_on_enter || ui->refresh) && !ui->rom_scan_refresh_suppressed) {
+    trigger_rom_scan_refresh(ui, system_id, with_thumbnails);
   }
   json = read_file(path, &json_size);
   if (!json) {
@@ -6701,11 +6800,13 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
     return;
   }
   ui->screen = SCREEN_ROMS;
-  set_status(ui, "on-enter ROM scan");
+  set_status(ui, "loading ROM list");
   if (!load_rom_entries(ui, entry->id)) {
     set_status(ui, "cannot load ROM list");
   } else if (ui->rom_count == UI_MAX_ROMS) {
     set_status(ui, "ROM list truncated at prototype limit");
+  } else if (ui->rom_scan_background_started) {
+    set_status(ui, "ROM list ready; refreshing scan");
   } else {
     set_status(ui, "ROM list ready");
   }
@@ -7834,7 +7935,7 @@ static void refresh_top_entries_preserve_cursor(struct ui_state *ui) {
   }
 }
 
-static void refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
+static int refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
   char selected_relative_path[UI_PATH_MAX] = "";
   char system_id[64] = "";
   size_t i;
@@ -7842,7 +7943,7 @@ static void refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
   if (!ui || !ui->current_system_id[0] ||
       strcmp(ui->current_system_id, "favorites") == 0 ||
       strcmp(ui->current_system_id, "recent") == 0) {
-    return;
+    return 0;
   }
   copy_string(system_id, sizeof(system_id), ui->current_system_id);
   if (ui->rom_count > 0 && ui->rom_cursor < ui->rom_count) {
@@ -7850,11 +7951,11 @@ static void refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
                 ui->rom_entries[ui->rom_cursor].relative_path);
   }
   if (!load_rom_entries(ui, system_id)) {
-    return;
+    return 0;
   }
   if (!selected_relative_path[0]) {
     reset_marquee(ui);
-    return;
+    return 1;
   }
   for (i = 0; i < ui->rom_count; i++) {
     if (strcmp(ui->rom_entries[i].relative_path, selected_relative_path) == 0) {
@@ -7863,6 +7964,47 @@ static void refresh_current_rom_entries_preserve_cursor(struct ui_state *ui) {
     }
   }
   reset_marquee(ui);
+  return 1;
+}
+
+static int poll_rom_scan_refresh(struct ui_state *ui) {
+  int status = 0;
+  pid_t rc;
+  char finished_system_id[64];
+  int refresh_ok;
+
+  if (!ui || ui->rom_scan_refresh_pid <= 0) {
+    return 0;
+  }
+  rc = waitpid(ui->rom_scan_refresh_pid, &status, WNOHANG);
+  if (rc == 0 || (rc < 0 && errno == EINTR)) {
+    return 0;
+  }
+  copy_string(finished_system_id, sizeof(finished_system_id),
+              ui->rom_scan_refresh_system_id);
+  ui->rom_scan_refresh_pid = 0;
+  if (rc < 0) {
+    set_status(ui, "background ROM scan status lost");
+    return 1;
+  }
+  if (!system_command_succeeded(status)) {
+    if (ui->screen == SCREEN_ROMS &&
+        strcmp(ui->current_system_id, finished_system_id) == 0) {
+      set_status(ui, "background ROM scan failed");
+      return 1;
+    }
+    return 0;
+  }
+  if (ui->screen != SCREEN_ROMS ||
+      strcmp(ui->current_system_id, finished_system_id) != 0) {
+    return 0;
+  }
+
+  ui->rom_scan_refresh_suppressed = 1;
+  refresh_ok = refresh_current_rom_entries_preserve_cursor(ui);
+  ui->rom_scan_refresh_suppressed = 0;
+  set_status(ui, refresh_ok ? "ROM list refreshed" : "ROM scan done; reload failed");
+  return 1;
 }
 
 static void refresh_runtime_after_setting_save(struct ui_state *ui, const char *id) {
@@ -9560,6 +9702,9 @@ static int ui_needs_periodic_refresh(const struct ui_state *ui) {
   if (ui->renderer_mali && ui->top_transition_active) {
     return 1;
   }
+  if (ui->rom_scan_refresh_pid > 0) {
+    return 1;
+  }
   if (ui_uses_graphic_mode(ui) && ui->screen == SCREEN_TOP) {
     return 0;
   }
@@ -9575,6 +9720,9 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
   }
   if (ui->renderer_mali) {
     return 100;
+  }
+  if (ui->rom_scan_refresh_pid > 0) {
+    return 250;
   }
   if (ui->rescue_network) {
     return 1000;
@@ -9624,6 +9772,15 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
                        (ui_needs_periodic_refresh(ui) ? 60 : 250);
 
     now_ms = current_time_ms();
+    if (poll_rom_scan_refresh(ui)) {
+      render_ui(ui);
+      if (ui_needs_periodic_refresh(ui)) {
+        next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
+      } else {
+        next_refresh_ms = 0;
+      }
+      continue;
+    }
     if (ui->screen == SCREEN_USB_DISK_STARTING && ui->usb_disk_start_due_ms > 0) {
       if (now_ms >= ui->usb_disk_start_due_ms) {
         run_usb_disk_mode(ui);

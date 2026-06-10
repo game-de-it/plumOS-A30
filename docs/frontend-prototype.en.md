@@ -87,9 +87,12 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `--on-enter` prioritizes the first text-mode display and defers thumbnail lookup
 by default. Use `--with-thumbnails` when thumbnails should be resolved during the
 scan.
-The controller UI passes `--with-thumbnails` only when opening a Graphic-mode
-ROM list, then uses `media.thumbnail` from `state/frontend/systems/<system>.json`
-for the preview panel.
+When a ROM-list cache already exists, the controller UI reads that cache first so
+the screen transition can finish immediately, then refreshes the scan in the
+background. When no cache exists, it runs one synchronous `--on-enter` scan
+without thumbnail lookup to create the minimal ROM list. In Graphic mode it then
+starts a background `--with-thumbnails` refresh and uses `media.thumbnail` from
+`state/frontend/systems/<system>.json` for the preview panel.
 
 Environment:
 
@@ -166,8 +169,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `roms <system>` runs `plumos-library-scan --on-enter <system>` internally, then
 reads `state/frontend/systems/<system>.json`. This is the first prototype of the
 future "re-read ROM list whenever entering a system" behavior.
-In Graphic mode, the controller UI adds `--with-thumbnails` so the same cache
-also stores thumbnail paths for ROM previews.
+In Graphic mode, the controller UI shows the existing cache immediately and adds
+`--with-thumbnails` only to the background refresh, so the same cache also stores
+thumbnail paths for ROM previews.
 
 START menu view:
 

@@ -131,8 +131,9 @@
 - ROM名は日本語を含めて正確に表示するため、GraphicのROM listではFreeType描画を優先する。
 - ROM preview は既存ROM cacheの `media.thumbnail` を使う。PNG thumbnail が存在する場合は右側
   preview panel に contain 表示し、画像が無い/読めない場合は initials/fallback panel を表示する。
-- Graphic mode の ROM list scan は `--with-thumbnails` を使い、FE 側の scan cache が
-  ROM と thumbnail path の対応を `media.thumbnail` として作る。
+- Graphic mode の ROM list は既存 cache を先に表示し、scan refresh は background で行う。
+  background refresh では `--with-thumbnails` を使い、FE 側の scan cache が ROM と
+  thumbnail path の対応を `media.thumbnail` として作る。
 - ROM preview panel のROM名/detail表示も ROM list と同じルールを継承する。ROM名は元表記を維持し、
   decomposed かな濁点/半濁点は表示時だけ合成する。長い文字列は選択中ROMと同じ marquee timer で
   `1000ms` 待ってから横スクロールし、行番号、debug/status、cursor代わりの縦バーは表示しない。
