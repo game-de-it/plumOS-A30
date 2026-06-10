@@ -13,6 +13,15 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` で StockOS の
   `MtpDaemon`、`adbd`、`sysntpd` を止め、StockOS が SD card を ASCII filename
   conversion で mount した場合は vfat UTF-8 mount へ正規化する
+- wrapper は SD card 正規化後に `plumos-sdcard-cleanup` を background 実行し、
+  macOS/Windows 由来の sidecar file (`._*`, `.DS_Store`, `Thumbs.db`, `desktop.ini`,
+  `__MACOSX`) を削除する。通常 scope は `Roms`/`roms` と `Images` に限定し、
+  FE 起動は cleanup 完了を待たない。全SD scan は `--all` の診断/手動用途に残す
+- controller UI は START menu に入る/戻るタイミングでも同じ cleanup を background
+  実行する。短時間の連続実行は FE 側で抑制し、ユーザー操作は待たせない
+- ROM scanner は sidecar file を ROM/thumbnail 候補から常に除外し、scan 開始時にも
+  cache を消さない cleanup を background 起動する。scan 結果の正確さは無視ルールで守り、
+  実ファイル削除は非同期で行う
 - wrapper は boot 時に `plumos-network-rescue` を自動実行しない
 - wrapper は保存済み Wi-Fi 設定から `plumos-network-control --wifi on` を実行し、
   DHCP/IP取得とSSH起動を試みる
@@ -115,4 +124,5 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 /mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
 /mnt/SDCARD/plumos/logs/stock-services.log
+/mnt/SDCARD/plumos/logs/sdcard-cleanup.log
 ```

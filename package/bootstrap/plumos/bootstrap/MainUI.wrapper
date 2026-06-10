@@ -23,6 +23,7 @@ CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-m
 NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
 STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-services}"
 NETWORK_CONTROL="${PLUMOS_NETWORK_CONTROL:-${PLUMOS_ROOT}/bin/plumos-network-control}"
+SDCARD_CLEANUP="${PLUMOS_SDCARD_CLEANUP:-${PLUMOS_ROOT}/bin/plumos-sdcard-cleanup}"
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
@@ -119,6 +120,24 @@ run_controller_ui() {
   fi
 }
 
+start_sdcard_cleanup() {
+  if [ ! -x "$SDCARD_CLEANUP" ]; then
+    log "SD card cleanup helper missing: ${SDCARD_CLEANUP}"
+    return 0
+  fi
+
+  log "starting SD card cleanup in background: ${SDCARD_CLEANUP}"
+  if command -v nice >/dev/null 2>&1; then
+    PLUMOS_ROOT="$PLUMOS_ROOT" \
+    PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}" \
+      nice -n 10 "$SDCARD_CLEANUP" >> "$LOG_FILE" 2>&1 &
+  else
+    PLUMOS_ROOT="$PLUMOS_ROOT" \
+    PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}" \
+      "$SDCARD_CLEANUP" >> "$LOG_FILE" 2>&1 &
+  fi
+}
+
 apply_timezone
 
 while [ -e "$FE_PAUSE_FILE" ]; do
@@ -134,6 +153,8 @@ if [ -x "$STOCK_SERVICES" ]; then
 else
   log "stock services helper missing: ${STOCK_SERVICES}"
 fi
+
+start_sdcard_cleanup
 
 if command -v killall >/dev/null 2>&1; then
   killall keymon >/dev/null 2>&1 || true

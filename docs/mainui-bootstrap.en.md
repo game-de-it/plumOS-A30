@@ -13,6 +13,18 @@ uses that path as a small wrapper and moves the actual frontend entry point to
 - Run `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` to stop StockOS
   `MtpDaemon`, `adbd`, and `sysntpd`, then normalize `/mnt/SDCARD` to a vfat
   UTF-8 mount when StockOS mounted it with ASCII filename conversion.
+- After SD-card normalization, run `plumos-sdcard-cleanup` in the background to
+  remove macOS/Windows sidecar files (`._*`, `.DS_Store`, `Thumbs.db`,
+  `desktop.ini`, and `__MACOSX`). The normal scope is limited to `Roms`/`roms`
+  and `Images`, and FE startup does not wait for cleanup completion. Full-SD
+  cleanup stays available through `--all` for manual diagnostics.
+- The controller UI also starts the same cleanup in the background when entering
+  or returning to the START menu. Short repeated runs are throttled by the FE,
+  and user input does not wait for cleanup completion.
+- The ROM scanner always excludes sidecar files from ROM/thumbnail candidates
+  and starts a no-cache-invalidation cleanup in the background at scan startup.
+  Scan correctness comes from the ignore rules; physical deletion happens
+  asynchronously.
 - Do not run `plumos-network-rescue` automatically at boot.
 - Run `plumos-network-control --wifi on` from the saved Wi-Fi config to acquire
   DHCP/IP and start SSH.
@@ -119,4 +131,5 @@ cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 /mnt/SDCARD/plumos/logs/plumos-controller-ui-mali.log
 /mnt/SDCARD/plumos/logs/plumos-frontend.log
 /mnt/SDCARD/plumos/logs/stock-services.log
+/mnt/SDCARD/plumos/logs/sdcard-cleanup.log
 ```

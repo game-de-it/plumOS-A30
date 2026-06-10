@@ -223,6 +223,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
 ```
 
+`deploy-a30.sh` preserves existing plumOS mutable settings, such as
+`plumos/config/frontend/settings.json` and `plumos/config/system/settings.json`,
+by saving them before extraction and restoring them afterward. On a fresh
+install, missing files still come from the package defaults. Set
+`PLUMOS_DEPLOY_PROTECT_CONFIG=0` only when intentionally resetting those
+settings.
+
 The Mali EGL controller UI renderer is included in the same frontend package.
 The wrapper uses the bundled dynamic loader/glibc, but it does not export
 `LD_LIBRARY_PATH` to child processes, so scanner calls from inside the UI do not

@@ -13,6 +13,9 @@ plumOS configuration.
 - Put `version` in each file for compatibility.
 - Do not store sensitive data in normal config files or git-tracked files.
 - Do not use stockOS-owned `/config/system.json` as a read/write target.
+- `deploy-a30.sh` must not overwrite existing mutable settings with package
+  defaults. It installs defaults on first deploy and restores existing files
+  after extraction when they already exist.
 
 ## Current Layout
 

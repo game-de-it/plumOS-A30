@@ -183,6 +183,7 @@ struct input_event {
 #define UI_WIFI_COMMAND_COUNT 5
 #define UI_USB_DISK_START_DELAY_MS 2000
 #define UI_THUMBNAIL_RESULT_WINDOW 11
+#define UI_SDCARD_CLEANUP_MIN_INTERVAL_MS 60000
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
 #define A30_LCD_BACKLIGHT_PATH "/sys/devices/virtual/disp/disp/attr/lcdbl"
 #define A30_DISPLAY_ENHANCE_PATH "/sys/devices/virtual/disp/disp/attr/enhance"
@@ -537,6 +538,7 @@ struct ui_state {
   enum ui_action repeat_action;
   unsigned int repeat_key_code;
   long long repeat_next_ms;
+  long long sdcard_cleanup_last_ms;
   char mali_rotation[16];
   char mali_tty_entry_scale[8];
   char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
@@ -1922,6 +1924,68 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
 
   rc = system(cmd);
   return rc == 0;
+}
+
+static void redirect_child_stdio_to_devnull(void) {
+  int fd = open("/dev/null", O_RDWR);
+  if (fd < 0) {
+    return;
+  }
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
+  if (fd > STDERR_FILENO) {
+    close(fd);
+  }
+}
+
+static int start_sdcard_cleanup_process(const char *plumos_root, const char *sdcard_root,
+                                        int force, int invalidate_cache) {
+  char cleanup[PATH_MAX];
+  pid_t pid;
+
+  if (!join_path(cleanup, sizeof(cleanup), plumos_root, "bin/plumos-sdcard-cleanup")) {
+    return 0;
+  }
+  if (!file_exists(cleanup)) {
+    return 0;
+  }
+
+  pid = fork();
+  if (pid < 0) {
+    return 0;
+  }
+  if (pid == 0) {
+    setenv("PLUMOS_ROOT", plumos_root, 1);
+    setenv("PLUMOS_SDCARD_ROOT", sdcard_root, 1);
+    redirect_child_stdio_to_devnull();
+    if (force && invalidate_cache) {
+      execl(cleanup, cleanup, "--force", (char *)NULL);
+    } else if (force && !invalidate_cache) {
+      execl(cleanup, cleanup, "--force", "--no-cache-invalidate", (char *)NULL);
+    } else if (!force && !invalidate_cache) {
+      execl(cleanup, cleanup, "--no-cache-invalidate", (char *)NULL);
+    } else {
+      execl(cleanup, cleanup, (char *)NULL);
+    }
+    _exit(127);
+  }
+  return 1;
+}
+
+static void trigger_sdcard_cleanup_from_start_menu(struct ui_state *ui) {
+  long long now;
+
+  if (!ui) {
+    return;
+  }
+  now = current_time_ms();
+  if (ui->sdcard_cleanup_last_ms > 0 &&
+      now - ui->sdcard_cleanup_last_ms < UI_SDCARD_CLEANUP_MIN_INTERVAL_MS) {
+    return;
+  }
+  ui->sdcard_cleanup_last_ms = now;
+  start_sdcard_cleanup_process(ui->plumos_root, ui->sdcard_root, 1, 1);
 }
 
 static void init_frontend_settings(struct frontend_settings *settings) {
@@ -5515,6 +5579,8 @@ static void render_roms(struct ui_state *ui) {
 static void render_start_menu(struct ui_state *ui) {
   size_t i;
 
+  trigger_sdcard_cleanup_from_start_menu(ui);
+
   ui_printf(ui, "plumOS controller UI - %s\n",
             ui->menu_title[0] ? ui->menu_title : "START");
   ui_printf(ui, "A: open/run  B: back  UP/DOWN: move  Q: quit\n");
@@ -6409,6 +6475,7 @@ static void shutdown_ui_renderer(struct ui_state *ui) {
 static void open_start_menu(struct ui_state *ui) {
   ui->back_screen = ui->screen;
   ui->screen = SCREEN_START_MENU;
+  trigger_sdcard_cleanup_from_start_menu(ui);
   if (!load_start_menu_entries(ui)) {
     set_status(ui, "cannot load START menu");
   } else {
@@ -6418,6 +6485,7 @@ static void open_start_menu(struct ui_state *ui) {
 
 static void open_apps_menu(struct ui_state *ui) {
   ui->screen = SCREEN_START_MENU;
+  trigger_sdcard_cleanup_from_start_menu(ui);
   if (!load_apps_menu_entries(ui)) {
     set_status(ui, "cannot load Apps menu");
   } else {

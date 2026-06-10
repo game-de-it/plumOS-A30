@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -313,6 +314,20 @@ static const char *file_extension(const char *name) {
     return "";
   }
   return dot + 1;
+}
+
+static int ignored_sidecar_name(const char *name) {
+  if (!name || !name[0]) {
+    return 1;
+  }
+  if (strncmp(name, "._", 2) == 0) {
+    return 1;
+  }
+  if (strcmp(name, ".DS_Store") == 0 || strcmp(name, "Thumbs.db") == 0 ||
+      strcmp(name, "desktop.ini") == 0 || strcmp(name, "__MACOSX") == 0) {
+    return 1;
+  }
+  return 0;
 }
 
 static void stem_from_name(char *out, size_t out_size, const char *name) {
@@ -933,6 +948,9 @@ static int find_case_insensitive_file(const char *candidate, char *out, size_t o
   }
   while ((ent = readdir(dir)) != NULL) {
     char found[PATH_MAX];
+    if (ignored_sidecar_name(ent->d_name)) {
+      continue;
+    }
     if (!ascii_equal_ci(ent->d_name, base_name)) {
       continue;
     }
@@ -1083,7 +1101,7 @@ static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const 
     char child_rel[PATH_MAX];
     const char *name = ent->d_name;
 
-    if (name[0] == '.') {
+    if (name[0] == '.' || ignored_sidecar_name(name)) {
       continue;
     }
     if (!join_path(child_path, sizeof(child_path), dir_path, name)) {
@@ -1416,6 +1434,42 @@ static long long now_ms(void) {
   return (long long)tv.tv_sec * 1000LL + (long long)tv.tv_usec / 1000LL;
 }
 
+static void redirect_child_stdio_to_devnull(void) {
+  int fd = open("/dev/null", O_RDWR);
+  if (fd < 0) {
+    return;
+  }
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
+  if (fd > STDERR_FILENO) {
+    close(fd);
+  }
+}
+
+static void start_sdcard_cleanup_process(const char *plumos_root, const char *sdcard_root) {
+  char cleanup[PATH_MAX];
+  pid_t pid;
+
+  if (!join_path(cleanup, sizeof(cleanup), plumos_root, "bin/plumos-sdcard-cleanup")) {
+    return;
+  }
+  if (access(cleanup, X_OK) != 0) {
+    return;
+  }
+
+  pid = fork();
+  if (pid != 0) {
+    return;
+  }
+
+  setenv("PLUMOS_ROOT", plumos_root, 1);
+  setenv("PLUMOS_SDCARD_ROOT", sdcard_root, 1);
+  redirect_child_stdio_to_devnull();
+  execl(cleanup, cleanup, "--no-cache-invalidate", (char *)NULL);
+  _exit(127);
+}
+
 static void print_system_summary(const struct scan_ctx *ctx) {
   size_t s;
   for (s = 0; s < ctx->system_count; s++) {
@@ -1568,6 +1622,8 @@ int main(int argc, char **argv) {
   ctx.system_filter = system_filter;
   ctx.resolve_thumbnails = resolve_thumbnails;
   ctx.systems = systems;
+
+  start_sdcard_cleanup_process(default_plumos_root, sdcard_root);
 
   started_ms = now_ms();
   if (!load_systems(systems_path, systems, &ctx.system_count)) {
