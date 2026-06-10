@@ -86,13 +86,17 @@ def scan_artifacts(roots: list[Path]) -> dict[str, Artifact]:
     return artifacts
 
 
-def load_profiles(systems_path: Path) -> tuple[dict[str, ProfileUse], list[str]]:
+def load_profiles(
+    systems_path: Path, include_disabled: bool
+) -> tuple[dict[str, ProfileUse], list[str]]:
     with systems_path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
 
     profiles: dict[str, ProfileUse] = {}
     issues: list[str] = []
     for system in data.get("systems", []):
+        if not include_disabled and system.get("enabled") is False:
+            continue
         system_id = system.get("id", "")
         launch_profiles = list(system.get("launch_profiles", []))
         default_profile = system.get("default_launch_profile", "")
@@ -131,6 +135,12 @@ def profile_selected(
         if not (use.systems & system_filter):
             return False
     return True
+
+
+def runtime_selected(profile: str, runtime: str) -> bool:
+    if runtime == "all":
+        return True
+    return profile.startswith(f"{runtime}:")
 
 
 def format_systems(use: ProfileUse) -> str:
@@ -203,6 +213,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Exit non-zero when a registered runtime-backed profile has no artifact.",
     )
     parser.add_argument(
+        "--runtime",
+        choices=("all", "retroarch", "standalone"),
+        default="all",
+        help="Limit runtime-backed checks to one profile prefix. Default: all.",
+    )
+    parser.add_argument(
+        "--include-disabled",
+        action="store_true",
+        help="Include systems where enabled is false. Disabled systems are skipped by default.",
+    )
+    parser.add_argument(
         "--fail-on-extra",
         action="store_true",
         help="Exit non-zero when an artifact exists but no systems.json profile uses it.",
@@ -220,7 +241,7 @@ def main(argv: list[str]) -> int:
     profile_filter = set(args.profile)
     system_filter = set(args.system)
 
-    profiles, source_issues = load_profiles(systems_path)
+    profiles, source_issues = load_profiles(systems_path, args.include_disabled)
     artifacts = scan_artifacts(artifact_roots)
 
     missing: list[tuple[str, ProfileUse | None, Artifact | None]] = []
@@ -231,12 +252,16 @@ def main(argv: list[str]) -> int:
         if not profile_selected(profile, use, profile_filter, system_filter):
             continue
         if profile.startswith(RUNTIME_PREFIXES):
+            if not runtime_selected(profile, args.runtime):
+                continue
             artifact = artifacts.get(profile)
             if artifact:
                 ok.append((profile, use, artifact))
             else:
                 missing.append((profile, use, None))
         elif profile.startswith(SKIP_PREFIXES):
+            if args.runtime != "all":
+                continue
             skipped.append((profile, use, None))
         else:
             missing.append((profile, use, None))
@@ -244,6 +269,8 @@ def main(argv: list[str]) -> int:
     extras: list[tuple[str, ProfileUse | None, Artifact | None]] = []
     for profile, artifact in sorted(artifacts.items()):
         if profile in profiles:
+            continue
+        if not runtime_selected(profile, args.runtime):
             continue
         if not profile_selected(profile, None, profile_filter, system_filter):
             continue

@@ -82,8 +82,8 @@
           { "root": "sdcard", "path": "Images/sfc" }
         ]
       },
-      "launch_profiles": ["retroarch:snes9x2005_plus", "retroarch:snes9x"],
-      "default_launch_profile": "retroarch:snes9x2005_plus",
+      "launch_profiles": ["retroarch:snes9x2005", "retroarch:snes9x"],
+      "default_launch_profile": "retroarch:snes9x2005",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
@@ -354,7 +354,7 @@
           { "root": "sdcard", "path": "Images/pcengine" }
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -365,6 +365,31 @@
         "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
         "download_workers": { "default": 2, "bulk": 3, "max": 4 }
       }
+    },
+    {
+      "id": "supergrafx",
+      "display_name": "SuperGrafx",
+      "short_name": "SGX",
+      "sort_order": 125,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SGX", "source": "miyoo", "priority": 10 },
+        { "name": "PCE", "source": "miyoo", "priority": 20, "shared": true },
+        { "name": "supergrafx", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["sgx", "pce", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/supergrafx" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_supergrafx", "retroarch:mednafen_pce_fast"],
+      "default_launch_profile": "retroarch:mednafen_supergrafx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
     },
     {
       "id": "pcenginecd",
@@ -385,7 +410,7 @@
           { "root": "sdcard", "path": "Images/pcenginecd" }
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -436,7 +461,7 @@
           { "root": "sdcard", "path": "Images/psp" }
         ]
       },
-      "launch_profiles": ["standalone:ppsspp", "retroarch:ppsspp"],
+      "launch_profiles": ["standalone:ppsspp"],
       "default_launch_profile": "standalone:ppsspp",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -449,7 +474,7 @@
       "short_name": "N64",
       "sort_order": 160,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         { "name": "N64", "source": "miyoo", "priority": 10 },
@@ -479,7 +504,7 @@
       "short_name": "DC",
       "sort_order": 170,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         { "name": "DC", "source": "miyoo", "priority": 10 },
@@ -503,7 +528,7 @@
       "short_name": "SAT",
       "sort_order": 180,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         { "name": "SATURN", "source": "miyoo", "priority": 10 },
@@ -546,6 +571,30 @@
       "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
+      "id": "neogeocd",
+      "display_name": "Neo Geo CD",
+      "short_name": "NGCD",
+      "sort_order": 195,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "NEOCD", "source": "miyoo", "priority": 10 },
+        { "name": "neogeocd", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["cue", "chd"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/neogeocd" }
+        ]
+      },
+      "launch_profiles": ["retroarch:neocd"],
+      "default_launch_profile": "retroarch:neocd",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+    },
+    {
       "id": "ngp",
       "display_name": "NGP",
       "short_name": "NGP",
@@ -563,8 +612,8 @@
           { "root": "sdcard", "path": "Images/ngp" }
         ]
       },
-      "launch_profiles": ["retroarch:race"],
-      "default_launch_profile": "retroarch:race",
+      "launch_profiles": ["retroarch:mednafen_ngp"],
+      "default_launch_profile": "retroarch:mednafen_ngp",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
@@ -594,8 +643,8 @@
           { "root": "sdcard", "path": "Images/ngpc" }
         ]
       },
-      "launch_profiles": ["retroarch:race"],
-      "default_launch_profile": "retroarch:race",
+      "launch_profiles": ["retroarch:mednafen_ngp"],
+      "default_launch_profile": "retroarch:mednafen_ngp",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
@@ -668,6 +717,54 @@
       }
     },
     {
+      "id": "lynx",
+      "display_name": "Atari Lynx",
+      "short_name": "Lynx",
+      "sort_order": 235,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "LYNX", "source": "miyoo", "priority": 10 },
+        { "name": "lynx", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["lnx", "lyx", "bll", "o", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/lynx" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_lynx", "retroarch:handy"],
+      "default_launch_profile": "retroarch:mednafen_lynx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "virtualboy",
+      "display_name": "Virtual Boy",
+      "short_name": "VB",
+      "sort_order": 238,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "VB", "source": "miyoo", "priority": 10 },
+        { "name": "virtualboy", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["vb", "vboy", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/virtualboy" }
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_vb"],
+      "default_launch_profile": "retroarch:mednafen_vb",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
       "id": "arcade",
       "display_name": "Arcade",
       "short_name": "Arcade",
@@ -685,7 +782,7 @@
           { "root": "sdcard", "path": "Images/arcade" }
         ]
       },
-      "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo"],
+      "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo", "retroarch:fbalpha2012"],
       "default_launch_profile": "retroarch:mame2003_plus",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -760,7 +857,7 @@
           { "root": "sdcard", "path": "Images/cps1" }
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps1"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -785,7 +882,7 @@
           { "root": "sdcard", "path": "Images/cps2" }
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps2"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -810,7 +907,7 @@
           { "root": "sdcard", "path": "Images/cps3" }
         ]
       },
-      "launch_profiles": ["retroarch:fbneo"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -884,8 +981,8 @@
           { "root": "sdcard", "path": "Images/pico8" }
         ]
       },
-      "launch_profiles": ["retroarch:fake08"],
-      "default_launch_profile": "retroarch:fake08",
+      "launch_profiles": ["retroarch:retro8", "retroarch:fake08"],
+      "default_launch_profile": "retroarch:retro8",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
@@ -1082,6 +1179,200 @@
       },
       "launch_profiles": ["retroarch:tic80"],
       "default_launch_profile": "retroarch:tic80",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+    },
+    {
+      "id": "atari2600",
+      "display_name": "Atari 2600",
+      "short_name": "A2600",
+      "sort_order": 410,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "ATARI2600", "source": "miyoo", "priority": 10 },
+        { "name": "atari2600", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["a26", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/atari2600" }
+        ]
+      },
+      "launch_profiles": ["retroarch:stella2014"],
+      "default_launch_profile": "retroarch:stella2014",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "atari7800",
+      "display_name": "Atari 7800",
+      "short_name": "A7800",
+      "sort_order": 420,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "ATARI7800", "source": "miyoo", "priority": 10 },
+        { "name": "atari7800", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["a78", "bin", "cdf", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/atari7800" }
+        ]
+      },
+      "launch_profiles": ["retroarch:prosystem"],
+      "default_launch_profile": "retroarch:prosystem",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "vectrex",
+      "display_name": "Vectrex",
+      "short_name": "Vectrex",
+      "sort_order": 430,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "VECTREX", "source": "miyoo", "priority": 10 },
+        { "name": "vectrex", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["vec", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/vectrex" }
+        ]
+      },
+      "launch_profiles": ["retroarch:vecx"],
+      "default_launch_profile": "retroarch:vecx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "supervision",
+      "display_name": "Supervision",
+      "short_name": "SV",
+      "sort_order": 440,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "SUPERVISION", "source": "miyoo", "priority": 10 },
+        { "name": "supervision", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["sv", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/supervision" }
+        ]
+      },
+      "launch_profiles": ["retroarch:potator"],
+      "default_launch_profile": "retroarch:potator",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "odyssey2",
+      "display_name": "Odyssey2",
+      "short_name": "O2",
+      "sort_order": 450,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "ODYSSEY2", "source": "miyoo", "priority": 10 },
+        { "name": "VIDEOPAC", "source": "miyoo", "priority": 20 },
+        { "name": "odyssey2", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/odyssey2" }
+        ]
+      },
+      "launch_profiles": ["retroarch:o2em"],
+      "default_launch_profile": "retroarch:o2em",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "gameandwatch",
+      "display_name": "Game & Watch",
+      "short_name": "G&W",
+      "sort_order": 460,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "GW", "source": "miyoo", "priority": 10 },
+        { "name": "GAMEANDWATCH", "source": "miyoo", "priority": 20 },
+        { "name": "gameandwatch", "source": "rocknix", "priority": 30 }
+      ],
+      "extensions": ["mgw", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/gameandwatch" }
+        ]
+      },
+      "launch_profiles": ["retroarch:gw"],
+      "default_launch_profile": "retroarch:gw",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "pokemini",
+      "display_name": "Pokemon Mini",
+      "short_name": "PokeMini",
+      "sort_order": 470,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "POKEMINI", "source": "miyoo", "priority": 10 },
+        { "name": "pokemini", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["min", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/pokemini" }
+        ]
+      },
+      "launch_profiles": ["retroarch:pokemini"],
+      "default_launch_profile": "retroarch:pokemini",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+    },
+    {
+      "id": "doom",
+      "display_name": "Doom",
+      "short_name": "Doom",
+      "sort_order": 480,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        { "name": "DOOM", "source": "miyoo", "priority": 10 },
+        { "name": "doom", "source": "rocknix", "priority": 20 }
+      ],
+      "extensions": ["wad", "iwad", "pwad", "zip"],
+      "artwork": {
+        "lookup": [
+          { "root": "sdcard", "path": "Images/doom" }
+        ]
+      },
+      "launch_profiles": ["retroarch:prboom"],
+      "default_launch_profile": "retroarch:prboom",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": { "enabled": false, "reason": "not_single_rom_crc" }

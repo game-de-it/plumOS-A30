@@ -224,7 +224,9 @@ TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
 `--strict` は登録済み profile の実体が無い場合に失敗します。`--fail-on-extra` は生成物が
 あるのに `systems.json` から参照されていない場合に失敗します。全 core の bulk staging は
 未検証/未採用候補も含むため、通常は warning として見て、対象を決めてから
-`systems.json` に追加します。
+`systems.json` に追加します。core package だけを確認するときは `--runtime retroarch`、
+standalone emulator package だけを確認するときは `--runtime standalone` を指定します。
+`enabled:false` の system は通常チェックから除外されます。
 
 ## A30 へ転送して実行
 

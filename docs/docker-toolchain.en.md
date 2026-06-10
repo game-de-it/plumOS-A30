@@ -228,7 +228,9 @@ TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
 `--fail-on-extra` fails when an artifact exists but no `systems.json` profile
 uses it. Bulk core staging includes unvalidated or unadopted candidates, so use
 the audit output as a warning first, then add selected profiles to
-`systems.json`.
+`systems.json`. Use `--runtime retroarch` when checking only the core package,
+or `--runtime standalone` when checking only standalone emulator packages.
+Systems with `enabled:false` are skipped by default.
 
 ## Deploy And Run On A30
 
