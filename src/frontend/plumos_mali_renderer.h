@@ -2761,9 +2761,9 @@ static void plumos_mali_graphic_normalize_text_field(char *text, size_t text_siz
   }
 }
 
-static int plumos_mali_graphic_parse_entry(
-    const char *line, struct plumos_mali_graphic_entry *entry) {
-  const char *prefix = "graphic_entry\t";
+static int plumos_mali_graphic_parse_entry_with_prefix(
+    const char *line, const char *prefix,
+    struct plumos_mali_graphic_entry *entry) {
   const char *p;
   const char *tab;
   const char *tab2;
@@ -2800,6 +2800,18 @@ static int plumos_mali_graphic_parse_entry(
                                    NULL);
   }
   return entry->title[0] != '\0';
+}
+
+static int plumos_mali_graphic_parse_entry(
+    const char *line, struct plumos_mali_graphic_entry *entry) {
+  return plumos_mali_graphic_parse_entry_with_prefix(
+      line, "graphic_entry\t", entry);
+}
+
+static int plumos_mali_graphic_parse_prev_entry(
+    const char *line, struct plumos_mali_graphic_entry *entry) {
+  return plumos_mali_graphic_parse_entry_with_prefix(
+      line, "graphic_prev_entry\t", entry);
 }
 
 static void plumos_mali_graphic_initials(const char *title, char *out, size_t out_size) {
@@ -2852,11 +2864,11 @@ static void plumos_mali_graphic_top_bar(struct plumos_mali_renderer *renderer,
                            12.0f, 2, theme->muted, 1.0f);
 }
 
-static void plumos_mali_graphic_draw_top(
+static void plumos_mali_graphic_draw_top_entries(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
-    const char *status) {
+    float x_offset) {
   const size_t columns = 3;
   const size_t rows = 2;
   const float horizontal_margin = 22.0f;
@@ -2880,9 +2892,6 @@ static void plumos_mali_graphic_draw_top(
   float grid_x = ((float)renderer->width - grid_width) * 0.5f;
   size_t i;
 
-  plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
-  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
-                           theme->accent, 1.0f);
   if (grid_x < 8.0f) {
     grid_x = 8.0f;
   }
@@ -2890,7 +2899,7 @@ static void plumos_mali_graphic_draw_top(
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;
     size_t row = i / columns;
-    float x = grid_x + (float)col * (tile_w + gap);
+    float x = grid_x + x_offset + (float)col * (tile_w + gap);
     float y = grid_y + (float)row * (tile_h + gap);
     float media_x = x + 14.0f;
     float media_y = y + 14.0f;
@@ -2957,9 +2966,44 @@ static void plumos_mali_graphic_draw_top(
                                      theme->muted, 1.0f);
   }
   if (entry_count == 0) {
-    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f, 90.0f, 3,
+    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f + x_offset, 90.0f, 3,
                              theme->foreground, 1.0f);
   }
+}
+
+static void plumos_mali_graphic_draw_top(
+    struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_theme *theme,
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
+    const struct plumos_mali_graphic_entry *prev_entries, size_t prev_entry_count,
+    const char *transition, int transition_direction, float transition_progress,
+    const char *status) {
+  float current_offset = 0.0f;
+  float prev_offset = 0.0f;
+  int slide_active = transition && strcmp(transition, "slide") == 0 &&
+                     prev_entry_count > 0 && transition_progress < 1.0f;
+
+  if (transition_progress < 0.0f) {
+    transition_progress = 0.0f;
+  } else if (transition_progress > 1.0f) {
+    transition_progress = 1.0f;
+  }
+
+  plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
+  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                           theme->accent, 1.0f);
+
+  if (slide_active) {
+    float width = (float)renderer->width;
+    int direction = transition_direction < 0 ? -1 : 1;
+    prev_offset = -((float)direction) * width * transition_progress;
+    current_offset = ((float)direction) * width * (1.0f - transition_progress);
+    plumos_mali_graphic_draw_top_entries(renderer, theme, prev_entries,
+                                         prev_entry_count, prev_offset);
+  }
+
+  plumos_mali_graphic_draw_top_entries(renderer, theme, entries, entry_count,
+                                       current_offset);
   (void)status;
 }
 
@@ -3109,9 +3153,16 @@ static int plumos_mali_render_lines_graphic(
   char mode[32];
   char system[128];
   char status[160];
+  char transition[32];
+  char transition_progress_text[32];
+  char transition_direction_text[32];
   struct plumos_mali_graphic_entry entries[12];
+  struct plumos_mali_graphic_entry prev_entries[12];
   struct plumos_mali_graphic_theme theme;
   size_t entry_count = 0;
+  size_t prev_entry_count = 0;
+  float transition_progress = 1.0f;
+  int transition_direction = 1;
 
   plumos_mali_graphic_theme_load(lines, line_count, &theme);
   plumos_mali_find_prefixed_line(lines, line_count, "graphic_mode=",
@@ -3120,11 +3171,33 @@ static int plumos_mali_render_lines_graphic(
                                  system, sizeof(system));
   plumos_mali_find_prefixed_line(lines, line_count, "status:",
                                  status, sizeof(status));
+  plumos_mali_find_prefixed_line(lines, line_count, "graphic_transition=",
+                                 transition, sizeof(transition));
+  plumos_mali_find_prefixed_line(lines, line_count, "graphic_transition_progress=",
+                                 transition_progress_text,
+                                 sizeof(transition_progress_text));
+  plumos_mali_find_prefixed_line(lines, line_count, "graphic_transition_direction=",
+                                 transition_direction_text,
+                                 sizeof(transition_direction_text));
+  if (transition_progress_text[0]) {
+    transition_progress = (float)strtod(transition_progress_text, NULL);
+  }
+  if (transition_direction_text[0]) {
+    transition_direction = (int)strtol(transition_direction_text, NULL, 10);
+  }
 
   for (i = 0; i < line_count && entry_count < sizeof(entries) / sizeof(entries[0]);
        i++) {
     if (plumos_mali_graphic_parse_entry(lines[i], &entries[entry_count])) {
       entry_count++;
+    }
+  }
+  for (i = 0; i < line_count &&
+              prev_entry_count < sizeof(prev_entries) / sizeof(prev_entries[0]);
+       i++) {
+    if (plumos_mali_graphic_parse_prev_entry(lines[i],
+                                             &prev_entries[prev_entry_count])) {
+      prev_entry_count++;
     }
   }
 
@@ -3142,7 +3215,10 @@ static int plumos_mali_render_lines_graphic(
 #endif
 
   if (strcmp(mode, "top") == 0) {
-    plumos_mali_graphic_draw_top(renderer, &theme, entries, entry_count, status);
+    plumos_mali_graphic_draw_top(renderer, &theme, entries, entry_count,
+                                 prev_entries, prev_entry_count, transition,
+                                 transition_direction, transition_progress,
+                                 status);
   } else {
     plumos_mali_graphic_draw_roms(renderer, &theme, mode, system, entries,
                                   entry_count, status);

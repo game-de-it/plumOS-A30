@@ -253,7 +253,8 @@ stock theme format は plumOS の正式仕様にしません。
   "graphic_mode": {
     "top_layout": "tile_grid",
     "rom_layout": "list_preview",
-    "transition": "none",
+    "transition": "slide",
+    "transition_ms": 180,
     "thumbnail_fit": "contain",
     "missing_thumbnail": "text_fallback"
   },

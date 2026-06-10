@@ -300,6 +300,8 @@ struct theme_state {
   char background[UI_PATH_MAX];
   char system_logo_root[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
+  char graphic_transition[32];
+  long graphic_transition_ms;
   char color_background[16];
   char color_foreground[16];
   char color_muted[16];
@@ -441,6 +443,13 @@ struct ui_state {
   enum ui_screen core_back_screen;
   enum ui_screen wifi_back_screen;
   size_t top_cursor;
+  size_t top_transition_from_cursor;
+  size_t top_transition_from_page;
+  size_t top_transition_to_page;
+  long long top_transition_start_ms;
+  long top_transition_duration_ms;
+  int top_transition_direction;
+  int top_transition_active;
   size_t rom_cursor;
   size_t menu_cursor;
   size_t settings_cursor;
@@ -2489,6 +2498,8 @@ static void init_theme_state(struct theme_state *theme, const char *theme_id,
   copy_string(theme->layout_preset, sizeof(theme->layout_preset), "grid_preview");
   copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
   copy_string(theme->system_logo_root, sizeof(theme->system_logo_root), "logos/systems");
+  copy_string(theme->graphic_transition, sizeof(theme->graphic_transition), "none");
+  theme->graphic_transition_ms = 0;
   copy_string(theme->status, sizeof(theme->status), "builtin graphic fallback");
   if (theme_path) {
     copy_string(theme->path, sizeof(theme->path), theme_path);
@@ -2520,6 +2531,8 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
   const char *assets_end;
   const char *colors_start;
   const char *colors_end;
+  const char *graphic_start;
+  const char *graphic_end;
   const char *json_end;
 
   if (!theme_id || !theme_id[0]) {
@@ -2606,6 +2619,28 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
                     sizeof(ui->theme.color_selection_foreground));
     json_get_string(colors_start, colors_end, "danger",
                     ui->theme.color_danger, sizeof(ui->theme.color_danger));
+  }
+  if (json_find_object(json, json_end, "graphic_mode", &graphic_start, &graphic_end)) {
+    json_get_string(graphic_start, graphic_end, "transition",
+                    ui->theme.graphic_transition,
+                    sizeof(ui->theme.graphic_transition));
+    ui->theme.graphic_transition_ms =
+        json_get_long(graphic_start, graphic_end, "transition_ms",
+                      ui->theme.graphic_transition_ms);
+  }
+  if (!ui->theme.graphic_transition[0]) {
+    copy_string(ui->theme.graphic_transition,
+                sizeof(ui->theme.graphic_transition), "none");
+  }
+  if (strcmp(ui->theme.graphic_transition, "slide") != 0 &&
+      strcmp(ui->theme.graphic_transition, "none") != 0) {
+    copy_string(ui->theme.graphic_transition,
+                sizeof(ui->theme.graphic_transition), "none");
+  }
+  if (ui->theme.graphic_transition_ms < 0) {
+    ui->theme.graphic_transition_ms = 0;
+  } else if (ui->theme.graphic_transition_ms > 500) {
+    ui->theme.graphic_transition_ms = 500;
   }
 
   if (theme_behavior_is_blocked(json, json_end)) {
@@ -4326,6 +4361,7 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
 #define UI_GRAPHIC_TOP_COLUMNS 3
 #define UI_GRAPHIC_TOP_ROWS 2
 #define UI_GRAPHIC_TOP_PAGE_SIZE (UI_GRAPHIC_TOP_COLUMNS * UI_GRAPHIC_TOP_ROWS)
+#define UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS 180
 
 static size_t ui_list_window_size(const struct ui_state *ui) {
   if (ui_uses_graphic_mode(ui)) {
@@ -4350,6 +4386,80 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
     return 15;
   }
   return 10;
+}
+
+static size_t ui_graphic_top_page_for_cursor(size_t cursor) {
+  return cursor / UI_GRAPHIC_TOP_PAGE_SIZE;
+}
+
+static int ui_graphic_top_slide_enabled(const struct ui_state *ui) {
+  return ui && ui_uses_graphic_mode(ui) && ui->screen == SCREEN_TOP &&
+         strcmp(ui->theme.graphic_transition, "slide") == 0;
+}
+
+static long ui_graphic_top_transition_duration_ms(const struct ui_state *ui) {
+  long duration;
+
+  if (!ui_graphic_top_slide_enabled(ui)) {
+    return 0;
+  }
+  duration = ui->theme.graphic_transition_ms > 0
+                 ? ui->theme.graphic_transition_ms
+                 : UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS;
+  if (duration < 80) {
+    duration = 80;
+  } else if (duration > 500) {
+    duration = 500;
+  }
+  return duration;
+}
+
+static void ui_start_graphic_top_transition(struct ui_state *ui,
+                                            size_t from_cursor,
+                                            size_t to_cursor) {
+  size_t from_page;
+  size_t to_page;
+  long duration;
+
+  if (!ui || from_cursor == to_cursor || !ui_graphic_top_slide_enabled(ui)) {
+    return;
+  }
+  from_page = ui_graphic_top_page_for_cursor(from_cursor);
+  to_page = ui_graphic_top_page_for_cursor(to_cursor);
+  if (from_page == to_page) {
+    return;
+  }
+  duration = ui_graphic_top_transition_duration_ms(ui);
+  if (duration <= 0) {
+    return;
+  }
+  ui->top_transition_from_cursor = from_cursor;
+  ui->top_transition_from_page = from_page;
+  ui->top_transition_to_page = to_page;
+  ui->top_transition_start_ms = current_time_ms();
+  ui->top_transition_duration_ms = duration;
+  ui->top_transition_direction = to_cursor > from_cursor ? 1 : -1;
+  ui->top_transition_active = 1;
+}
+
+static double ui_graphic_top_transition_progress(struct ui_state *ui) {
+  long long elapsed;
+  double progress;
+
+  if (!ui || !ui->top_transition_active ||
+      ui->top_transition_duration_ms <= 0) {
+    return 1.0;
+  }
+  elapsed = current_time_ms() - ui->top_transition_start_ms;
+  if (elapsed >= ui->top_transition_duration_ms) {
+    ui->top_transition_active = 0;
+    return 1.0;
+  }
+  if (elapsed <= 0) {
+    return 0.0;
+  }
+  progress = (double)elapsed / (double)ui->top_transition_duration_ms;
+  return progress * progress * (3.0 - 2.0 * progress);
 }
 
 static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action action) {
@@ -4385,7 +4495,10 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
       }
     }
   }
-  ui->top_cursor = next;
+  if (next != cursor) {
+    ui_start_graphic_top_transition(ui, cursor, next);
+    ui->top_cursor = next;
+  }
 }
 
 static void ui_emit_graphic_theme_color(struct ui_state *ui, const char *key,
@@ -4394,6 +4507,14 @@ static void ui_emit_graphic_theme_color(struct ui_state *ui, const char *key,
     return;
   }
   ui_printf(ui, "graphic_theme_color\t%s\t%s\n", key, value);
+}
+
+static void ui_emit_graphic_theme_motion(struct ui_state *ui, const char *key,
+                                         const char *value) {
+  if (!ui || !key || !key[0] || !value || !value[0]) {
+    return;
+  }
+  ui_printf(ui, "graphic_theme_motion\t%s\t%s\n", key, value);
 }
 
 static void ui_emit_graphic_theme_asset(struct ui_state *ui, const char *key,
@@ -4428,24 +4549,61 @@ static void ui_emit_graphic_theme(struct ui_state *ui) {
   ui_emit_graphic_theme_color(ui, "selection_foreground",
                               ui->theme.color_selection_foreground);
   ui_emit_graphic_theme_color(ui, "danger", ui->theme.color_danger);
+  ui_emit_graphic_theme_motion(ui, "transition", ui->theme.graphic_transition);
+}
+
+static void ui_emit_graphic_top_entry(struct ui_state *ui,
+                                      const struct top_entry *entry,
+                                      const char *prefix,
+                                      int selected) {
+  char logo_path[PATH_MAX] = "";
+
+  if (!ui || !entry || !prefix) {
+    return;
+  }
+  resolve_theme_system_logo_path(ui, entry->id, logo_path, sizeof(logo_path));
+  ui_printf(ui, "%s\t%d\t%s\t%ld ROMS\t%s\n", prefix, selected ? 1 : 0,
+            entry->display_name, entry->rom_count, logo_path);
 }
 
 static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
   size_t i;
+  double transition_progress = 1.0;
+  int transition_active = 0;
 
   ui_printf(ui, "plumOS controller UI - TOP\n");
   ui_printf(ui, "graphic_mode=top\n");
   ui_emit_graphic_theme(ui);
   ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->top_count,
             ui->top_count ? ui->top_cursor + 1 : 0);
+
+  if (ui->top_transition_active &&
+      ui->top_transition_to_page == ui_graphic_top_page_for_cursor(ui->top_cursor) &&
+      ui_graphic_top_slide_enabled(ui)) {
+    transition_progress = ui_graphic_top_transition_progress(ui);
+    transition_active = ui->top_transition_active && transition_progress < 1.0;
+  }
+  if (transition_active) {
+    size_t prev_start = ui->top_transition_from_page * UI_GRAPHIC_TOP_PAGE_SIZE;
+    size_t prev_end = prev_start + UI_GRAPHIC_TOP_PAGE_SIZE;
+
+    if (prev_end > ui->top_count) {
+      prev_end = ui->top_count;
+    }
+    ui_printf(ui, "graphic_transition=slide\n");
+    ui_printf(ui, "graphic_transition_direction=%d\n",
+              ui->top_transition_direction < 0 ? -1 : 1);
+    ui_printf(ui, "graphic_transition_progress=%.3f\n", transition_progress);
+    for (i = prev_start; i < prev_end; i++) {
+      ui_emit_graphic_top_entry(ui, &ui->top_entries[i], "graphic_prev_entry",
+                                i == ui->top_transition_from_cursor);
+    }
+  }
+
   for (i = start; i < end; i++) {
     const struct top_entry *entry = &ui->top_entries[i];
-    char logo_path[PATH_MAX] = "";
-
-    resolve_theme_system_logo_path(ui, entry->id, logo_path, sizeof(logo_path));
-    ui_printf(ui, "graphic_entry\t%d\t%s\t%ld ROMS\t%s\n",
-              i == ui->top_cursor ? 1 : 0, entry->display_name,
-              entry->rom_count, logo_path);
+    ui_emit_graphic_top_entry(ui, entry, "graphic_entry",
+                              i == ui->top_cursor);
   }
   if (ui->top_count == 0) {
     ui_printf(ui, "graphic_entry\t1\tNo Systems\t0 ROMS\n");
@@ -5243,6 +5401,9 @@ static void render_usb_disk_starting(struct ui_state *ui) {
 
 static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
+  if (ui->screen != SCREEN_TOP) {
+    ui->top_transition_active = 0;
+  }
   if (ui->rescue_network) {
     render_network_rescue(ui);
   } else if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
@@ -7855,12 +8016,16 @@ static int run_script(struct ui_state *ui, const char *script) {
 
 static int ui_needs_periodic_refresh(const struct ui_state *ui) {
   return ui && (ui->rescue_network ||
+                (ui->renderer_mali && ui->top_transition_active) ||
                 (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0));
 }
 
 static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
   if (!ui) {
     return 0;
+  }
+  if (ui->renderer_mali && ui->top_transition_active) {
+    return 33;
   }
   if (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
     return 100;

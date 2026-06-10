@@ -261,7 +261,8 @@ are not the official plumOS theme specification.
   "graphic_mode": {
     "top_layout": "tile_grid",
     "rom_layout": "list_preview",
-    "transition": "none",
+    "transition": "slide",
+    "transition_ms": 180,
     "thumbnail_fit": "contain",
     "missing_thumbnail": "text_fallback"
   },
