@@ -8,7 +8,8 @@ matching and storage rules before any FE integration. The prototype script is
 
 - When a ROM CRC matches the libretro database, fetch thumbnails by canonical
   game name.
-- Expect many CRC misses and try a filename fallback.
+- Treat CRC misses as `no_match` by default. Filename fallback is limited to an
+  explicit advisory candidate option and never auto-saves images.
 - Keep scraped thumbnails and user-provided thumbnails in one location.
 - Do not add FE background downloads, progress UI, or retry UI yet.
 
@@ -29,6 +30,93 @@ Roms/FC/Nintendo/Mario.nes
 Roms/GB/Dracula Densetsu.gb
 => Images/gb/Dracula Densetsu.png
 ```
+
+## FE Integration Policy
+
+Keep scraper scope separate from frontend thumbnail display scope. Even when a
+system is excluded from scraping, user-provided thumbnails placed under
+`/mnt/SDCARD/Images/<system_id>/...` are still displayed normally.
+
+The normal scraper targets cartridge-like systems where a simple ROM payload CRC
+can be matched against libretro database metadata.
+
+```text
+nes
+fds
+sfc
+gb
+gbc
+gba
+megadrive
+mastersystem
+gamegear
+sega32x
+pcengine
+n64
+ngp
+ngpc
+wonderswan
+wonderswancolor
+msx
+```
+
+CD-based systems are excluded from the initial scraper because even CRC checks
+can be slow on the device and matching also needs track / CHD / ISO / cue / m3u
+/ pbp representative-file policy.
+
+```text
+segacd
+pcenginecd
+psx
+psp
+dreamcast
+saturn
+```
+
+PC disk-image systems are excluded from the initial scraper because they need a
+representative-file policy for D88/HDI/DIM/XDF/m3u and a DAT-source policy.
+
+```text
+pc88
+pc98
+x68000
+```
+
+Arcade / romset systems are excluded from the initial scraper because matching
+depends on internal ROM members and romset versions rather than a single zip
+CRC.
+
+```text
+arcade
+fbneo
+mame2003plus
+cps1
+cps2
+cps3
+neogeo
+```
+
+Systems that are not naturally identified by a single game-file CRC are also
+excluded from scraping.
+
+```text
+dos
+easyrpg
+pico8
+scummvm
+openbor
+ports
+tic80
+```
+
+CRC miss handling:
+
+- Default behavior returns `no_match`.
+- Japanese file stems are not searched as filename candidates.
+- Filename-derived candidate search is limited to an explicit user-selected
+  advisory option.
+- Candidate matches are never auto-saved; only the user-selected candidate is
+  saved.
 
 ## Test Inputs
 
@@ -59,11 +147,15 @@ The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
 1. If the destination PNG already exists, return `exists`.
 2. Compute CRC32 for the ROM payload.
 3. Look up `crc -> canonical game name` in the per-system DAT index.
-4. If the canonical thumbnail exists on the thumbnail server, return `crc-exact`.
-5. If the ROM file stem exists on the thumbnail server, return `name-exact`.
-6. Only when `--loose-index` is passed, fetch the large thumbnail directory
+4. When CRC matches, derive the URL from the canonical game name and try a
+   direct download.
+5. Save the image when the download succeeds. Return `no_match` when it fails.
+6. When CRC does not match, default behavior returns `no_match`.
+7. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
+   `candidate-report` lookup.
+8. Only when `--loose-index` is passed, fetch the large thumbnail directory
    index and try normalized matching as `crc-loose` or `name-loose`.
-7. If all matching fails, return `no_match`. Negative cache is updated only in
+9. If all matching fails, return `no_match`. Negative cache is updated only in
    `--fetch` mode.
 
 Dry-run does not update the negative cache.

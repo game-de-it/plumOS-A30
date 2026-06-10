@@ -193,6 +193,8 @@ rules:
 - `artwork.lookup` は通常 1 system につき 1 directory だけにする
 - scraper の保存先、ユーザー手動配置、frontend lookup はすべて
   `/mnt/SDCARD/Images/<system_id>` に揃える
+- scraper 対象外の system でも、ユーザーが `/mnt/SDCARD/Images/<system_id>` に配置した
+  thumbnail は通常通り lookup して表示する
 - stockOS 由来の `/mnt/SDCARD/Imgs/*` や旧 lowercase `/mnt/SDCARD/images/*` は
   通常 lookup には使わず、必要になった場合だけ importer/migration の入力として扱う
 - extension の canonical list は lowercase の `png`, `jpg`, `jpeg`, `webp` とし、

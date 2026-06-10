@@ -6,7 +6,8 @@
 ## 目的
 
 - ROM の CRC が libretro database に一致する場合は、canonical game name から thumbnail を取得する。
-- CRC が一致しない ROM も多い前提で、ROM file name からの fallback を試す。
+- CRC が一致しない ROM は通常 `no_match` にする。filename fallback は明示的な候補確認用
+  option に限定し、自動保存しない。
 - 取得した画像とユーザーが手で置く画像の保存先は 1 つにする。
 - FE にはまだ background download、progress UI、retry UI を入れない。
 
@@ -27,6 +28,87 @@ Roms/FC/Nintendo/Mario.nes
 Roms/GB/Dracula Densetsu.gb
 => Images/gb/Dracula Densetsu.png
 ```
+
+## FE 組み込み方針
+
+scraper の対象範囲と frontend の thumbnail 表示範囲は分けます。scraper 対象外の system でも、
+ユーザーが `/mnt/SDCARD/Images/<system_id>/...` に置いた thumbnail は通常通り表示します。
+
+通常 scraper は、単純な ROM payload CRC で libretro database と照合しやすい cartridge 系を
+対象にします。
+
+```text
+nes
+fds
+sfc
+gb
+gbc
+gba
+megadrive
+mastersystem
+gamegear
+sega32x
+pcengine
+n64
+ngp
+ngpc
+wonderswan
+wonderswancolor
+msx
+```
+
+CD 系は実機上で CRC 照合だけでも重くなりやすく、track / CHD / ISO / cue / m3u / pbp
+などの代表 file 判断も必要になるため、初期 scraper 対象外にします。
+
+```text
+segacd
+pcenginecd
+psx
+psp
+dreamcast
+saturn
+```
+
+PC 系 disk image は、D88/HDI/DIM/XDF/m3u などの代表 file 判断と DAT 種別の方針が必要なため、
+初期 scraper 対象外にします。
+
+```text
+pc88
+pc98
+x68000
+```
+
+Arcade / romset 系は zip 全体 CRC ではなく内部 ROM member や romset version 依存の照合が
+必要なため、初期 scraper 対象外にします。
+
+```text
+arcade
+fbneo
+mame2003plus
+cps1
+cps2
+cps3
+neogeo
+```
+
+file CRC で game を特定しにくい system も scraper 対象外にします。
+
+```text
+dos
+easyrpg
+pico8
+scummvm
+openbor
+ports
+tic80
+```
+
+CRC miss の扱い:
+
+- 通常動作では `no_match` として終了する。
+- 日本語 file stem は filename candidate 探索をしない。
+- filename 由来の候補探索は、ユーザーが明示的に選ぶ確認用 option に限定する。
+- 候補探索で見つかった画像は自動保存せず、ユーザーが選択したものだけ保存する。
 
 ## 試験対象
 
@@ -57,11 +139,14 @@ thumbnail 種別は初期値を `Named_Boxarts` にします。試作 script で
 1. 既に保存先 PNG がある場合は `exists` として何もしない。
 2. ROM payload の CRC32 を取る。
 3. system 別 DAT index から `crc -> canonical game name` を引く。
-4. canonical game name の PNG が thumbnail server に存在すれば `crc-exact`。
-5. ROM file stem の PNG が thumbnail server に存在すれば `name-exact`。
-6. `--loose-index` が指定された場合だけ、大きい thumbnail directory index を取得し、
+4. CRC が一致した場合、canonical game name から URL を確定し、直接 download を試す。
+5. download に成功したら保存する。失敗したら `no_match` にする。
+6. CRC が一致しない場合、通常動作では `no_match` にする。
+7. 明示 option が指定された場合だけ、ROM file stem 由来の `name-exact` や
+   `candidate-report` を試す。
+8. `--loose-index` が指定された場合だけ、大きい thumbnail directory index を取得し、
    bracket/region/revision を落とした normalized name で `crc-loose` / `name-loose` を試す。
-7. どれも失敗した場合は `no_match`。`--fetch` 時だけ negative cache に記録する。
+9. どれも失敗した場合は `no_match`。`--fetch` 時だけ negative cache に記録する。
 
 通常 dry-run は negative cache を更新しません。
 

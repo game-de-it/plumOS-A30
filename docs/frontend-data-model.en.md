@@ -199,6 +199,8 @@ Rules:
 - `artwork.lookup` normally has exactly one directory per system.
 - The scraper output, user-provided thumbnails, and frontend lookup all use
   `/mnt/SDCARD/Images/<system_id>`.
+- Even for systems excluded from scraping, thumbnails manually placed under
+  `/mnt/SDCARD/Images/<system_id>` are looked up and displayed normally.
 - StockOS `/mnt/SDCARD/Imgs/*` and old lowercase `/mnt/SDCARD/images/*` paths
   are not normal lookup paths. Treat them only as importer/migration inputs if
   needed.
