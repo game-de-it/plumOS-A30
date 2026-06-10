@@ -1,6 +1,7 @@
 #ifndef PLUMOS_MALI_RENDERER_H
 #define PLUMOS_MALI_RENDERER_H
 
+#include <ctype.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -2542,6 +2543,27 @@ struct plumos_mali_graphic_entry {
   char thumbnail[PLUMOS_MALI_RENDER_LINE_MAX];
 };
 
+struct plumos_mali_rgb {
+  float r;
+  float g;
+  float b;
+};
+
+struct plumos_mali_graphic_theme {
+  struct plumos_mali_rgb background;
+  struct plumos_mali_rgb foreground;
+  struct plumos_mali_rgb muted;
+  struct plumos_mali_rgb accent;
+  struct plumos_mali_rgb panel;
+  struct plumos_mali_rgb panel_inner;
+  struct plumos_mali_rgb media_panel;
+  struct plumos_mali_rgb selection_background;
+  struct plumos_mali_rgb selection_foreground;
+  struct plumos_mali_rgb danger;
+  char background_image[PLUMOS_MALI_RENDER_LINE_MAX];
+  char placeholder_thumbnail[PLUMOS_MALI_RENDER_LINE_MAX];
+};
+
 static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
                                            const char *start, const char *end) {
   size_t len;
@@ -2562,6 +2584,169 @@ static void plumos_mali_graphic_copy_field(char *out, size_t out_size,
   }
   memcpy(out, start, len);
   out[len] = '\0';
+}
+
+static struct plumos_mali_rgb plumos_mali_rgb(float r, float g, float b) {
+  struct plumos_mali_rgb color;
+  color.r = r;
+  color.g = g;
+  color.b = b;
+  return color;
+}
+
+static void plumos_mali_graphic_theme_defaults(
+    struct plumos_mali_graphic_theme *theme) {
+  if (!theme) {
+    return;
+  }
+  memset(theme, 0, sizeof(*theme));
+  theme->background = plumos_mali_rgb(0.010f, 0.012f, 0.013f);
+  theme->foreground = plumos_mali_rgb(0.72f, 0.80f, 0.78f);
+  theme->muted = plumos_mali_rgb(0.52f, 0.66f, 0.66f);
+  theme->accent = plumos_mali_rgb(1.0f, 0.52f, 0.05f);
+  theme->panel = plumos_mali_rgb(0.12f, 0.17f, 0.18f);
+  theme->panel_inner = plumos_mali_rgb(0.020f, 0.026f, 0.028f);
+  theme->media_panel = plumos_mali_rgb(0.11f, 0.16f, 0.18f);
+  theme->selection_background = plumos_mali_rgb(0.14f, 0.23f, 0.20f);
+  theme->selection_foreground = plumos_mali_rgb(1.0f, 0.90f, 0.48f);
+  theme->danger = plumos_mali_rgb(1.0f, 0.08f, 0.04f);
+}
+
+static int plumos_mali_hex_digit(char ch) {
+  if (ch >= '0' && ch <= '9') {
+    return ch - '0';
+  }
+  if (ch >= 'a' && ch <= 'f') {
+    return ch - 'a' + 10;
+  }
+  if (ch >= 'A' && ch <= 'F') {
+    return ch - 'A' + 10;
+  }
+  return -1;
+}
+
+static int plumos_mali_parse_hex_color(const char *value,
+                                       struct plumos_mali_rgb *out) {
+  int r;
+  int g;
+  int b;
+
+  if (!value || !out || value[0] != '#' || strlen(value) != 7) {
+    return 0;
+  }
+  if (!isxdigit((unsigned char)value[1]) ||
+      !isxdigit((unsigned char)value[2]) ||
+      !isxdigit((unsigned char)value[3]) ||
+      !isxdigit((unsigned char)value[4]) ||
+      !isxdigit((unsigned char)value[5]) ||
+      !isxdigit((unsigned char)value[6])) {
+    return 0;
+  }
+  r = plumos_mali_hex_digit(value[1]) * 16 + plumos_mali_hex_digit(value[2]);
+  g = plumos_mali_hex_digit(value[3]) * 16 + plumos_mali_hex_digit(value[4]);
+  b = plumos_mali_hex_digit(value[5]) * 16 + plumos_mali_hex_digit(value[6]);
+  out->r = (float)r / 255.0f;
+  out->g = (float)g / 255.0f;
+  out->b = (float)b / 255.0f;
+  return 1;
+}
+
+static void plumos_mali_graphic_theme_set_color(
+    struct plumos_mali_graphic_theme *theme, const char *key, const char *value) {
+  struct plumos_mali_rgb color;
+
+  if (!theme || !key || !value ||
+      !plumos_mali_parse_hex_color(value, &color)) {
+    return;
+  }
+  if (strcmp(key, "background") == 0) {
+    theme->background = color;
+  } else if (strcmp(key, "foreground") == 0) {
+    theme->foreground = color;
+  } else if (strcmp(key, "muted") == 0) {
+    theme->muted = color;
+  } else if (strcmp(key, "accent") == 0) {
+    theme->accent = color;
+  } else if (strcmp(key, "panel") == 0) {
+    theme->panel = color;
+  } else if (strcmp(key, "panel_inner") == 0) {
+    theme->panel_inner = color;
+  } else if (strcmp(key, "media_panel") == 0) {
+    theme->media_panel = color;
+  } else if (strcmp(key, "selection_background") == 0) {
+    theme->selection_background = color;
+  } else if (strcmp(key, "selection_foreground") == 0) {
+    theme->selection_foreground = color;
+  } else if (strcmp(key, "danger") == 0) {
+    theme->danger = color;
+  }
+}
+
+static void plumos_mali_graphic_theme_parse_line(
+    struct plumos_mali_graphic_theme *theme, const char *line) {
+  const char *prefix_color = "graphic_theme_color\t";
+  const char *prefix_asset = "graphic_theme_asset\t";
+  const char *p;
+  const char *tab;
+  char key[64];
+  char value[PLUMOS_MALI_RENDER_LINE_MAX];
+
+  if (!theme || !line) {
+    return;
+  }
+  if (plumos_mali_starts_with(line, prefix_color)) {
+    p = line + strlen(prefix_color);
+  } else if (plumos_mali_starts_with(line, prefix_asset)) {
+    p = line + strlen(prefix_asset);
+  } else {
+    return;
+  }
+  tab = strchr(p, '\t');
+  if (!tab) {
+    return;
+  }
+  plumos_mali_graphic_copy_field(key, sizeof(key), p, tab);
+  plumos_mali_graphic_copy_field(value, sizeof(value), tab + 1, NULL);
+  if (plumos_mali_starts_with(line, prefix_color)) {
+    plumos_mali_graphic_theme_set_color(theme, key, value);
+  } else if (strcmp(key, "background") == 0) {
+    snprintf(theme->background_image, sizeof(theme->background_image),
+             "%s", value);
+  } else if (strcmp(key, "placeholder") == 0) {
+    snprintf(theme->placeholder_thumbnail, sizeof(theme->placeholder_thumbnail),
+             "%s", value);
+  }
+}
+
+static void plumos_mali_graphic_theme_load(
+    const char lines[][PLUMOS_MALI_RENDER_LINE_MAX], size_t line_count,
+    struct plumos_mali_graphic_theme *theme) {
+  size_t i;
+
+  plumos_mali_graphic_theme_defaults(theme);
+  for (i = 0; i < line_count; i++) {
+    plumos_mali_graphic_theme_parse_line(theme, lines[i]);
+  }
+}
+
+static void plumos_mali_graphic_rect(
+    struct plumos_mali_renderer *renderer, float x, float y, float w, float h,
+    struct plumos_mali_rgb color, float alpha) {
+  plumos_mali_rect(renderer, x, y, w, h, color.r, color.g, color.b, alpha);
+}
+
+static void plumos_mali_graphic_text(
+    struct plumos_mali_renderer *renderer, const char *text, float x, float y,
+    int scale, struct plumos_mali_rgb color, float alpha) {
+  plumos_mali_text(renderer, text, x, y, scale, color.r, color.g, color.b, alpha);
+}
+
+static void plumos_mali_graphic_text_clipped(
+    struct plumos_mali_renderer *renderer, const char *text, float x, float y,
+    int scale, int use_font, float clip_left, float clip_right,
+    struct plumos_mali_rgb color, float alpha) {
+  plumos_mali_text_clipped(renderer, text, x, y, scale, use_font, clip_left,
+                           clip_right, color.r, color.g, color.b, alpha);
 }
 
 static void plumos_mali_graphic_normalize_text_field(char *text, size_t text_size) {
@@ -2642,6 +2827,7 @@ static void plumos_mali_graphic_initials(const char *title, char *out, size_t ou
 }
 
 static void plumos_mali_graphic_top_bar(struct plumos_mali_renderer *renderer,
+                                        const struct plumos_mali_graphic_theme *theme,
                                         const char *title) {
   char time_label[16];
   char wifi_label[16];
@@ -2655,18 +2841,20 @@ static void plumos_mali_graphic_top_bar(struct plumos_mali_renderer *renderer,
   snprintf(right, sizeof(right), "%s  %s  %s", time_label, wifi_label, battery_label);
   right_width = plumos_mali_text_width(right, 2);
 
-  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 40.0f,
-                   0.015f, 0.018f, 0.020f, 1.0f);
-  plumos_mali_rect(renderer, 0.0f, 40.0f, (float)renderer->width, 2.0f,
-                   0.18f, 0.24f, 0.27f, 1.0f);
-  plumos_mali_text(renderer, title && title[0] ? title : "PLUMOS A30",
-                   16.0f, 12.0f, 2, 0.86f, 0.92f, 0.90f, 1.0f);
-  plumos_mali_text(renderer, right, (float)(renderer->width - 14 - right_width),
-                   12.0f, 2, 0.62f, 0.76f, 0.76f, 1.0f);
+  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 40.0f,
+                           theme->panel_inner, 1.0f);
+  plumos_mali_graphic_rect(renderer, 0.0f, 40.0f, (float)renderer->width, 2.0f,
+                           theme->panel, 1.0f);
+  plumos_mali_graphic_text(renderer, title && title[0] ? title : "PLUMOS A30",
+                           16.0f, 12.0f, 2, theme->foreground, 1.0f);
+  plumos_mali_graphic_text(renderer, right,
+                           (float)(renderer->width - 14 - right_width),
+                           12.0f, 2, theme->muted, 1.0f);
 }
 
 static void plumos_mali_graphic_draw_top(
     struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
     const char *status) {
   const size_t columns = 3;
@@ -2679,9 +2867,9 @@ static void plumos_mali_graphic_draw_top(
   const float tile_h = 126.0f;
   size_t i;
 
-  plumos_mali_graphic_top_bar(renderer, "PLUMOS A30 GUI");
-  plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
-                   1.0f, 0.52f, 0.05f, 1.0f);
+  plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
+  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                           theme->accent, 1.0f);
 
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;
@@ -2700,46 +2888,53 @@ static void plumos_mali_graphic_draw_top(
     plumos_mali_graphic_initials(entries[i].title, initials, sizeof(initials));
 
     if (selected) {
-      plumos_mali_rect(renderer, x, y, tile_w, tile_h, 1.0f, 0.56f, 0.10f, 1.0f);
-      plumos_mali_rect(renderer, x + 4.0f, y + 4.0f, tile_w - 8.0f, tile_h - 8.0f,
-                       0.08f, 0.14f, 0.15f, 1.0f);
+      plumos_mali_graphic_rect(renderer, x, y, tile_w, tile_h,
+                               theme->accent, 1.0f);
+      plumos_mali_graphic_rect(renderer, x + 4.0f, y + 4.0f,
+                               tile_w - 8.0f, tile_h - 8.0f,
+                               theme->selection_background, 1.0f);
     } else {
-      plumos_mali_rect(renderer, x, y, tile_w, tile_h, 0.12f, 0.17f, 0.18f, 1.0f);
-      plumos_mali_rect(renderer, x + 2.0f, y + 2.0f, tile_w - 4.0f, tile_h - 4.0f,
-                       0.025f, 0.032f, 0.034f, 1.0f);
+      plumos_mali_graphic_rect(renderer, x, y, tile_w, tile_h,
+                               theme->panel, 1.0f);
+      plumos_mali_graphic_rect(renderer, x + 2.0f, y + 2.0f,
+                               tile_w - 4.0f, tile_h - 4.0f,
+                               theme->panel_inner, 1.0f);
     }
-    plumos_mali_rect(renderer, x + 10.0f, y + 12.0f, tile_w - 20.0f, 54.0f,
-                     selected ? 0.22f : 0.10f,
-                     selected ? 0.32f : 0.18f,
-                     selected ? 0.30f : 0.20f, 1.0f);
+    plumos_mali_graphic_rect(renderer, x + 10.0f, y + 12.0f,
+                             tile_w - 20.0f, 54.0f,
+                             selected ? theme->selection_background
+                                      : theme->media_panel,
+                             1.0f);
     initials_width = plumos_mali_text_width(initials, 4);
-    plumos_mali_text(renderer, initials,
-                     x + (tile_w - (float)initials_width) * 0.5f,
-                     y + 24.0f, 4,
-                     selected ? 1.0f : 0.72f,
-                     selected ? 0.88f : 0.82f,
-                     selected ? 0.38f : 0.78f, 1.0f);
-    plumos_mali_text_clipped(renderer, title, x + 12.0f, y + 78.0f, 2, 1,
-                             x + 12.0f, x + tile_w - 12.0f,
-                             selected ? 0.98f : 0.72f,
-                             selected ? 0.94f : 0.82f,
-                             selected ? 0.76f : 0.80f, 1.0f);
+    plumos_mali_graphic_text(renderer, initials,
+                             x + (tile_w - (float)initials_width) * 0.5f,
+                             y + 24.0f, 4,
+                             selected ? theme->selection_foreground
+                                      : theme->foreground,
+                             1.0f);
+    plumos_mali_graphic_text_clipped(renderer, title, x + 12.0f, y + 78.0f,
+                                     2, 1, x + 12.0f, x + tile_w - 12.0f,
+                                     selected ? theme->selection_foreground
+                                              : theme->foreground,
+                                     1.0f);
     detail_width = plumos_mali_text_width(detail, 2);
-    plumos_mali_text_clipped(renderer, detail,
-                             x + tile_w - 12.0f - (float)detail_width,
-                             y + tile_h - 30.0f, 2, 0,
-                             x + 12.0f, x + tile_w - 12.0f,
-                             0.55f, 0.68f, 0.68f, 1.0f);
+    plumos_mali_graphic_text_clipped(renderer, detail,
+                                     x + tile_w - 12.0f - (float)detail_width,
+                                     y + tile_h - 30.0f, 2, 0,
+                                     x + 12.0f, x + tile_w - 12.0f,
+                                     theme->muted, 1.0f);
   }
   if (entry_count == 0) {
-    plumos_mali_text(renderer, "NO SYSTEMS", 28.0f, 90.0f, 3,
-                     0.70f, 0.78f, 0.76f, 1.0f);
+    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f, 90.0f, 3,
+                             theme->foreground, 1.0f);
   }
   (void)status;
 }
 
 static void plumos_mali_graphic_draw_roms(
-    struct plumos_mali_renderer *renderer, const char *mode, const char *system,
+    struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_theme *theme,
+    const char *mode, const char *system,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
     const char *status) {
   size_t i;
@@ -2762,9 +2957,9 @@ static void plumos_mali_graphic_draw_roms(
           (mode && strcmp(mode, "favorites") == 0 ? "FAVORITES" :
            mode && strcmp(mode, "recent") == 0 ? "RECENT" : "ROMS"),
       header, sizeof(header), 24);
-  plumos_mali_graphic_top_bar(renderer, header);
-  plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
-                   1.0f, 0.52f, 0.05f, 1.0f);
+  plumos_mali_graphic_top_bar(renderer, theme, header);
+  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                           theme->accent, 1.0f);
 
   for (i = 0; i < entry_count; i++) {
     float y = list_y + (float)i * row_h;
@@ -2772,16 +2967,15 @@ static void plumos_mali_graphic_draw_roms(
     float name_x = list_x + 24.0f;
     float name_right_x = list_x + list_w - 10.0f;
     int scroll_px = 0;
-    float r = 0.72f;
-    float g = 0.80f;
-    float b = 0.78f;
+    struct plumos_mali_rgb text_color = theme->foreground;
 
     if (entries[i].selected || !selected) {
       selected = &entries[i];
     }
     if (entries[i].selected) {
-      plumos_mali_rect(renderer, list_x - 6.0f, y - 7.0f, list_w, row_h - 4.0f,
-                       0.14f, 0.23f, 0.20f, 1.0f);
+      plumos_mali_graphic_rect(renderer, list_x - 6.0f, y - 7.0f, list_w,
+                               row_h - 4.0f, theme->selection_background,
+                               1.0f);
       if (name_right_x > name_x) {
         int title_width = plumos_mali_text_width_font(renderer, entries[i].title, 2, 1);
         int available_width = (int)(name_right_x - name_x);
@@ -2790,25 +2984,24 @@ static void plumos_mali_graphic_draw_roms(
                                                  12);
         }
       }
-      r = 1.0f;
-      g = 0.90f;
-      b = 0.48f;
+      text_color = theme->selection_foreground;
     }
-    plumos_mali_text(renderer, entries[i].selected ? ">" : " ", list_x, cursor_y, 2,
-                     r, g, b, 1.0f);
-    plumos_mali_text_clipped(renderer, entries[i].title, name_x - (float)scroll_px, y,
-                             2, 1, name_x, name_right_x,
-                             r, g, b, 1.0f);
+    plumos_mali_graphic_text(renderer, entries[i].selected ? ">" : " ",
+                             list_x, cursor_y, 2, text_color, 1.0f);
+    plumos_mali_graphic_text_clipped(renderer, entries[i].title,
+                                     name_x - (float)scroll_px, y,
+                                     2, 1, name_x, name_right_x,
+                                     text_color, 1.0f);
   }
 
-  plumos_mali_rect(renderer, preview_x, preview_y, preview_w, preview_h,
-                   0.12f, 0.17f, 0.18f, 1.0f);
-  plumos_mali_rect(renderer, preview_x + 3.0f, preview_y + 3.0f,
-                   preview_w - 6.0f, preview_h - 6.0f,
-                   0.020f, 0.026f, 0.028f, 1.0f);
-  plumos_mali_rect(renderer, preview_x + 16.0f, preview_y + 18.0f,
-                   preview_w - 32.0f, 156.0f,
-                   0.11f, 0.16f, 0.18f, 1.0f);
+  plumos_mali_graphic_rect(renderer, preview_x, preview_y, preview_w,
+                           preview_h, theme->panel, 1.0f);
+  plumos_mali_graphic_rect(renderer, preview_x + 3.0f, preview_y + 3.0f,
+                           preview_w - 6.0f, preview_h - 6.0f,
+                           theme->panel_inner, 1.0f);
+  plumos_mali_graphic_rect(renderer, preview_x + 16.0f, preview_y + 18.0f,
+                           preview_w - 32.0f, 156.0f,
+                           theme->media_panel, 1.0f);
 
   if (selected) {
 #ifdef PLUMOS_ENABLE_MALI_PNG
@@ -2818,14 +3011,20 @@ static void plumos_mali_graphic_draw_roms(
                                            preview_x + 16.0f, preview_y + 18.0f,
                                            preview_w - 32.0f, 156.0f);
     }
+    if (!thumbnail_drawn && theme->placeholder_thumbnail[0]) {
+      thumbnail_drawn =
+          plumos_mali_graphic_draw_texture(renderer, theme->placeholder_thumbnail,
+                                           preview_x + 16.0f, preview_y + 18.0f,
+                                           preview_w - 32.0f, 156.0f);
+    }
 #endif
     plumos_mali_graphic_initials(selected->title, initials, sizeof(initials));
     if (!thumbnail_drawn) {
       initials_width = plumos_mali_text_width(initials, 4);
-      plumos_mali_text(renderer, initials,
-                       preview_x + (preview_w - (float)initials_width) * 0.5f,
-                       preview_y + 76.0f, 4,
-                       0.72f, 0.86f, 0.86f, 1.0f);
+      plumos_mali_graphic_text(renderer, initials,
+                               preview_x + (preview_w - (float)initials_width) * 0.5f,
+                               preview_y + 76.0f, 4,
+                               theme->foreground, 1.0f);
     }
     {
       const char *preview_title = selected->title;
@@ -2852,20 +3051,20 @@ static void plumos_mali_graphic_draw_roms(
                                          preview_available_width, 12);
         }
       }
-      plumos_mali_text_clipped(renderer, preview_title,
-                               preview_text_x - (float)preview_title_scroll_px,
-                               preview_y + 200.0f, 2, 1,
-                               preview_text_x, preview_text_right_x,
-                               0.92f, 0.94f, 0.88f, 1.0f);
-      plumos_mali_text_clipped(renderer, preview_detail,
-                               preview_text_x - (float)preview_detail_scroll_px,
-                               preview_y + 232.0f, 2, 1,
-                               preview_text_x, preview_text_right_x,
-                               0.52f, 0.66f, 0.66f, 1.0f);
+      plumos_mali_graphic_text_clipped(
+          renderer, preview_title,
+          preview_text_x - (float)preview_title_scroll_px,
+          preview_y + 200.0f, 2, 1, preview_text_x, preview_text_right_x,
+          theme->foreground, 1.0f);
+      plumos_mali_graphic_text_clipped(
+          renderer, preview_detail,
+          preview_text_x - (float)preview_detail_scroll_px,
+          preview_y + 232.0f, 2, 1, preview_text_x, preview_text_right_x,
+          theme->muted, 1.0f);
     }
   } else {
-    plumos_mali_text(renderer, "NO ART", preview_x + 48.0f, preview_y + 120.0f,
-                     3, 0.54f, 0.66f, 0.66f, 1.0f);
+    plumos_mali_graphic_text(renderer, "NO ART", preview_x + 48.0f,
+                             preview_y + 120.0f, 3, theme->muted, 1.0f);
   }
   (void)status;
 }
@@ -2879,8 +3078,10 @@ static int plumos_mali_render_lines_graphic(
   char system[128];
   char status[160];
   struct plumos_mali_graphic_entry entries[12];
+  struct plumos_mali_graphic_theme theme;
   size_t entry_count = 0;
 
+  plumos_mali_graphic_theme_load(lines, line_count, &theme);
   plumos_mali_find_prefixed_line(lines, line_count, "graphic_mode=",
                                  mode, sizeof(mode));
   plumos_mali_find_prefixed_line(lines, line_count, "graphic_system=",
@@ -2897,13 +3098,22 @@ static int plumos_mali_render_lines_graphic(
 
   renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
   renderer->gl.UseProgram(renderer->program);
-  renderer->gl.ClearColor(0.010f, 0.012f, 0.013f, 1.0f);
+  renderer->gl.ClearColor(theme.background.r, theme.background.g,
+                          theme.background.b, 1.0f);
   renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
+#ifdef PLUMOS_ENABLE_MALI_PNG
+  if (theme.background_image[0]) {
+    plumos_mali_graphic_draw_texture(renderer, theme.background_image,
+                                     0.0f, 0.0f, (float)renderer->width,
+                                     (float)renderer->height);
+  }
+#endif
 
   if (strcmp(mode, "top") == 0) {
-    plumos_mali_graphic_draw_top(renderer, entries, entry_count, status);
+    plumos_mali_graphic_draw_top(renderer, &theme, entries, entry_count, status);
   } else {
-    plumos_mali_graphic_draw_roms(renderer, mode, system, entries, entry_count, status);
+    plumos_mali_graphic_draw_roms(renderer, &theme, mode, system, entries,
+                                  entry_count, status);
   }
 
   renderer->gl.Finish();

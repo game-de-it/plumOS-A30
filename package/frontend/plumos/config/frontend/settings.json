@@ -13,5 +13,6 @@
   "rom_scan_slow_threshold_ms": 500,
   "rom_scan_test_file_count": 1000,
   "theme_id": "default",
+  "graphic_theme_id": "default",
   "last_system_id": ""
 }

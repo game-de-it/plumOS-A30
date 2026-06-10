@@ -24,7 +24,7 @@
 `plumos-controller-ui` の START menu から System Settings を開くと、ユーザーが
 調整対象として認識する次の項目を表示します。2026-06-09 時点では
 `/mnt/SDCARD/plumos/config/system/settings.json` を読み書きし、stockOS の
-`/config/system.json` には触れません。`Language` と `Theme` 以外は、plumOS 設定保存後に
+`/config/system.json` には触れません。`Language` 以外は、plumOS 設定保存後に
 A30 runtime backend へ即時反映します。
 
 - `Volume`: `volume`。左右で `0..20` を変更し、ALSA `Soft Volume Master` へ反映する。将来は物理音量ボタンと連動する
@@ -33,7 +33,6 @@ A30 runtime backend へ即時反映します。
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
 - `Time Settings`: A で時刻設定サブ項目を開く。`Timezone` は左右で変更し、plumOS config 保存後に `TZ` 環境と runtime `/etc/TZ` へ反映する。`Manual Time` は専用画面で Year/Month/Day/Hour/Minute を変更し、A で OS 時刻へ適用する
 - `Language`: `language`。左右で `English`, `Japanese`, `Chinese`, `Traditional Chinese`, `Korean`, `Spanish`, `Portuguese` を選択する
-- `Theme`: graphical mode 向けの theme 設定候補。候補名と path の扱いが固まるまで read-only
 - `INFORMATION`: 現在値や backend/policy などの情報系サブ項目
 
 `INFORMATION` サブ項目には以下の read-only 情報を置きます。
@@ -43,7 +42,6 @@ A30 runtime backend へ即時反映します。
 - `SD Card`: `statvfs()` で見た空き容量/総容量
 - `plumOS System Config`: `/mnt/SDCARD/plumos/config/system/settings.json` の読み取り状態
 - `Input Device`: `gpio-keys-polled` から見つけた `/dev/input/event*`
-- `Theme Source`: plumOS theme id
 - `Audio Backend`: 検出した mixer backend。A30 では `Soft Volume Master (amixer)`
 - `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
 - `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針

@@ -1,8 +1,22 @@
-# plumOS Frontend Theme Model
+# plumOS Frontend Graphic Theme Model
 
-This document defines the first plumOS frontend theme model. Stock theme formats
-are not the official plumOS theme specification. If needed, stock compatibility
-can be considered later as an importer.
+This document defines the first plumOS frontend Graphic mode theme model. It
+uses an EmulationStation-like package concept where a theme owns the visual
+presentation for Graphic mode. Stock theme formats are not the official plumOS
+theme specification. If needed, stock compatibility can be considered later as
+an importer.
+
+## Policy
+
+- Themes control Graphic mode presentation only.
+- Text mode does not use theme colors, layouts, assets, or fonts.
+- `settings.json` uses `graphic_theme_id` as the selected Graphic theme.
+- `theme_id` is still saved temporarily for compatibility, but new code should
+  use `graphic_theme_id`.
+- Themes cannot change button mappings, menu actions, launch profiles, ROM scan,
+  resume, CPU/Wi-Fi, or power policy.
+- If a theme requests behavior control, it is blocked and the built-in Graphic
+  fallback is used.
 
 ## Layout
 
@@ -18,22 +32,18 @@ can be considered later as an importer.
       sounds/
 ```
 
-`settings.json` selects a theme through `theme_id`, which resolves to
-`/mnt/SDCARD/plumos/themes/<theme_id>/theme.json`. If loading fails, text mode
-must remain usable through built-in font/color fallback.
+`graphic_theme_id` resolves to
+`/mnt/SDCARD/plumos/themes/<graphic_theme_id>/theme.json`. If loading fails,
+Graphic mode remains usable through built-in color/font fallback.
 
-## Loading Policy
+## Asset Spec
 
-- Themes control presentation only.
-- A theme may refer to a layout preset, but cannot change button behavior or
-  menu actions.
-- Text mode works without icons, thumbnails, or font assets.
-- Gallery mode uses ROM thumbnails. Missing thumbnails fall back to the theme
-  placeholder, then to text.
-- Artwork lookup is owned by `systems.json` `artwork.lookup`.
-- Official plumOS artwork starts under `/mnt/SDCARD/plumos/media/<system>`.
-  Existing artwork under `/mnt/SDCARD/Imgs/<alias>` and
-  `/mnt/SDCARD/images/<system>` is read in place as fallback.
+- Background image: PNG, recommended `640x480`, displayed across the screen.
+- ROM preview placeholder: PNG, recommended `280x156`, used when no thumbnail
+  exists.
+- System icon: future use, PNG, square, recommended `128x128` or larger.
+- Font asset: future use. For now, Graphic mode prefers the TTF/CJK fallback.
+- Text mode bitmap fonts are not part of theme packages.
 
 ## `themes.json`
 
@@ -43,9 +53,10 @@ must remain usable through built-in font/color fallback.
   "themes": [
     {
       "id": "default",
-      "display_name": "Default",
+      "display_name": "Default Graphic",
       "path": "/mnt/SDCARD/plumos/themes/default/theme.json",
-      "builtin_fallback": true
+      "builtin_fallback": true,
+      "target": "graphic"
     }
   ]
 }
@@ -55,8 +66,8 @@ must remain usable through built-in font/color fallback.
 
 Themes may control:
 
-- colors
-- fonts
+- Graphic TOP / ROM preview colors
+- Graphic mode fonts
 - backgrounds
 - system icons
 - selection style
@@ -73,38 +84,39 @@ Themes may not control:
 - ROM scan policy
 - launch profiles or RetroArch/core selection
 - CPU/Wi-Fi/power policy
+- Text mode console design
 
 ```json
 {
   "version": 1,
   "id": "default",
-  "display_name": "Default",
-  "layout_preset": "compact_text",
+  "target": "graphic",
+  "display_name": "Default Graphic",
+  "layout_preset": "grid_preview",
   "assets": {
-    "font_ui": "fonts/default.bdf",
-    "font_fallback": "builtin",
+    "font_ui": null,
+    "font_fallback": "system_cjk",
     "background": null,
     "system_icon_root": "icons/systems",
-    "placeholder_thumbnail": "images/placeholder.png",
+    "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"
   },
   "colors": {
-    "background": "#101418",
-    "foreground": "#f1f5f9",
-    "muted": "#94a3b8",
-    "accent": "#38bdf8",
-    "selection_background": "#1f2937",
-    "selection_foreground": "#ffffff",
-    "danger": "#f97373"
+    "background": "#030404",
+    "foreground": "#b8d0ca",
+    "muted": "#85a6a6",
+    "accent": "#ff850d",
+    "panel": "#1f2b2e",
+    "panel_inner": "#050808",
+    "media_panel": "#1c2a2e",
+    "selection_background": "#243a33",
+    "selection_foreground": "#ffe67a",
+    "danger": "#ff140a"
   },
-  "text_mode": {
-    "force_no_icons": true,
-    "line_height": 14,
-    "cursor": ">",
-    "show_thumbnail": false
-  },
-  "gallery_mode": {
-    "transition": "slide",
+  "graphic_mode": {
+    "top_layout": "tile_grid",
+    "rom_layout": "list_preview",
+    "transition": "none",
     "thumbnail_fit": "contain",
     "thumbnail_frame": "simple",
     "missing_thumbnail": "text_fallback"
@@ -112,7 +124,7 @@ Themes may not control:
   "spacing": {
     "screen_padding": 8,
     "row_gap": 2,
-    "column_gap": 6
+    "column_gap": 10
   },
   "behavior_policy": {
     "theme_may_change_input": false,
@@ -126,4 +138,4 @@ Themes may not control:
 
 `behavior_policy` is a safety check. If any value is `true`, the controller UI
 treats the theme as requesting behavior control, blocks that request, and uses
-text fallback.
+the built-in Graphic fallback.

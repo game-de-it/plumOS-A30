@@ -226,7 +226,7 @@ Apps submenu, and `hidden` means an internal action that is not shown directly.
 
 ### `ThemeDefinition`
 
-Themes are UI configuration and are separate from system definitions, layout
+Themes are Graphic mode UI configuration and are separate from system definitions, layout
 presets, and frontend behavior. The full schema lives in
 [plumOS frontend theme model](frontend-theme-model.en.md). Stock theme formats
 are not the official plumOS theme specification.
@@ -235,30 +235,32 @@ are not the official plumOS theme specification.
 {
   "version": 1,
   "id": "default",
-  "display_name": "Default",
-  "layout_preset": "compact_text",
+  "target": "graphic",
+  "display_name": "Default Graphic",
+  "layout_preset": "grid_preview",
   "assets": {
-    "font_ui": "fonts/default.bdf",
-    "font_fallback": "builtin",
+    "font_ui": null,
+    "font_fallback": "system_cjk",
     "background": null,
     "system_icon_root": "icons/systems",
-    "placeholder_thumbnail": "images/placeholder.png",
+    "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"
   },
   "colors": {
-    "background": "#101418",
-    "foreground": "#f1f5f9",
-    "accent": "#38bdf8",
-    "selection_background": "#1f2937",
-    "selection_foreground": "#ffffff"
+    "background": "#030404",
+    "foreground": "#b8d0ca",
+    "muted": "#85a6a6",
+    "accent": "#ff850d",
+    "panel": "#1f2b2e",
+    "panel_inner": "#050808",
+    "media_panel": "#1c2a2e",
+    "selection_background": "#243a33",
+    "selection_foreground": "#ffe67a"
   },
-  "text_mode": {
-    "force_no_icons": true,
-    "line_height": 14,
-    "show_thumbnail": false
-  },
-  "gallery_mode": {
-    "transition": "slide",
+  "graphic_mode": {
+    "top_layout": "tile_grid",
+    "rom_layout": "list_preview",
+    "transition": "none",
     "thumbnail_fit": "contain",
     "missing_thumbnail": "text_fallback"
   },
@@ -272,11 +274,11 @@ are not the official plumOS theme specification.
 }
 ```
 
-Themes may control only colors, fonts, backgrounds, system icons, selection
+Themes may control only Graphic mode colors, fonts, backgrounds, system icons, selection
 style, spacing, thumbnail frames, and sound effects. They may not change button
 behavior, START menu structure, SELECT core menu behavior, favorites, ROM
-scanning, resume, or launch profiles. Text mode remains usable through built-in
-font/color fallback even when theme assets or fonts are missing or broken.
+scanning, resume, or launch profiles. Text mode is not affected by theme
+packages.
 
 ### `FrontendSettings`
 
@@ -296,6 +298,7 @@ font/color fallback even when theme assets or fonts are missing or broken.
   "rom_scan_slow_threshold_ms": 500,
   "rom_scan_test_file_count": 1000,
   "theme_id": "default",
+  "graphic_theme_id": "default",
   "last_system_id": "gba"
 }
 ```

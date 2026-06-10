@@ -26,7 +26,7 @@ setting, then connects that backend to plumOS UI and services.
 Opening System Settings from the START menu in `plumos-controller-ui` shows the
 settings users should recognize as adjustment targets. As of 2026-06-09, the UI
 reads and writes `/mnt/SDCARD/plumos/config/system/settings.json`; it does not
-touch stockOS `/config/system.json`. Except for `Language` and `Theme`, saves
+touch stockOS `/config/system.json`. Except for `Language`, saves
 are applied immediately to the A30 runtime backend.
 
 - `Volume`: `volume`; Left/Right changes `0..20`. Later
@@ -43,8 +43,6 @@ are applied immediately to the A30 runtime backend.
   Year/Month/Day/Hour/Minute and applies the OS clock with A.
 - `Language`: `language`; Left/Right selects `English`, `Japanese`, `Chinese`,
   `Traditional Chinese`, `Korean`, `Spanish`, or `Portuguese`
-- `Theme`: theme setting candidate for graphical mode; read-only until candidate
-  names and paths are defined safely
 - `INFORMATION`: read-only subpage for current values, backend state, and policy
 
 The `INFORMATION` subpage owns these read-only entries:
@@ -55,7 +53,6 @@ The `INFORMATION` subpage owns these read-only entries:
 - `plumOS System Config`: read status for
   `/mnt/SDCARD/plumos/config/system/settings.json`
 - `Input Device`: `/dev/input/event*` found from `gpio-keys-polled`
-- `Theme Source`: plumOS theme id
 - `Audio Backend`: detected mixer backend. On A30 this is
   `Soft Volume Master (amixer)`
 - `Display Backend`: detected display backend. On A30 this is

@@ -262,6 +262,13 @@ struct setting_choice {
   const char *display;
 };
 
+#define UI_GRAPHIC_THEME_CHOICE_MAX 32
+
+struct graphic_theme_choice {
+  char raw[64];
+  char display[128];
+};
+
 struct performance_cpu_preset {
   const char *label;
   const char *policy;
@@ -283,15 +290,25 @@ struct wifi_network_entry {
 struct theme_state {
   int loaded;
   int fallback;
-  int force_no_icons;
-  long line_height;
   char id[64];
+  char target[32];
   char display_name[128];
   char path[PATH_MAX];
   char layout_preset[64];
   char font_ui[UI_PATH_MAX];
   char font_fallback[64];
+  char background[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
+  char color_background[16];
+  char color_foreground[16];
+  char color_muted[16];
+  char color_accent[16];
+  char color_panel[16];
+  char color_panel_inner[16];
+  char color_media_panel[16];
+  char color_selection_background[16];
+  char color_selection_foreground[16];
+  char color_danger[16];
   char status[256];
 };
 
@@ -339,6 +356,7 @@ struct frontend_settings {
   char top_mode[32];
   char rom_mode[32];
   char theme_id[64];
+  char graphic_theme_id[64];
   char sort_systems[64];
   char sort_roms[64];
   char rom_scan_policy[64];
@@ -1841,6 +1859,7 @@ static void init_frontend_settings(struct frontend_settings *settings) {
   copy_string(settings->top_mode, sizeof(settings->top_mode), "text");
   copy_string(settings->rom_mode, sizeof(settings->rom_mode), "text");
   copy_string(settings->theme_id, sizeof(settings->theme_id), "default");
+  copy_string(settings->graphic_theme_id, sizeof(settings->graphic_theme_id), "default");
   copy_string(settings->sort_systems, sizeof(settings->sort_systems), "sort_order");
   copy_string(settings->sort_roms, sizeof(settings->sort_roms), "name");
   copy_string(settings->rom_scan_policy, sizeof(settings->rom_scan_policy), "on_enter");
@@ -1873,6 +1892,13 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
                   sizeof(settings->rom_mode));
   json_get_string(json, json + json_size, "theme_id", settings->theme_id,
                   sizeof(settings->theme_id));
+  if (!json_get_string(json, json + json_size, "graphic_theme_id",
+                       settings->graphic_theme_id,
+                       sizeof(settings->graphic_theme_id)) &&
+      settings->theme_id[0]) {
+    copy_string(settings->graphic_theme_id, sizeof(settings->graphic_theme_id),
+                settings->theme_id);
+  }
   json_get_string(json, json + json_size, "sort_systems", settings->sort_systems,
                   sizeof(settings->sort_systems));
   json_get_string(json, json + json_size, "sort_roms", settings->sort_roms,
@@ -2001,7 +2027,9 @@ static int save_settings(const char *path, const struct frontend_settings *setti
   fprintf(f, "  \"rom_scan_test_file_count\": %ld,\n",
           settings->rom_scan_test_file_count);
   fprintf(f, "  \"theme_id\": ");
-  fprint_json_string(f, settings->theme_id);
+  fprint_json_string(f, settings->graphic_theme_id);
+  fprintf(f, ",\n  \"graphic_theme_id\": ");
+  fprint_json_string(f, settings->graphic_theme_id);
   fprintf(f, ",\n  \"last_system_id\": ");
   fprint_json_string(f, settings->last_system_id);
   fprintf(f, "\n}\n");
@@ -2454,13 +2482,12 @@ static void init_theme_state(struct theme_state *theme, const char *theme_id,
                              const char *theme_path) {
   memset(theme, 0, sizeof(*theme));
   theme->fallback = 1;
-  theme->line_height = 14;
-  theme->force_no_icons = 1;
   copy_string(theme->id, sizeof(theme->id), theme_id && theme_id[0] ? theme_id : "default");
-  copy_string(theme->display_name, sizeof(theme->display_name), "Built-in Text");
-  copy_string(theme->layout_preset, sizeof(theme->layout_preset), "compact_text");
+  copy_string(theme->target, sizeof(theme->target), "graphic");
+  copy_string(theme->display_name, sizeof(theme->display_name), "Built-in Graphic");
+  copy_string(theme->layout_preset, sizeof(theme->layout_preset), "grid_preview");
   copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
-  copy_string(theme->status, sizeof(theme->status), "builtin text fallback");
+  copy_string(theme->status, sizeof(theme->status), "builtin graphic fallback");
   if (theme_path) {
     copy_string(theme->path, sizeof(theme->path), theme_path);
   }
@@ -2489,8 +2516,8 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
   size_t json_size;
   const char *assets_start;
   const char *assets_end;
-  const char *text_start;
-  const char *text_end;
+  const char *colors_start;
+  const char *colors_end;
   const char *json_end;
 
   if (!theme_id || !theme_id[0]) {
@@ -2513,6 +2540,8 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
   ui->theme.fallback = 0;
 
   json_get_string(json, json_end, "id", ui->theme.id, sizeof(ui->theme.id));
+  json_get_string(json, json_end, "target", ui->theme.target,
+                  sizeof(ui->theme.target));
   json_get_string(json, json_end, "display_name", ui->theme.display_name,
                   sizeof(ui->theme.display_name));
   json_get_string(json, json_end, "layout_preset", ui->theme.layout_preset,
@@ -2521,7 +2550,13 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
     copy_string(ui->theme.display_name, sizeof(ui->theme.display_name), ui->theme.id);
   }
   if (!ui->theme.layout_preset[0]) {
-    copy_string(ui->theme.layout_preset, sizeof(ui->theme.layout_preset), "compact_text");
+    copy_string(ui->theme.layout_preset, sizeof(ui->theme.layout_preset), "grid_preview");
+  }
+
+  if (ui->theme.target[0] && strcmp(ui->theme.target, "graphic") != 0) {
+    ui->theme.fallback = 1;
+    copy_string(ui->theme.status, sizeof(ui->theme.status),
+                "theme target is not graphic; builtin fallback");
   }
 
   if (json_find_object(json, json_end, "assets", &assets_start, &assets_end)) {
@@ -2529,6 +2564,8 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
                     sizeof(ui->theme.font_ui));
     json_get_string(assets_start, assets_end, "font_fallback", ui->theme.font_fallback,
                     sizeof(ui->theme.font_fallback));
+    json_get_string(assets_start, assets_end, "background", ui->theme.background,
+                    sizeof(ui->theme.background));
     json_get_string(assets_start, assets_end, "placeholder_thumbnail",
                     ui->theme.placeholder_thumbnail,
                     sizeof(ui->theme.placeholder_thumbnail));
@@ -2537,25 +2574,39 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
     copy_string(ui->theme.font_fallback, sizeof(ui->theme.font_fallback), "builtin");
   }
 
-  if (json_find_object(json, json_end, "text_mode", &text_start, &text_end)) {
-    ui->theme.force_no_icons = json_get_bool(text_start, text_end, "force_no_icons", 1);
-    ui->theme.line_height = json_get_long(text_start, text_end, "line_height", 14);
-    if (ui->theme.line_height <= 0 || ui->theme.line_height > 96) {
-      ui->theme.line_height = 14;
-      ui->theme.fallback = 1;
-      copy_string(ui->theme.status, sizeof(ui->theme.status),
-                  "invalid line_height; builtin text fallback");
-    }
+  if (json_find_object(json, json_end, "colors", &colors_start, &colors_end)) {
+    json_get_string(colors_start, colors_end, "background",
+                    ui->theme.color_background, sizeof(ui->theme.color_background));
+    json_get_string(colors_start, colors_end, "foreground",
+                    ui->theme.color_foreground, sizeof(ui->theme.color_foreground));
+    json_get_string(colors_start, colors_end, "muted",
+                    ui->theme.color_muted, sizeof(ui->theme.color_muted));
+    json_get_string(colors_start, colors_end, "accent",
+                    ui->theme.color_accent, sizeof(ui->theme.color_accent));
+    json_get_string(colors_start, colors_end, "panel",
+                    ui->theme.color_panel, sizeof(ui->theme.color_panel));
+    json_get_string(colors_start, colors_end, "panel_inner",
+                    ui->theme.color_panel_inner, sizeof(ui->theme.color_panel_inner));
+    json_get_string(colors_start, colors_end, "media_panel",
+                    ui->theme.color_media_panel, sizeof(ui->theme.color_media_panel));
+    json_get_string(colors_start, colors_end, "selection_background",
+                    ui->theme.color_selection_background,
+                    sizeof(ui->theme.color_selection_background));
+    json_get_string(colors_start, colors_end, "selection_foreground",
+                    ui->theme.color_selection_foreground,
+                    sizeof(ui->theme.color_selection_foreground));
+    json_get_string(colors_start, colors_end, "danger",
+                    ui->theme.color_danger, sizeof(ui->theme.color_danger));
   }
 
   if (theme_behavior_is_blocked(json, json_end)) {
     ui->theme.fallback = 1;
     copy_string(ui->theme.status, sizeof(ui->theme.status),
                 "theme requested behavior control; blocked");
-  } else if (!ui->theme.status[0] || strcmp(ui->theme.status, "builtin text fallback") == 0) {
+  } else if (!ui->theme.status[0] || strcmp(ui->theme.status, "builtin graphic fallback") == 0) {
     copy_string(ui->theme.status, sizeof(ui->theme.status),
-                ui->theme.font_ui[0] ? "theme loaded; text fallback available"
-                                     : "theme loaded; builtin font fallback");
+                ui->theme.font_ui[0] ? "graphic theme loaded; font available"
+                                     : "graphic theme loaded; builtin font fallback");
   }
 
   free(json);
@@ -2584,6 +2635,183 @@ static int resolve_theme_font_path(const struct theme_state *theme, char *out,
     return copy_string(out, out_size, candidate);
   }
   return 0;
+}
+
+static int resolve_theme_asset_path(const struct theme_state *theme, const char *asset,
+                                    char *out, size_t out_size) {
+  char theme_dir[PATH_MAX];
+  char candidate[PATH_MAX];
+
+  if (!theme || !asset || !asset[0] || !out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (asset[0] == '/') {
+    if (file_exists(asset)) {
+      return copy_string(out, out_size, asset);
+    }
+    return 0;
+  }
+  if (!dirname_path(theme_dir, sizeof(theme_dir), theme->path)) {
+    return 0;
+  }
+  if (join_path(candidate, sizeof(candidate), theme_dir, asset) &&
+      file_exists(candidate)) {
+    return copy_string(out, out_size, candidate);
+  }
+  return 0;
+}
+
+static int graphic_theme_choice_cmp(const void *a, const void *b) {
+  const struct graphic_theme_choice *theme_a = (const struct graphic_theme_choice *)a;
+  const struct graphic_theme_choice *theme_b = (const struct graphic_theme_choice *)b;
+
+  if (strcmp(theme_a->raw, "default") == 0 && strcmp(theme_b->raw, "default") != 0) {
+    return -1;
+  }
+  if (strcmp(theme_b->raw, "default") == 0 && strcmp(theme_a->raw, "default") != 0) {
+    return 1;
+  }
+  return strcmp(theme_a->display, theme_b->display);
+}
+
+static int graphic_theme_choice_exists(const struct graphic_theme_choice *choices,
+                                       size_t count, const char *id) {
+  size_t i;
+
+  if (!choices || !id) {
+    return 0;
+  }
+  for (i = 0; i < count; i++) {
+    if (strcmp(choices[i].raw, id) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int read_graphic_theme_display_name(const char *theme_path, const char *theme_id,
+                                           int allow_builtin_fallback,
+                                           char *display, size_t display_size) {
+  char *json;
+  size_t json_size;
+  char target[32];
+
+  if (!display || display_size == 0 || !theme_id || !theme_id[0]) {
+    return 0;
+  }
+  display[0] = '\0';
+  json = read_file(theme_path, &json_size);
+  if (!json) {
+    if (allow_builtin_fallback && strcmp(theme_id, "default") == 0) {
+      return copy_string(display, display_size, "Default Graphic");
+    }
+    return 0;
+  }
+  target[0] = '\0';
+  json_get_string(json, json + json_size, "target", target, sizeof(target));
+  if (target[0] && strcmp(target, "graphic") != 0) {
+    free(json);
+    return 0;
+  }
+  if (theme_behavior_is_blocked(json, json + json_size)) {
+    free(json);
+    return 0;
+  }
+  json_get_string(json, json + json_size, "display_name", display, display_size);
+  free(json);
+  if (!display[0]) {
+    return copy_string(display, display_size, theme_id);
+  }
+  return 1;
+}
+
+static int append_graphic_theme_choice(struct ui_state *ui,
+                                       struct graphic_theme_choice *choices,
+                                       size_t capacity, size_t *count,
+                                       const char *theme_id,
+                                       int allow_builtin_fallback) {
+  char theme_path[PATH_MAX];
+  char display[128];
+
+  if (!ui || !choices || !count || *count >= capacity ||
+      !theme_id || !valid_system_id(theme_id) ||
+      graphic_theme_choice_exists(choices, *count, theme_id) ||
+      !build_theme_path(theme_path, sizeof(theme_path), ui->plumos_root, theme_id)) {
+    return 0;
+  }
+  if (!read_graphic_theme_display_name(theme_path, theme_id,
+                                       allow_builtin_fallback,
+                                       display, sizeof(display))) {
+    return 0;
+  }
+  copy_string(choices[*count].raw, sizeof(choices[*count].raw), theme_id);
+  copy_string(choices[*count].display, sizeof(choices[*count].display), display);
+  (*count)++;
+  return 1;
+}
+
+static size_t load_graphic_theme_choices(struct ui_state *ui,
+                                         struct graphic_theme_choice *choices,
+                                         size_t capacity) {
+  char themes_dir[PATH_MAX];
+  DIR *dir;
+  struct dirent *entry;
+  size_t count = 0;
+
+  if (!ui || !choices || capacity == 0) {
+    return 0;
+  }
+  append_graphic_theme_choice(ui, choices, capacity, &count, "default", 1);
+  if (!join_path(themes_dir, sizeof(themes_dir), ui->plumos_root, "themes")) {
+    return count;
+  }
+  dir = opendir(themes_dir);
+  if (!dir) {
+    return count;
+  }
+  while ((entry = readdir(dir)) != NULL && count < capacity) {
+    const char *name = entry->d_name;
+    char theme_path[PATH_MAX];
+    struct stat st;
+
+    if (!name || name[0] == '.' || !valid_system_id(name) ||
+        strcmp(name, "default") == 0 ||
+        !build_theme_path(theme_path, sizeof(theme_path), ui->plumos_root, name) ||
+        stat(theme_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+      continue;
+    }
+    append_graphic_theme_choice(ui, choices, capacity, &count, name, 0);
+  }
+  closedir(dir);
+  if (count > 1) {
+    qsort(choices, count, sizeof(choices[0]), graphic_theme_choice_cmp);
+  }
+  return count;
+}
+
+static void graphic_theme_display_value(struct ui_state *ui, const char *raw_value,
+                                        char *out, size_t out_size) {
+  struct graphic_theme_choice choices[UI_GRAPHIC_THEME_CHOICE_MAX];
+  size_t count;
+  size_t i;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  if (!raw_value || !raw_value[0]) {
+    raw_value = "default";
+  }
+  count = load_graphic_theme_choices(ui, choices,
+                                     sizeof(choices) / sizeof(choices[0]));
+  for (i = 0; i < count; i++) {
+    if (strcmp(choices[i].raw, raw_value) == 0) {
+      copy_string(out, out_size, choices[i].display);
+      return;
+    }
+  }
+  copy_string(out, out_size, raw_value);
 }
 
 static int font_path_is_bitmap_only(const char *path) {
@@ -2621,7 +2849,8 @@ static int choose_mali_font_path(struct ui_state *ui, const char *requested,
     }
     return copy_string(out, out_size, requested);
   }
-  if (resolve_theme_font_path(&ui->theme, out, out_size) &&
+  if (ui && strcmp(ui->frontend_settings.ui_mode, "graphic") == 0 &&
+      resolve_theme_font_path(&ui->theme, out, out_size) &&
       !font_path_is_bitmap_only(out)) {
     return 1;
   }
@@ -2860,6 +3089,9 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   if (setting_choices(id, NULL)) {
     return SETTING_CONTROL_CHOICE;
   }
+  if (strcmp(id, "graphic_theme_id") == 0) {
+    return SETTING_CONTROL_CHOICE;
+  }
   if (strcmp(id, "performance_system") == 0 ||
       strcmp(id, "performance_cpu_policy") == 0 ||
       strcmp(id, "performance_cpu_cores") == 0) {
@@ -2889,6 +3121,7 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "show_favorites_on_top") == 0 ||
                 strcmp(id, "show_recent_on_top") == 0 ||
                 strcmp(id, "boot_resume_mode") == 0 ||
+                strcmp(id, "graphic_theme_id") == 0 ||
                 strcmp(id, "sort_systems") == 0 ||
                 strcmp(id, "sort_roms") == 0 ||
                 strcmp(id, "rom_scan_policy") == 0 ||
@@ -2946,6 +3179,11 @@ static const char *settings_category_title(enum settings_category category) {
 
 static void add_ui_settings_entries(struct ui_state *ui,
                                     const struct frontend_settings *settings) {
+  char graphic_theme_display[128];
+
+  graphic_theme_display_value(ui, settings->graphic_theme_id,
+                              graphic_theme_display,
+                              sizeof(graphic_theme_display));
   add_setting_entry(ui, "ui_mode", "UI Mode",
                     setting_choice_display_value("ui_mode", settings->ui_mode));
   add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
@@ -2963,14 +3201,13 @@ static void add_ui_settings_entries(struct ui_state *ui,
                     setting_choice_display_value("sort_roms", settings->sort_roms));
   add_bool_setting_entry(ui, "rom_scan_policy", "Scan On Enter",
                          rom_scan_policy_is_on_enter(settings->rom_scan_policy));
-  add_setting_entry(ui, "theme_id", "Theme", settings->theme_id);
+  add_setting_entry(ui, "graphic_theme_id", "Graphic Theme",
+                    graphic_theme_display);
   add_setting_entry(ui, "theme_name", "Theme Name", ui->theme.display_name);
   add_setting_entry(ui, "theme_status", "Theme Status", ui->theme.status);
   add_setting_entry(ui, "theme_layout", "Theme Layout", ui->theme.layout_preset);
   add_setting_entry(ui, "theme_font", "Theme Font",
                     ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
-  add_bool_setting_entry(ui, "theme_force_no_icons", "Text Force No Icons",
-                         ui->theme.force_no_icons);
 }
 
 static int days_in_month(long year, long month) {
@@ -3103,8 +3340,6 @@ static void add_system_settings_entries(struct ui_state *ui) {
                     setting_choice_display_value("system_timezone", device->timezone));
   add_setting_entry(ui, "system_language", "Language",
                     setting_choice_display_value("system_language", device->language));
-  add_setting_entry(ui, "system_theme", "Theme",
-                    device->theme[0] ? device->theme : "-");
   add_setting_entry(ui, "system_information", "INFORMATION", "");
 }
 
@@ -3145,7 +3380,6 @@ static void add_system_information_entries(struct ui_state *ui) {
   add_setting_entry(ui, "system_config", "plumOS System Config",
                     device->loaded ? ui->system_config_path : device->status);
   add_setting_entry(ui, "system_input_device", "Input Device", ui->input_event_path);
-  add_setting_entry(ui, "system_theme_source", "Theme Source", device->theme);
   add_setting_entry(ui, "system_audio_backend", "Audio Backend", device->volume_backend);
   add_setting_entry(ui, "system_display_backend", "Display Backend",
                     device->brightness_backend);
@@ -3555,7 +3789,7 @@ static int load_settings_entries(struct ui_state *ui) {
     return 0;
   }
   ui->frontend_settings = settings;
-  load_theme_state(ui, settings.theme_id);
+  load_theme_state(ui, settings.graphic_theme_id);
   switch (ui->settings_category) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
     load_device_settings(ui);
@@ -4126,11 +4360,54 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
   ui->top_cursor = next;
 }
 
+static void ui_emit_graphic_theme_color(struct ui_state *ui, const char *key,
+                                        const char *value) {
+  if (!ui || !key || !key[0] || !value || !value[0]) {
+    return;
+  }
+  ui_printf(ui, "graphic_theme_color\t%s\t%s\n", key, value);
+}
+
+static void ui_emit_graphic_theme_asset(struct ui_state *ui, const char *key,
+                                        const char *asset) {
+  char resolved[PATH_MAX];
+
+  if (!ui || !key || !key[0] || !asset || !asset[0]) {
+    return;
+  }
+  if (!resolve_theme_asset_path(&ui->theme, asset, resolved, sizeof(resolved))) {
+    return;
+  }
+  ui_printf(ui, "graphic_theme_asset\t%s\t%s\n", key, resolved);
+}
+
+static void ui_emit_graphic_theme(struct ui_state *ui) {
+  if (!ui || !ui->theme.loaded || ui->theme.fallback) {
+    return;
+  }
+  ui_printf(ui, "graphic_theme_id=%s\n", ui->theme.id[0] ? ui->theme.id : "default");
+  ui_emit_graphic_theme_asset(ui, "background", ui->theme.background);
+  ui_emit_graphic_theme_asset(ui, "placeholder", ui->theme.placeholder_thumbnail);
+  ui_emit_graphic_theme_color(ui, "background", ui->theme.color_background);
+  ui_emit_graphic_theme_color(ui, "foreground", ui->theme.color_foreground);
+  ui_emit_graphic_theme_color(ui, "muted", ui->theme.color_muted);
+  ui_emit_graphic_theme_color(ui, "accent", ui->theme.color_accent);
+  ui_emit_graphic_theme_color(ui, "panel", ui->theme.color_panel);
+  ui_emit_graphic_theme_color(ui, "panel_inner", ui->theme.color_panel_inner);
+  ui_emit_graphic_theme_color(ui, "media_panel", ui->theme.color_media_panel);
+  ui_emit_graphic_theme_color(ui, "selection_background",
+                              ui->theme.color_selection_background);
+  ui_emit_graphic_theme_color(ui, "selection_foreground",
+                              ui->theme.color_selection_foreground);
+  ui_emit_graphic_theme_color(ui, "danger", ui->theme.color_danger);
+}
+
 static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
   size_t i;
 
   ui_printf(ui, "plumOS controller UI - TOP\n");
   ui_printf(ui, "graphic_mode=top\n");
+  ui_emit_graphic_theme(ui);
   ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->top_count,
             ui->top_count ? ui->top_cursor + 1 : 0);
   for (i = start; i < end; i++) {
@@ -4227,6 +4504,7 @@ static void render_roms_graphic(struct ui_state *ui, const char *title,
   ui_printf(ui, "graphic_mode=%s\n", mode);
   ui_printf(ui, "graphic_system=%s\n",
             ui->current_system_name[0] ? ui->current_system_name : title);
+  ui_emit_graphic_theme(ui);
   ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
             ui->rom_count ? ui->rom_cursor + 1 : 0);
   for (i = start; i < end; i++) {
@@ -4446,6 +4724,15 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "rom_scan_policy") == 0) {
     copy_string(line1, line1_size, "Scan ROM folders when entering a system.");
     copy_string(line2, line2_size, "Off keeps cached lists until refresh.");
+  } else if (strcmp(id, "graphic_theme_id") == 0) {
+    copy_string(line1, line1_size, "Graphic mode theme package.");
+    copy_string(line2, line2_size, "Text mode ignores theme colors, layout, and assets.");
+  } else if (strcmp(id, "theme_name") == 0 ||
+             strcmp(id, "theme_status") == 0 ||
+             strcmp(id, "theme_layout") == 0 ||
+             strcmp(id, "theme_font") == 0) {
+    copy_string(line1, line1_size, "Current Graphic theme information.");
+    copy_string(line2, line2_size, "Theme controls presentation only, not behavior.");
   } else if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
     copy_string(line1, line1_size, "Slow scan warning threshold.");
     copy_string(line2, line2_size, "Higher values make warnings less sensitive.");
@@ -4572,9 +4859,6 @@ static void setting_help_lines(const struct setting_entry *entry,
     } else if (strcmp(id, "system_language") == 0) {
       copy_string(line1, line1_size, "Frontend language setting.");
       copy_string(line2, line2_size, "Saves language to plumOS config.");
-    } else if (strcmp(id, "system_theme") == 0) {
-      copy_string(line1, line1_size, "Theme setting for graphical presentation.");
-      copy_string(line2, line2_size, "Text mode remains usable without graphical assets.");
     } else if (strcmp(id, "system_model") == 0 || strcmp(id, "system_kernel") == 0 ||
         strcmp(id, "system_sdcard") == 0 || strcmp(id, "system_config") == 0) {
       copy_string(line1, line1_size, "Read-only device and runtime information.");
@@ -4589,8 +4873,7 @@ static void setting_help_lines(const struct setting_entry *entry,
       copy_string(line1, line1_size, "Display backend policy for plumOS.");
       copy_string(line2, line2_size, "Display writes use the detected A30 sysfs backend.");
     } else if (strcmp(id, "system_language") == 0 ||
-               strcmp(id, "system_input_device") == 0 ||
-               strcmp(id, "system_theme_source") == 0) {
+               strcmp(id, "system_input_device") == 0) {
       copy_string(line1, line1_size, "plumOS-owned system preference inventory.");
       copy_string(line2, line2_size, "stockOS settings are intentionally separate.");
     } else {
@@ -6215,6 +6498,65 @@ static int choice_index_from_value(const struct setting_choice *choices, size_t 
   return 0;
 }
 
+static int graphic_theme_choice_index(const struct graphic_theme_choice *choices,
+                                      size_t count, const char *raw_value,
+                                      const char *display_value) {
+  size_t i;
+
+  for (i = 0; i < count; i++) {
+    if ((raw_value && strcmp(choices[i].raw, raw_value) == 0) ||
+        (display_value && strcmp(choices[i].display, display_value) == 0) ||
+        (display_value && strcmp(choices[i].raw, display_value) == 0)) {
+      return (int)i;
+    }
+  }
+  return 0;
+}
+
+static int save_graphic_theme_choice(struct ui_state *ui,
+                                     const char *display_value, int direction) {
+  struct frontend_settings settings;
+  struct graphic_theme_choice choices[UI_GRAPHIC_THEME_CHOICE_MAX];
+  size_t count;
+  int index;
+
+  if (direction == 0) {
+    set_status(ui, "setting needs LEFT/RIGHT");
+    return 0;
+  }
+  count = load_graphic_theme_choices(ui, choices,
+                                     sizeof(choices) / sizeof(choices[0]));
+  if (count == 0) {
+    set_status(ui, "no Graphic themes found");
+    return 0;
+  }
+  if (!load_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings read failed");
+    return 0;
+  }
+  index = graphic_theme_choice_index(choices, count, settings.graphic_theme_id,
+                                     display_value);
+  index += direction > 0 ? 1 : -1;
+  if (index < 0) {
+    index = (int)count - 1;
+  } else if ((size_t)index >= count) {
+    index = 0;
+  }
+  copy_string(settings.graphic_theme_id, sizeof(settings.graphic_theme_id),
+              choices[index].raw);
+  copy_string(settings.theme_id, sizeof(settings.theme_id), choices[index].raw);
+  if (!save_settings(ui->settings_path, &settings)) {
+    set_status(ui, "settings write failed");
+    return 0;
+  }
+  load_theme_state(ui, settings.graphic_theme_id);
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved Graphic Theme=%s",
+           choices[index].display);
+  return 1;
+}
+
 static int save_setting_choice(struct ui_state *ui, const char *id,
                                const char *display_value, int direction) {
   struct frontend_settings settings;
@@ -6222,6 +6564,10 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
   size_t count = 0;
   int index;
   const char *raw;
+
+  if (strcmp(id, "graphic_theme_id") == 0) {
+    return save_graphic_theme_choice(ui, display_value, direction);
+  }
 
   choices = setting_choices(id, &count);
   if (!choices || count == 0 || direction == 0) {
@@ -7977,7 +8323,7 @@ int main(int argc, char **argv) {
     init_frontend_settings(&initial_settings);
   }
   ui.frontend_settings = initial_settings;
-  load_theme_state(&ui, initial_settings_loaded ? initial_settings.theme_id : "default");
+  load_theme_state(&ui, initial_settings_loaded ? initial_settings.graphic_theme_id : "default");
   choose_mali_font_path(&ui, mali_font_env, ui.mali_font_path, sizeof(ui.mali_font_path));
 
   startup_resume_allowed =

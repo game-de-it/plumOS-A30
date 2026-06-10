@@ -219,7 +219,7 @@ TOP 画面とは別の app/tool menu に出す項目です。system と混ぜて
 
 ### `ThemeDefinition`
 
-theme は UI 表示の設定であり、system 定義、layout preset、frontend behavior とは分離します。
+theme は Graphic mode 表示の設定であり、system 定義、layout preset、frontend behavior とは分離します。
 詳細な schema は [plumOS frontend theme model](frontend-theme-model.md) に分けます。
 stock theme format は plumOS の正式仕様にしません。
 
@@ -227,30 +227,32 @@ stock theme format は plumOS の正式仕様にしません。
 {
   "version": 1,
   "id": "default",
-  "display_name": "Default",
-  "layout_preset": "compact_text",
+  "target": "graphic",
+  "display_name": "Default Graphic",
+  "layout_preset": "grid_preview",
   "assets": {
-    "font_ui": "fonts/default.bdf",
-    "font_fallback": "builtin",
+    "font_ui": null,
+    "font_fallback": "system_cjk",
     "background": null,
     "system_icon_root": "icons/systems",
-    "placeholder_thumbnail": "images/placeholder.png",
+    "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"
   },
   "colors": {
-    "background": "#101418",
-    "foreground": "#f1f5f9",
-    "accent": "#38bdf8",
-    "selection_background": "#1f2937",
-    "selection_foreground": "#ffffff"
+    "background": "#030404",
+    "foreground": "#b8d0ca",
+    "muted": "#85a6a6",
+    "accent": "#ff850d",
+    "panel": "#1f2b2e",
+    "panel_inner": "#050808",
+    "media_panel": "#1c2a2e",
+    "selection_background": "#243a33",
+    "selection_foreground": "#ffe67a"
   },
-  "text_mode": {
-    "force_no_icons": true,
-    "line_height": 14,
-    "show_thumbnail": false
-  },
-  "gallery_mode": {
-    "transition": "slide",
+  "graphic_mode": {
+    "top_layout": "tile_grid",
+    "rom_layout": "list_preview",
+    "transition": "none",
     "thumbnail_fit": "contain",
     "missing_thumbnail": "text_fallback"
   },
@@ -264,10 +266,10 @@ stock theme format は plumOS の正式仕様にしません。
 }
 ```
 
-theme が扱えるのは color、font、background、system icon、selection 表現、spacing、
+theme が扱えるのは Graphic mode の color、font、background、system icon、selection 表現、spacing、
 thumbnail frame、sound effect だけです。button 操作、START menu、SELECT core menu、
 favorite、ROM scan、resume、launch profile は theme から変更できません。
-text mode は theme asset/font が壊れていても built-in font/color fallback で操作可能にします。
+Text mode は theme の影響を受けません。
 
 ### `FrontendSettings`
 
@@ -289,6 +291,7 @@ text mode は theme asset/font が壊れていても built-in font/color fallbac
   "rom_scan_slow_threshold_ms": 500,
   "rom_scan_test_file_count": 1000,
   "theme_id": "default",
+  "graphic_theme_id": "default",
   "last_system_id": "gba"
 }
 ```

@@ -17,8 +17,8 @@ plumOS configuration.
 ## Current Layout
 
 - `/mnt/SDCARD/plumos/config/frontend/settings.json`
-  - Frontend behavior such as UI Mode, TOP/ROM list visibility, sorting, scan,
-    and boot resume.
+  - Frontend behavior such as UI Mode, Graphic Theme, TOP/ROM list visibility,
+    sorting, scan, and boot resume.
 - `/mnt/SDCARD/plumos/config/frontend/menus.json`
   - Frontend menu definitions, including the START menu.
 - `/mnt/SDCARD/plumos/config/frontend/systems.json`
@@ -26,7 +26,7 @@ plumOS configuration.
     lookup.
 - `/mnt/SDCARD/plumos/config/system/settings.json`
   - plumOS-owned device settings: Volume, Brightness, Lumination, Display Color,
-    Time Settings, Language, and Theme.
+    Time Settings, and Language.
 
 ## Future Candidates
 
@@ -57,9 +57,8 @@ Current keys:
 - `saturation`: `0..20`
 - `language`: `en.lang`, `ja.lang`, etc.
 - `timezone`: POSIX TZ string. Default is `JST-9`
-- `theme`: plumOS theme id
 
-As of 2026-06-10, values other than `Language` and `Theme` are applied to the
+As of 2026-06-10, values other than `Language` are applied to the
 A30 runtime when saved and once during FE startup. `volume` uses ALSA
 `Soft Volume Master`, `brightness` uses
 `/sys/devices/virtual/disp/disp/attr/lcdbl`, and `lumination` / `contrast` /
