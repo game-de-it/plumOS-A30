@@ -234,6 +234,13 @@ rules:
 - `download_workers` は system 共通の初期値 `default=2`, `bulk=3`, `max=4` を基本にする
 - system 別 `crc_workers` は A30 実機の `scripts/benchmark-a30-crc-workers.sh` 結果を
   `artifacts/` に残してから更新する
+- scraper はまず frontend と同じ thumbnail lookup を行い、既存画像があれば CRC 計算せず
+  `exists` として扱う
+- 既存画像はユーザー手動配置と scraper 取得画像を区別せず、default では上書きしない
+- CRC miss や download failure の再試行制御は `/mnt/SDCARD/plumos/state/frontend/` 配下の
+  scraper state に保存し、`Images` directory には画像以外の管理 file を置かない
+- scraper state は relative path, size, mtime を持ち、同一 file と判断できる
+  `no_match` は CRC 前に skip できるようにする
 
 ### `AppDefinition`
 

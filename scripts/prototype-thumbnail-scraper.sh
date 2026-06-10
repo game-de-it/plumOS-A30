@@ -61,6 +61,8 @@ Options:
 
 Output columns:
   status system method crc rom_path dest_path thumbnail_name url
+  For exists and negative_cached, crc can be "-" because those checks happen
+  before reading the ROM payload.
 
 Statuses:
   exists, would_download, downloaded, no_match, negative_cached,
@@ -167,6 +169,57 @@ strip_ext() {
   local name="$1"
   name="${name%.*}"
   printf '%s\n' "$name"
+}
+
+existing_thumbnail_path() {
+  local system="$1"
+  local output_rel="$2"
+  local rom_stem="$3"
+  python3 - "${IMAGE_ROOT%/}" "$system" "$output_rel" "$rom_stem" <<'PY'
+import os
+import sys
+
+image_root, system, output_rel, rom_stem = sys.argv[1:5]
+root = os.path.join(image_root, system)
+extensions = ("png", "jpg", "jpeg", "webp")
+seen = set()
+
+for stem in (output_rel, rom_stem):
+    stem = stem.strip("/")
+    if not stem:
+        continue
+    rel_dir, base = os.path.split(stem)
+    directory = os.path.join(root, rel_dir)
+    key = (os.path.normcase(directory), os.path.normcase(base))
+    if key in seen:
+        continue
+    seen.add(key)
+    try:
+        entries = os.listdir(directory)
+    except OSError:
+        continue
+    by_name = {entry.casefold(): entry for entry in entries}
+    for ext in extensions:
+        entry = by_name.get(f"{base}.{ext}".casefold())
+        if not entry:
+            continue
+        path = os.path.join(directory, entry)
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            print(path)
+            sys.exit(0)
+
+sys.exit(1)
+PY
+}
+
+file_identity() {
+  python3 - "$1" <<'PY'
+import os
+import sys
+
+st = os.stat(sys.argv[1])
+print(f"{st.st_size}\t{int(st.st_mtime)}")
+PY
 }
 
 relative_to_root() {
@@ -519,8 +572,8 @@ report_line() {
 }
 
 negative_key() {
-  local system="$1" crc="$2" rel="$3"
-  printf '%s\t%s\t%s\t%s\n' "$system" "$KIND" "$crc" "$rel"
+  local system="$1" rel="$2" size="$3" mtime="$4"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$system" "$KIND" "$rel" "$size" "$mtime"
 }
 
 negative_seen() {
@@ -552,7 +605,7 @@ first_supported_zip_member() {
 process_rom() {
   local rom="$1"
   local source_system="$2"
-  local root payload payload_tmp ext system rel output_rel dest rom_stem crc
+  local root payload payload_tmp ext system rel output_rel dest rom_stem existing_thumb identity size mtime crc
   local dat_index canonical choice method thumb_name url key tmp
 
   payload="$rom"
@@ -567,9 +620,6 @@ process_rom() {
     fi
     member_ext="$(lower_ext "$member")"
     system="$(system_for_ext "$member_ext")"
-    payload_tmp="$(mktemp "${TMPDIR:-/tmp}/plumos-rom.XXXXXX")"
-    unzip -p "$rom" "$member" >"$payload_tmp"
-    payload="$payload_tmp"
   else
     system="$(system_for_ext "$ext" 2>/dev/null || true)"
     if [ -z "$system" ]; then
@@ -593,19 +643,29 @@ process_rom() {
   rom_stem="$(basename "$output_rel")"
   dest="${IMAGE_ROOT%/}/${system}/${output_rel}.png"
 
+  existing_thumb="$(existing_thumbnail_path "$system" "$output_rel" "$rom_stem" || true)"
+  if [ -n "$existing_thumb" ]; then
+    report_line "exists\t$system\tlocal\t-\t$rom\t$existing_thumb\t-\t-"
+    return 0
+  fi
+
+  identity="$(file_identity "$rom")"
+  size="${identity%%$'\t'*}"
+  mtime="${identity#*$'\t'}"
+  key="$(negative_key "$system" "$rel" "$size" "$mtime")"
+  if negative_seen "$key"; then
+    report_line "negative_cached\t$system\t-\t-\t$rom\t$dest\t-\t-"
+    return 0
+  fi
+
+  if [ "$ext" = "zip" ]; then
+    payload_tmp="$(mktemp "${TMPDIR:-/tmp}/plumos-rom.XXXXXX")"
+    unzip -p "$rom" "$member" >"$payload_tmp"
+    payload="$payload_tmp"
+  fi
+
   crc="$(crc32 "$payload" | tr '[:upper:]' '[:lower:]')"
   [ -z "$payload_tmp" ] || rm -f "$payload_tmp"
-
-  key="$(negative_key "$system" "$crc" "$rel")"
-  if negative_seen "$key"; then
-    report_line "negative_cached\t$system\t-\t$crc\t$rom\t$dest\t-\t-"
-    return 0
-  fi
-
-  if [ -s "$dest" ]; then
-    report_line "exists\t$system\tlocal\t$crc\t$rom\t$dest\t-\t-"
-    return 0
-  fi
 
   dat_index="$(ensure_dat_index "$system")"
   canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"

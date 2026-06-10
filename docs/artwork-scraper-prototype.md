@@ -29,6 +29,27 @@ Roms/GB/Dracula Densetsu.gb
 => Images/gb/Dracula Densetsu.png
 ```
 
+## 再実行ポリシー
+
+2 回目以降の scraper は、既存 thumbnail をユーザーの意思として優先します。
+
+- ROM ごとにまず frontend と同じ lookup 順で `/mnt/SDCARD/Images/<system_id>` を見る。
+- `png`, `jpg`, `jpeg`, `webp` のいずれかが見つかった場合は `exists` として終了する。
+- `exists` では CRC 計算、DAT lookup、thumbnail index 取得、download を行わない。
+- subdirectory を保った画像を flat 画像より優先する。
+- scraper が取得した PNG とユーザーが置いた画像は同じ扱いにし、default では上書きしない。
+- 既存画像を再取得する操作は、明示的な `Force refresh` 相当の option に限定する。
+- ユーザー手動画像まで置き換える操作はさらに別 option にし、default では無効にする。
+
+画像が存在しない ROM だけ CRC queue に入れます。FE 組み込み時は
+`/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` のような state に、ROM の
+`system_id`, relative path, size, mtime, kind, CRC, status, checked_at を残します。
+同じ size/mtime で過去に `no_match` だった ROM は、DAT cache が更新された場合または
+ユーザーが `Retry missing thumbnails` を選んだ場合だけ再 CRC します。`download_failed` は
+network 一時失敗の可能性があるため、短い backoff または手動 retry で再試行します。
+試作 script の negative cache も、CRC ではなく `system_id`, kind, relative path, size, mtime
+を key にして、変化していない未マッチ ROM では CRC 前に `negative_cached` を返します。
+
 ## FE 組み込み方針
 
 scraper の対象範囲と frontend の thumbnail 表示範囲は分けます。scraper 対象外の system でも、
@@ -178,19 +199,23 @@ thumbnail 種別は初期値を `Named_Boxarts` にします。試作 script で
 
 ## 照合順
 
-1. 既に保存先 PNG がある場合は `exists` として何もしない。
-2. ROM payload の CRC32 を取る。
-3. system 別 DAT index から `crc -> canonical game name` を引く。
-4. CRC が一致した場合、canonical game name から URL を確定し、直接 download を試す。
-5. download に成功したら保存する。失敗したら `no_match` にする。
-6. CRC が一致しない場合、通常動作では `no_match` にする。
-7. 明示 option が指定された場合だけ、ROM file stem 由来の `name-exact` や
+1. 既存 thumbnail を frontend と同じ lookup 順で探す。見つかった場合は `exists` として何もしない。
+2. 既存 thumbnail がなく、同じ size/mtime の negative cache がある場合は
+   `negative_cached` として何もしない。
+3. ROM payload の CRC32 を取る。
+4. system 別 DAT index から `crc -> canonical game name` を引く。
+5. CRC が一致した場合、canonical game name から URL を確定し、直接 download を試す。
+6. download に成功したら保存する。失敗したら `no_match` にする。
+7. CRC が一致しない場合、通常動作では `no_match` にする。
+8. 明示 option が指定された場合だけ、ROM file stem 由来の `name-exact` や
    `candidate-report` を試す。
-8. `--loose-index` が指定された場合だけ、大きい thumbnail directory index を取得し、
+9. `--loose-index` が指定された場合だけ、大きい thumbnail directory index を取得し、
    bracket/region/revision を落とした normalized name で `crc-loose` / `name-loose` を試す。
-9. どれも失敗した場合は `no_match`。`--fetch` 時だけ negative cache に記録する。
+10. どれも失敗した場合は `no_match`。`--fetch` 時だけ negative cache に記録する。
 
 通常 dry-run は negative cache を更新しません。
+
+`exists` と `negative_cached` は CRC 計算前に返るため、report の CRC 欄は `-` になる場合があります。
 
 `--candidate-report <path>` を指定した場合、`no_match` になった ROM について thumbnail
 directory index から近い候補を順位付き TSV で出力します。候補は確認用であり、曖昧な一致を

@@ -249,6 +249,15 @@ Rules:
   and `max=4` unless a later measurement says otherwise.
 - Update per-system `crc_workers` only after saving
   `scripts/benchmark-a30-crc-workers.sh` results under `artifacts/`.
+- Before doing CRC work, the scraper uses the same thumbnail lookup as the
+  frontend. If an existing image is found, it returns `exists`.
+- Existing images are not distinguished as user-provided versus
+  scraper-downloaded and are not overwritten by default.
+- Retry state for CRC misses and download failures lives under
+  `/mnt/SDCARD/plumos/state/frontend/`; the `Images` directory contains images
+  only.
+- Scraper state includes relative path, size, and mtime so unchanged `no_match`
+  files can be skipped before CRC work.
 
 ### `AppDefinition`
 

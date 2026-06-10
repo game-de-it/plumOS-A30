@@ -31,6 +31,36 @@ Roms/GB/Dracula Densetsu.gb
 => Images/gb/Dracula Densetsu.png
 ```
 
+## Repeat-Run Policy
+
+On the second and later scraper runs, existing thumbnails are treated as the
+user's choice and take priority.
+
+- For each ROM, first look under `/mnt/SDCARD/Images/<system_id>` using the same
+  lookup order as the frontend.
+- If any `png`, `jpg`, `jpeg`, or `webp` thumbnail exists, return `exists`.
+- `exists` does not compute CRCs, read DAT indexes, fetch thumbnail indexes, or
+  download anything.
+- Preserve subdirectory thumbnails before flat fallback thumbnails.
+- Scraper-downloaded PNGs and user-placed images are treated the same and are
+  not overwritten by default.
+- Re-downloading an existing image requires an explicit `Force refresh` style
+  option.
+- Replacing user-provided thumbnails is a separate option and stays disabled by
+  default.
+
+Only ROMs without an existing image enter the CRC queue. During FE integration,
+store scraper state under a path such as
+`/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` with `system_id`,
+relative path, size, mtime, kind, CRC, status, and `checked_at`. A ROM that was
+previously `no_match` with the same size/mtime should be re-CRC'd only after the
+DAT cache changes or when the user chooses `Retry missing thumbnails`.
+`download_failed` can be retried after a short backoff or by manual retry
+because it may be a temporary network failure.
+The prototype script's negative cache is keyed by `system_id`, kind, relative
+path, size, and mtime instead of CRC, so unchanged unmatched ROMs can return
+`negative_cached` before CRC work.
+
 ## FE Integration Policy
 
 Keep scraper scope separate from frontend thumbnail display scope. Even when a
@@ -189,21 +219,27 @@ The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
 
 ## Matching Order
 
-1. If the destination PNG already exists, return `exists`.
-2. Compute CRC32 for the ROM payload.
-3. Look up `crc -> canonical game name` in the per-system DAT index.
-4. When CRC matches, derive the URL from the canonical game name and try a
+1. Look for an existing thumbnail using the same order as the frontend. If one
+   exists, return `exists`.
+2. If no thumbnail exists and an unchanged size/mtime negative-cache entry
+   exists, return `negative_cached`.
+3. Compute CRC32 for the ROM payload.
+4. Look up `crc -> canonical game name` in the per-system DAT index.
+5. When CRC matches, derive the URL from the canonical game name and try a
    direct download.
-5. Save the image when the download succeeds. Return `no_match` when it fails.
-6. When CRC does not match, default behavior returns `no_match`.
-7. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
+6. Save the image when the download succeeds. Return `no_match` when it fails.
+7. When CRC does not match, default behavior returns `no_match`.
+8. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
    `candidate-report` lookup.
-8. Only when `--loose-index` is passed, fetch the large thumbnail directory
+9. Only when `--loose-index` is passed, fetch the large thumbnail directory
    index and try normalized matching as `crc-loose` or `name-loose`.
-9. If all matching fails, return `no_match`. Negative cache is updated only in
+10. If all matching fails, return `no_match`. Negative cache is updated only in
    `--fetch` mode.
 
 Dry-run does not update the negative cache.
+
+Because `exists` and `negative_cached` return before CRC calculation, the report
+CRC column can be `-` for those statuses.
 
 When `--candidate-report <path>` is passed, each `no_match` ROM gets ranked
 suggestions from the thumbnail directory index. Suggestions are advisory and
