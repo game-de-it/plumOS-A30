@@ -193,7 +193,7 @@ ensure_wrapper_started() {
   (
     trap '' HUP
     cd "$(dirname "$MAINUI_APP")" 2>/dev/null || cd / 2>/dev/null || true
-    PLUMOS_ROOT="$PLUMOS_ROOT" "$MAINUI_APP" >> "${LOG_DIR}/mainui-wrapper.log" 2>&1 &
+    PLUMOS_ROOT="$PLUMOS_ROOT" "$MAINUI_APP" >> "${LOG_DIR}/mainui-wrapper.log" 2>&1 </dev/null &
   )
 }
 
