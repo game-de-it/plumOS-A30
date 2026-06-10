@@ -18,12 +18,20 @@
       "menu": "apps"
     },
     {
+      "id": "scraping",
+      "display_name": "Scraping",
+      "kind": "tool",
+      "launch_profile": "internal:scraping",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
       "id": "thumbnail-plan",
       "display_name": "Thumbnail Plan",
       "kind": "tool",
       "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50",
       "show_results": true,
-      "visible": true,
+      "visible": false,
       "menu": "apps"
     },
     {
@@ -32,7 +40,7 @@
       "kind": "tool",
       "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20",
       "show_results": true,
-      "visible": true,
+      "visible": false,
       "menu": "apps"
     },
     {
@@ -40,7 +48,7 @@
       "display_name": "Thumbnail Results",
       "kind": "info",
       "launch_profile": "internal:thumbnail-results",
-      "visible": true,
+      "visible": false,
       "menu": "apps"
     },
     {

@@ -2439,7 +2439,8 @@ static void plumos_mali_make_entry(const char *line, const char *screen_title,
   snprintf(out, out_size, "%s", compact);
   if (strstr(screen_title, "START") || strstr(screen_title, "Settings") ||
       strstr(screen_title, "SETTINGS") || strstr(screen_title, "HELP") ||
-      strstr(screen_title, "Thumbnail Results")) {
+      strstr(screen_title, "Thumbnail Results") ||
+      strstr(screen_title, "Scraping")) {
     plumos_mali_truncate(out, 80);
   } else {
     plumos_mali_truncate(out, 38);
@@ -3712,6 +3713,7 @@ static int plumos_mali_title_is_settings_family(const char *title) {
   return title && (strstr(title, "START") || strstr(title, "Settings") ||
                    strstr(title, "SETTINGS") || strstr(title, "HELP") ||
                    strstr(title, "Thumbnail Results") ||
+                   strstr(title, "Scraping") ||
                    strstr(title, "Network") || strstr(title, "NETWORK"));
 }
 
@@ -3817,7 +3819,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
   }
   if (is_thumbnail_running) {
-    const char *line1 = "THUMBNAIL";
+    const char *line1 = strstr(thumbnail_running_title, "Scraping") ? "SCRAPING" : "THUMBNAIL";
     const char *line2 = "RUNNING";
     const char *line3 = thumbnail_running_title[0] ? thumbnail_running_title : "TASK";
     const char *line4 = "PLEASE WAIT";

@@ -292,16 +292,21 @@ the thumbnail index had no PNG with that canonical name.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
 stall the UI path indefinitely.
 
-FE START -> Apps exposes these entries. `Thumbnail Plan` and `Fetch Thumbnails`
-show a `Thumbnail Running` screen while they execute, then automatically open
-`Thumbnail Results` when the run finishes. `Thumbnail Results` reads only the
-latest `frontend-apps-latest.log`, so users can tell the result belongs to the
-run they just started. Detailed logs are still written to
+FE START -> Apps exposes a `Scraping` entry. The `Scraping` screen lets users
+choose `System < ALL >` or a concrete system such as `System < NES >`, then
+start scraping with A. Targets are limited to systems with `scraper.enabled=true`
+and at least one current ROM. Opening the screen runs a library scan so TOP and
+Graphic ROM counts, and the scraping target list, update without restarting the
+frontend. While running, the UI shows `Scraping Running`; internally it runs
+`plumos-thumbnail-scraper --system <id>` and
+`plumos-thumbnail-scraper --fetch --system <id>` for each target system. It then
+automatically opens `Scraping Results`. `Scraping Results` reads only the latest
+`frontend-apps-latest.log`, so users can tell the result belongs to the run they
+just started. Detailed logs are still written to
 `/mnt/SDCARD/plumos/logs/frontend-apps.log` and the runner log.
 
-- `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
-- `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
-- `Thumbnail Results`: summarizes the latest log as readable multi-line rows.
+- `Scraping`: system selection, plan -> fetch execution, and latest results.
+- `Scraping Results`: summarizes the latest log as readable multi-line rows.
   `Thumbnail Plan` shows `reason`, `aliases seen`, `ROMs`, `existing`,
   `missing`, `CRC workers`, and `DL workers`. `Fetch Thumbnails` shows
   `reason`, `aliases seen`, `ROMs`, `existing`, `missing`, `CRC checked`,

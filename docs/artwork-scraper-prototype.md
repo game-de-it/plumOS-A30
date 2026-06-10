@@ -259,15 +259,19 @@ DAT/index を取得しません。最初の missing thumbnail が見つかった
 network 待ちで UI 操作を長時間止めないよう、`wget` / `curl` には
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` の timeout をかけます。
 
-FE の START -> Apps には以下の入口を置きます。`Thumbnail Plan` と `Fetch Thumbnails` は
-実行中に `Thumbnail Running` 画面を表示し、完了後に自動で `Thumbnail Results` へ遷移します。
-`Thumbnail Results` は直近 1 回分の `frontend-apps-latest.log` だけを表示するため、
-いま実行した結果かどうかを判断できます。詳細 log は
-`/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log にも残します。
+FE の START -> Apps には `Scraping` 入口を置きます。`Scraping` 画面では
+`System < ALL >` または `System < NES >` のように対象 system を選び、A で実行します。
+対象は `scraper.enabled=true` かつ現在の ROM 数が 1 以上の system だけです。画面を開く時に
+library scan を行い、FE 再起動なしで TOP/Graphic の ROM 数と Scraping 対象を更新します。
+実行中は `Scraping Running` 画面を表示し、内部では対象 system ごとに
+`plumos-thumbnail-scraper --system <id>` と
+`plumos-thumbnail-scraper --fetch --system <id>` を順に実行します。完了後は自動で
+`Scraping Results` へ遷移します。`Scraping Results` は直近 1 回分の
+`frontend-apps-latest.log` だけを表示するため、いま実行した結果かどうかを判断できます。
+詳細 log は `/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log にも残します。
 
-- `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
-- `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
-- `Thumbnail Results`: 最新 log を読みやすい複数行にまとめて表示する。
+- `Scraping`: system 選択、plan -> fetch 実行、最新結果表示への入口。
+- `Scraping Results`: 最新 log を読みやすい複数行にまとめて表示する。
   `Thumbnail Plan` は `reason`、`aliases seen`、`ROMs`、`existing`、
   `missing`、`CRC workers`、`DL workers` を表示する。
   `Fetch Thumbnails` は `reason`、`aliases seen`、`ROMs`、`existing`、

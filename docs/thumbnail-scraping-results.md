@@ -1,9 +1,9 @@
 # サムネイルスクレイピング結果
 
-この文書は、plumOS の `Thumbnail Results` 画面に出る各項目の意味と、
+この文書は、plumOS の `Scraping Results` 画面に出る各項目の意味と、
 失敗が出た場合の対処をまとめます。
 
-`Thumbnail Results` は直近 1 回のスクレイピング結果だけを表示します。
+`Scraping Results` は直近 1 回のスクレイピング結果だけを表示します。
 画面は上下で 1 行スクロール、左右でページ移動できます。
 
 ## Plan Result

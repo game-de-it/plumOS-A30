@@ -1,9 +1,9 @@
 # Thumbnail Scraping Results
 
-This document explains the fields shown on the plumOS `Thumbnail Results`
+This document explains the fields shown on the plumOS `Scraping Results`
 screen and what users can do when failures appear.
 
-`Thumbnail Results` shows only the latest scraping run. Use up/down to scroll
+`Scraping Results` shows only the latest scraping run. Use up/down to scroll
 one row and left/right to move one page.
 
 ## Plan Result
