@@ -1415,7 +1415,16 @@ static const char *runtime_volume_backend_path(void) {
 }
 
 static int runtime_volume_backend_available(void) {
-  return runtime_volume_backend_path() != NULL;
+  const char *amixer_path = runtime_volume_backend_path();
+  char cmd[256];
+
+  if (!amixer_path) {
+    return 0;
+  }
+  snprintf(cmd, sizeof(cmd),
+           "%s cget iface=MIXER,name='Soft Volume Master' >/dev/null 2>&1",
+           amixer_path);
+  return system_command_succeeded(system(cmd));
 }
 
 static int runtime_lcd_backend_available(void) {
@@ -1436,9 +1445,12 @@ static void update_device_backend_status(struct device_settings *device) {
   if (runtime_volume_backend_available()) {
     copy_string(device->volume_backend, sizeof(device->volume_backend),
                 "Soft Volume Master (amixer)");
+  } else if (runtime_volume_backend_path()) {
+    copy_string(device->volume_backend, sizeof(device->volume_backend),
+                "RetroArch audio_volume; mixer unmapped");
   } else {
     copy_string(device->volume_backend, sizeof(device->volume_backend),
-                "amixer unavailable");
+                "RetroArch audio_volume only");
   }
 
   lcd_available = runtime_lcd_backend_available();
@@ -1599,7 +1611,10 @@ static int apply_device_runtime_settings(const struct device_settings *device,
       ok = 0;
     }
   } else if (needs_volume) {
-    ok = 0;
+    attempted = 1;
+    if (status && status_size > 0 && id && strcmp(id, "system_volume") == 0) {
+      copy_string(status, status_size, "applies to RetroArch on launch");
+    }
   }
   if (needs_brightness && runtime_lcd_backend_available()) {
     attempted = 1;
@@ -6080,7 +6095,7 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strncmp(id, "system_", 7) == 0) {
     if (strcmp(id, "system_volume") == 0) {
       copy_string(line1, line1_size, "System-wide volume setting.");
-      copy_string(line2, line2_size, "Applies to Soft Volume Master and saves to plumOS.");
+      copy_string(line2, line2_size, "Applies to RetroArch on launch.");
     } else if (strcmp(id, "system_brightness") == 0) {
       copy_string(line1, line1_size, "Screen brightness setting.");
       copy_string(line2, line2_size, "LEFT/RIGHT changes 1..20 and applies lcdbl.");

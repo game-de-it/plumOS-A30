@@ -54,10 +54,12 @@ stockOS の `/config/system.json` とは切り離します。
 - `language`: `en.lang`, `ja.lang` など
 - `timezone`: POSIX TZ 文字列。既定値は `JST-9`
 
-2026-06-10 時点では、`Language` 以外の値は保存直後と FE 起動時に A30
-runtime へ反映します。`volume` は ALSA `Soft Volume Master`、`brightness` は
+2026-06-11 時点では、`Language` 以外の値は保存直後と FE 起動時に A30
+runtime へ反映します。`volume` は RetroArch 起動時に `audio_volume` へ反映し、`brightness` は
 `/sys/devices/virtual/disp/disp/attr/lcdbl`、`lumination` / `contrast` / `hue` /
 `saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` を使います。
+実機の ALSA mixer には想定していた `Soft Volume Master` が存在しないため、hardware mixer
+への直接反映は control mapping を検証するまで保留します。
 Brightness は `1..20` を保存し、RAW は
 `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190` へ割り当てます。
 `timezone` は plumOS config を原本とし、保存時・FE 起動時・MainUI wrapper 起動時に

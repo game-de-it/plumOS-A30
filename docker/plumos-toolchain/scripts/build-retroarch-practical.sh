@@ -534,6 +534,7 @@ UDP="$PLUMOS_ROOT/bin/plumos-udp-send"
 LOG_DIR="$PLUMOS_ROOT/retroarch/logs"
 APPEND="/tmp/plumos-retroarch-launch-$$.cfg"
 CPU_STATE="/tmp/plumos-retroarch-launch-cpustate-$$"
+SYSTEM_SETTINGS="$PLUMOS_ROOT/config/system/settings.json"
 RA_LOG="$LOG_DIR/launch-last.log"
 JOY_LOG="$LOG_DIR/launch-joystickd-last.log"
 NETCMD_LOG="$LOG_DIR/launch-netcmd-last.log"
@@ -733,6 +734,35 @@ validate_state_slot() {
       exit 2
       ;;
   esac
+}
+
+read_system_volume() {
+  value=""
+  if [ -r "$SYSTEM_SETTINGS" ]; then
+    value="$(sed -n 's/.*"volume"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$SYSTEM_SETTINGS" 2>/dev/null | head -n 1)"
+  fi
+  case "$value" in
+    ""|*[!0-9]*) value=20 ;;
+  esac
+  value="$(printf '%s' "$value" | sed 's/^0*//')"
+  [ -n "$value" ] || value=0
+  if [ "$value" -lt 0 ]; then
+    value=0
+  elif [ "$value" -gt 20 ]; then
+    value=20
+  fi
+  printf '%s\n' "$value"
+}
+
+retroarch_audio_volume_db() {
+  volume=$1
+  if [ "$volume" -le 0 ]; then
+    printf '%s\n' "-80.000000"
+  elif [ "$volume" -ge 20 ]; then
+    printf '%s\n' "0.000000"
+  else
+    printf '%d.000000\n' $(( (volume - 20) * 2 ))
+  fi
 }
 
 wait_for_retroarch_exit() {
@@ -1013,9 +1043,19 @@ esac
 mkdir -p "$LOG_DIR"
 trap cleanup EXIT INT TERM
 
+SYSTEM_VOLUME="$(read_system_volume)"
+RA_AUDIO_VOLUME="$(retroarch_audio_volume_db "$SYSTEM_VOLUME")"
+if [ "$SYSTEM_VOLUME" -le 0 ]; then
+  RA_AUDIO_MUTE=true
+else
+  RA_AUDIO_MUTE=false
+fi
+
 cat > "$APPEND" <<APPEND
 config_save_on_exit = "false"
 state_slot = "$SAFE_STATE_SLOT"
+audio_volume = "$RA_AUDIO_VOLUME"
+audio_mute_enable = "$RA_AUDIO_MUTE"
 APPEND
 if [ -n "$QUIT_PRESS_TWICE" ]; then
   cat >> "$APPEND" <<APPEND

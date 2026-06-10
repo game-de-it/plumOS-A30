@@ -61,11 +61,14 @@ Current keys:
 - `language`: `en.lang`, `ja.lang`, etc.
 - `timezone`: POSIX TZ string. Default is `JST-9`
 
-As of 2026-06-10, values other than `Language` are applied to the
-A30 runtime when saved and once during FE startup. `volume` uses ALSA
-`Soft Volume Master`, `brightness` uses
+As of 2026-06-11, values other than `Language` are applied to the
+A30 runtime when saved and once during FE startup. `volume` is applied to
+RetroArch `audio_volume` at launch time, while `brightness` uses
 `/sys/devices/virtual/disp/disp/attr/lcdbl`, and `lumination` / `contrast` /
 `hue` / `saturation` use `/sys/devices/virtual/disp/disp/attr/enhance`.
+The tested A30 ALSA mixer does not expose the expected `Soft Volume Master`
+control, so direct hardware-mixer volume remains pending until the codec
+control mapping is validated.
 Brightness stores `1..20`; RAW lcdbl is mapped to
 `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190`.
 `timezone` is sourced from plumOS config and applied to the `TZ` environment
