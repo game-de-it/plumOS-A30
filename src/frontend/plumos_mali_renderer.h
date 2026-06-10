@@ -3428,7 +3428,10 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
       }
       continue;
     }
-    if (plumos_mali_starts_with(line, "system=") || plumos_mali_starts_with(line, "entries=") ||
+    if (plumos_mali_starts_with(line, "entries=")) {
+      continue;
+    }
+    if (plumos_mali_starts_with(line, "system=") ||
         plumos_mali_starts_with(line, "target=") || plumos_mali_starts_with(line, "profile=")) {
       if (meta && meta_size > 0 && !meta[0]) {
         plumos_mali_make_meta(line, meta, meta_size);
