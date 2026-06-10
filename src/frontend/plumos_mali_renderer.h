@@ -2655,7 +2655,7 @@ static void plumos_mali_graphic_draw_top(
   const float tile_h = 126.0f;
   size_t i;
 
-  plumos_mali_graphic_top_bar(renderer, "SYSTEMS");
+  plumos_mali_graphic_top_bar(renderer, "PLUMOS A30 GUI");
   plumos_mali_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
                    1.0f, 0.52f, 0.05f, 1.0f);
 

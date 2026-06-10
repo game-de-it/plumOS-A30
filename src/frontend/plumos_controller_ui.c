@@ -4061,10 +4061,14 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
          strcmp(ui->frontend_settings.ui_mode, "graphic") == 0;
 }
 
+#define UI_GRAPHIC_TOP_COLUMNS 3
+#define UI_GRAPHIC_TOP_ROWS 3
+#define UI_GRAPHIC_TOP_PAGE_SIZE (UI_GRAPHIC_TOP_COLUMNS * UI_GRAPHIC_TOP_ROWS)
+
 static size_t ui_list_window_size(const struct ui_state *ui) {
   if (ui_uses_graphic_mode(ui)) {
     if (ui->screen == SCREEN_TOP) {
-      return 6;
+      return UI_GRAPHIC_TOP_PAGE_SIZE;
     }
     if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
         ui->screen == SCREEN_RECENT) {
@@ -4084,6 +4088,42 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
     return 15;
   }
   return 10;
+}
+
+static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action action) {
+  size_t cursor;
+  size_t next;
+
+  if (!ui || ui->top_count == 0) {
+    return;
+  }
+  cursor = ui->top_cursor;
+  next = cursor;
+  if (action == ACTION_LEFT) {
+    if (cursor > 0) {
+      next = cursor - 1;
+    }
+  } else if (action == ACTION_RIGHT) {
+    if (cursor + 1 < ui->top_count) {
+      next = cursor + 1;
+    }
+  } else if (action == ACTION_UP) {
+    if (cursor >= UI_GRAPHIC_TOP_COLUMNS) {
+      next = cursor - UI_GRAPHIC_TOP_COLUMNS;
+    }
+  } else if (action == ACTION_DOWN) {
+    next = cursor + UI_GRAPHIC_TOP_COLUMNS;
+    if (next >= ui->top_count) {
+      size_t next_row_start =
+          ((cursor / UI_GRAPHIC_TOP_COLUMNS) + 1) * UI_GRAPHIC_TOP_COLUMNS;
+      if (next_row_start < ui->top_count) {
+        next = ui->top_count - 1;
+      } else {
+        next = cursor;
+      }
+    }
+  }
+  ui->top_cursor = next;
 }
 
 static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
@@ -6828,6 +6868,12 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (ui->screen == SCREEN_TOP) {
+    if (ui_uses_graphic_mode(ui) &&
+        (action == ACTION_UP || action == ACTION_DOWN ||
+         action == ACTION_LEFT || action == ACTION_RIGHT)) {
+      ui_move_graphic_top_cursor(ui, action);
+      return;
+    }
     if (action == ACTION_UP) {
       if (ui->top_cursor > 0) {
         ui->top_cursor--;
