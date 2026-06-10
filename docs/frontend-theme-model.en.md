@@ -121,7 +121,7 @@ Themes may not control:
     "top_layout": "tile_grid",
     "rom_layout": "list_preview",
     "transition": "slide",
-    "transition_ms": 220,
+    "transition_ms": 260,
     "thumbnail_fit": "contain",
     "thumbnail_frame": "simple",
     "missing_thumbnail": "text_fallback"
@@ -142,10 +142,10 @@ Themes may not control:
 ```
 
 `graphic_mode.transition` changes presentation only. The currently supported
-values are `none` and `slide`. On Graphic TOP, `slide` moves whole pages
-vertically. `transition_ms` is clamped to `80..500`; when `slide` omits it,
-`220ms` is the baseline. Themes may not change input mappings, page size,
-confirm/back behavior, or menu actions.
+values are `none` and `slide`. On Graphic TOP, `slide` moves whole pages with
+eased vertical motion. `transition_ms` is clamped to `80..500`; when `slide`
+omits it, `260ms` is the baseline. Themes may not change input mappings,
+page size, confirm/back behavior, or menu actions.
 
 `behavior_policy` is a safety check. If any value is `true`, the controller UI
 treats the theme as requesting behavior control, blocks that request, and uses

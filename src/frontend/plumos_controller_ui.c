@@ -4361,7 +4361,7 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
 #define UI_GRAPHIC_TOP_COLUMNS 3
 #define UI_GRAPHIC_TOP_ROWS 2
 #define UI_GRAPHIC_TOP_PAGE_SIZE (UI_GRAPHIC_TOP_COLUMNS * UI_GRAPHIC_TOP_ROWS)
-#define UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS 180
+#define UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS 260
 
 static size_t ui_list_window_size(const struct ui_state *ui) {
   if (ui_uses_graphic_mode(ui)) {
@@ -8036,7 +8036,7 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
     return 0;
   }
   if (ui->renderer_mali && ui->top_transition_active) {
-    return 33;
+    return 16;
   }
   if (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
     return 100;
@@ -8100,6 +8100,14 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       }
       if (ui->usb_disk_start_due_ms - now_ms < poll_timeout) {
         poll_timeout = (int)(ui->usb_disk_start_due_ms - now_ms);
+      }
+    }
+    if (ui_needs_periodic_refresh(ui) && next_refresh_ms > 0) {
+      long long refresh_due_ms = next_refresh_ms - now_ms;
+      if (refresh_due_ms <= 0) {
+        poll_timeout = 0;
+      } else if (refresh_due_ms < poll_timeout) {
+        poll_timeout = (int)refresh_due_ms;
       }
     }
 

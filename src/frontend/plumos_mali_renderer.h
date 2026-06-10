@@ -3020,6 +3020,15 @@ static void plumos_mali_graphic_draw_top_entries(
   }
 }
 
+static float plumos_mali_graphic_ease_slide_progress(float progress) {
+  if (progress < 0.0f) {
+    progress = 0.0f;
+  } else if (progress > 1.0f) {
+    progress = 1.0f;
+  }
+  return progress * progress * (3.0f - 2.0f * progress);
+}
+
 static void plumos_mali_graphic_draw_top(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
@@ -3040,9 +3049,10 @@ static void plumos_mali_graphic_draw_top(
 
   if (slide_active) {
     float height = (float)renderer->height;
+    float eased_progress = plumos_mali_graphic_ease_slide_progress(transition_progress);
     int direction = transition_direction < 0 ? -1 : 1;
-    prev_offset = -((float)direction) * height * transition_progress;
-    current_offset = ((float)direction) * height * (1.0f - transition_progress);
+    prev_offset = -((float)direction) * height * eased_progress;
+    current_offset = ((float)direction) * height * (1.0f - eased_progress);
     plumos_mali_graphic_draw_top_entries(renderer, theme, prev_entries,
                                          prev_entry_count, prev_offset);
   }
