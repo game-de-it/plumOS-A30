@@ -3736,6 +3736,10 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   char footer2[160];
   char wifi_password[160];
   char thumbnail_running_title[160];
+  char thumbnail_running_phase[64];
+  char thumbnail_running_system[64];
+  char thumbnail_running_progress[64];
+  char thumbnail_running_stats[64];
   char entries[18][PLUMOS_MALI_RENDER_LINE_MAX];
   size_t entry_count = 0;
   float y;
@@ -3789,6 +3793,18 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   plumos_mali_find_prefixed_line(lines, line_count, "thumbnail_running_title=",
                                  thumbnail_running_title,
                                  sizeof(thumbnail_running_title));
+  plumos_mali_find_prefixed_line(lines, line_count, "thumbnail_running_phase=",
+                                 thumbnail_running_phase,
+                                 sizeof(thumbnail_running_phase));
+  plumos_mali_find_prefixed_line(lines, line_count, "thumbnail_running_system=",
+                                 thumbnail_running_system,
+                                 sizeof(thumbnail_running_system));
+  plumos_mali_find_prefixed_line(lines, line_count, "thumbnail_running_progress=",
+                                 thumbnail_running_progress,
+                                 sizeof(thumbnail_running_progress));
+  plumos_mali_find_prefixed_line(lines, line_count, "thumbnail_running_stats=",
+                                 thumbnail_running_stats,
+                                 sizeof(thumbnail_running_stats));
   is_usb_disk_starting = plumos_mali_has_prefixed_line(lines, line_count,
                                                        "usb_disk_starting=1");
   is_thumbnail_running = plumos_mali_has_prefixed_line(lines, line_count,
@@ -3821,20 +3837,46 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   if (is_thumbnail_running) {
     const char *line1 = strstr(thumbnail_running_title, "Scraping") ? "SCRAPING" : "THUMBNAIL";
     const char *line2 = "RUNNING";
-    const char *line3 = thumbnail_running_title[0] ? thumbnail_running_title : "TASK";
-    const char *line4 = "PLEASE WAIT";
+    char line3[80];
+    char line4[96];
+    char line5[96];
     const int scale1 = 4;
     const int scale2 = 4;
     const int scale3 = 2;
-    const int scale4 = 3;
-    float y1 = (float)renderer->height * 0.5f - 128.0f;
+    const int scale4 = 2;
+    const int scale5 = 2;
+    float y1 = (float)renderer->height * 0.5f - 132.0f;
     float y2 = y1 + 58.0f;
-    float y3 = y2 + 72.0f;
-    float y4 = y3 + 44.0f;
+    float y3 = y2 + 66.0f;
+    float y4 = y3 + 34.0f;
+    float y5 = y4 + 30.0f;
     float x1 = ((float)renderer->width - (float)plumos_mali_text_width(line1, scale1)) * 0.5f;
     float x2 = ((float)renderer->width - (float)plumos_mali_text_width(line2, scale2)) * 0.5f;
-    float x3 = ((float)renderer->width - (float)plumos_mali_text_width(line3, scale3)) * 0.5f;
-    float x4 = ((float)renderer->width - (float)plumos_mali_text_width(line4, scale4)) * 0.5f;
+    float x3;
+    float x4;
+    float x5;
+
+    if (thumbnail_running_progress[0] &&
+        strcmp(thumbnail_running_progress, "0/0") != 0) {
+      snprintf(line3, sizeof(line3), "PROGRESS %s", thumbnail_running_progress);
+    } else {
+      snprintf(line3, sizeof(line3), "%.70s",
+               thumbnail_running_title[0] ? thumbnail_running_title : "PLEASE WAIT");
+    }
+    if (thumbnail_running_phase[0]) {
+      snprintf(line4, sizeof(line4), "%.30s %.40s", thumbnail_running_phase,
+               thumbnail_running_system[0] ? thumbnail_running_system : "-");
+    } else {
+      snprintf(line4, sizeof(line4), "PLEASE WAIT");
+    }
+    if (thumbnail_running_stats[0]) {
+      snprintf(line5, sizeof(line5), "SAVED/NOMATCH/FAIL %s", thumbnail_running_stats);
+    } else {
+      snprintf(line5, sizeof(line5), "RESULTS OPEN WHEN DONE");
+    }
+    x3 = ((float)renderer->width - (float)plumos_mali_text_width(line3, scale3)) * 0.5f;
+    x4 = ((float)renderer->width - (float)plumos_mali_text_width(line4, scale4)) * 0.5f;
+    x5 = ((float)renderer->width - (float)plumos_mali_text_width(line5, scale5)) * 0.5f;
 
     renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
     renderer->gl.UseProgram(renderer->program);
@@ -3849,13 +3891,10 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                      1.0f, 0.86f, 0.28f, 1.0f);
     plumos_mali_text(renderer, line3, x3 < 14.0f ? 14.0f : x3, y3, scale3,
                      0.78f, 0.94f, 0.90f, 1.0f);
-    if ((time(NULL) & 1) == 0) {
-      plumos_mali_text(renderer, line4, x4, y4, scale4,
-                       0.22f, 0.58f, 1.0f, 1.0f);
-    } else {
-      plumos_mali_text(renderer, line4, x4, y4, scale4,
-                       1.0f, 0.86f, 0.28f, 1.0f);
-    }
+    plumos_mali_text(renderer, line4, x4 < 14.0f ? 14.0f : x4, y4, scale4,
+                     0.22f, 0.58f, 1.0f, 1.0f);
+    plumos_mali_text(renderer, line5, x5 < 14.0f ? 14.0f : x5, y5, scale5,
+                     1.0f, 0.86f, 0.28f, 1.0f);
     renderer->gl.Finish();
     return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
   }

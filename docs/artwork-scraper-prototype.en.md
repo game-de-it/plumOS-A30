@@ -11,7 +11,9 @@ matching and storage rules before any FE integration. The prototype script is
 - Treat CRC misses as `no_match` by default. Filename fallback is limited to an
   explicit advisory candidate option and never auto-saves images.
 - Keep scraped thumbnails and user-provided thumbnails in one location.
-- Do not add FE background downloads, progress UI, or retry UI yet.
+- Use `Apps -> Scraping` for system selection, in-progress status, and latest
+  result review.
+- Keep retry UI and filename fallback candidate review as separate tasks.
 
 ## Canonical Storage
 
@@ -299,8 +301,12 @@ and at least one current ROM. Opening the screen runs a library scan so TOP and
 Graphic ROM counts, and the scraping target list, update without restarting the
 frontend. While running, the UI shows `Scraping Running`; internally it runs
 `plumos-thumbnail-scraper --system <id>` and
-`plumos-thumbnail-scraper --fetch --system <id>` for each target system. It then
-automatically opens `Scraping Results`. `Scraping Results` reads only the latest
+`plumos-thumbnail-scraper --fetch --system <id>` for each target system. The
+RUNNING screen shows `Progress: current / total`, `Phase: Plan|Fetch <system>`,
+and `Saved / NoMatch / Failed`. Planning reports system/phase progress; fetching
+sets `PLUMOS_THUMBNAIL_PROGRESS=1` so scraper `progress` rows can update
+ROM-level progress. It then automatically opens `Scraping Results`.
+`Scraping Results` reads only the latest
 `frontend-apps-latest.log`, so users can tell the result belongs to the run they
 just started. Detailed logs are still written to
 `/mnt/SDCARD/plumos/logs/frontend-apps.log` and the runner log.

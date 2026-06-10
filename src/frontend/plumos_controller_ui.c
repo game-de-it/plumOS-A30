@@ -495,6 +495,13 @@ struct ui_state {
   size_t thumbnail_result_count;
   size_t thumbnail_result_cursor;
   char thumbnail_running_title[128];
+  char thumbnail_running_phase[32];
+  char thumbnail_running_system[64];
+  long thumbnail_progress_current;
+  long thumbnail_progress_total;
+  long thumbnail_progress_downloaded;
+  long thumbnail_progress_no_match;
+  long thumbnail_progress_failed;
   struct scraping_choice scraping_choices[UI_MAX_SCRAPING_CHOICES];
   size_t scraping_choice_count;
   size_t scraping_choice_cursor;
@@ -698,6 +705,12 @@ static int append_string(char *out, size_t out_size, size_t *pos, const char *in
   *pos += len;
   out[*pos] = '\0';
   return 1;
+}
+
+static int append_size_t(char *out, size_t out_size, size_t *pos, size_t value) {
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%zu", value);
+  return append_string(out, out_size, pos, buf);
 }
 
 static int append_shell_quoted(char *out, size_t out_size, size_t *pos, const char *in) {
@@ -1803,6 +1816,22 @@ static long json_get_long(const char *json, const char *end, const char *key, lo
     return default_value;
   }
   return strtol(value, NULL, 10);
+}
+
+static int parse_nonnegative_long(const char *value, long *out) {
+  char *endptr = NULL;
+  long parsed;
+
+  if (!value || !value[0] || !out) {
+    return 0;
+  }
+  errno = 0;
+  parsed = strtol(value, &endptr, 10);
+  if (errno != 0 || endptr == value || *endptr != '\0' || parsed < 0) {
+    return 0;
+  }
+  *out = parsed;
+  return 1;
 }
 
 static int json_get_bool(const char *json, const char *end, const char *key, int default_value) {
@@ -4530,6 +4559,68 @@ static void clamp_thumbnail_result_cursor(struct ui_state *ui) {
   }
 }
 
+static void reset_thumbnail_running_progress(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  ui->thumbnail_running_phase[0] = '\0';
+  ui->thumbnail_running_system[0] = '\0';
+  ui->thumbnail_progress_current = 0;
+  ui->thumbnail_progress_total = 0;
+  ui->thumbnail_progress_downloaded = 0;
+  ui->thumbnail_progress_no_match = 0;
+  ui->thumbnail_progress_failed = 0;
+}
+
+static int update_thumbnail_running_progress_from_log_line(struct ui_state *ui,
+                                                           const char *line) {
+  char buf[UI_RENDER_LINE_MAX];
+  char *fields[10];
+  char *save = NULL;
+  char *token;
+  size_t count = 0;
+  long current = 0;
+  long total = 0;
+  long downloaded = 0;
+  long no_match = 0;
+  long failed = 0;
+
+  if (!ui || !line || strncmp(line, "progress\t", 9) != 0) {
+    return 0;
+  }
+  copy_truncated_string(buf, sizeof(buf), line);
+  for (token = strtok_r(buf, "\t", &save);
+       token && count < sizeof(fields) / sizeof(fields[0]);
+       token = strtok_r(NULL, "\t", &save)) {
+    fields[count++] = token;
+  }
+  if (count < 5 ||
+      !parse_nonnegative_long(fields[3], &current) ||
+      !parse_nonnegative_long(fields[4], &total)) {
+    return 0;
+  }
+  if (count >= 6) {
+    parse_nonnegative_long(fields[5], &downloaded);
+  }
+  if (count >= 7) {
+    parse_nonnegative_long(fields[6], &no_match);
+  }
+  if (count >= 8) {
+    parse_nonnegative_long(fields[7], &failed);
+  }
+
+  copy_string(ui->thumbnail_running_phase, sizeof(ui->thumbnail_running_phase),
+              fields[1]);
+  copy_string(ui->thumbnail_running_system, sizeof(ui->thumbnail_running_system),
+              fields[2]);
+  ui->thumbnail_progress_current = current;
+  ui->thumbnail_progress_total = total;
+  ui->thumbnail_progress_downloaded = downloaded;
+  ui->thumbnail_progress_no_match = no_match;
+  ui->thumbnail_progress_failed = failed;
+  return 1;
+}
+
 static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *line) {
   char buf[UI_RENDER_LINE_MAX];
   char *fields[20];
@@ -4538,7 +4629,8 @@ static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *
   size_t count = 0;
   char out[UI_RENDER_LINE_MAX];
 
-  if (!ui || !line || !line[0] || strncmp(line, "status\t", 7) == 0) {
+  if (!ui || !line || !line[0] || strncmp(line, "status\t", 7) == 0 ||
+      strncmp(line, "progress\t", 9) == 0) {
     return;
   }
   copy_truncated_string(buf, sizeof(buf), line);
@@ -5992,17 +6084,53 @@ static void render_thumbnail_running(struct ui_state *ui) {
                           ? ui->thumbnail_running_title
                           : "Thumbnail Task";
   int scraping = strcmp(title, "Scraping") == 0;
+  const char *phase = ui->thumbnail_running_phase[0]
+                          ? ui->thumbnail_running_phase
+                          : "starting";
+  const char *phase_label = phase;
+  long percent = -1;
+
+  if (strcmp(phase, "plan") == 0) {
+    phase_label = "Plan";
+  } else if (strcmp(phase, "fetch") == 0) {
+    phase_label = "Fetch";
+  } else if (strcmp(phase, "done") == 0) {
+    phase_label = "Done";
+  }
+  if (ui->thumbnail_progress_total > 0) {
+    percent = (ui->thumbnail_progress_current * 100) / ui->thumbnail_progress_total;
+  }
 
   ui_printf(ui, "plumOS controller UI - %s Running\n",
             scraping ? "Scraping" : "Thumbnail");
   ui_printf(ui, "thumbnail_running=1\n");
   ui_printf(ui, "thumbnail_running_title=%s\n", title);
-  ui_printf(ui, "entries=4 cursor=1\n");
+  ui_printf(ui, "thumbnail_running_phase=%s\n", phase_label);
+  ui_printf(ui, "thumbnail_running_system=%s\n",
+            ui->thumbnail_running_system[0] ? ui->thumbnail_running_system : "-");
+  ui_printf(ui, "thumbnail_running_progress=%ld/%ld\n",
+            ui->thumbnail_progress_current, ui->thumbnail_progress_total);
+  ui_printf(ui, "thumbnail_running_stats=%ld/%ld/%ld\n",
+            ui->thumbnail_progress_downloaded,
+            ui->thumbnail_progress_no_match,
+            ui->thumbnail_progress_failed);
+  ui_printf(ui, "entries=6 cursor=1\n");
   ui_printf(ui, "\n");
   ui_printf(ui, ">   1  RUNNING: %s\n", title);
-  ui_printf(ui, "    2  Please wait\n");
-  ui_printf(ui, "    3  Results will open automatically\n");
-  ui_printf(ui, "    4  Do not power off\n");
+  if (percent >= 0) {
+    ui_printf(ui, "    2  Progress: %ld / %ld (%ld%%)\n",
+              ui->thumbnail_progress_current, ui->thumbnail_progress_total, percent);
+  } else {
+    ui_printf(ui, "    2  Progress: preparing\n");
+  }
+  ui_printf(ui, "    3  Phase: %s %s\n", phase_label,
+            ui->thumbnail_running_system[0] ? ui->thumbnail_running_system : "-");
+  ui_printf(ui, "    4  Saved %ld  NoMatch %ld  Failed %ld\n",
+            ui->thumbnail_progress_downloaded,
+            ui->thumbnail_progress_no_match,
+            ui->thumbnail_progress_failed);
+  ui_printf(ui, "    5  Results will open automatically\n");
+  ui_printf(ui, "    6  Do not power off\n");
   ui_printf(ui, "footer1=%s\n",
             scraping ? "Scraping is running." : "Thumbnail task is running.");
   ui_printf(ui, "footer2=%s\n", "The latest result will open when it finishes.");
@@ -7195,7 +7323,10 @@ static int append_scraping_runner_loop(char *cmd, size_t cmd_size, size_t *pos,
                                        const char *limit) {
   if (!append_string(cmd, cmd_size, pos, "; for sys in") ||
       !append_scraping_target_list(cmd, cmd_size, pos, ui) ||
-      !append_string(cmd, cmd_size, pos, "; do PLUMOS_SDCARD_ROOT=") ||
+      !append_string(cmd, cmd_size, pos,
+                     fetch_mode
+                         ? "; do PLUMOS_THUMBNAIL_PROGRESS=1 PLUMOS_SDCARD_ROOT="
+                         : "; do progress_i=$((progress_i + 1)); printf 'progress\\tplan\\t%s\\t%s\\t%s\\t0\\t0\\t0\\n' \"$sys\" \"$progress_i\" \"$progress_total\"; PLUMOS_SDCARD_ROOT=") ||
       !append_shell_quoted(cmd, cmd_size, pos, ui->sdcard_root) ||
       !append_string(cmd, cmd_size, pos, " PLUMOS_ROOT=") ||
       !append_shell_quoted(cmd, cmd_size, pos, ui->plumos_root) ||
@@ -7219,6 +7350,54 @@ static int append_scraping_runner_loop(char *cmd, size_t cmd_size, size_t *pos,
                        "; step_rc=$?; [ \"$step_rc\" -eq 0 ] || app_rc=\"$step_rc\"; done");
 }
 
+static int run_command_with_live_log(struct ui_state *ui, const char *cmd,
+                                     const char *latest_path, const char *log_path) {
+  FILE *pipe;
+  FILE *latest;
+  FILE *log;
+  char line[UI_RENDER_LINE_MAX];
+  char trimmed[UI_RENDER_LINE_MAX];
+  int rc;
+
+  if (!ui || !cmd || !latest_path || !log_path) {
+    return -1;
+  }
+  latest = fopen(latest_path, "wb");
+  if (!latest) {
+    set_status(ui, "cannot write latest result log");
+    return -1;
+  }
+  log = fopen(log_path, "ab");
+  if (!log) {
+    fclose(latest);
+    set_status(ui, "cannot write app result log");
+    return -1;
+  }
+  pipe = popen(cmd, "r");
+  if (!pipe) {
+    fclose(log);
+    fclose(latest);
+    set_status(ui, "cannot start scraping command");
+    return -1;
+  }
+
+  while (fgets(line, sizeof(line), pipe)) {
+    fputs(line, latest);
+    fflush(latest);
+    fputs(line, log);
+    fflush(log);
+    copy_truncated_string(trimmed, sizeof(trimmed), line);
+    trim_line_end(trimmed);
+    if (update_thumbnail_running_progress_from_log_line(ui, trimmed)) {
+      render_ui(ui);
+    }
+  }
+  rc = pclose(pipe);
+  fclose(log);
+  fclose(latest);
+  return rc;
+}
+
 static int run_scraping_action(struct ui_state *ui) {
   char scraper[PATH_MAX];
   char log_dir[PATH_MAX];
@@ -7230,6 +7409,7 @@ static int run_scraping_action(struct ui_state *ui) {
   const char *fetch_limit;
   size_t pos = 0;
   size_t path_pos = 0;
+  size_t target_count;
   int rc;
 
   if (!ui || ui->scraping_choice_count == 0) {
@@ -7260,6 +7440,7 @@ static int run_scraping_action(struct ui_state *ui) {
   }
   plan_limit = scraping_limit_env("PLUMOS_SCRAPING_PLAN_LIMIT");
   fetch_limit = scraping_limit_env("PLUMOS_SCRAPING_FETCH_LIMIT");
+  target_count = ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1;
 
   cmd[0] = '\0';
   if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
@@ -7267,7 +7448,8 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_string(cmd, sizeof(cmd),
                      &pos, "; { printf 'app_start\\t%s\\n' ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
-      !append_string(cmd, sizeof(cmd), &pos, "; app_rc=0") ||
+      !append_string(cmd, sizeof(cmd), &pos, "; app_rc=0; progress_i=0; progress_total=") ||
+      !append_size_t(cmd, sizeof(cmd), &pos, target_count) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
                                    path_value, 0, plan_limit) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
@@ -7276,27 +7458,19 @@ static int run_scraping_action(struct ui_state *ui) {
                      &pos, "; printf 'app_finish\\t%s\\trc=%s\\n' ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
       !append_string(cmd, sizeof(cmd), &pos,
-                     " \"$app_rc\"; [ \"$app_rc\" -eq 0 ]; } >") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, latest_path) ||
-      !append_string(cmd, sizeof(cmd), &pos, " 2>&1; rc=$?; cat ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, latest_path) ||
-      !append_string(cmd, sizeof(cmd), &pos, " >>") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
-      !append_string(cmd, sizeof(cmd), &pos, "; exit \"$rc\"")) {
+                     " \"$app_rc\"; [ \"$app_rc\" -eq 0 ]; } 2>&1")) {
     set_status(ui, "scraping command too long");
     return 0;
   }
 
   copy_string(ui->thumbnail_running_title, sizeof(ui->thumbnail_running_title),
               "Scraping");
+  reset_thumbnail_running_progress(ui);
   ui->screen = SCREEN_THUMBNAIL_RUNNING;
   snprintf(ui->status, sizeof(ui->status), "running Scraping");
   render_ui(ui);
-  shutdown_ui_renderer(ui);
-  rc = system(cmd);
-  if (ui->renderer_mali && !init_ui_renderer(ui)) {
-    ui->renderer_mali = 0;
-  }
+  mkdir(log_dir, 0755);
+  rc = run_command_with_live_log(ui, cmd, latest_path, log_path);
   settle_input_after_child(ui);
   ui->screen = SCREEN_THUMBNAIL_RESULTS;
   ui->thumbnail_result_cursor = 0;

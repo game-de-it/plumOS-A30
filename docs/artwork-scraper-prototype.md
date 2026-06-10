@@ -9,7 +9,8 @@
 - CRC が一致しない ROM は通常 `no_match` にする。filename fallback は明示的な候補確認用
   option に限定し、自動保存しない。
 - 取得した画像とユーザーが手で置く画像の保存先は 1 つにする。
-- FE にはまだ background download、progress UI、retry UI を入れない。
+- FE では `Apps -> Scraping` から system 選択、実行中 progress、結果確認を行う。
+- retry UI と filename fallback 候補確認は別タスクとして扱う。
 
 ## 正式保存先
 
@@ -265,7 +266,10 @@ FE の START -> Apps には `Scraping` 入口を置きます。`Scraping` 画面
 library scan を行い、FE 再起動なしで TOP/Graphic の ROM 数と Scraping 対象を更新します。
 実行中は `Scraping Running` 画面を表示し、内部では対象 system ごとに
 `plumos-thumbnail-scraper --system <id>` と
-`plumos-thumbnail-scraper --fetch --system <id>` を順に実行します。完了後は自動で
+`plumos-thumbnail-scraper --fetch --system <id>` を順に実行します。RUNNING 画面には
+`Progress: current / total`、`Phase: Plan|Fetch <system>`、`Saved / NoMatch / Failed`
+を表示します。Plan 中は system/phase 単位、Fetch 中は `PLUMOS_THUMBNAIL_PROGRESS=1`
+で出力される `progress` 行により ROM 単位の進捗を表示します。完了後は自動で
 `Scraping Results` へ遷移します。`Scraping Results` は直近 1 回分の
 `frontend-apps-latest.log` だけを表示するため、いま実行した結果かどうかを判断できます。
 詳細 log は `/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log にも残します。
