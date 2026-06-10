@@ -61,13 +61,13 @@
 - `PATH`、`STATUS`、`ENTRIES`、`CURSOR`、debug/status line は表示しない。
 - START 第一階層は `UI Settings`、`System Settings`、`Network Settings`、
   `Performance Settings`、`Apps`、`HELP`、`Shutdown` を基本にする。
-- START、Settings の各サブ項目、HELP は左端アクセントバーをブルーにし、
+- START、Apps サブメニュー、Settings の各サブ項目、HELP は左端アクセントバーをブルーにし、
   command prompt は表示しない。画面タイトルとリスト項目で現在位置を示す。
 - TOP/ROM の SELECT core menu も Text/Graphic 共通の list screen とし、操作説明promptは
   表示しない。起動候補は `Cores < core_name >` の1行で表示し、十字キー左右で変更する。
 - 決定/実行は必ず A、戻る/キャンセルは必ず B にする。十字キー左右はページ送りや
   設定値変更には使ってよいが、決定/実行/戻る/キャンセルには使わない。
-- START/Settings/HELP の項目名は、`Performance Settings` などの正式名を切らずに
+- START/Apps/Settings/HELP の項目名は、`Performance Settings` などの正式名を切らずに
   表示するため、必要に応じて `1.5x` を使う。`1x` 未満にはしない。
 - Settings 項目名と設定値は JSON/コード側の大文字・小文字を保って表示する。
   ただし TOP の system 名は Linux console 風の意匠として ASCII を大文字化する。

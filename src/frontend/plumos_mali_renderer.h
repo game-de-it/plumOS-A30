@@ -2392,7 +2392,8 @@ static void plumos_mali_make_entry(const char *line, const char *screen_title,
     *profile = '\0';
   }
   snprintf(out, out_size, "%s", compact);
-  if (strstr(screen_title, "START") || strstr(screen_title, "Settings") ||
+  if (strstr(screen_title, "START") || strstr(screen_title, "Apps") ||
+      strstr(screen_title, "APPS") || strstr(screen_title, "Settings") ||
       strstr(screen_title, "SETTINGS") || strstr(screen_title, "HELP") ||
       strstr(screen_title, "Thumbnail Results") ||
       strstr(screen_title, "Scraping")) {
@@ -3668,7 +3669,8 @@ static int plumos_mali_title_is_settings(const char *title) {
 }
 
 static int plumos_mali_title_is_settings_family(const char *title) {
-  return title && (strstr(title, "START") || strstr(title, "Settings") ||
+  return title && (strstr(title, "START") || strstr(title, "Apps") ||
+                   strstr(title, "APPS") || strstr(title, "Settings") ||
                    strstr(title, "SETTINGS") || strstr(title, "HELP") ||
                    strstr(title, "Thumbnail Results") ||
                    strstr(title, "Scraping") ||
