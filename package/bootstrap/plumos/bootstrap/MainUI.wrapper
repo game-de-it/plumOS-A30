@@ -3,6 +3,17 @@
 
 set -u
 
+if [ "${PLUMOS_MAINUI_WRAPPER_STAGED:-0}" != "1" ]; then
+  STAGED_WRAPPER="${PLUMOS_MAINUI_WRAPPER_STAGE:-/tmp/plumos-mainui-wrapper.run}"
+  if cp "$0" "$STAGED_WRAPPER" 2>/dev/null; then
+    chmod 755 "$STAGED_WRAPPER" 2>/dev/null || true
+    cd / 2>/dev/null || true
+    export PLUMOS_MAINUI_WRAPPER_STAGED=1
+    exec "$STAGED_WRAPPER" "$@"
+  fi
+fi
+cd / 2>/dev/null || true
+
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
 LOG_FILE="${PLUMOS_MAINUI_LOG:-${LOG_DIR}/mainui-wrapper.log}"
@@ -11,6 +22,7 @@ ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
 CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
 NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
 STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-services}"
+NETWORK_CONTROL="${PLUMOS_NETWORK_CONTROL:-${PLUMOS_ROOT}/bin/plumos-network-control}"
 SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
@@ -125,6 +137,13 @@ if command -v killall >/dev/null 2>&1; then
 fi
 
 (
+  if [ -x "$NETWORK_CONTROL" ]; then
+    log "starting Wi-Fi runtime from saved config: ${NETWORK_CONTROL}"
+    "$NETWORK_CONTROL" --wifi on >> "$LOG_FILE" 2>&1 || true
+  else
+    log "network control helper missing: ${NETWORK_CONTROL}"
+  fi
+
   if [ -x "$SSH_START" ]; then
     log "starting SSH helper without network rescue: ${SSH_START}"
     "$SSH_START" >> "$LOG_FILE" 2>&1 || true

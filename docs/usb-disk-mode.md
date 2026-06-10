@@ -24,6 +24,10 @@ plumOS でも同じ原則を守ります。
   disable -> mass_storage -> enable して host PC 側へ再 enumerate させる。
 - `/mnt/SDCARD` を unmount できた場合だけ USB mass storage を有効化する。
 - PC 側で eject した後に USB Disk Mode を抜け、fsck、remount、FE/SSH restart を行う。
+- remount 時は vfat の UTF-8 filename handling を明示し、日本語などの VFAT long
+  filename が `???` として見える状態を避ける。
+- remount 後は `state/frontend/systems/*.json` を破棄し、ROM list に入るタイミングで
+  正しいファイル名を再 scan させる。
 - FE は `/mnt/SDCARD/miyoo/app` から起動されるため、helper は tmpfs へ自分をコピーした後、
   作業ディレクトリを `/` へ移してから SD card を unmount する。
 - enter 途中で失敗した場合も、USB gadget、SD mount、SSH/FE の復帰処理を試みる。
@@ -112,6 +116,10 @@ NW Service へ戻ります。
 2026-06-10 時点で、Windows/macOS からの USB Mass Storage 認識、Mac からの同条件転送
 benchmark、画面上の開始フィードバック、SD card remount/FE 復帰の基本 flow を確認済みです。
 ファイル転送機能としては完了扱いにします。
+
+2026-06-10 に、StockOS/default mount が `iocharset=ascii` になると日本語 ROM 名が
+`???` に変換され、そのまま FE cache に保存されることを確認しました。USB Disk Mode
+終了時の remount は UTF-8 vfat option を優先し、per-system ROM cache を破棄します。
 
 ## 将来改善項目
 

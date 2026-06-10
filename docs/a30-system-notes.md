@@ -97,6 +97,10 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
   を起動するよう変更した。実機では約9時間進んでいたUTC時刻が `ntpd` により補正された。
 - 2026-06-10 に FE/boot wrapper からの Network Recovery 導線は停止した。SSH がない状態での
   復旧は、StockOS MainUI から直接起動できる独立した shell script として別途設計する。
+- 2026-06-10 に、Network Recovery 停止後も boot 時の自動接続を維持するため、
+  wrapper が `plumos-network-control --wifi on` を background 実行するようにした。
+  この処理は保存済み `/config/wpa_supplicant.conf` で `wpa_supplicant` を起動し、
+  `udhcpc` で IP を取得し、SSH helper を起動する。
 
 実装上の意味:
 

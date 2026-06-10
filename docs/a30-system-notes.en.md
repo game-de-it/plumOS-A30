@@ -83,6 +83,11 @@ remain untouched.
 - On June 10, 2026, the Network Recovery route from the FE and boot wrapper was
   disabled. Recovery for cases where SSH is unavailable should be designed as a
   separate shell script launched directly from StockOS MainUI.
+- On June 10, 2026, the wrapper gained a background
+  `plumos-network-control --wifi on` startup path so automatic Wi-Fi remains
+  available after disabling Network Recovery. It starts `wpa_supplicant` from the
+  saved `/config/wpa_supplicant.conf`, requests DHCP through `udhcpc`, and starts
+  the SSH helper.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,

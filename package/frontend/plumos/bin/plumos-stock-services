@@ -1,9 +1,28 @@
 #!/bin/sh
 set -u
 
+if [ "${PLUMOS_STOCK_SERVICES_STAGED:-0}" != "1" ]; then
+  case "${1:-}" in
+    boot|normalize-sdcard)
+      STAGED_HELPER="${PLUMOS_STOCK_SERVICES_STAGE:-/tmp/plumos-stock-services.run}"
+      if cp "$0" "$STAGED_HELPER" 2>/dev/null; then
+        chmod 755 "$STAGED_HELPER" 2>/dev/null || true
+        cd / 2>/dev/null || true
+        export PLUMOS_STOCK_SERVICES_STAGED=1
+        exec "$STAGED_HELPER" "$@"
+      fi
+      ;;
+  esac
+fi
+cd / 2>/dev/null || true
+
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}"
+SD_DEVICE="${PLUMOS_SDCARD_DEVICE:-/dev/mmcblk0p1}"
+SDCARD_MOUNT_OPTS="${PLUMOS_SDCARD_MOUNT_OPTS:-rw,utf8=1,shortname=mixed,fmask=0022,dmask=0022}"
 LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/stock-services.log"
+TMP_LOG_FILE="${PLUMOS_STOCK_SERVICES_TMP_LOG:-/tmp/plumos-stock-services.log}"
 NTP_PID_FILE="${PLUMOS_NTP_PID_FILE:-/tmp/plumos-ntpd.pid}"
 NTPD="${PLUMOS_NTPD:-/usr/sbin/ntpd}"
 NTP_SERVERS="${PLUMOS_NTP_SERVERS:-time.cloudflare.com pool.ntp.org time.google.com time.apple.com}"
@@ -20,7 +39,9 @@ uptime_now() {
 }
 
 log() {
-  printf '%s uptime=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+  line="$(printf '%s uptime=%s %s' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*")"
+  printf '%s\n' "$line" >> "$TMP_LOG_FILE" 2>/dev/null || true
+  printf '%s\n' "$line" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 cmdline_for_pid() {
@@ -88,6 +109,118 @@ stop_stock_usb_userland() {
   log "stop stock USB userland end"
 }
 
+stop_stock_keymon() {
+  pids=""
+  for pid in $(find_pids_by_cmd '*/miyoo*/app/keymon*' '*/app/keymon*'); do
+    pids="${pids} ${pid}"
+  done
+  # shellcheck disable=SC2086
+  terminate_pids "stock keymon" $pids
+}
+
+sdcard_mount_line() {
+  awk -v mp="$SDCARD_ROOT" '$2 == mp { print; exit }' /proc/mounts 2>/dev/null || true
+}
+
+sdcard_mount_needs_utf8_fix() {
+  line="$(sdcard_mount_line)"
+  case "$line" in
+    *" vfat "*)
+      case "$line" in
+        *utf8=0*) return 0 ;;
+        *utf8=1*|*,utf8,*|*,utf8\ *|*iocharset=utf8*) return 1 ;;
+        *iocharset=ascii*) return 0 ;;
+      esac
+      ;;
+  esac
+  return 1
+}
+
+invalidate_frontend_system_cache() {
+  cache_dir="${PLUMOS_ROOT}/state/frontend/systems"
+  [ -d "$cache_dir" ] || return 0
+  rm -f "$cache_dir"/*.json 2>/dev/null || true
+  log "invalidated frontend per-system ROM cache: ${cache_dir}"
+}
+
+mount_sdcard_utf8() {
+  mkdir -p "$SDCARD_ROOT" 2>/dev/null || true
+  err="/tmp/plumos-stock-services-mount.err"
+  for opts in \
+    "$SDCARD_MOUNT_OPTS" \
+    "rw,utf8,shortname=mixed,fmask=0022,dmask=0022" \
+    "rw,iocharset=utf8,shortname=mixed,fmask=0022,dmask=0022"; do
+    if mount -t vfat -o "$opts" "$SD_DEVICE" "$SDCARD_ROOT" 2>"$err"; then
+      rm -f "$err" 2>/dev/null || true
+      log "mounted ${SD_DEVICE} on ${SDCARD_ROOT} options=${opts}"
+      return 0
+    fi
+    if [ -s "$err" ]; then
+      while IFS= read line; do
+        log "mount options=${opts}: ${line}"
+      done < "$err"
+    fi
+  done
+  rm -f "$err" 2>/dev/null || true
+
+  if mount "$SDCARD_ROOT" 2>/dev/null || mount "$SD_DEVICE" "$SDCARD_ROOT" 2>/dev/null; then
+    log "mounted ${SD_DEVICE} on ${SDCARD_ROOT} using default mount fallback"
+    return 0
+  fi
+  log "failed to mount ${SD_DEVICE} on ${SDCARD_ROOT}"
+  return 1
+}
+
+normalize_sdcard_mount() {
+  line="$(sdcard_mount_line)"
+  if [ -z "$line" ]; then
+    log "SD card is not mounted; mounting with UTF-8 options"
+    mount_sdcard_utf8 || return 1
+    if sdcard_mount_needs_utf8_fix; then
+      log "SD card mount still needs UTF-8 fix after mount: $(sdcard_mount_line)"
+      return 1
+    fi
+    invalidate_frontend_system_cache
+    return 0
+  fi
+
+  if ! sdcard_mount_needs_utf8_fix; then
+    log "SD card mount is already non-ascii: ${line}"
+    return 0
+  fi
+
+  log "SD card mount uses ASCII filename conversion; remounting: ${line}"
+  stop_stock_keymon
+  sync
+
+  err="/tmp/plumos-stock-services-umount.err"
+  if ! umount "$SDCARD_ROOT" 2>"$err"; then
+    log "SD card UTF-8 normalization skipped; unmount failed"
+    if [ -s "$err" ]; then
+      while IFS= read line; do
+        log "umount ${SDCARD_ROOT}: ${line}"
+      done < "$err"
+    fi
+    rm -f "$err" 2>/dev/null || true
+    return 1
+  fi
+  rm -f "$err" 2>/dev/null || true
+
+  if ! mount_sdcard_utf8; then
+    log "SD card UTF-8 remount failed"
+    return 1
+  fi
+
+  line="$(sdcard_mount_line)"
+  if sdcard_mount_needs_utf8_fix; then
+    log "SD card mount is still ASCII after remount: ${line}"
+    return 1
+  fi
+
+  log "SD card UTF-8 normalization complete: ${line}"
+  invalidate_frontend_system_cache
+}
+
 ntp_pid_running() {
   [ -r "$NTP_PID_FILE" ] || return 1
   read -r pid < "$NTP_PID_FILE" || return 1
@@ -147,9 +280,11 @@ network_ready() {
 boot_normalize() {
   stop_stock_usb_userland
   stop_all_ntp
+  normalize_sdcard_mount || true
 }
 
 status() {
+  printf 'sdcard_mount=%s\n' "$(sdcard_mount_line)"
   printf 'stock_usb_pids='
   find_pids_by_cmd '*/usr/sbin/MtpDaemon*' '*/bin/adbd*' | tr '\n' ' '
   printf '\n'
@@ -174,6 +309,9 @@ case "${1:-}" in
   stop-usb)
     stop_stock_usb_userland
     ;;
+  normalize-sdcard)
+    normalize_sdcard_mount
+    ;;
   ntp-start)
     start_plumos_ntp
     ;;
@@ -191,6 +329,8 @@ Commands:
   boot           Stop StockOS USB userland and StockOS NTP during plumOS boot.
   network-ready  Keep StockOS USB userland stopped and start plumOS-managed NTP.
   stop-usb       Stop StockOS MtpDaemon/adbd.
+  normalize-sdcard
+                 Remount /mnt/SDCARD with UTF-8 vfat filename handling when needed.
   ntp-start      Stop StockOS NTP and start plumOS-managed ntpd.
   ntp-stop       Stop all known ntpd instances.
   status         Print StockOS USB and NTP process status.

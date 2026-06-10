@@ -17,7 +17,7 @@ usage() {
 Usage: plumos-network-control [options]
 
 Options:
-  --wifi on       Disabled; use --connect-file or a MainUI recovery script.
+  --wifi on       Start Wi-Fi runtime from the saved config and request DHCP.
   --wifi off      Stop wlan0 runtime without editing saved credentials.
   --wifi status   Print redacted runtime status. Default.
   --scan          Print visible SSIDs as tab-separated network rows.
@@ -112,9 +112,29 @@ wifi_off() {
 }
 
 wifi_on() {
-  log "wifi_on disabled reason=network_rescue_route_removed"
-  echo "error: --wifi on is disabled; use --connect-file or a MainUI recovery script" >&2
-  return 1
+  log "wifi_on begin"
+  if [ ! -r "$WPA_CONFIG" ]; then
+    log "wifi_on fail missing_config=${WPA_CONFIG}"
+    echo "error: Wi-Fi config missing" >&2
+    return 1
+  fi
+
+  restart_existing_config_best_effort
+  ip="$(wait_for_ip_seconds 10 || true)"
+  if [ -z "$ip" ]; then
+    log "wifi_on fail no_ip"
+    echo "result=failed"
+    echo "stage=dhcp_ip"
+    return 1
+  fi
+
+  if [ -x "$SSH_START" ]; then
+    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  fi
+  log "wifi_on success ip=${ip}"
+  echo "result=connected"
+  echo "ip=${ip}"
+  return 0
 }
 
 print_status() {

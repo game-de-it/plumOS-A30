@@ -11,9 +11,12 @@ uses that path as a small wrapper and moves the actual frontend entry point to
 - Launch `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` as the normal FE.
 - Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
 - Run `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` to stop StockOS
-  `MtpDaemon`, `adbd`, and `sysntpd`.
+  `MtpDaemon`, `adbd`, and `sysntpd`, then normalize `/mnt/SDCARD` to a vfat
+  UTF-8 mount when StockOS mounted it with ASCII filename conversion.
 - Do not run `plumos-network-rescue` automatically at boot.
-- Start only the SSH helper and enabled network services from the wrapper.
+- Run `plumos-network-control --wifi on` from the saved Wi-Fi config to acquire
+  DHCP/IP and start SSH.
+- Start the SSH helper and enabled network services from the wrapper.
 - If `wlan0` already has an IP address, call `plumos-stock-services network-ready`
   to start plumOS-managed `ntpd`.
 - Do not expose Network Recovery from the START menu or Network Settings.
@@ -55,7 +58,8 @@ The install script:
 The bootstrap package does not include the controller UI binary. Build and
 deploy the frontend package separately with `./scripts/docker-build.sh frontend`.
 At startup the wrapper does not run `plumos-network-rescue`; it shows the normal
-FE and starts the SSH helper plus enabled network services in the background.
+FE and starts saved-config Wi-Fi, the SSH helper, and enabled network services in
+the background.
 Left/Right are not used for confirm/run/back/cancel; A confirms/runs and B
 backs/cancels.
 

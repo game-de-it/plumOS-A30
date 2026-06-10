@@ -11,9 +11,12 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` を通常FEとして起動する
 - wrapper は stock `/etc/main` が先に起動した `keymon` を止める
 - wrapper は `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` で StockOS の
-  `MtpDaemon`、`adbd`、`sysntpd` を止める
+  `MtpDaemon`、`adbd`、`sysntpd` を止め、StockOS が SD card を ASCII filename
+  conversion で mount した場合は vfat UTF-8 mount へ正規化する
 - wrapper は boot 時に `plumos-network-rescue` を自動実行しない
-- wrapper は SSH helper と有効化済み network service だけを起動する
+- wrapper は保存済み Wi-Fi 設定から `plumos-network-control --wifi on` を実行し、
+  DHCP/IP取得とSSH起動を試みる
+- wrapper は SSH helper と有効化済み network service を起動する
 - `wlan0` に IP が既にある場合だけ `plumos-stock-services network-ready` を呼び、
   plumOS 管理の `ntpd` を起動する
 - START menu と Network Settings から Network Recovery へ入る導線は持たない
@@ -55,8 +58,8 @@ install script は以下を行います。
 bootstrap package は controller UI 本体を含みません。frontend は
 `./scripts/docker-build.sh frontend` で別 package として build/deploy します。
 wrapper 起動時は `plumos-network-rescue` を実行せず、そのまま通常FEを表示します。
-SSH helper と有効化済み network service は background で開始します。左右キーは
-実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
+保存済み Wi-Fi 設定での接続、SSH helper、有効化済み network service は background
+で開始します。左右キーは実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
 
 SSH が復旧していない状態でのネットワーク復旧は、FE 内の Network Recovery ではなく、
 StockOS MainUI から直接起動できる独立した shell script として設計します。

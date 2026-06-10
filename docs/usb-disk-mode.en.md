@@ -30,6 +30,10 @@ plumOS follows the same rule.
 - Enable USB mass storage only after `/mnt/SDCARD` is unmounted.
 - After the host PC ejects the drive, leave USB Disk Mode, run fsck, remount the
   SD card, and restart FE/SSH.
+- Remount with explicit vfat UTF-8 filename handling so VFAT long filenames such
+  as Japanese ROM names do not appear as `???`.
+- After remounting, discard `state/frontend/systems/*.json` so ROM lists rescan
+  with the correct filenames when entered.
 - Because the FE is launched from `/mnt/SDCARD/miyoo/app`, the helper copies
   itself to tmpfs and changes its working directory to `/` before unmounting the
   SD card.
@@ -125,6 +129,11 @@ As of 2026-06-10, the basic file-transfer flow is considered complete: Windows
 and macOS recognize the device as USB Mass Storage, the macOS transfer benchmark
 passed under the same conditions used for FTP/SFTP/Samba, the start screen gives
 clear feedback, and the SD-card remount/FE return flow has been validated.
+
+On 2026-06-10, we confirmed that the StockOS/default mount may use
+`iocharset=ascii`; in that state, Japanese ROM names appear as `???` and stale FE
+ROM caches preserve the converted names. USB Disk Mode now prefers UTF-8 vfat
+remount options and invalidates the per-system ROM cache after remount.
 
 ## Future Improvements
 

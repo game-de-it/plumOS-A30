@@ -7,6 +7,7 @@ ANDROID_USB="${PLUMOS_ANDROID_USB:-/sys/class/android_usb/android0}"
 MASS_STORAGE="${ANDROID_USB}/f_mass_storage"
 LUN="${MASS_STORAGE}/lun"
 SD_DEVICE="${PLUMOS_USB_DISK_DEVICE:-/dev/mmcblk0p1}"
+SDCARD_MOUNT_OPTS="${PLUMOS_SDCARD_MOUNT_OPTS:-rw,utf8=1,shortname=mixed,fmask=0022,dmask=0022}"
 STATE_DIR="${PLUMOS_USB_DISK_STATE_DIR:-/tmp/plumos-usb-disk-mode}"
 LOG_FILE="${PLUMOS_USB_DISK_LOG:-/tmp/plumos-usb-disk-mode.log}"
 EXIT_FLAG="${STATE_DIR}/exit"
@@ -55,6 +56,17 @@ write_value() {
 
 is_mounted() {
   mount | grep -q " on ${PLUMOS_SDCARD_ROOT} "
+}
+
+sdcard_mount_line() {
+  awk -v mp="$PLUMOS_SDCARD_ROOT" '$2 == mp { print; exit }' /proc/mounts 2>/dev/null || true
+}
+
+invalidate_frontend_system_cache() {
+  cache_dir="${PLUMOS_ROOT}/state/frontend/systems"
+  [ -d "$cache_dir" ] || return 0
+  rm -f "$cache_dir"/*.json 2>/dev/null || true
+  log "invalidated frontend per-system ROM cache: ${cache_dir}"
 }
 
 save_usb_state() {
@@ -451,9 +463,39 @@ unmount_sdcard() {
 remount_sdcard() {
   mkdir -p "$PLUMOS_SDCARD_ROOT" 2>/dev/null || true
   if is_mounted; then
+    log "SD card already mounted: $(sdcard_mount_line)"
     return 0
   fi
-  mount "$PLUMOS_SDCARD_ROOT" 2>/dev/null || mount "$SD_DEVICE" "$PLUMOS_SDCARD_ROOT"
+
+  err="${STATE_DIR}/mount.err"
+  for opts in \
+    "$SDCARD_MOUNT_OPTS" \
+    "rw,utf8,shortname=mixed,fmask=0022,dmask=0022" \
+    "rw,iocharset=utf8,shortname=mixed,fmask=0022,dmask=0022"; do
+    if mount -t vfat -o "$opts" "$SD_DEVICE" "$PLUMOS_SDCARD_ROOT" 2>"$err"; then
+      rm -f "$err"
+      log "remounted ${SD_DEVICE} on ${PLUMOS_SDCARD_ROOT} options=${opts}"
+      log "SD mount line: $(sdcard_mount_line)"
+      invalidate_frontend_system_cache
+      return 0
+    fi
+    if [ -s "$err" ]; then
+      while IFS= read line; do
+        log "remount options=${opts}: ${line}"
+      done < "$err"
+    fi
+  done
+  rm -f "$err"
+
+  if mount "$PLUMOS_SDCARD_ROOT" 2>/dev/null || mount "$SD_DEVICE" "$PLUMOS_SDCARD_ROOT"; then
+    log "remounted ${SD_DEVICE} on ${PLUMOS_SDCARD_ROOT} using default mount fallback"
+    log "SD mount line: $(sdcard_mount_line)"
+    invalidate_frontend_system_cache
+    return 0
+  fi
+
+  log "failed to remount ${SD_DEVICE} on ${PLUMOS_SDCARD_ROOT}"
+  return 1
 }
 
 run_fsck_if_available() {
