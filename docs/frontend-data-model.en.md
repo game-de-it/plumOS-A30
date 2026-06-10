@@ -256,8 +256,10 @@ Rules:
 - Retry state for CRC misses and download failures lives under
   `/mnt/SDCARD/plumos/state/frontend/`; the `Images` directory contains images
   only.
-- Scraper state includes relative path, size, and mtime so unchanged `no_match`
-  files can be skipped before CRC work.
+- Scraper state includes relative path, size, mtime, and ctime so unchanged
+  `no_match` files can be skipped before CRC work.
+- Replacing a ROM with the same name and size still enters CRC work when mtime
+  or ctime changes.
 
 ### `AppDefinition`
 

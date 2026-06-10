@@ -52,14 +52,18 @@ user's choice and take priority.
 Only ROMs without an existing image enter the CRC queue. During FE integration,
 store scraper state under a path such as
 `/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` with `system_id`,
-relative path, size, mtime, kind, CRC, status, and `checked_at`. A ROM that was
-previously `no_match` with the same size/mtime should be re-CRC'd only after the
-DAT cache changes or when the user chooses `Retry missing thumbnails`.
+relative path, size, mtime, ctime, kind, CRC, status, and `checked_at`. A ROM
+that was previously `no_match` with the same size/mtime/ctime should be
+re-CRC'd only after the DAT cache changes or when the user chooses
+`Retry missing thumbnails`.
 `download_failed` can be retried after a short backoff or by manual retry
 because it may be a temporary network failure.
 The prototype script's negative cache is keyed by `system_id`, kind, relative
-path, size, and mtime instead of CRC, so unchanged unmatched ROMs can return
-`negative_cached` before CRC work.
+path, size, mtime, and ctime instead of CRC, so unchanged unmatched ROMs can
+return `negative_cached` before CRC work. Replacing a ROM with the same name and
+size normally changes mtime or ctime, so it becomes eligible for CRC again.
+`Retry missing thumbnails` ignores the negative cache for unusual copy paths
+that preserve timestamps completely.
 
 ## FE Integration Policy
 
@@ -221,7 +225,7 @@ The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
 
 1. Look for an existing thumbnail using the same order as the frontend. If one
    exists, return `exists`.
-2. If no thumbnail exists and an unchanged size/mtime negative-cache entry
+2. If no thumbnail exists and an unchanged size/mtime/ctime negative-cache entry
    exists, return `negative_cached`.
 3. Compute CRC32 for the ROM payload.
 4. Look up `crc -> canonical game name` in the per-system DAT index.

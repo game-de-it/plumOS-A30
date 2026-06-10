@@ -218,7 +218,9 @@ import os
 import sys
 
 st = os.stat(sys.argv[1])
-print(f"{st.st_size}\t{int(st.st_mtime)}")
+mtime = getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000))
+ctime = getattr(st, "st_ctime_ns", int(st.st_ctime * 1_000_000_000))
+print(f"{st.st_size}\t{mtime}\t{ctime}")
 PY
 }
 
@@ -572,8 +574,8 @@ report_line() {
 }
 
 negative_key() {
-  local system="$1" rel="$2" size="$3" mtime="$4"
-  printf '%s\t%s\t%s\t%s\t%s\n' "$system" "$KIND" "$rel" "$size" "$mtime"
+  local system="$1" rel="$2" size="$3" mtime="$4" ctime="$5"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$system" "$KIND" "$rel" "$size" "$mtime" "$ctime"
 }
 
 negative_seen() {
@@ -605,7 +607,7 @@ first_supported_zip_member() {
 process_rom() {
   local rom="$1"
   local source_system="$2"
-  local root payload payload_tmp ext system rel output_rel dest rom_stem existing_thumb identity size mtime crc
+  local root payload payload_tmp ext system rel output_rel dest rom_stem existing_thumb identity size mtime ctime crc
   local dat_index canonical choice method thumb_name url key tmp
 
   payload="$rom"
@@ -651,8 +653,10 @@ process_rom() {
 
   identity="$(file_identity "$rom")"
   size="${identity%%$'\t'*}"
-  mtime="${identity#*$'\t'}"
-  key="$(negative_key "$system" "$rel" "$size" "$mtime")"
+  identity="${identity#*$'\t'}"
+  mtime="${identity%%$'\t'*}"
+  ctime="${identity#*$'\t'}"
+  key="$(negative_key "$system" "$rel" "$size" "$mtime" "$ctime")"
   if negative_seen "$key"; then
     report_line "negative_cached\t$system\t-\t-\t$rom\t$dest\t-\t-"
     return 0

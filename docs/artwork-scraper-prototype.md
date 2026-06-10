@@ -43,12 +43,15 @@ Roms/GB/Dracula Densetsu.gb
 
 画像が存在しない ROM だけ CRC queue に入れます。FE 組み込み時は
 `/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` のような state に、ROM の
-`system_id`, relative path, size, mtime, kind, CRC, status, checked_at を残します。
-同じ size/mtime で過去に `no_match` だった ROM は、DAT cache が更新された場合または
+`system_id`, relative path, size, mtime, ctime, kind, CRC, status, checked_at を残します。
+同じ size/mtime/ctime で過去に `no_match` だった ROM は、DAT cache が更新された場合または
 ユーザーが `Retry missing thumbnails` を選んだ場合だけ再 CRC します。`download_failed` は
 network 一時失敗の可能性があるため、短い backoff または手動 retry で再試行します。
-試作 script の negative cache も、CRC ではなく `system_id`, kind, relative path, size, mtime
+試作 script の negative cache も、CRC ではなく `system_id`, kind, relative path, size, mtime, ctime
 を key にして、変化していない未マッチ ROM では CRC 前に `negative_cached` を返します。
+同名・同サイズで ROM を再配置しても、通常は mtime または ctime が変わるため CRC 対象になります。
+timestamp を完全に保持する特殊なコピー経路に備え、FE には negative cache を無視する
+`Retry missing thumbnails` を用意します。
 
 ## FE 組み込み方針
 
@@ -200,7 +203,7 @@ thumbnail 種別は初期値を `Named_Boxarts` にします。試作 script で
 ## 照合順
 
 1. 既存 thumbnail を frontend と同じ lookup 順で探す。見つかった場合は `exists` として何もしない。
-2. 既存 thumbnail がなく、同じ size/mtime の negative cache がある場合は
+2. 既存 thumbnail がなく、同じ size/mtime/ctime の negative cache がある場合は
    `negative_cached` として何もしない。
 3. ROM payload の CRC32 を取る。
 4. system 別 DAT index から `crc -> canonical game name` を引く。

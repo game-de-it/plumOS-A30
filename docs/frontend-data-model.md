@@ -239,8 +239,9 @@ rules:
 - 既存画像はユーザー手動配置と scraper 取得画像を区別せず、default では上書きしない
 - CRC miss や download failure の再試行制御は `/mnt/SDCARD/plumos/state/frontend/` 配下の
   scraper state に保存し、`Images` directory には画像以外の管理 file を置かない
-- scraper state は relative path, size, mtime を持ち、同一 file と判断できる
+- scraper state は relative path, size, mtime, ctime を持ち、同一 file と判断できる
   `no_match` は CRC 前に skip できるようにする
+- 同名・同サイズの ROM 再配置でも、mtime または ctime が変わった場合は CRC 対象にする
 
 ### `AppDefinition`
 
