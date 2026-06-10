@@ -542,7 +542,7 @@ menu: start
   6. Refresh Current System   scan       scan:current             no
   7. Shutdown                 system     system:shutdown          yes
 
-plumOS controller UI - CORE
+plumOS controller UI - Core Settings
 target=nes
 source=plumOS default
 entries=1 cursor=1

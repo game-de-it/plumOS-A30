@@ -6314,7 +6314,7 @@ static void render_core_select(struct ui_state *ui) {
   size_t i;
   const char *profile = NULL;
 
-  ui_printf(ui, "plumOS controller UI - CORE\n");
+  ui_printf(ui, "plumOS controller UI - Core Settings\n");
   ui_printf(ui, "target=%s", ui->core_target_system_id[0] ? ui->core_target_system_id : "-");
   if (ui->core_target_relative_path[0]) {
     ui_printf(ui, " / %s", ui->core_target_relative_path);
@@ -6335,6 +6335,10 @@ static void render_core_select(struct ui_state *ui) {
   ui_printf(ui, ">   1  Cores < %s >\n", core_profile_display_name(profile));
   for (i = 0; i < ui->core_line_count; i++) {
     ui_printf(ui, "%s\n", ui->core_lines[i]);
+  }
+  if (ui->renderer_mali) {
+    ui_printf(ui, "footer1=Launch core/profile used for this target.\n");
+    ui_printf(ui, "footer2=Saved as plumOS core override.\n");
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
