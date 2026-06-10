@@ -88,6 +88,9 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - Prefer UI Settings controls whose saved values are reflected in real
   controller UI behavior. Read-only theme-derived state should be shown as
   normal information rows, not as checkbox or `< value >` controls.
+- Keep Graphic theme rows under a `Theme Settings` subpage instead of listing
+  them directly in `UI Settings`. Label the selected-theme choice `Theme`, not
+  `Graphic Theme`, so the right-aligned value does not collide with the label.
 - ON/OFF, Enable/Disable, and true/false values appear as checkboxes in
   Settings lists. Use `[x] Name` / `[ ] Name`; A toggles, Right turns ON, and
   Left turns OFF.

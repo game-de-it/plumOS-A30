@@ -395,6 +395,7 @@ enum wifi_connect_stage {
 
 enum settings_category {
   SETTINGS_CATEGORY_UI = 0,
+  SETTINGS_CATEGORY_UI_THEME,
   SETTINGS_CATEGORY_SYSTEM,
   SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR,
   SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST,
@@ -3163,6 +3164,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "network_services") == 0 ||
       strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
+      strcmp(id, "ui_theme_settings") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
       strcmp(id, "system_time_settings") == 0 ||
       strcmp(id, "system_manual_time") == 0 ||
@@ -3267,6 +3269,8 @@ static const char *settings_category_title(enum settings_category category) {
     return "Network Settings - INFORMATION";
   case SETTINGS_CATEGORY_PERFORMANCE:
     return "Performance Settings";
+  case SETTINGS_CATEGORY_UI_THEME:
+    return "Theme Settings";
   case SETTINGS_CATEGORY_UI:
   default:
     return "UI Settings";
@@ -3275,11 +3279,6 @@ static const char *settings_category_title(enum settings_category category) {
 
 static void add_ui_settings_entries(struct ui_state *ui,
                                     const struct frontend_settings *settings) {
-  char graphic_theme_display[128];
-
-  graphic_theme_display_value(ui, settings->graphic_theme_id,
-                              graphic_theme_display,
-                              sizeof(graphic_theme_display));
   add_setting_entry(ui, "ui_mode", "UI Mode",
                     setting_choice_display_value("ui_mode", settings->ui_mode));
   add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
@@ -3297,12 +3296,32 @@ static void add_ui_settings_entries(struct ui_state *ui,
                     setting_choice_display_value("sort_roms", settings->sort_roms));
   add_bool_setting_entry(ui, "rom_scan_policy", "Scan On Enter",
                          rom_scan_policy_is_on_enter(settings->rom_scan_policy));
-  add_setting_entry(ui, "graphic_theme_id", "Graphic Theme",
-                    graphic_theme_display);
-  add_setting_entry(ui, "theme_name", "Theme Name", ui->theme.display_name);
-  add_setting_entry(ui, "theme_status", "Theme Status", ui->theme.status);
-  add_setting_entry(ui, "theme_layout", "Theme Layout", ui->theme.layout_preset);
-  add_setting_entry(ui, "theme_font", "Theme Font",
+  add_setting_entry(ui, "ui_theme_settings", "Theme Settings", "");
+}
+
+static void add_ui_theme_settings_entries(struct ui_state *ui,
+                                          const struct frontend_settings *settings) {
+  char graphic_theme_display[128];
+  char value[128];
+
+  graphic_theme_display_value(ui, settings->graphic_theme_id,
+                              graphic_theme_display,
+                              sizeof(graphic_theme_display));
+  add_setting_entry(ui, "graphic_theme_id", "Theme", graphic_theme_display);
+  add_setting_entry(ui, "theme_name", "Name", ui->theme.display_name);
+  add_setting_entry(ui, "theme_status", "Status", ui->theme.status);
+  add_setting_entry(ui, "theme_layout", "Layout", ui->theme.layout_preset);
+  add_setting_entry(ui, "theme_top_layout", "TOP Layout",
+                    ui->theme.graphic_top_layout);
+  add_setting_entry(ui, "theme_transition", "Transition",
+                    ui->theme.graphic_transition);
+  snprintf(value, sizeof(value), "%ld ms", ui->theme.graphic_transition_ms);
+  add_setting_entry(ui, "theme_transition_ms", "Time", value);
+  add_setting_entry(ui, "theme_transition_axis", "Axis",
+                    ui->theme.graphic_transition_axis);
+  add_setting_entry(ui, "theme_transition_easing", "Easing",
+                    ui->theme.graphic_transition_easing);
+  add_setting_entry(ui, "theme_font", "Font",
                     ui->theme.font_ui[0] ? ui->theme.font_ui : ui->theme.font_fallback);
 }
 
@@ -3926,6 +3945,9 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_PERFORMANCE:
     load_device_settings(ui);
     add_performance_settings_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_UI_THEME:
+    add_ui_theme_settings_entries(ui, &settings);
     break;
   case SETTINGS_CATEGORY_UI:
   default:
@@ -4987,15 +5009,23 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "rom_scan_policy") == 0) {
     copy_string(line1, line1_size, "Scan ROM folders when entering a system.");
     copy_string(line2, line2_size, "Off keeps cached lists until refresh.");
+  } else if (strcmp(id, "ui_theme_settings") == 0) {
+    copy_string(line1, line1_size, "Open Graphic theme settings.");
+    copy_string(line2, line2_size, "Theme selection affects Graphic mode only.");
   } else if (strcmp(id, "graphic_theme_id") == 0) {
     copy_string(line1, line1_size, "Graphic mode theme package.");
     copy_string(line2, line2_size, "Text mode ignores theme colors, layout, and assets.");
   } else if (strcmp(id, "theme_name") == 0 ||
              strcmp(id, "theme_status") == 0 ||
              strcmp(id, "theme_layout") == 0 ||
+             strcmp(id, "theme_top_layout") == 0 ||
+             strcmp(id, "theme_transition") == 0 ||
+             strcmp(id, "theme_transition_ms") == 0 ||
+             strcmp(id, "theme_transition_axis") == 0 ||
+             strcmp(id, "theme_transition_easing") == 0 ||
              strcmp(id, "theme_font") == 0) {
     copy_string(line1, line1_size, "Current Graphic theme information.");
-    copy_string(line2, line2_size, "Theme controls presentation only, not behavior.");
+    copy_string(line2, line2_size, "Only the Theme row is changed from this screen.");
   } else if (strcmp(id, "rom_scan_slow_threshold_ms") == 0) {
     copy_string(line1, line1_size, "Slow scan warning threshold.");
     copy_string(line2, line2_size, "Higher values make warnings less sensitive.");
@@ -7131,6 +7161,10 @@ static int is_network_setting_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_rescue") == 0;
 }
 
+static int is_ui_theme_settings_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "ui_theme_settings") == 0;
+}
+
 static int is_network_connect_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_connect_wifi") == 0;
 }
@@ -7604,6 +7638,12 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       return;
     }
     if (action == ACTION_B) {
+      if (ui->settings_category == SETTINGS_CATEGORY_UI_THEME) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_UI);
+        select_setting_entry_by_id(ui, "ui_theme_settings");
+        set_status(ui, "back to UI Settings");
+        return;
+      }
       if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
         select_setting_entry_by_id(ui, "system_display_color");
@@ -7648,6 +7688,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
       char msg[256];
       if (handle_setting_control(ui, action)) {
+        return;
+      }
+      if (is_ui_theme_settings_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_UI_THEME);
         return;
       }
       if (is_network_connect_entry(entry)) {

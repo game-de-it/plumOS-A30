@@ -72,6 +72,9 @@
 - UI Settings に出す操作項目は、保存後に実際の controller UI 挙動へ反映されるものを
   優先する。theme 由来の状態など読み取り専用情報は checkbox や `< value >` 風に
   見せず、通常の情報行として表示する。
+- Graphic theme 関連は `UI Settings` 直下に並べず、`Theme Settings` サブ項目へ
+  まとめる。選択中 theme を変更する行の項目名は、右側の値と衝突しないよう
+  `Graphic Theme` ではなく `Theme` と表示する。
 - ON/OFF、Enable/Disable、true/false 系は Settings list では checkbox として表示する。
   表記は `[x] 項目名` / `[ ] 項目名` を基準にする。Aでtoggle、右でON、左でOFF。
   `Scan On Enter` のように肯定形の項目名へ置き換えられる二択も checkbox として扱う。
