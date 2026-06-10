@@ -2753,7 +2753,6 @@ static void plumos_mali_graphic_draw_roms(
   float preview_w = (float)renderer->width - preview_x - 16.0f;
   float preview_h = 310.0f;
   char header[96];
-  char display_title[PLUMOS_MALI_RENDER_LINE_MAX];
   char initials[8];
   int initials_width;
   int thumbnail_drawn = 0;
@@ -2769,6 +2768,10 @@ static void plumos_mali_graphic_draw_roms(
 
   for (i = 0; i < entry_count; i++) {
     float y = list_y + (float)i * row_h;
+    float cursor_y = y + 3.0f;
+    float name_x = list_x + 24.0f;
+    float name_right_x = list_x + list_w - 10.0f;
+    int scroll_px = 0;
     float r = 0.72f;
     float g = 0.80f;
     float b = 0.78f;
@@ -2779,16 +2782,22 @@ static void plumos_mali_graphic_draw_roms(
     if (entries[i].selected) {
       plumos_mali_rect(renderer, list_x - 6.0f, y - 7.0f, list_w, row_h - 4.0f,
                        0.14f, 0.23f, 0.20f, 1.0f);
-      plumos_mali_rect(renderer, list_x - 6.0f, y - 7.0f, 6.0f, row_h - 4.0f,
-                       1.0f, 0.56f, 0.10f, 1.0f);
+      if (name_right_x > name_x) {
+        int title_width = plumos_mali_text_width_font(renderer, entries[i].title, 2, 1);
+        int available_width = (int)(name_right_x - name_x);
+        if (title_width > available_width) {
+          scroll_px = plumos_mali_marquee_offset(renderer, title_width, available_width,
+                                                 12);
+        }
+      }
       r = 1.0f;
       g = 0.90f;
       b = 0.48f;
     }
-    plumos_mali_text(renderer, entries[i].selected ? ">" : " ", list_x, y, 2,
+    plumos_mali_text(renderer, entries[i].selected ? ">" : " ", list_x, cursor_y, 2,
                      r, g, b, 1.0f);
-    plumos_mali_text_clipped(renderer, entries[i].title, list_x + 24.0f, y,
-                             2, 1, list_x + 24.0f, list_x + list_w - 10.0f,
+    plumos_mali_text_clipped(renderer, entries[i].title, name_x - (float)scroll_px, y,
+                             2, 1, name_x, name_right_x,
                              r, g, b, 1.0f);
   }
 
@@ -2818,18 +2827,42 @@ static void plumos_mali_graphic_draw_roms(
                        preview_y + 76.0f, 4,
                        0.72f, 0.86f, 0.86f, 1.0f);
     }
-    plumos_mali_copy_utf8_cells(selected->title, display_title,
-                                sizeof(display_title), 28);
-    plumos_mali_text_clipped(renderer, display_title,
-                             preview_x + 16.0f, preview_y + 200.0f,
-                             2, 1, preview_x + 16.0f,
-                             preview_x + preview_w - 16.0f,
-                             0.92f, 0.94f, 0.88f, 1.0f);
-    plumos_mali_text_limited(renderer,
-                             selected->detail[0] ? selected->detail : "-",
-                             preview_x + 16.0f, preview_y + 232.0f,
-                             2, 1, preview_x + preview_w - 16.0f,
-                             0.52f, 0.66f, 0.66f, 1.0f);
+    {
+      const char *preview_title = selected->title;
+      const char *preview_detail = selected->detail[0] ? selected->detail : "-";
+      float preview_text_x = preview_x + 16.0f;
+      float preview_text_right_x = preview_x + preview_w - 16.0f;
+      int preview_available_width = (int)(preview_text_right_x - preview_text_x);
+      int preview_title_scroll_px = 0;
+      int preview_detail_scroll_px = 0;
+
+      if (preview_available_width > 0) {
+        int preview_title_width =
+            plumos_mali_text_width_font(renderer, preview_title, 2, 1);
+        int preview_detail_width =
+            plumos_mali_text_width_font(renderer, preview_detail, 2, 1);
+        if (preview_title_width > preview_available_width) {
+          preview_title_scroll_px =
+              plumos_mali_marquee_offset(renderer, preview_title_width,
+                                         preview_available_width, 12);
+        }
+        if (preview_detail_width > preview_available_width) {
+          preview_detail_scroll_px =
+              plumos_mali_marquee_offset(renderer, preview_detail_width,
+                                         preview_available_width, 12);
+        }
+      }
+      plumos_mali_text_clipped(renderer, preview_title,
+                               preview_text_x - (float)preview_title_scroll_px,
+                               preview_y + 200.0f, 2, 1,
+                               preview_text_x, preview_text_right_x,
+                               0.92f, 0.94f, 0.88f, 1.0f);
+      plumos_mali_text_clipped(renderer, preview_detail,
+                               preview_text_x - (float)preview_detail_scroll_px,
+                               preview_y + 232.0f, 2, 1,
+                               preview_text_x, preview_text_right_x,
+                               0.52f, 0.66f, 0.66f, 1.0f);
+    }
   } else {
     plumos_mali_text(renderer, "NO ART", preview_x + 48.0f, preview_y + 120.0f,
                      3, 0.54f, 0.66f, 0.66f, 1.0f);

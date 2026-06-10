@@ -113,6 +113,9 @@
 - ROM名は日本語を含めて正確に表示するため、GraphicのROM listではFreeType描画を優先する。
 - ROM preview は既存ROM cacheの `media.thumbnail` を使う。PNG thumbnail が存在する場合は右側
   preview panel に contain 表示し、画像が無い/読めない場合は initials/fallback panel を表示する。
+- ROM preview panel のROM名/detail表示も ROM list と同じルールを継承する。ROM名は元表記を維持し、
+  decomposed かな濁点/半濁点は表示時だけ合成する。長い文字列は選択中ROMと同じ marquee timer で
+  `1000ms` 待ってから横スクロールし、行番号、debug/status、cursor代わりの縦バーは表示しない。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。

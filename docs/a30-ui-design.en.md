@@ -187,6 +187,11 @@ misclick prevention.
 - ROM previews use `media.thumbnail` from the existing ROM cache. PNG
   thumbnails are drawn into the right preview panel with contain fitting; missing
   or unreadable artwork falls back to the initials panel.
+- ROM preview title/detail text inherits the ROM-list rules. Preserve the
+  original ROM name casing and symbols, compose decomposed kana dakuten/
+  handakuten only at display time, scroll long selected text after the same
+  `1000ms` marquee delay, and do not show row numbers, debug/status text, or a
+  vertical bar as a cursor.
 - JPEG/WEBP remain part of scanner lookup, but the Graphic renderer initially
   prioritizes PNG rendering.
 - TOP/ROM/Favorites/Recent keep the same orange left accent bar as Text mode.
