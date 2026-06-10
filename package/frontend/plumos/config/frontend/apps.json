@@ -18,6 +18,22 @@
       "menu": "apps"
     },
     {
+      "id": "thumbnail-plan",
+      "display_name": "Thumbnail Plan",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
+      "id": "thumbnail-fetch",
+      "display_name": "Fetch Thumbnails",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
       "id": "settings",
       "display_name": "Settings",
       "kind": "settings",

@@ -195,8 +195,8 @@ A30_TARGET=root@192.168.10.165 \
 
 ## 実機 runner
 
-`package/frontend/plumos/bin/plumos-thumbnail-scraper` は、FE へ button UI を付ける前に
-実機上で scraper policy と既存 thumbnail skip の件数を確認するための package runner です。
+`package/frontend/plumos/bin/plumos-thumbnail-scraper` は、実機上で scraper policy と既存
+thumbnail skip の件数を確認し、FE Apps からも呼べる package runner です。
 `--plan` / `--dry-run` では CRC 計算や network access を行わず、`--fetch` では既存 thumbnail が
 ない ROM だけ CRC -> DAT lookup -> thumbnail index lookup -> PNG download を行います。
 runner は標準出力と log に ROM file 名を出さず、system ごとの集計だけを出します。
@@ -208,6 +208,7 @@ runner は標準出力と log に ROM file 名を出さず、system ごとの集
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --limit 20
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20
 ```
 
 環境変数:
@@ -250,10 +251,19 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 `unzip` などを使います。DAT/index はまず `PLUMOS_THUMBNAIL_PRELOAD_DIR` を見て、無い場合だけ
 `PLUMOS_THUMBNAIL_CACHE_DIR` へ取得します。thumbnail PNG は libretro thumbnail server の
 HTTP URL から取得し、`/mnt/SDCARD/Images/<system_id>/<relative stem>.png` へ保存します。
+`--fetch --all` でも、ROM 候補が無い system や既存 thumbnail だけで足りる system では
+DAT/index を取得しません。最初の missing thumbnail が見つかった時だけ、その system の DAT/index を
+用意します。
 `no_match` は `crc_miss + thumbnail_miss` の合計です。`crc_miss` は CRC が DAT に無い場合、
 `thumbnail_miss` は CRC は一致したが thumbnail index に同名 PNG が無い場合です。
 network 待ちで UI 操作を長時間止めないよう、`wget` / `curl` には
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` の timeout をかけます。
+
+FE の START -> Apps には以下の入口を置きます。実行結果は
+`/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log に残します。
+
+- `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
+- `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
 
 source 定義は `package/frontend/plumos/config/frontend/scraper-sources.tsv` です。列は
 `system_id`, `libretro_playlist`, `libretro_dat_path` です。`systems.json` の

@@ -88,8 +88,10 @@
 - [x] Performance Settings を既存 CPU profile/core override 機能へ接続する。
 - [x] A30 UI design rules を `docs/a30-ui-design.md` にまとめる。
 - [ ] Graphic UI mode / gallery mode を実装する。
-- [ ] artwork scraper と thumbnail cache pipeline を設計する。
-- [ ] ROM thumbnail scraping を実装する。
+- [x] artwork scraper と thumbnail cache pipeline を設計する。
+- [x] ROM thumbnail scraping を実装する。
+- [ ] Scraper の FE 操作を system 選択/progress/retry 付き UI にする。
+- [ ] CRC miss 時の filename 候補 rescue option を FE に追加する。
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
 - [ ] 物理音量ボタンと brightness hotkey を System Settings と連動する。
 - [ ] UI 文言の language localization を実装する。

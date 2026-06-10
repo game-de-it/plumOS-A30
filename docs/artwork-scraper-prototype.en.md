@@ -221,8 +221,8 @@ policy.
 
 `package/frontend/plumos/bin/plumos-thumbnail-scraper` is the packaged runner
 used to validate scraper policy and existing-thumbnail skip counts on the
-device before adding a button UI to the FE. `--plan` / `--dry-run` does not
-compute CRCs or access the network. `--fetch` processes only ROMs without an
+device, and it can also be launched from FE Apps. `--plan` / `--dry-run` does
+not compute CRCs or access the network. `--fetch` processes only ROMs without an
 existing thumbnail and runs CRC -> DAT lookup -> thumbnail index lookup -> PNG
 download. The runner does not print ROM filenames to stdout or logs; output is
 system-level aggregates.
@@ -234,6 +234,7 @@ Common commands:
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --limit 20
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20
 ```
 
 Environment:
@@ -281,11 +282,21 @@ such as `crc32`, `wget`, and `unzip`. DAT/index lookup first checks
 `PLUMOS_THUMBNAIL_CACHE_DIR`. Thumbnail PNGs are downloaded from the libretro
 thumbnail server over HTTP and saved to
 `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+Even for `--fetch --all`, systems without ROM candidates, or systems whose
+existing thumbnails already cover all candidates, do not fetch DAT/index data.
+The runner prepares DAT/index data only after it sees the first missing
+thumbnail for that system.
 `no_match` is the sum of `crc_miss + thumbnail_miss`. `crc_miss` means the ROM
 CRC was not present in the DAT index; `thumbnail_miss` means the CRC matched but
 the thumbnail index had no PNG with that canonical name.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
 stall the UI path indefinitely.
+
+FE START -> Apps exposes these entries. Results are written to
+`/mnt/SDCARD/plumos/logs/frontend-apps.log` and the runner log.
+
+- `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
+- `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
 
 Source definitions live in
 `package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are

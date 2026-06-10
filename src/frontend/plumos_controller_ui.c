@@ -247,7 +247,7 @@ struct menu_entry {
   char id[64];
   char display_name[128];
   char kind[64];
-  char action[128];
+  char action[256];
   int confirm;
 };
 
@@ -435,6 +435,7 @@ struct ui_state {
   char system_config_path[PATH_MAX];
   char wpa_status_path[PATH_MAX];
   char menus_path[PATH_MAX];
+  char apps_path[PATH_MAX];
   char favorites_path[PATH_MAX];
   char recent_path[PATH_MAX];
   int show_all;
@@ -473,6 +474,8 @@ struct ui_state {
   size_t rom_count;
   struct menu_entry menu_entries[UI_MAX_MENU];
   size_t menu_count;
+  char menu_id[64];
+  char menu_title[128];
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
   struct wifi_network_entry wifi_networks[UI_MAX_WIFI_NETWORKS];
@@ -4214,6 +4217,8 @@ static int load_start_menu_entries(struct ui_state *ui) {
 
   ui->menu_count = 0;
   ui->menu_cursor = 0;
+  copy_string(ui->menu_id, sizeof(ui->menu_id), "start");
+  copy_string(ui->menu_title, sizeof(ui->menu_title), "START");
   json = read_file(ui->menus_path, &json_size);
   if (!json) {
     return 0;
@@ -4267,6 +4272,73 @@ static int load_start_menu_entries(struct ui_state *ui) {
   }
   free(json);
   return 1;
+}
+
+static int load_apps_menu_entries(struct ui_state *ui) {
+  char *json;
+  size_t json_size;
+  const char *apps_start;
+  const char *apps_end;
+  const char *app_cursor;
+
+  ui->menu_count = 0;
+  ui->menu_cursor = 0;
+  copy_string(ui->menu_id, sizeof(ui->menu_id), "apps");
+  copy_string(ui->menu_title, sizeof(ui->menu_title), "Apps");
+  json = read_file(ui->apps_path, &json_size);
+  if (!json) {
+    return 0;
+  }
+  if (!json_find_array(json, json + json_size, "apps", &apps_start, &apps_end)) {
+    free(json);
+    return 0;
+  }
+
+  app_cursor = apps_start;
+  while (ui->menu_count < UI_MAX_MENU) {
+    const char *obj_start;
+    const char *obj_end;
+    struct menu_entry entry;
+    char menu_id[64] = "";
+    int visible;
+
+    if (!json_next_object(&app_cursor, apps_end, &obj_start, &obj_end)) {
+      break;
+    }
+    memset(&entry, 0, sizeof(entry));
+    visible = json_get_bool(obj_start, obj_end, "visible", 1);
+    json_get_string(obj_start, obj_end, "id", entry.id, sizeof(entry.id));
+    json_get_string(obj_start, obj_end, "display_name", entry.display_name,
+                    sizeof(entry.display_name));
+    json_get_string(obj_start, obj_end, "kind", entry.kind, sizeof(entry.kind));
+    json_get_string(obj_start, obj_end, "launch_profile", entry.action,
+                    sizeof(entry.action));
+    json_get_string(obj_start, obj_end, "menu", menu_id, sizeof(menu_id));
+    entry.confirm = json_get_bool(obj_start, obj_end, "confirm", 0);
+    if (!visible || !entry.id[0] || strcmp(menu_id, "apps") != 0) {
+      continue;
+    }
+    if (!entry.display_name[0]) {
+      copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
+    }
+    ui->menu_entries[ui->menu_count++] = entry;
+  }
+  free(json);
+  return 1;
+}
+
+static void select_menu_entry_by_id(struct ui_state *ui, const char *id) {
+  size_t i;
+
+  if (!ui || !id) {
+    return;
+  }
+  for (i = 0; i < ui->menu_count; i++) {
+    if (strcmp(ui->menu_entries[i].id, id) == 0) {
+      ui->menu_cursor = i;
+      return;
+    }
+  }
 }
 
 static int load_favorite_entries(struct ui_state *ui) {
@@ -5032,7 +5104,8 @@ static void render_roms(struct ui_state *ui) {
 static void render_start_menu(struct ui_state *ui) {
   size_t i;
 
-  ui_printf(ui, "plumOS controller UI - START\n");
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            ui->menu_title[0] ? ui->menu_title : "START");
   ui_printf(ui, "A: open/run  B: back  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->menu_count,
             ui->menu_count ? ui->menu_cursor + 1 : 0);
@@ -5806,6 +5879,15 @@ static void open_start_menu(struct ui_state *ui) {
     set_status(ui, "cannot load START menu");
   } else {
     set_status(ui, "START menu ready");
+  }
+}
+
+static void open_apps_menu(struct ui_state *ui) {
+  ui->screen = SCREEN_START_MENU;
+  if (!load_apps_menu_entries(ui)) {
+    set_status(ui, "cannot load Apps menu");
+  } else {
+    set_status(ui, "Apps ready");
   }
 }
 
@@ -6626,6 +6708,78 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
     return 1;
   }
   set_status(ui, "launch returned non-zero; see frontend-launch.log");
+  return 0;
+}
+
+static int run_menu_shell_action(struct ui_state *ui, const struct menu_entry *entry) {
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char path_value[PATH_MAX * 2];
+  char cmd[UI_COMMAND_MAX];
+  const char *shell_cmd;
+  size_t pos = 0;
+  size_t path_pos = 0;
+  int rc;
+
+  if (!ui || !entry || strncmp(entry->action, "shell:", 6) != 0) {
+    set_status(ui, "app action is not a shell command");
+    return 0;
+  }
+  shell_cmd = entry->action + 6;
+  if (!shell_cmd[0]) {
+    set_status(ui, "app shell command is empty");
+    return 0;
+  }
+  if (!join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-apps.log")) {
+    set_status(ui, "app log path too long");
+    return 0;
+  }
+  path_value[0] = '\0';
+  if (!append_string(path_value, sizeof(path_value), &path_pos, ui->plumos_root) ||
+      !append_string(path_value, sizeof(path_value), &path_pos, "/bin:") ||
+      !append_string(path_value, sizeof(path_value), &path_pos, ui->plumos_root) ||
+      !append_string(path_value, sizeof(path_value), &path_pos,
+                     "/gnu/bin:/usr/sbin:/usr/bin:/sbin:/bin")) {
+    set_status(ui, "app PATH too long");
+    return 0;
+  }
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PATH=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, path_value) ||
+      !append_string(cmd, sizeof(cmd), &pos, " /bin/sh -c ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, shell_cmd) ||
+      !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "app command too long");
+    return 0;
+  }
+
+  snprintf(ui->status, sizeof(ui->status), "running %.80s", entry->display_name);
+  render_ui(ui);
+  shutdown_ui_renderer(ui);
+  rc = system(cmd);
+  if (ui->renderer_mali && !init_ui_renderer(ui)) {
+    ui->renderer_mali = 0;
+  }
+  settle_input_after_child(ui);
+  if (system_command_succeeded(rc)) {
+    snprintf(ui->status, sizeof(ui->status), "%.80s finished", entry->display_name);
+    return 1;
+  }
+  if (rc == -1) {
+    set_status(ui, "app system call failed");
+    return 0;
+  }
+  set_status(ui, "app returned non-zero; see frontend-apps.log");
   return 0;
 }
 
@@ -7756,6 +7910,15 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       return;
     }
     if (action == ACTION_B) {
+      if (strcmp(ui->menu_id, "apps") == 0) {
+        if (!load_start_menu_entries(ui)) {
+          set_status(ui, "cannot load START menu");
+        } else {
+          select_menu_entry_by_id(ui, "apps");
+          set_status(ui, "back to START");
+        }
+        return;
+      }
       ui->screen = ui->back_screen;
       set_status(ui, "close START menu");
       return;
@@ -7787,6 +7950,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         open_help_screen(ui);
       } else if (strcmp(entry->action, "system:shutdown") == 0) {
         run_safe_shutdown(ui, "shutdown", 1);
+      } else if (strcmp(entry->action, "menu:apps") == 0) {
+        open_apps_menu(ui);
+      } else if (strncmp(entry->action, "shell:", 6) == 0) {
+        run_menu_shell_action(ui, entry);
       } else {
         char msg[256];
         snprintf(msg, sizeof(msg), "menu preview: %s action=%s", entry->display_name,
@@ -8845,6 +9012,8 @@ int main(int argc, char **argv) {
                  "config/frontend/settings.json") ||
       !join_path(ui.menus_path, sizeof(ui.menus_path), ui.plumos_root,
                  "config/frontend/menus.json") ||
+      !join_path(ui.apps_path, sizeof(ui.apps_path), ui.plumos_root,
+                 "config/frontend/apps.json") ||
       !join_path(ui.favorites_path, sizeof(ui.favorites_path), ui.plumos_root,
                  "state/frontend/favorites.json") ||
       !join_path(ui.recent_path, sizeof(ui.recent_path), ui.plumos_root,

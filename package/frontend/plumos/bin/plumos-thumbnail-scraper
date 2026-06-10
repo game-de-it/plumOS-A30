@@ -698,18 +698,11 @@ fetch_system() {
   skipped_tool=0
   seen_dirs=" "
   stop_scan=0
-
-  dat_index="$(ensure_dat_index "$fetch_system_id" 2>/dev/null || true)"
-  thumb_index="$(ensure_thumb_index "$fetch_system_id" 2>/dev/null || true)"
-  thumb_base="$(thumb_base_url "$fetch_system_id" 2>/dev/null || true)"
-  if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
-    skipped_tool=1
-    printf 'fetch\t%s\ttrue\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t%s\n' \
-      "$fetch_system_id" "${reason:--}" "$skipped_tool"
-    rm -f "$tmp_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
-    log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
-    return 0
-  fi
+  dat_index=
+  thumb_index=
+  thumb_base=
+  index_ready=0
+  index_failed=0
 
   aliases="$(directory_aliases "$block")"
   for rom_root in $ROM_ROOTS; do
@@ -740,52 +733,67 @@ fetch_system() {
         else
           missing_thumbnails=$((missing_thumbnails + 1))
 
-          payload="$rom_path"
-          rm -f "$payload_tmp" 2>/dev/null || true
-          if [ "$ext" = "zip" ]; then
-            member="$(first_zip_member "$rom_path" "$extensions" || true)"
-            if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
-              skipped_zip=$((skipped_zip + 1))
-              if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then
-                stop_scan=1
-                break
-              fi
-              continue
+          if [ "$index_ready" = 0 ] && [ "$index_failed" = 0 ]; then
+            dat_index="$(ensure_dat_index "$fetch_system_id" 2>/dev/null || true)"
+            thumb_index="$(ensure_thumb_index "$fetch_system_id" 2>/dev/null || true)"
+            thumb_base="$(thumb_base_url "$fetch_system_id" 2>/dev/null || true)"
+            if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
+              index_failed=1
+              skipped_tool=$((skipped_tool + 1))
+              log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
+            else
+              index_ready=1
             fi
-            payload="$payload_tmp"
           fi
 
-          crc="$(compute_crc32 "$payload" || true)"
-          rm -f "$payload_tmp" 2>/dev/null || true
-          if [ -z "$crc" ]; then
-            skipped_tool=$((skipped_tool + 1))
-          else
-            crc_checked=$((crc_checked + 1))
-            canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
-            if [ -z "$canonical" ]; then
-              no_match=$((no_match + 1))
-              crc_miss=$((crc_miss + 1))
+          if [ "$index_ready" = 1 ]; then
+            payload="$rom_path"
+            rm -f "$payload_tmp" 2>/dev/null || true
+            if [ "$ext" = "zip" ]; then
+              member="$(first_zip_member "$rom_path" "$extensions" || true)"
+              if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
+                skipped_zip=$((skipped_zip + 1))
+                if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then
+                  stop_scan=1
+                  break
+                fi
+                continue
+              fi
+              payload="$payload_tmp"
+            fi
+
+            crc="$(compute_crc32 "$payload" || true)"
+            rm -f "$payload_tmp" 2>/dev/null || true
+            if [ -z "$crc" ]; then
+              skipped_tool=$((skipped_tool + 1))
             else
-              crc_matched=$((crc_matched + 1))
-              href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
-              if [ -z "$href" ]; then
+              crc_checked=$((crc_checked + 1))
+              canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
+              if [ -z "$canonical" ]; then
                 no_match=$((no_match + 1))
-                thumbnail_miss=$((thumbnail_miss + 1))
+                crc_miss=$((crc_miss + 1))
               else
-                dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
-                url="${thumb_base}/${href}"
-                mkdir -p "$(dirname "$dest")" 2>/dev/null || true
-                tmp_dest="${dest}.tmp.$$"
-                if ! fetch_url "$url" "$tmp_dest"; then
-                  rm -f "$tmp_dest" 2>/dev/null || true
-                  download_failed=$((download_failed + 1))
-                elif ! is_png_file "$tmp_dest"; then
-                  rm -f "$tmp_dest" 2>/dev/null || true
-                  invalid_png=$((invalid_png + 1))
+                crc_matched=$((crc_matched + 1))
+                href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
+                if [ -z "$href" ]; then
+                  no_match=$((no_match + 1))
+                  thumbnail_miss=$((thumbnail_miss + 1))
                 else
-                  mv "$tmp_dest" "$dest"
-                  thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
-                  downloaded=$((downloaded + 1))
+                  dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
+                  url="${thumb_base}/${href}"
+                  mkdir -p "$(dirname "$dest")" 2>/dev/null || true
+                  tmp_dest="${dest}.tmp.$$"
+                  if ! fetch_url "$url" "$tmp_dest"; then
+                    rm -f "$tmp_dest" 2>/dev/null || true
+                    download_failed=$((download_failed + 1))
+                  elif ! is_png_file "$tmp_dest"; then
+                    rm -f "$tmp_dest" 2>/dev/null || true
+                    invalid_png=$((invalid_png + 1))
+                  else
+                    mv "$tmp_dest" "$dest"
+                    thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
+                    downloaded=$((downloaded + 1))
+                  fi
                 fi
               fi
             fi
