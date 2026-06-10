@@ -87,6 +87,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `--on-enter` prioritizes the first text-mode display and defers thumbnail lookup
 by default. Use `--with-thumbnails` when thumbnails should be resolved during the
 scan.
+The controller UI passes `--with-thumbnails` only when opening a Graphic-mode
+ROM list, then uses `media.thumbnail` from `state/frontend/systems/<system>.json`
+for the preview panel.
 
 Environment:
 
@@ -163,6 +166,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `roms <system>` runs `plumos-library-scan --on-enter <system>` internally, then
 reads `state/frontend/systems/<system>.json`. This is the first prototype of the
 future "re-read ROM list whenever entering a system" behavior.
+In Graphic mode, the controller UI adds `--with-thumbnails` so the same cache
+also stores thumbnail paths for ROM previews.
 
 START menu view:
 

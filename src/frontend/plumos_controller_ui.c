@@ -1828,7 +1828,8 @@ static int count_json_array_objects(const char *path, const char *array_key) {
   return count;
 }
 
-static int run_scanner(const char *plumos_root, const char *sdcard_root, const char *system_id) {
+static int run_scanner(const char *plumos_root, const char *sdcard_root, const char *system_id,
+                       int with_thumbnails) {
   char scanner[PATH_MAX];
   char cmd[UI_COMMAND_MAX];
   size_t pos = 0;
@@ -1856,6 +1857,9 @@ static int run_scanner(const char *plumos_root, const char *sdcard_root, const c
   if (system_id) {
     if (!append_string(cmd, sizeof(cmd), &pos, " --on-enter ") ||
         !append_shell_quoted(cmd, sizeof(cmd), &pos, system_id)) {
+      return 0;
+    }
+    if (with_thumbnails && !append_string(cmd, sizeof(cmd), &pos, " --with-thumbnails")) {
       return 0;
     }
   }
@@ -4125,7 +4129,7 @@ static int load_top_entries(struct ui_state *ui) {
 
   ui->top_count = 0;
   if ((ui->refresh || !file_exists(ui->top_cache_path)) &&
-      !run_scanner(ui->plumos_root, ui->sdcard_root, NULL)) {
+      !run_scanner(ui->plumos_root, ui->sdcard_root, NULL, 0)) {
     copy_string(ui->status, sizeof(ui->status), "full scan failed or scanner is missing");
   }
   if (!load_settings(ui->settings_path, &settings)) {
@@ -4415,6 +4419,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   struct frontend_settings settings;
   int cache_exists;
   int scan_on_enter;
+  int with_thumbnails;
 
   ui->rom_count = 0;
   ui->rom_cursor = 0;
@@ -4428,10 +4433,13 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
     copy_string(ui->status, sizeof(ui->status), "settings read failed; using scan defaults");
   }
   ui->frontend_settings = settings;
+  with_thumbnails =
+      strcmp(settings.rom_mode[0] ? settings.rom_mode : settings.ui_mode, "graphic") == 0;
   cache_exists = file_exists(path);
   scan_on_enter = rom_scan_policy_is_on_enter(settings.rom_scan_policy);
   if ((scan_on_enter || !cache_exists || ui->refresh) &&
-      !run_scanner(ui->plumos_root, ui->sdcard_root, system_id) && !cache_exists) {
+      !run_scanner(ui->plumos_root, ui->sdcard_root, system_id, with_thumbnails) &&
+      !cache_exists) {
     return 0;
   }
   json = read_file(path, &json_size);

@@ -203,6 +203,8 @@ misclick prevention.
 - ROM previews use `media.thumbnail` from the existing ROM cache. PNG
   thumbnails are drawn into the right preview panel with contain fitting; missing
   or unreadable artwork falls back to the initials panel.
+- Graphic-mode ROM list scans use `--with-thumbnails`; the FE scan cache owns
+  the ROM-to-thumbnail-path mapping through `media.thumbnail`.
 - ROM preview title/detail text inherits the ROM-list rules. Preserve the
   original ROM name casing and symbols, compose decomposed kana dakuten/
   handakuten only at display time, scroll long selected text after the same

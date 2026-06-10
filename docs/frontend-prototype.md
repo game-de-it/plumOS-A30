@@ -84,6 +84,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `--on-enter` では text mode の初回表示を優先し、thumbnail lookup は default で遅延します。
 thumbnail も同時に解決したい場合は `--with-thumbnails` を使います。
+controller UI は Graphic mode の ROM list を開くときだけ `--with-thumbnails` を付け、
+`state/frontend/systems/<system>.json` の `media.thumbnail` をプレビュー表示に使います。
 
 環境変数:
 
@@ -155,6 +157,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `roms <system>` は内部で `plumos-library-scan --on-enter <system>` を実行し、
 `state/frontend/systems/<system>.json` を読んで一覧表示します。これは将来の
 「機種選択時に毎回ROM listを読み込む」動作の最小prototypeです。
+Graphic mode の controller UI では、この scan に `--with-thumbnails` を加えて
+ROM preview 用の thumbnail path も同じ cache に保存します。
 
 START menu 表示:
 
