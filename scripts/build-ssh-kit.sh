@@ -156,6 +156,7 @@ assemble_package() {
     "${PKG_DIR}/Roms/PORTS"
 
   install -m 0755 "${SRC_DIR}/dropbear" "${PKG_DIR}/plumos/ssh/bin/dropbear"
+  install -m 0755 "${SRC_DIR}/dropbear" "${PKG_DIR}/plumos/ssh/bin/dropbear-sftp"
   install -m 0755 "${SRC_DIR}/dropbearkey" "${PKG_DIR}/plumos/ssh/bin/dropbearkey"
   install -m 0755 "${SRC_DIR}/scp" "${PKG_DIR}/plumos/ssh/bin/scp"
 
@@ -181,6 +182,7 @@ print_summary() {
   find "$PKG_DIR" -maxdepth 4 -type f | sed "s#${PKG_DIR}/##" | sort
   printf '\nBinaries:\n'
   ls -lh "${PKG_DIR}/plumos/ssh/bin/dropbear" \
+    "${PKG_DIR}/plumos/ssh/bin/dropbear-sftp" \
     "${PKG_DIR}/plumos/ssh/bin/dropbearkey" \
     "${PKG_DIR}/plumos/ssh/bin/scp"
 }
