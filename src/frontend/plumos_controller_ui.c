@@ -355,6 +355,7 @@ struct device_settings {
   char network_status_source[128];
   char network_control_status[128];
   char ssh_status[128];
+  int ssh_service_running;
   int ftp_service_running;
   int sftp_service_running;
   int samba_service_running;
@@ -2643,7 +2644,7 @@ static void init_device_settings(struct device_settings *device) {
               "runtime status missing");
   copy_string(device->network_control_status, sizeof(device->network_control_status),
               "plumOS runtime control");
-  copy_string(device->ssh_status, sizeof(device->ssh_status), "Dropbear port 2222");
+  copy_string(device->ssh_status, sizeof(device->ssh_status), "Not Installed");
   copy_string(device->ftp_status, sizeof(device->ftp_status), "Not Installed");
   copy_string(device->sftp_status, sizeof(device->sftp_status), "Not Installed");
   copy_string(device->samba_status, sizeof(device->samba_status), "Not Installed");
@@ -2674,6 +2675,9 @@ static void load_device_runtime_status(struct ui_state *ui) {
                       sizeof(device->wifi_linkspeed));
   read_key_value_file(ui->wpa_status_path, "FREQUENCY", device->wifi_frequency,
                       sizeof(device->wifi_frequency));
+  read_network_service_status(ui, "ssh", device->ssh_status,
+                              sizeof(device->ssh_status),
+                              &device->ssh_service_running);
   read_network_service_status(ui, "ftp", device->ftp_status,
                               sizeof(device->ftp_status),
                               &device->ftp_service_running);
@@ -3545,6 +3549,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "show_recent_on_top") == 0 ||
       strcmp(id, "rom_scan_policy") == 0 ||
       strcmp(id, "network_wifi_enabled") == 0 ||
+      strcmp(id, "network_ssh_enabled") == 0 ||
       strcmp(id, "network_ftp_enabled") == 0 ||
       strcmp(id, "network_sftp_enabled") == 0 ||
       strcmp(id, "network_samba_enabled") == 0) {
@@ -3611,6 +3616,7 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "system_manual_time_hour") == 0 ||
                 strcmp(id, "system_manual_time_minute") == 0 ||
                 strcmp(id, "network_wifi_enabled") == 0 ||
+                strcmp(id, "network_ssh_enabled") == 0 ||
                 strcmp(id, "network_ftp_enabled") == 0 ||
                 strcmp(id, "network_sftp_enabled") == 0 ||
                 strcmp(id, "network_samba_enabled") == 0 ||
@@ -3893,6 +3899,8 @@ static void add_network_settings_entries(struct ui_state *ui) {
 static void add_network_service_entries(struct ui_state *ui) {
   const struct device_settings *device = &ui->device;
 
+  add_bool_setting_entry(ui, "network_ssh_enabled", "SSH",
+                         device->ssh_service_running);
   add_bool_setting_entry(ui, "network_ftp_enabled", "FTP",
                          device->ftp_service_running);
   add_bool_setting_entry(ui, "network_sftp_enabled", "SFTP",
@@ -5996,8 +6004,8 @@ static void setting_help_lines(const struct setting_entry *entry,
     copy_string(line1, line1_size, "Network Recovery is disabled.");
     copy_string(line2, line2_size, "Use Connect Wi-Fi or NW Service instead.");
   } else if (strcmp(id, "network_services") == 0) {
-    copy_string(line1, line1_size, "Open file transfer services.");
-    copy_string(line2, line2_size, "FTP, SFTP, Samba, and USB Disk Mode.");
+    copy_string(line1, line1_size, "Open network services.");
+    copy_string(line2, line2_size, "SSH, FTP, SFTP, Samba, and USB Disk Mode.");
   } else if (strcmp(id, "network_usb_disk_mode") == 0) {
     copy_string(line1, line1_size, "Expose the SD card as a USB drive.");
     copy_string(line2, line2_size, "Requires PC eject and USB disconnect to return.");
@@ -6008,6 +6016,9 @@ static void setting_help_lines(const struct setting_entry *entry,
     if (strcmp(id, "network_wifi_enabled") == 0) {
       copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
       copy_string(line2, line2_size, "Use Connect Wi-Fi to start a new connection.");
+    } else if (strcmp(id, "network_ssh_enabled") == 0) {
+      copy_string(line1, line1_size, "SSH remote shell service.");
+      copy_string(line2, line2_size, "Port 2222; SFTP depends on this service.");
     } else if (strcmp(id, "network_ftp_enabled") == 0) {
       copy_string(line1, line1_size, "FTP file transfer service.");
       copy_string(line2, line2_size, "Home is /mnt/SDCARD; ON/OFF persists after reboot.");
@@ -8848,6 +8859,9 @@ static int handle_setting_control(struct ui_state *ui, enum ui_action action) {
     }
     if (strcmp(id, "network_wifi_enabled") == 0) {
       return run_network_wifi_control(ui, next);
+    }
+    if (strcmp(id, "network_ssh_enabled") == 0) {
+      return run_network_service_control(ui, "ssh", next);
     }
     if (strcmp(id, "network_ftp_enabled") == 0) {
       return run_network_service_control(ui, "ftp", next);

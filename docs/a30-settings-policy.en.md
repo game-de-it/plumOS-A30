@@ -78,16 +78,20 @@ The first Network Settings layer owns only actionable items:
   DHCP, one default-gateway ping when available, then an IP-address result
   screen. The PSK is passed to the backend through a temporary file and is not
   logged.
-- `NW Service`: opens the file-transfer service subpage for FTP/SFTP/Samba/USB
+- `NW Service`: opens the network service subpage for SSH/FTP/SFTP/Samba/USB
   Disk Mode.
 - `INFORMATION`: opens the read-only network information subpage.
 
 The `NW Service` subpage owns these actions:
 
+- `SSH`: checkbox. A toggles the Dropbear SSH shell. The port is `2222`.
+  If unset, SSH is treated as ON for compatibility with the existing flow.
+  Turning SSH OFF also turns SFTP OFF because SFTP depends on the SSH daemon.
 - `FTP`: checkbox. A toggles the BusyBox FTP service. The shared root is
   `/mnt/SDCARD/`.
 - `SFTP`: checkbox. A toggles the Dropbear SFTP subsystem. Turning it OFF does
-  not stop SSH shell access.
+  not stop SSH shell access. Turning it ON also enables SSH because SFTP
+  depends on the SSH daemon.
 - `Samba`: checkbox. A toggles the `SDCARD` SMB share. If Windows/macOS asks for
   credentials, use `plumos` / `plumos`.
 - `USB Disk Mode`: A opens a confirmation screen; pressing A again exposes the

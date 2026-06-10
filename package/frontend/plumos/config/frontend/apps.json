@@ -2,22 +2,6 @@
   "version": 1,
   "apps": [
     {
-      "id": "start-ssh",
-      "display_name": "Start SSH",
-      "kind": "tool",
-      "launch_profile": "shell:/mnt/SDCARD/plumos/ssh/start-ssh.sh",
-      "visible": true,
-      "menu": "apps"
-    },
-    {
-      "id": "stop-ssh",
-      "display_name": "Stop SSH",
-      "kind": "tool",
-      "launch_profile": "shell:/mnt/SDCARD/plumos/ssh/stop-ssh.sh",
-      "visible": true,
-      "menu": "apps"
-    },
-    {
       "id": "scraping",
       "display_name": "Scraping",
       "kind": "tool",

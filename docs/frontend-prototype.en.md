@@ -461,7 +461,7 @@ Controls:
   reflected in runtime behavior after saving.
 - Network Settings: the first layer contains `Wi-Fi`, `Connect Wi-Fi`,
   `NW Service`, and `INFORMATION`. `Wi-Fi` OFF stops the runtime, connection
-  starts through `Connect Wi-Fi`, and `NW Service` owns FTP/SFTP/Samba/USB Disk
+  starts through `Connect Wi-Fi`, and `NW Service` owns SSH/FTP/SFTP/Samba/USB Disk
   Mode. Connection/IP/Signal details live under `INFORMATION`. SSID/PSK are not
   displayed.
 - SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.

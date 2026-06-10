@@ -168,18 +168,14 @@ fi
     log "network control helper missing: ${NETWORK_CONTROL}"
   fi
 
-  if [ -x "$SSH_START" ]; then
-    log "starting SSH helper without network rescue: ${SSH_START}"
-    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
-  else
-    log "SSH helper missing"
-  fi
-
   if [ -x "$NETWORK_SERVICES" ]; then
     log "starting enabled network services: ${NETWORK_SERVICES}"
     "$NETWORK_SERVICES" start-enabled >> "$LOG_FILE" 2>&1 || true
+  elif [ -x "$SSH_START" ]; then
+    log "network services helper missing; starting SSH fallback: ${SSH_START}"
+    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
   else
-    log "network services helper missing: ${NETWORK_SERVICES}"
+    log "network services helper and SSH fallback missing"
   fi
 
   if [ -x "$STOCK_SERVICES" ]; then

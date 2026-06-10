@@ -60,13 +60,16 @@ Network Settings の第一階層では次の操作項目だけを扱います。
   ON 側は Network Recovery を呼ばず、接続開始は `Connect Wi-Fi` から行う。
 - `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
   IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
-- `NW Service`: FTP/SFTP/Samba/USB Disk Mode をまとめた file transfer service サブ項目を開く。
+- `NW Service`: SSH/FTP/SFTP/Samba/USB Disk Mode をまとめた network service サブ項目を開く。
 - `INFORMATION`: read-only の network 情報サブ項目を開く。
 
 `NW Service` サブ項目には次の操作を置きます。
 
+- `SSH`: checkbox。A で Dropbear SSH shell を ON/OFF する。Port は `2222`。未設定時は従来互換で ON 扱いにする。
+  OFF にすると SSH daemon に依存する SFTP も OFF になる。
 - `FTP`: checkbox。A で BusyBox FTP service を ON/OFF する。共有起点は `/mnt/SDCARD/`。
 - `SFTP`: checkbox。A で Dropbear SFTP subsystem を ON/OFF する。OFF にしても SSH shell は止めない。
+  ON にした場合は SFTP が SSH daemon に依存するため SSH も有効化する。
 - `Samba`: checkbox。A で `SDCARD` SMB share を ON/OFF する。Windows/macOS で認証を求められた場合は `plumos` / `plumos` を使う。
 - `USB Disk Mode`: A で確認画面を開き、A 再押下で SD card partition を USB Mass Storage として PC へ渡す。
 

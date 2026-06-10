@@ -506,11 +506,10 @@ run_fsck_if_available() {
 }
 
 restart_plumos() {
-  if [ -x "${PLUMOS_ROOT}/ssh/start-ssh.sh" ]; then
-    "${PLUMOS_ROOT}/ssh/start-ssh.sh" >> "$LOG_FILE" 2>&1 &
-  fi
   if [ -x "${PLUMOS_ROOT}/bin/plumos-network-services" ]; then
     "${PLUMOS_ROOT}/bin/plumos-network-services" start-enabled >> "$LOG_FILE" 2>&1 &
+  elif [ -x "${PLUMOS_ROOT}/ssh/start-ssh.sh" ]; then
+    "${PLUMOS_ROOT}/ssh/start-ssh.sh" >> "$LOG_FILE" 2>&1 &
   fi
   resume_main_supervisor
   if [ -x /mnt/SDCARD/miyoo/app/MainUI ] &&

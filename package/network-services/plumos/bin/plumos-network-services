@@ -56,6 +56,7 @@ command_exists() {
 
 config_key() {
   case "$1" in
+    ssh) printf '%s\n' "ssh_enabled" ;;
     ftp) printf '%s\n' "ftp_enabled" ;;
     sftp) printf '%s\n' "sftp_enabled" ;;
     samba) printf '%s\n' "samba_enabled" ;;
@@ -66,8 +67,9 @@ config_key() {
 service_enabled() {
   service="$1"
   key="$(config_key "$service")" || return 1
-  [ -r "$SERVICES_CONF" ] || return 1
+  [ -r "$SERVICES_CONF" ] || { [ "$service" = "ssh" ] && return 0; return 1; }
   value="$(sed -n "s/^${key}=//p" "$SERVICES_CONF" 2>/dev/null | tail -n 1)"
+  [ -n "$value" ] || { [ "$service" = "ssh" ] && return 0; return 1; }
   [ "$value" = "1" ] || [ "$value" = "true" ] || [ "$value" = "on" ]
 }
 
@@ -100,6 +102,19 @@ nmbd_pid_file() {
 
 dropbear_pid_file() {
   printf '%s\n' "${PLUMOS_ROOT}/ssh/run/dropbear.pid"
+}
+
+status_ssh() {
+  if [ ! -x "$SSH_START" ]; then
+    print_status ssh not_installed "SSH start script missing"
+    return 1
+  fi
+  if pid_alive "$(dropbear_pid_file)"; then
+    print_status ssh running "SSH port 2222"
+    return 0
+  fi
+  print_status ssh stopped "SSH stopped"
+  return 2
 }
 
 print_status() {
@@ -211,9 +226,36 @@ start_sftp() {
     print_status sftp not_installed "SSH start script missing"
     return 1
   fi
+  set_service_enabled ssh 1
   log "start share=${SHARE_DIR}" sftp
   PLUMOS_ROOT="$PLUMOS_ROOT" "$SSH_START" >> "$LOG_FILE" 2>&1 || true
   status_sftp
+}
+
+start_ssh() {
+  set_service_enabled ssh 1
+  if [ ! -x "$SSH_START" ]; then
+    log "start failed reason=ssh_start_missing" ssh
+    status_ssh
+    return 1
+  fi
+  log "start" ssh
+  PLUMOS_ROOT="$PLUMOS_ROOT" "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  status_ssh
+}
+
+stop_ssh() {
+  set_service_enabled ssh 0
+  set_service_enabled sftp 0
+  disable_sftp_server
+  log "stop" ssh
+  if [ -x "$SSH_STOP" ]; then
+    PLUMOS_ROOT="$PLUMOS_ROOT" "$SSH_STOP" >> "$LOG_FILE" 2>&1 || true
+  else
+    kill_pid_file "$(dropbear_pid_file)" ssh
+  fi
+  status_ssh || true
+  return 0
 }
 
 stop_sftp() {
@@ -326,6 +368,7 @@ Commands:
   start-enabled
 
 Services:
+  ssh      Dropbear SSH shell on port 2222
   ftp      BusyBox FTP on port ${FTP_PORT}, max ${TRANSFER_MAX_CONNECTIONS}, share ${SHARE_DIR}
   sftp     Dropbear SFTP subsystem, share starts at ${SHARE_DIR}
   samba    SMB share //A30_IP/SDCARD, max ${TRANSFER_MAX_CONNECTIONS}, backed by ${SHARE_DIR}
@@ -337,15 +380,19 @@ run_one() {
   command="$1"
   service="$2"
   case "$command:$service" in
+    status:ssh) status_ssh ;;
     status:ftp) status_ftp ;;
     status:sftp) status_sftp ;;
     status:samba) status_samba ;;
+    start:ssh) start_ssh ;;
     start:ftp) start_ftp ;;
     start:sftp) start_sftp ;;
     start:samba) start_samba ;;
+    stop:ssh) stop_ssh ;;
     stop:ftp) stop_ftp ;;
     stop:sftp) stop_sftp ;;
     stop:samba) stop_samba ;;
+    restart:ssh) stop_ssh >/dev/null 2>&1 || true; start_ssh ;;
     restart:ftp) stop_ftp >/dev/null 2>&1 || true; start_ftp ;;
     restart:sftp) stop_sftp >/dev/null 2>&1 || true; start_sftp ;;
     restart:samba) stop_samba >/dev/null 2>&1 || true; start_samba ;;
@@ -357,7 +404,7 @@ command="${1:-}"
 service="${2:-}"
 if [ "$command" = "start-enabled" ]; then
   rc=0
-  for svc in ftp sftp samba; do
+  for svc in ssh ftp sftp samba; do
     if service_enabled "$svc"; then
       run_one start "$svc" || rc=$?
     else
@@ -381,7 +428,7 @@ case "$service" in
     done
     exit "$rc"
     ;;
-  ftp|sftp|samba)
+  ssh|ftp|sftp|samba)
     run_one "$command" "$service"
     ;;
   *)

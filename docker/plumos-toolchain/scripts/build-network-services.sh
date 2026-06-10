@@ -326,6 +326,7 @@ Persistent service state:
 
 Runtime control:
   /mnt/SDCARD/plumos/bin/plumos-network-services status ftp
+  /mnt/SDCARD/plumos/bin/plumos-network-services status ssh
   /mnt/SDCARD/plumos/bin/plumos-network-services start ftp
   /mnt/SDCARD/plumos/bin/plumos-network-services stop ftp
   /mnt/SDCARD/plumos/bin/plumos-network-services start-enabled

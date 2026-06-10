@@ -7,13 +7,24 @@ This document defines the initial file-transfer network services provided by plu
 - Every service uses `/mnt/SDCARD/` as the shared home/root.
 - plumOS executables, configuration, logs, and persistent state live under `/mnt/SDCARD/plumos/`.
 - Do not modify the stock rootfs or `/config/system.json`.
-- Network Settings shows `FTP`, `SFTP`, and `Samba` as checkboxes under the
+- Network Settings shows `SSH`, `FTP`, `SFTP`, and `Samba` as checkboxes under the
   `NW Service` subpage. A toggles each service.
 - ON means start + enable, and OFF means stop + disable. The state persists across reboot.
 - To transfer many small ROM files efficiently, each service should expose a concurrent-transfer
   entry limit of 20. The normal recommendation is 10-way parallel transfer; 20 is headroom.
 
 ## Services
+
+### SSH
+
+- Implementation: Dropbear SSH
+- Port: `2222`
+- Authentication: `/mnt/SDCARD/plumos/ssh/etc/authorized_keys`
+
+SSH is the plumOS remote shell entry point. If `ssh_enabled` is not set, it defaults to enabled
+for compatibility with the existing development path. Turning SSH OFF in NW Service writes
+`ssh_enabled=0`, and the boot wrapper or USB Disk Mode recovery will not start it automatically.
+Because SFTP depends on SSH, turning SSH OFF also turns SFTP OFF. Turning SFTP ON enables SSH again.
 
 ### FTP
 
@@ -61,6 +72,7 @@ Service state is stored in:
 Keys:
 
 ```text
+ssh_enabled=0|1
 ftp_enabled=0|1
 sftp_enabled=0|1
 samba_enabled=0|1
@@ -75,12 +87,13 @@ The service helper is:
 
 ```sh
 /mnt/SDCARD/plumos/bin/plumos-network-services status ftp
+/mnt/SDCARD/plumos/bin/plumos-network-services status ssh
 /mnt/SDCARD/plumos/bin/plumos-network-services start ftp
 /mnt/SDCARD/plumos/bin/plumos-network-services stop ftp
 /mnt/SDCARD/plumos/bin/plumos-network-services start-enabled
 ```
 
-`SERVICE` accepts `ftp`, `sftp`, `samba`, or `all`.
+`SERVICE` accepts `ssh`, `ftp`, `sftp`, `samba`, or `all`.
 
 ## Logs
 
