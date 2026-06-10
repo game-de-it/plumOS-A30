@@ -192,6 +192,40 @@ dist/plumos-standalone-emulators/docs/manifest.txt
 dist/plumos-standalone-emulators/docs/build-logs/
 ```
 
+## launch profile と生成物の照合
+
+libretro core や standalone emulator を FE から選べるようにするには、
+`package/frontend/plumos/config/frontend/systems.json` の `launch_profiles` に
+`retroarch:<core_id>` または `standalone:<emulator_id>` を登録する必要があります。
+逆に、生成物だけを deploy しても `systems.json` に無ければ Core Settings には出ません。
+
+host 側では `scripts/audit-launch-profiles.py` で、`systems.json` と staging 済み生成物を
+照合できます。
+
+```sh
+./scripts/audit-launch-profiles.py \
+  --root dist/plumos-libretro-cores \
+  --root dist/plumos-standalone-emulators
+```
+
+個別 core/emulator を追加するときは、対象 profile だけに絞ると判断しやすくなります。
+
+```sh
+PLUMOS_CORE_FILTER=quicknes \
+TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
+./scripts/docker-build.sh libretro-cores
+
+./scripts/audit-launch-profiles.py \
+  --root dist/plumos-libretro-cores-quicknes \
+  --profile retroarch:quicknes \
+  --strict --fail-on-extra
+```
+
+`--strict` は登録済み profile の実体が無い場合に失敗します。`--fail-on-extra` は生成物が
+あるのに `systems.json` から参照されていない場合に失敗します。全 core の bulk staging は
+未検証/未採用候補も含むため、通常は warning として見て、対象を決めてから
+`systems.json` に追加します。
+
 ## A30 へ転送して実行
 
 A30 の SSH が起動している状態で転送します。

@@ -194,6 +194,42 @@ dist/plumos-standalone-emulators/docs/manifest.txt
 dist/plumos-standalone-emulators/docs/build-logs/
 ```
 
+## Auditing Launch Profiles Against Artifacts
+
+To make a libretro core or standalone emulator selectable from the frontend,
+register `retroarch:<core_id>` or `standalone:<emulator_id>` in
+`package/frontend/plumos/config/frontend/systems.json` under `launch_profiles`.
+Deploying only the artifact is not enough; profiles that are absent from
+`systems.json` will not appear in Core Settings.
+
+On the host, use `scripts/audit-launch-profiles.py` to compare `systems.json`
+with staged runtime artifacts.
+
+```sh
+./scripts/audit-launch-profiles.py \
+  --root dist/plumos-libretro-cores \
+  --root dist/plumos-standalone-emulators
+```
+
+When adding a single core or emulator, filter the audit to the target profile.
+
+```sh
+PLUMOS_CORE_FILTER=quicknes \
+TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
+./scripts/docker-build.sh libretro-cores
+
+./scripts/audit-launch-profiles.py \
+  --root dist/plumos-libretro-cores-quicknes \
+  --profile retroarch:quicknes \
+  --strict --fail-on-extra
+```
+
+`--strict` fails when a registered profile has no runtime artifact.
+`--fail-on-extra` fails when an artifact exists but no `systems.json` profile
+uses it. Bulk core staging includes unvalidated or unadopted candidates, so use
+the audit output as a warning first, then add selected profiles to
+`systems.json`.
+
 ## Deploy And Run On A30
 
 With SSH running on the A30, deploy the smoke output.
