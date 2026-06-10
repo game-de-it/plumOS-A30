@@ -7931,6 +7931,10 @@ static int action_repeat_interval_ms(const struct ui_state *ui,
       (action == ACTION_LEFT || action == ACTION_RIGHT)) {
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
+  if (ui && ui->screen == SCREEN_TOP && ui_graphic_top_uses_strip(ui) &&
+      (action == ACTION_LEFT || action == ACTION_RIGHT)) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
   if (ui && ui->screen == SCREEN_SETTINGS &&
       ui->settings_category == SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST &&
       (action == ACTION_LEFT || action == ACTION_RIGHT)) {
