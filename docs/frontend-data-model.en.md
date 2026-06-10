@@ -222,6 +222,9 @@ Rules:
 `SystemDefinition.scraper` is future thumbnail-scraping policy. It is separate
 from normal frontend thumbnail lookup, so systems with `scraper.enabled=false`
 or no scraper field still display user-provided thumbnails normally.
+`package/frontend/plumos/config/frontend/systems.json` includes a `scraper`
+field for every system; runners and UI treat that field as the source of truth
+for scraper eligibility.
 
 Example:
 
@@ -229,7 +232,9 @@ Example:
 {
   "scraper": {
     "enabled": true,
-    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "reason": "simple_rom_crc",
+    "extensions": ["nes", "unf", "unif", "zip"],
+    "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
     "download_workers": { "default": 2, "bulk": 3, "max": 4 }
   }
 }
@@ -260,6 +265,11 @@ Rules:
   `no_match` files can be skipped before CRC work.
 - Replacing a ROM with the same name and size still enters CRC work when mtime
   or ctime changes.
+- Initial `scraper.reason` values are `simple_rom_crc`,
+  `cd_media_crc_expensive`, `pc_disk_image_policy_pending`,
+  `arcade_romset_policy_pending`, and `not_single_rom_crc`.
+- `scraper.extensions` lists extensions the scraper actually CRCs. It may be
+  narrower than the system-wide `extensions`.
 
 ### `AppDefinition`
 

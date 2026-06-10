@@ -172,17 +172,37 @@ stay at `1`. Unvalidated systems use `default=1`, `bulk=2`, and `max=2`.
 Validation can probe up to `max=5`, but the normal FE UI should not expose
 unbounded values.
 
-Example future `systems.json` field:
+`package/frontend/plumos/config/frontend/systems.json` is the source of truth
+for scraper eligibility. Initial scraper targets use `enabled=true` with
+`reason=simple_rom_crc`. Because they are still unvalidated on-device,
+`crc_workers.max` starts at `2`; per-system max values can be raised after A30
+benchmarking.
+`scraper.extensions` lists the extensions the initial scraper may CRC. Even when
+the system-wide `extensions` include `7z` or disk images, extensions omitted from
+this scraper list are not scraped.
+
+Enabled-system example:
 
 ```json
 {
   "id": "nes",
   "scraper": {
     "enabled": true,
-    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "reason": "simple_rom_crc",
+    "extensions": ["nes", "unf", "unif", "zip"],
+    "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
     "download_workers": { "default": 2, "bulk": 3, "max": 4 }
   }
 }
+```
+
+Excluded systems use `scraper.enabled=false` with these reason values:
+
+```text
+cd_media_crc_expensive
+pc_disk_image_policy_pending
+arcade_romset_policy_pending
+not_single_rom_crc
 ```
 
 Use `scripts/benchmark-a30-crc-workers.sh` for real-device CRC worker tests. It

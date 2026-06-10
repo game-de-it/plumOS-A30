@@ -212,6 +212,8 @@ rules:
 `SystemDefinition.scraper` は将来の thumbnail scraping 用 policy です。frontend の通常
 thumbnail lookup とは独立しており、`scraper.enabled=false` や未指定の system でも
 ユーザー手動配置の thumbnail は表示します。
+`package/frontend/plumos/config/frontend/systems.json` では全 system に `scraper` field を置き、
+runner/UI はこの field を scraper 対象可否の正本として扱います。
 
 例:
 
@@ -219,7 +221,9 @@ thumbnail lookup とは独立しており、`scraper.enabled=false` や未指定
 {
   "scraper": {
     "enabled": true,
-    "crc_workers": { "default": 1, "bulk": 2, "max": 5 },
+    "reason": "simple_rom_crc",
+    "extensions": ["nes", "unf", "unif", "zip"],
+    "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
     "download_workers": { "default": 2, "bulk": 3, "max": 4 }
   }
 }
@@ -242,6 +246,11 @@ rules:
 - scraper state は relative path, size, mtime, ctime を持ち、同一 file と判断できる
   `no_match` は CRC 前に skip できるようにする
 - 同名・同サイズの ROM 再配置でも、mtime または ctime が変わった場合は CRC 対象にする
+- `scraper.reason` は `simple_rom_crc`, `cd_media_crc_expensive`,
+  `pc_disk_image_policy_pending`, `arcade_romset_policy_pending`,
+  `not_single_rom_crc` を初期値として使う
+- `scraper.extensions` は scraper が実際に CRC 対象にする拡張子。system 全体の
+  `extensions` より狭くてよい
 
 ### `AppDefinition`
 

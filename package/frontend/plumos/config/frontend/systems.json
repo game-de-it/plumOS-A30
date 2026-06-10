@@ -23,7 +23,14 @@
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
       "default_launch_profile": "retroarch:fceumm",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["nes", "unf", "unif", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "fds",
@@ -47,7 +54,14 @@
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
       "default_launch_profile": "retroarch:fceumm",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["fds", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "sfc",
@@ -71,7 +85,14 @@
       "launch_profiles": ["retroarch:snes9x2005_plus", "retroarch:snes9x"],
       "default_launch_profile": "retroarch:snes9x2005_plus",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "gb",
@@ -94,7 +115,14 @@
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["gb", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "gbc",
@@ -118,7 +146,14 @@
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["gbc", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "gba",
@@ -141,7 +176,14 @@
       "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
       "default_launch_profile": "retroarch:mgba",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["gba", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "megadrive",
@@ -165,7 +207,14 @@
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["gen", "md", "smd", "bin", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "mastersystem",
@@ -189,7 +238,14 @@
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["sms", "bin", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "gamegear",
@@ -214,7 +270,14 @@
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["gg", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "sega32x",
@@ -238,7 +301,14 @@
       "launch_profiles": ["retroarch:picodrive"],
       "default_launch_profile": "retroarch:picodrive",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["32x", "bin", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "segacd",
@@ -262,7 +332,8 @@
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "pcengine",
@@ -286,7 +357,14 @@
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["pce", "sgx", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "pcenginecd",
@@ -310,7 +388,8 @@
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "psx",
@@ -335,7 +414,8 @@
       "default_launch_profile": "standalone:pcsx_rearmed",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "default_cpu_cores": 2
+      "default_cpu_cores": 2,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "psp",
@@ -360,7 +440,8 @@
       "default_launch_profile": "standalone:ppsspp",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "default_cpu_cores": 2
+      "default_cpu_cores": 2,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "n64",
@@ -383,7 +464,14 @@
       "launch_profiles": ["retroarch:mupen64plus_next", "retroarch:parallel_n64"],
       "default_launch_profile": "retroarch:mupen64plus_next",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["z64", "n64", "v64", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "dreamcast",
@@ -406,7 +494,8 @@
       "launch_profiles": ["retroarch:flycast"],
       "default_launch_profile": "retroarch:flycast",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "saturn",
@@ -429,7 +518,8 @@
       "launch_profiles": ["retroarch:yabasanshiro", "retroarch:beetle_saturn"],
       "default_launch_profile": "retroarch:yabasanshiro",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
     },
     {
       "id": "neogeo",
@@ -452,7 +542,8 @@
       "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "ngp",
@@ -475,7 +566,14 @@
       "launch_profiles": ["retroarch:race"],
       "default_launch_profile": "retroarch:race",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["ngp", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "ngpc",
@@ -499,7 +597,14 @@
       "launch_profiles": ["retroarch:race"],
       "default_launch_profile": "retroarch:race",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["ngc", "ngpc", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "wonderswan",
@@ -523,7 +628,14 @@
       "launch_profiles": ["retroarch:mednafen_wswan"],
       "default_launch_profile": "retroarch:mednafen_wswan",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["ws", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "wonderswancolor",
@@ -546,7 +658,14 @@
       "launch_profiles": ["retroarch:mednafen_wswan"],
       "default_launch_profile": "retroarch:mednafen_wswan",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["wsc", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "arcade",
@@ -569,7 +688,8 @@
       "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo"],
       "default_launch_profile": "retroarch:mame2003_plus",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "fbneo",
@@ -593,7 +713,8 @@
       "launch_profiles": ["retroarch:fbneo"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "mame2003plus",
@@ -617,7 +738,8 @@
       "launch_profiles": ["retroarch:mame2003_plus"],
       "default_launch_profile": "retroarch:mame2003_plus",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "cps1",
@@ -641,7 +763,8 @@
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps1"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "cps2",
@@ -665,7 +788,8 @@
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps2"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "cps3",
@@ -689,7 +813,8 @@
       "launch_profiles": ["retroarch:fbneo"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
     },
     {
       "id": "dos",
@@ -712,7 +837,8 @@
       "launch_profiles": ["retroarch:dosbox_pure"],
       "default_launch_profile": "retroarch:dosbox_pure",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "easyrpg",
@@ -736,7 +862,8 @@
       "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
       "default_launch_profile": "standalone:easyrpg",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "pico8",
@@ -760,7 +887,8 @@
       "launch_profiles": ["retroarch:fake08"],
       "default_launch_profile": "retroarch:fake08",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "scummvm",
@@ -784,7 +912,8 @@
       "launch_profiles": ["standalone:scummvm", "retroarch:scummvm"],
       "default_launch_profile": "standalone:scummvm",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "openbor",
@@ -805,7 +934,8 @@
         ]
       },
       "launch_profiles": ["external:openbor"],
-      "default_launch_profile": "external:openbor"
+      "default_launch_profile": "external:openbor",
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "ports",
@@ -827,7 +957,8 @@
         ]
       },
       "launch_profiles": ["external:port"],
-      "default_launch_profile": "external:port"
+      "default_launch_profile": "external:port",
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     },
     {
       "id": "msx",
@@ -850,7 +981,14 @@
       "launch_profiles": ["retroarch:bluemsx", "retroarch:fmsx"],
       "default_launch_profile": "retroarch:bluemsx",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["rom", "mx1", "mx2", "zip"],
+        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
+        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+      }
     },
     {
       "id": "pc88",
@@ -873,7 +1011,8 @@
       "launch_profiles": ["retroarch:quasi88"],
       "default_launch_profile": "retroarch:quasi88",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
     },
     {
       "id": "pc98",
@@ -896,7 +1035,8 @@
       "launch_profiles": ["retroarch:np2kai"],
       "default_launch_profile": "retroarch:np2kai",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
     },
     {
       "id": "x68000",
@@ -919,7 +1059,8 @@
       "launch_profiles": ["retroarch:px68k"],
       "default_launch_profile": "retroarch:px68k",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
     },
     {
       "id": "tic80",
@@ -942,7 +1083,8 @@
       "launch_profiles": ["retroarch:tic80"],
       "default_launch_profile": "retroarch:tic80",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000
+      "default_cpu_freq_khz": 648000,
+      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
     }
   ]
 }
