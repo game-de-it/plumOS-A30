@@ -237,6 +237,8 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 `existing_thumbnails` は frontend と同じ lookup 順で `/mnt/SDCARD/Images/<system_id>` を見て、
 subdirectory 画像、flat fallback 画像のどちらかが存在した件数です。`missing_thumbnails` だけが、
 次段階の CRC/DAT/download queue に入る対象です。
+runner は system ごとに既存画像の一時 lookup を 1 回だけ作り、ROM ごとの repeated `find` を避けます。
+`--fetch` 中に新しく保存できた画像もこの lookup に追記し、同一 run 内の重複処理を避けます。
 
 fetch 出力の列:
 

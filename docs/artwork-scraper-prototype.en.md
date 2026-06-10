@@ -265,6 +265,9 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 order as the frontend, including subdirectory thumbnails before flat fallback
 thumbnails. Only `missing_thumbnails` should enter the next CRC/DAT/download
 queue.
+The runner builds one temporary existing-image lookup per system to avoid
+repeated `find` calls for every ROM. During `--fetch`, newly saved images are
+added to that lookup so duplicate work is skipped within the same run.
 
 Fetch columns:
 

@@ -241,46 +241,49 @@ extension_allowed() {
   return 1
 }
 
-find_case_insensitive_file() {
-  candidate="$1"
-  [ -f "$candidate" ] && [ -s "$candidate" ] && return 0
+thumbnail_lookup_key() {
+  printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
+}
 
-  candidate_dir="${candidate%/*}"
-  candidate_base="${candidate##*/}"
-  [ "$candidate_dir" != "$candidate" ] || candidate_dir=.
-  [ -d "$candidate_dir" ] || return 1
+thumbnail_lookup_add() {
+  lookup_file="$1"
+  stem="$2"
+  [ -n "$stem" ] || return 0
+  key="$(thumbnail_lookup_key "$stem")"
+  grep -Fqx -- "$key" "$lookup_file" 2>/dev/null || printf '%s\n' "$key" >> "$lookup_file"
+}
 
-  wanted="$(printf '%s' "$candidate_base" | tr '[:upper:]' '[:lower:]')"
-  find "$candidate_dir" -maxdepth 1 -type f 2>/dev/null |
-    awk -v wanted="$wanted" '
-      function basename(path) {
-        sub(/^.*\//, "", path)
-        return path
-      }
-      {
-        name = tolower(basename($0))
-        if (name == wanted) {
-          found = 1
-          exit
-        }
-      }
-      END {
-        exit found ? 0 : 1
-      }
-    '
+build_thumbnail_lookup() {
+  thumb_system="$1"
+  lookup_file="$2"
+  thumb_root="${IMAGE_ROOT}/${thumb_system}"
+
+  rm -f "$lookup_file" 2>/dev/null || true
+  : > "$lookup_file"
+  [ -d "$thumb_root" ] || return 0
+
+  find "$thumb_root" -type f 2>/dev/null | while IFS= read -r thumb_path; do
+    [ -s "$thumb_path" ] || continue
+    image_ext="$(lower_ext "$thumb_path" 2>/dev/null || true)"
+    case "$image_ext" in
+      png|jpg|jpeg|webp) ;;
+      *) continue ;;
+    esac
+    rel_path="${thumb_path#${thumb_root}/}"
+    thumbnail_lookup_add "$lookup_file" "${rel_path%.*}"
+  done
 }
 
 thumbnail_exists() {
-  thumb_system="$1"
+  lookup_file="$1"
   rel_stem="$2"
   flat_stem="$3"
-  thumb_root="${IMAGE_ROOT}/${thumb_system}"
+  [ -s "$lookup_file" ] || return 1
 
   for stem in "$rel_stem" "$flat_stem"; do
     [ -n "$stem" ] || continue
-    for image_ext in png jpg jpeg webp; do
-      find_case_insensitive_file "${thumb_root}/${stem}.${image_ext}" && return 0
-    done
+    key="$(thumbnail_lookup_key "$stem")"
+    grep -Fqx -- "$key" "$lookup_file" 2>/dev/null && return 0
   done
   return 1
 }
@@ -577,7 +580,9 @@ plan_system() {
 
   mkdir -p "$STATE_DIR" "$CACHE_DIR" "$LOG_DIR" 2>/dev/null || true
   tmp_list="${STATE_DIR}/planner-${plan_system_id}-$$.list"
-  rm -f "$tmp_list" 2>/dev/null || true
+  thumb_lookup="${STATE_DIR}/thumbnails-${plan_system_id}-$$.list"
+  rm -f "$tmp_list" "$thumb_lookup" 2>/dev/null || true
+  build_thumbnail_lookup "$plan_system_id" "$thumb_lookup"
 
   aliases_seen=0
   rom_candidates=0
@@ -610,7 +615,7 @@ plan_system() {
         rel_stem="${rel_path%.*}"
         flat_stem="${rel_stem##*/}"
 
-        if thumbnail_exists "$plan_system_id" "$rel_stem" "$flat_stem"; then
+        if thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
           existing_thumbnails=$((existing_thumbnails + 1))
         else
           missing_thumbnails=$((missing_thumbnails + 1))
@@ -627,7 +632,7 @@ plan_system() {
     [ "$stop_scan" = 1 ] && break
   done
 
-  rm -f "$tmp_list" 2>/dev/null || true
+  rm -f "$tmp_list" "$thumb_lookup" 2>/dev/null || true
 
   set -- $crc_workers
   crc_default="${1:--}"
@@ -673,7 +678,9 @@ fetch_system() {
   mkdir -p "$STATE_DIR" "$CACHE_DIR" "$LOG_DIR" 2>/dev/null || true
   tmp_list="${STATE_DIR}/fetch-${fetch_system_id}-$$.list"
   payload_tmp="${STATE_DIR}/payload-${fetch_system_id}-$$.rom"
-  rm -f "$tmp_list" "$payload_tmp" 2>/dev/null || true
+  thumb_lookup="${STATE_DIR}/thumbnails-${fetch_system_id}-$$.list"
+  rm -f "$tmp_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
+  build_thumbnail_lookup "$fetch_system_id" "$thumb_lookup"
 
   aliases_seen=0
   rom_candidates=0
@@ -699,6 +706,7 @@ fetch_system() {
     skipped_tool=1
     printf 'fetch\t%s\ttrue\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t%s\n' \
       "$fetch_system_id" "${reason:--}" "$skipped_tool"
+    rm -f "$tmp_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
     log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
     return 0
   fi
@@ -727,7 +735,7 @@ fetch_system() {
         rel_stem="${rel_path%.*}"
         flat_stem="${rel_stem##*/}"
 
-        if thumbnail_exists "$fetch_system_id" "$rel_stem" "$flat_stem"; then
+        if thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
           existing_thumbnails=$((existing_thumbnails + 1))
         else
           missing_thumbnails=$((missing_thumbnails + 1))
@@ -776,6 +784,7 @@ fetch_system() {
                   invalid_png=$((invalid_png + 1))
                 else
                   mv "$tmp_dest" "$dest"
+                  thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
                   downloaded=$((downloaded + 1))
                 fi
               fi
@@ -794,7 +803,7 @@ fetch_system() {
     [ "$stop_scan" = 1 ] && break
   done
 
-  rm -f "$tmp_list" "$payload_tmp" 2>/dev/null || true
+  rm -f "$tmp_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
 
   printf 'fetch\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$fetch_system_id" "${reason:--}" "$aliases_seen" "$rom_candidates" \
