@@ -160,7 +160,7 @@ prefetch_one() {
 
   encoded_playlist="$(quote_url_component "$playlist" "")"
   for kind in $KINDS; do
-    html_url="http://thumbnails.libretro.com/${encoded_playlist}/${kind}/"
+    html_url="https://thumbnails.libretro.com/${encoded_playlist}/${kind}/"
     html_file="${OUTPUT_DIR}/thumb-html/${system}/${kind}.html"
     tsv_file="${OUTPUT_DIR}/thumb-names/${system}/${kind}.tsv"
     names_file="${OUTPUT_DIR}/thumb-names/${system}/${kind}.names"

@@ -33,6 +33,7 @@ PLAN_ALL=0
 LIMIT=0
 KIND=Named_Boxarts
 FETCH_TIMEOUT="${PLUMOS_THUMBNAIL_FETCH_TIMEOUT:-45}"
+FETCH_RETRY="${PLUMOS_THUMBNAIL_FETCH_RETRY:-2}"
 
 usage() {
   cat <<'USAGE'
@@ -60,6 +61,7 @@ Environment:
   PLUMOS_THUMBNAIL_CACHE_DIR     Default: $PLUMOS_ROOT/cache/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_PRELOAD_DIR   Default: $PLUMOS_ROOT/share/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_FETCH_TIMEOUT Default: 45 seconds
+  PLUMOS_THUMBNAIL_FETCH_RETRY   Default: 2 retries
   PLUMOS_THUMBNAIL_PROGRESS      Print fetch progress TSV rows when set to 1
 
 Output:
@@ -365,7 +367,7 @@ dat_source_url() {
 thumb_base_url() {
   playlist="$(source_playlist "$1")" || return 1
   [ -n "$playlist" ] || return 1
-  printf 'http://thumbnails.libretro.com/%s/%s\n' "$(space_encode "$playlist")" "$KIND"
+  printf 'https://thumbnails.libretro.com/%s/%s\n' "$(space_encode "$playlist")" "$KIND"
 }
 
 fetch_url() {
@@ -376,7 +378,7 @@ fetch_url() {
   rm -f "$tmp" 2>/dev/null || true
   mkdir -p "$(dirname "$output")" 2>/dev/null || true
   if command -v curl >/dev/null 2>&1; then
-    if curl -fsSL --retry 2 --connect-timeout 10 --max-time "$FETCH_TIMEOUT" -o "$tmp" "$url"; then
+    if curl -fsSL --retry "$FETCH_RETRY" --connect-timeout 10 --max-time "$FETCH_TIMEOUT" -o "$tmp" "$url"; then
       mv "$tmp" "$output"
       return 0
     fi
@@ -910,6 +912,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -r "$SYSTEMS_JSON" ] || die "systems.json is not readable: $SYSTEMS_JSON"
+is_positive_int_or_zero "$FETCH_TIMEOUT" || die "invalid PLUMOS_THUMBNAIL_FETCH_TIMEOUT: $FETCH_TIMEOUT"
+is_positive_int_or_zero "$FETCH_RETRY" || die "invalid PLUMOS_THUMBNAIL_FETCH_RETRY: $FETCH_RETRY"
 case "$KIND" in
   Named_Boxarts|Named_Snaps|Named_Titles) ;;
   *) die "invalid --kind: $KIND" ;;

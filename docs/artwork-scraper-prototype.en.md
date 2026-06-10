@@ -252,6 +252,7 @@ Environment:
 - `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_FETCH_TIMEOUT`: default `45` seconds
+- `PLUMOS_THUMBNAIL_FETCH_RETRY`: default `2` retries
 
 `--system <id>` prints the reason and exits with status `2` for disabled
 systems. `--all` plans enabled systems only. Output is TSV and does not print
@@ -291,6 +292,7 @@ thumbnail for that system.
 `no_match` is the sum of `crc_miss + thumbnail_miss`. `crc_miss` means the ROM
 CRC was not present in the DAT index; `thumbnail_miss` means the CRC matched but
 the thumbnail index had no PNG with that canonical name.
+Thumbnail indexes and PNGs are fetched from `https://thumbnails.libretro.com/`.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
 stall the UI path indefinitely.
 
@@ -305,7 +307,10 @@ frontend. While running, the UI shows `Scraping Running`; internally it runs
 RUNNING screen shows `Progress: current / total`, `Phase: Plan|Fetch <system>`,
 and `Saved / NoMatch / Failed`. Planning reports system/phase progress; fetching
 sets `PLUMOS_THUMBNAIL_PROGRESS=1` so scraper `progress` rows can update
-ROM-level progress. It then automatically opens `Scraping Results`.
+ROM-level progress. Fetches started from the FE use
+`PLUMOS_THUMBNAIL_FETCH_TIMEOUT=12` and `PLUMOS_THUMBNAIL_FETCH_RETRY=0` by
+default so one slow image URL cannot stall the UI for a long time. It then
+automatically opens `Scraping Results`.
 `Scraping Results` reads only the latest
 `frontend-apps-latest.log`, so users can tell the result belongs to the run they
 just started. Detailed logs are still written to

@@ -225,6 +225,7 @@ runner は標準出力と log に ROM file 名を出さず、system ごとの集
 - `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_FETCH_TIMEOUT`: default `45` 秒
+- `PLUMOS_THUMBNAIL_FETCH_RETRY`: default `2` 回
 
 `--system <id>` は disabled system の場合、理由を出して exit code `2` を返します。`--all` は
 enabled system だけを plan します。出力は TSV で、ROM file 名は出しません。
@@ -257,6 +258,7 @@ DAT/index を取得しません。最初の missing thumbnail が見つかった
 用意します。
 `no_match` は `crc_miss + thumbnail_miss` の合計です。`crc_miss` は CRC が DAT に無い場合、
 `thumbnail_miss` は CRC は一致したが thumbnail index に同名 PNG が無い場合です。
+thumbnail index と PNG は `https://thumbnails.libretro.com/` から取得します。
 network 待ちで UI 操作を長時間止めないよう、`wget` / `curl` には
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` の timeout をかけます。
 
@@ -269,7 +271,9 @@ library scan を行い、FE 再起動なしで TOP/Graphic の ROM 数と Scrapi
 `plumos-thumbnail-scraper --fetch --system <id>` を順に実行します。RUNNING 画面には
 `Progress: current / total`、`Phase: Plan|Fetch <system>`、`Saved / NoMatch / Failed`
 を表示します。Plan 中は system/phase 単位、Fetch 中は `PLUMOS_THUMBNAIL_PROGRESS=1`
-で出力される `progress` 行により ROM 単位の進捗を表示します。完了後は自動で
+で出力される `progress` 行により ROM 単位の進捗を表示します。FE からの Fetch は
+画像 1 件の待ちで UI が長時間止まらないよう、既定で `PLUMOS_THUMBNAIL_FETCH_TIMEOUT=12`、
+`PLUMOS_THUMBNAIL_FETCH_RETRY=0` を指定します。完了後は自動で
 `Scraping Results` へ遷移します。`Scraping Results` は直近 1 回分の
 `frontend-apps-latest.log` だけを表示するため、いま実行した結果かどうかを判断できます。
 詳細 log は `/mnt/SDCARD/plumos/logs/frontend-apps.log` と runner log にも残します。

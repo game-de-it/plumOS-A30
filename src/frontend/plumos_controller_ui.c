@@ -7320,14 +7320,35 @@ static int append_scraping_runner_loop(char *cmd, size_t cmd_size, size_t *pos,
                                        const char *scraper,
                                        const char *path_value,
                                        int fetch_mode,
-                                       const char *limit) {
+                                       const char *limit,
+                                       const char *fetch_timeout,
+                                       const char *fetch_retry) {
   if (!append_string(cmd, cmd_size, pos, "; for sys in") ||
-      !append_scraping_target_list(cmd, cmd_size, pos, ui) ||
-      !append_string(cmd, cmd_size, pos,
-                     fetch_mode
-                         ? "; do PLUMOS_THUMBNAIL_PROGRESS=1 PLUMOS_SDCARD_ROOT="
-                         : "; do progress_i=$((progress_i + 1)); printf 'progress\\tplan\\t%s\\t%s\\t%s\\t0\\t0\\t0\\n' \"$sys\" \"$progress_i\" \"$progress_total\"; PLUMOS_SDCARD_ROOT=") ||
-      !append_shell_quoted(cmd, cmd_size, pos, ui->sdcard_root) ||
+      !append_scraping_target_list(cmd, cmd_size, pos, ui)) {
+    return 0;
+  }
+  if (fetch_mode) {
+    if (!append_string(cmd, cmd_size, pos, "; do PLUMOS_THUMBNAIL_PROGRESS=1")) {
+      return 0;
+    }
+    if (fetch_timeout &&
+        (!append_string(cmd, cmd_size, pos, " PLUMOS_THUMBNAIL_FETCH_TIMEOUT=") ||
+         !append_shell_quoted(cmd, cmd_size, pos, fetch_timeout))) {
+      return 0;
+    }
+    if (fetch_retry &&
+        (!append_string(cmd, cmd_size, pos, " PLUMOS_THUMBNAIL_FETCH_RETRY=") ||
+         !append_shell_quoted(cmd, cmd_size, pos, fetch_retry))) {
+      return 0;
+    }
+    if (!append_string(cmd, cmd_size, pos, " PLUMOS_SDCARD_ROOT=")) {
+      return 0;
+    }
+  } else if (!append_string(cmd, cmd_size, pos,
+                            "; do progress_i=$((progress_i + 1)); printf 'progress\\tplan\\t%s\\t%s\\t%s\\t0\\t0\\t0\\n' \"$sys\" \"$progress_i\" \"$progress_total\"; PLUMOS_SDCARD_ROOT=")) {
+    return 0;
+  }
+  if (!append_shell_quoted(cmd, cmd_size, pos, ui->sdcard_root) ||
       !append_string(cmd, cmd_size, pos, " PLUMOS_ROOT=") ||
       !append_shell_quoted(cmd, cmd_size, pos, ui->plumos_root) ||
       !append_string(cmd, cmd_size, pos, " PATH=") ||
@@ -7407,6 +7428,8 @@ static int run_scraping_action(struct ui_state *ui) {
   char cmd[UI_COMMAND_MAX];
   const char *plan_limit;
   const char *fetch_limit;
+  const char *fetch_timeout;
+  const char *fetch_retry;
   size_t pos = 0;
   size_t path_pos = 0;
   size_t target_count;
@@ -7440,6 +7463,14 @@ static int run_scraping_action(struct ui_state *ui) {
   }
   plan_limit = scraping_limit_env("PLUMOS_SCRAPING_PLAN_LIMIT");
   fetch_limit = scraping_limit_env("PLUMOS_SCRAPING_FETCH_LIMIT");
+  fetch_timeout = scraping_limit_env("PLUMOS_SCRAPING_FETCH_TIMEOUT");
+  fetch_retry = scraping_limit_env("PLUMOS_SCRAPING_FETCH_RETRY");
+  if (!fetch_timeout) {
+    fetch_timeout = "12";
+  }
+  if (!fetch_retry) {
+    fetch_retry = "0";
+  }
   target_count = ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1;
 
   cmd[0] = '\0';
@@ -7451,9 +7482,10 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_string(cmd, sizeof(cmd), &pos, "; app_rc=0; progress_i=0; progress_total=") ||
       !append_size_t(cmd, sizeof(cmd), &pos, target_count) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
-                                   path_value, 0, plan_limit) ||
+                                   path_value, 0, plan_limit, NULL, NULL) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
-                                   path_value, 1, fetch_limit) ||
+                                   path_value, 1, fetch_limit,
+                                   fetch_timeout, fetch_retry) ||
       !append_string(cmd, sizeof(cmd),
                      &pos, "; printf 'app_finish\\t%s\\trc=%s\\n' ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
