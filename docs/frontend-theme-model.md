@@ -116,7 +116,7 @@ theme が扱えないもの:
     "top_layout": "tile_grid",
     "rom_layout": "list_preview",
     "transition": "slide",
-    "transition_ms": 180,
+    "transition_ms": 220,
     "thumbnail_fit": "contain",
     "thumbnail_frame": "simple",
     "missing_thumbnail": "text_fallback"
@@ -137,8 +137,9 @@ theme が扱えないもの:
 ```
 
 `graphic_mode.transition` は見た目だけを変える設定です。現時点の正式値は `none` と
-`slide` です。`transition_ms` は `80..500` の範囲で扱い、未指定時の `slide` は
-`180ms` を基準にします。theme は入力割り当て、ページサイズ、決定/戻る動作を変更できません。
+`slide` です。Graphic TOP の `slide` はページ全体が上下に入れ替わる演出です。
+`transition_ms` は `80..500` の範囲で扱い、未指定時の `slide` は `220ms` を基準にします。
+theme は入力割り当て、ページサイズ、決定/戻る動作を変更できません。
 
 `behavior_policy` は安全確認用です。ここに `true` がある theme は controller UI では
 behavior control を要求したものとして block し、built-in Graphic fallback を使います。

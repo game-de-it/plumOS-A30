@@ -182,7 +182,9 @@ misclick prevention.
   boundaries move naturally to the previous/next page.
 - Graphic TOP page transitions are presentation-only theme settings under
   `graphic_mode.transition`. The currently supported values are `none` and
-  `slide`. Themes may not change input, page size, confirm, or back behavior.
+  `slide`. `slide` is vertical: the next page rises from below and the previous
+  page descends from above. Themes may not change input, page size, confirm, or
+  back behavior.
 - ROM lists put the selectable list on the left and a selected-ROM preview panel
   on the right. One page shows 8 entries.
 - ROM names prefer FreeType rendering so Japanese names and symbols remain

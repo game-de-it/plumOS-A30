@@ -8015,9 +8015,20 @@ static int run_script(struct ui_state *ui, const char *script) {
 }
 
 static int ui_needs_periodic_refresh(const struct ui_state *ui) {
-  return ui && (ui->rescue_network ||
-                (ui->renderer_mali && ui->top_transition_active) ||
-                (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0));
+  if (!ui) {
+    return 0;
+  }
+  if (ui->rescue_network) {
+    return 1;
+  }
+  if (ui->renderer_mali && ui->top_transition_active) {
+    return 1;
+  }
+  if (ui_uses_graphic_mode(ui)) {
+    return ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+           ui->screen == SCREEN_RECENT;
+  }
+  return ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0;
 }
 
 static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
@@ -8039,6 +8050,7 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
 static int run_event_loop(struct ui_state *ui, const char *event_path) {
   int event_fd = -1;
   int stdin_fd = STDIN_FILENO;
+  int stdin_active = 1;
   int old_flags = -1;
   time_t deadline = 0;
   long long next_refresh_ms = 0;
@@ -8053,6 +8065,8 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   old_flags = fcntl(stdin_fd, F_GETFL, 0);
   if (old_flags >= 0) {
     fcntl(stdin_fd, F_SETFL, old_flags | O_NONBLOCK);
+  } else {
+    stdin_active = 0;
   }
   if (ui->timeout_sec > 0) {
     deadline = time(NULL) + ui->timeout_sec;
@@ -8066,6 +8080,8 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   while (1) {
     struct pollfd pfds[2];
     nfds_t count = 0;
+    nfds_t event_index = (nfds_t)-1;
+    nfds_t stdin_index = (nfds_t)-1;
     int rc;
     enum ui_action action = ACTION_NONE;
     long long now_ms;
@@ -8088,15 +8104,19 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     }
 
     if (event_fd >= 0) {
+      event_index = count;
       pfds[count].fd = event_fd;
       pfds[count].events = POLLIN;
       pfds[count].revents = 0;
       count++;
     }
-    pfds[count].fd = stdin_fd;
-    pfds[count].events = POLLIN;
-    pfds[count].revents = 0;
-    count++;
+    if (stdin_active) {
+      stdin_index = count;
+      pfds[count].fd = stdin_fd;
+      pfds[count].events = POLLIN | POLLHUP | POLLERR | POLLNVAL;
+      pfds[count].revents = 0;
+      count++;
+    }
 
     if (ui->timeout_sec > 0 && time(NULL) >= deadline) {
       break;
@@ -8137,7 +8157,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     }
 
     if (ui->ignore_input_until_ms > current_time_ms()) {
-      if (event_fd >= 0 && (pfds[0].revents & POLLIN)) {
+      if (event_index != (nfds_t)-1 && (pfds[event_index].revents & POLLIN)) {
         drain_input_fd(event_fd);
       }
       if (ui_needs_periodic_refresh(ui)) {
@@ -8150,7 +8170,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       continue;
     }
 
-    if (event_fd >= 0 && (pfds[0].revents & POLLIN)) {
+    if (event_index != (nfds_t)-1 && (pfds[event_index].revents & POLLIN)) {
       struct input_event ev;
       while (read(event_fd, &ev, sizeof(ev)) == (ssize_t)sizeof(ev)) {
         if (ev.type == EV_KEY) {
@@ -8182,15 +8202,25 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
         }
       }
     }
-    if (pfds[count - 1].revents & POLLIN) {
-      char buf[32];
-      ssize_t n = read(stdin_fd, buf, sizeof(buf));
-      ssize_t i;
-      for (i = 0; i < n; i++) {
-        enum ui_action stdin_action = action_from_stdin_char((unsigned char)buf[i]);
-        if (stdin_action != ACTION_NONE) {
-          action = stdin_action;
+    if (stdin_index != (nfds_t)-1 &&
+        (pfds[stdin_index].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL))) {
+      if (pfds[stdin_index].revents & POLLIN) {
+        char buf[32];
+        ssize_t n = read(stdin_fd, buf, sizeof(buf));
+        ssize_t i;
+        if (n > 0) {
+          for (i = 0; i < n; i++) {
+            enum ui_action stdin_action =
+                action_from_stdin_char((unsigned char)buf[i]);
+            if (stdin_action != ACTION_NONE) {
+              action = stdin_action;
+            }
+          }
+        } else {
+          stdin_active = 0;
         }
+      } else {
+        stdin_active = 0;
       }
     }
 

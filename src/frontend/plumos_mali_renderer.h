@@ -191,6 +191,20 @@ struct plumos_mali_gl_api {
   void (*DeleteProgram)(GLuint program);
 };
 
+#ifdef PLUMOS_ENABLE_MALI_PNG
+#ifndef PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE
+#define PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE 24
+#endif
+
+struct plumos_mali_graphic_texture_cache_entry {
+  GLuint texture;
+  int width;
+  int height;
+  unsigned long used_at;
+  char path[PATH_MAX];
+};
+#endif
+
 struct plumos_mali_renderer {
   struct plumos_mali_egl_api egl;
   struct plumos_mali_gl_api gl;
@@ -211,10 +225,12 @@ struct plumos_mali_renderer {
 #ifdef PLUMOS_ENABLE_MALI_PNG
   GLuint texture_program;
   GLint texture_sampler_uniform;
+  unsigned long graphic_texture_tick;
   GLuint graphic_texture;
   int graphic_texture_width;
   int graphic_texture_height;
-  char graphic_texture_path[PATH_MAX];
+  struct plumos_mali_graphic_texture_cache_entry
+      graphic_texture_cache[PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE];
 #endif
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
   FT_Library ft_library;
@@ -790,9 +806,14 @@ static void plumos_mali_renderer_shutdown(struct plumos_mali_renderer *renderer)
 #endif
   if (renderer->display != EGL_NO_DISPLAY) {
 #ifdef PLUMOS_ENABLE_MALI_PNG
-    if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle &&
-        renderer->graphic_texture) {
-      renderer->gl.DeleteTextures(1, &renderer->graphic_texture);
+    if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle) {
+      size_t i;
+      for (i = 0; i < PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE; i++) {
+        if (renderer->graphic_texture_cache[i].texture) {
+          renderer->gl.DeleteTextures(1, &renderer->graphic_texture_cache[i].texture);
+          renderer->graphic_texture_cache[i].texture = 0;
+        }
+      }
       renderer->graphic_texture = 0;
     }
     if (renderer->context != EGL_NO_CONTEXT && renderer->gl.handle &&
@@ -1527,12 +1548,23 @@ static int plumos_mali_graphic_load_texture(struct plumos_mali_renderer *rendere
   int width = 0;
   int height = 0;
   GLuint texture = 0;
+  size_t i;
+  size_t slot = 0;
+  unsigned long oldest_used = 0;
 
   if (!renderer || !path || !path[0] || !plumos_mali_path_has_png_ext(path)) {
     return 0;
   }
-  if (renderer->graphic_texture && strcmp(renderer->graphic_texture_path, path) == 0) {
-    return 1;
+  for (i = 0; i < PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE; i++) {
+    struct plumos_mali_graphic_texture_cache_entry *entry =
+        &renderer->graphic_texture_cache[i];
+    if (entry->texture && strcmp(entry->path, path) == 0) {
+      entry->used_at = ++renderer->graphic_texture_tick;
+      renderer->graphic_texture = entry->texture;
+      renderer->graphic_texture_width = entry->width;
+      renderer->graphic_texture_height = entry->height;
+      return 1;
+    }
   }
   if (!plumos_mali_load_png_rgba(path, &pixels, &width, &height)) {
     return 0;
@@ -1551,14 +1583,31 @@ static int plumos_mali_graphic_load_texture(struct plumos_mali_renderer *rendere
                           GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   free(pixels);
 
-  if (renderer->graphic_texture) {
-    renderer->gl.DeleteTextures(1, &renderer->graphic_texture);
+  for (i = 0; i < PLUMOS_MALI_GRAPHIC_TEXTURE_CACHE_SIZE; i++) {
+    struct plumos_mali_graphic_texture_cache_entry *entry =
+        &renderer->graphic_texture_cache[i];
+    if (!entry->texture) {
+      slot = i;
+      break;
+    }
+    if (i == 0 || entry->used_at < oldest_used) {
+      oldest_used = entry->used_at;
+      slot = i;
+    }
   }
+  if (renderer->graphic_texture_cache[slot].texture) {
+    renderer->gl.DeleteTextures(1, &renderer->graphic_texture_cache[slot].texture);
+  }
+  renderer->graphic_texture_cache[slot].texture = texture;
+  renderer->graphic_texture_cache[slot].width = width;
+  renderer->graphic_texture_cache[slot].height = height;
+  renderer->graphic_texture_cache[slot].used_at = ++renderer->graphic_texture_tick;
+  snprintf(renderer->graphic_texture_cache[slot].path,
+           sizeof(renderer->graphic_texture_cache[slot].path), "%s", path);
+
   renderer->graphic_texture = texture;
   renderer->graphic_texture_width = width;
   renderer->graphic_texture_height = height;
-  snprintf(renderer->graphic_texture_path, sizeof(renderer->graphic_texture_path),
-           "%s", path);
   renderer->gl.BindTexture(GL_TEXTURE_2D, 0);
   renderer->gl.UseProgram(renderer->program);
   return 1;
@@ -2868,7 +2917,7 @@ static void plumos_mali_graphic_draw_top_entries(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
-    float x_offset) {
+    float y_offset) {
   const size_t columns = 3;
   const size_t rows = 2;
   const float horizontal_margin = 22.0f;
@@ -2899,8 +2948,8 @@ static void plumos_mali_graphic_draw_top_entries(
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;
     size_t row = i / columns;
-    float x = grid_x + x_offset + (float)col * (tile_w + gap);
-    float y = grid_y + (float)row * (tile_h + gap);
+    float x = grid_x + (float)col * (tile_w + gap);
+    float y = grid_y + y_offset + (float)row * (tile_h + gap);
     float media_x = x + 14.0f;
     float media_y = y + 14.0f;
     float title_y = y + tile_h - 58.0f;
@@ -2966,7 +3015,7 @@ static void plumos_mali_graphic_draw_top_entries(
                                      theme->muted, 1.0f);
   }
   if (entry_count == 0) {
-    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f + x_offset, 90.0f, 3,
+    plumos_mali_graphic_text(renderer, "NO SYSTEMS", 28.0f, 90.0f + y_offset, 3,
                              theme->foreground, 1.0f);
   }
 }
@@ -2989,21 +3038,20 @@ static void plumos_mali_graphic_draw_top(
     transition_progress = 1.0f;
   }
 
-  plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
-  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
-                           theme->accent, 1.0f);
-
   if (slide_active) {
-    float width = (float)renderer->width;
+    float height = (float)renderer->height;
     int direction = transition_direction < 0 ? -1 : 1;
-    prev_offset = -((float)direction) * width * transition_progress;
-    current_offset = ((float)direction) * width * (1.0f - transition_progress);
+    prev_offset = -((float)direction) * height * transition_progress;
+    current_offset = ((float)direction) * height * (1.0f - transition_progress);
     plumos_mali_graphic_draw_top_entries(renderer, theme, prev_entries,
                                          prev_entry_count, prev_offset);
   }
 
   plumos_mali_graphic_draw_top_entries(renderer, theme, entries, entry_count,
                                        current_offset);
+  plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
+  plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
+                           theme->accent, 1.0f);
   (void)status;
 }
 
