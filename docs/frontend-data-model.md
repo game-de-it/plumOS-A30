@@ -251,6 +251,10 @@ rules:
   `not_single_rom_crc` を初期値として使う
 - `scraper.extensions` は scraper が実際に CRC 対象にする拡張子。system 全体の
   `extensions` より狭くてよい
+- libretro DAT と thumbnail playlist の対応は
+  `config/frontend/scraper-sources.tsv` に置き、`systems.json` の対象可否とは分けて管理する
+- build 時の事前取得 cache は `share/frontend/artwork-scraper/` に入り、実機側の取得済み
+  state/cache は `/mnt/SDCARD/plumos/cache/frontend/artwork-scraper` に置く
 
 ### `AppDefinition`
 

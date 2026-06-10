@@ -1,0 +1,18 @@
+# system_id	libretro_playlist	libretro_dat_path
+nes	Nintendo - Nintendo Entertainment System	metadat/no-intro/Nintendo - Nintendo Entertainment System.dat
+fds	Nintendo - Family Computer Disk System	metadat/no-intro/Nintendo - Family Computer Disk System.dat
+sfc	Nintendo - Super Nintendo Entertainment System	metadat/no-intro/Nintendo - Super Nintendo Entertainment System.dat
+gb	Nintendo - Game Boy	metadat/no-intro/Nintendo - Game Boy.dat
+gbc	Nintendo - Game Boy Color	metadat/no-intro/Nintendo - Game Boy Color.dat
+gba	Nintendo - Game Boy Advance	metadat/no-intro/Nintendo - Game Boy Advance.dat
+megadrive	Sega - Mega Drive - Genesis	metadat/no-intro/Sega - Mega Drive - Genesis.dat
+mastersystem	Sega - Master System - Mark III	metadat/no-intro/Sega - Master System - Mark III.dat
+gamegear	Sega - Game Gear	metadat/no-intro/Sega - Game Gear.dat
+sega32x	Sega - 32X	metadat/no-intro/Sega - 32X.dat
+pcengine	NEC - PC Engine - TurboGrafx 16	metadat/no-intro/NEC - PC Engine - TurboGrafx 16.dat
+n64	Nintendo - Nintendo 64	metadat/no-intro/Nintendo - Nintendo 64.dat
+ngp	SNK - Neo Geo Pocket	metadat/no-intro/SNK - Neo Geo Pocket.dat
+ngpc	SNK - Neo Geo Pocket Color	metadat/no-intro/SNK - Neo Geo Pocket Color.dat
+wonderswan	Bandai - WonderSwan	metadat/no-intro/Bandai - WonderSwan.dat
+wonderswancolor	Bandai - WonderSwan Color	metadat/no-intro/Bandai - WonderSwan Color.dat
+msx	Microsoft - MSX	metadat/no-intro/Microsoft - MSX.dat

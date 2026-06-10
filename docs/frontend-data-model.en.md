@@ -270,6 +270,12 @@ Rules:
   `arcade_romset_policy_pending`, and `not_single_rom_crc`.
 - `scraper.extensions` lists extensions the scraper actually CRCs. It may be
   narrower than the system-wide `extensions`.
+- libretro DAT and thumbnail playlist mappings live in
+  `config/frontend/scraper-sources.tsv`, separate from `systems.json`
+  eligibility policy.
+- Build-time preloaded cache lives under `share/frontend/artwork-scraper/`.
+  Runtime fetched state/cache lives under
+  `/mnt/SDCARD/plumos/cache/frontend/artwork-scraper`.
 
 ### `AppDefinition`
 

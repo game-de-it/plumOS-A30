@@ -221,9 +221,11 @@ policy.
 
 `package/frontend/plumos/bin/plumos-thumbnail-scraper` is the packaged runner
 used to validate scraper policy and existing-thumbnail skip counts on the
-device before adding a button UI to the FE. At this stage it does not compute
-CRCs, read DAT indexes, or download thumbnails. `--fetch` is reserved and
-returns an error intentionally.
+device before adding a button UI to the FE. `--plan` / `--dry-run` does not
+compute CRCs or access the network. `--fetch` processes only ROMs without an
+existing thumbnail and runs CRC -> DAT lookup -> thumbnail index lookup -> PNG
+download. The runner does not print ROM filenames to stdout or logs; output is
+system-level aggregates.
 
 Common commands:
 
@@ -231,6 +233,7 @@ Common commands:
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --list-systems
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --limit 20
 ```
 
 Environment:
@@ -238,11 +241,13 @@ Environment:
 - `PLUMOS_SDCARD_ROOT`: default `/mnt/SDCARD`
 - `PLUMOS_ROOT`: default `$PLUMOS_SDCARD_ROOT/plumos`
 - `PLUMOS_SYSTEMS_JSON`: default `$PLUMOS_ROOT/config/frontend/systems.json`
+- `PLUMOS_SCRAPER_SOURCES`: default `$PLUMOS_ROOT/config/frontend/scraper-sources.tsv`
 - `PLUMOS_ROM_ROOT`: when set, scan only this root. Otherwise scan both
   `/mnt/SDCARD/Roms` and `/mnt/SDCARD/roms`, matching the frontend scanner
 - `PLUMOS_IMAGE_ROOT`: default `$PLUMOS_SDCARD_ROOT/Images`
 - `PLUMOS_THUMBNAIL_STATE_DIR`: default `$PLUMOS_ROOT/state/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
+- `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 
 `--system <id>` prints the reason and exits with status `2` for disabled
 systems. `--all` plans enabled systems only. Output is TSV and does not print
@@ -259,6 +264,43 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 order as the frontend, including subdirectory thumbnails before flat fallback
 thumbnails. Only `missing_thumbnails` should enter the next CRC/DAT/download
 queue.
+
+Fetch columns:
+
+```text
+status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match download_failed invalid_png skipped_zip skipped_tool
+```
+
+`--fetch` prepends `PLUMOS_ROOT/bin` to `PATH` and uses plumOS BusyBox applets
+such as `crc32`, `wget`, and `unzip`. DAT/index lookup first checks
+`PLUMOS_THUMBNAIL_PRELOAD_DIR`; missing indexes are fetched into
+`PLUMOS_THUMBNAIL_CACHE_DIR`. Thumbnail PNGs are downloaded from the libretro
+thumbnail server over HTTP and saved to
+`/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+
+Source definitions live in
+`package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are
+`system_id`, `libretro_playlist`, and `libretro_dat_path`. Only systems with
+`scraper.enabled=true` in `systems.json` are prefetch/fetch targets.
+
+## Preloaded Cache
+
+`scripts/prefetch-thumbnail-scraper-cache.sh` is the host/build prefetch
+entrypoint. It converts libretro DAT files into `crc -> canonical game name`
+TSV indexes and thumbnail directory indexes into
+`canonical game name -> encoded png href` TSV indexes. Generated data is not
+stored in git; frontend builds place it under
+`dist/plumos-frontend/plumos/share/frontend/artwork-scraper/`.
+
+```sh
+scripts/prefetch-thumbnail-scraper-cache.sh \
+  --output dist/plumos-frontend/plumos/share/frontend/artwork-scraper
+```
+
+`docker/plumos-toolchain/scripts/build-frontend.sh` defaults
+`PLUMOS_PREFETCH_THUMBNAIL_CACHE=auto`, so it creates this cache when network
+access is available. Set it to `0` / `false` / `skip` to skip prefetching, or
+`1` / `true` to make prefetch failure a build error.
 
 ## Test Inputs
 

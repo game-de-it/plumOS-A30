@@ -1,20 +1,22 @@
 #!/bin/sh
 # Policy-aware thumbnail scraper entrypoint.
-#
-# This packaged runner is intentionally a planner for now: it reads
-# systems.json, applies the scraper policy, and counts ROMs that still need
-# thumbnail work without computing CRCs or using the network.
 
 set -u
+TAB_CHAR="$(printf '\t')"
 
 SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}"
 SDCARD_ROOT="${SDCARD_ROOT%/}"
 PLUMOS_ROOT="${PLUMOS_ROOT:-${SDCARD_ROOT}/plumos}"
+PATH="${PLUMOS_ROOT}/bin:${PLUMOS_ROOT}/gnu/bin:${PATH}"
+export PATH
+
 SYSTEMS_JSON="${PLUMOS_SYSTEMS_JSON:-${PLUMOS_ROOT}/config/frontend/systems.json}"
+SOURCES_TSV="${PLUMOS_SCRAPER_SOURCES:-${PLUMOS_ROOT}/config/frontend/scraper-sources.tsv}"
 IMAGE_ROOT="${PLUMOS_IMAGE_ROOT:-${SDCARD_ROOT}/Images}"
 IMAGE_ROOT="${IMAGE_ROOT%/}"
 STATE_DIR="${PLUMOS_THUMBNAIL_STATE_DIR:-${PLUMOS_ROOT}/state/frontend/artwork-scraper}"
 CACHE_DIR="${PLUMOS_THUMBNAIL_CACHE_DIR:-${PLUMOS_ROOT}/cache/frontend/artwork-scraper}"
+PRELOAD_DIR="${PLUMOS_THUMBNAIL_PRELOAD_DIR:-${PLUMOS_ROOT}/share/frontend/artwork-scraper}"
 LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
 LOG_FILE="${PLUMOS_THUMBNAIL_SCRAPER_LOG:-${LOG_DIR}/thumbnail-scraper.log}"
 
@@ -29,6 +31,7 @@ ACTION=plan
 SYSTEM_FILTER=
 PLAN_ALL=0
 LIMIT=0
+KIND=Named_Boxarts
 
 usage() {
   cat <<'USAGE'
@@ -39,7 +42,9 @@ Options:
   --system ID        Plan one system.
   --all              Plan all scraper-enabled systems. Default.
   --dry-run, --plan  Count ROMs and existing thumbnails only. Default.
-  --fetch            Reserved for the next CRC/download implementation.
+  --fetch            Download missing thumbnails for scraper-enabled systems.
+  --kind KIND        Named_Boxarts, Named_Snaps, or Named_Titles.
+                     Default: Named_Boxarts.
   --limit N          Stop after N candidate ROMs per system.
   -h, --help         Show this help.
 
@@ -47,10 +52,12 @@ Environment:
   PLUMOS_SDCARD_ROOT             Default: /mnt/SDCARD
   PLUMOS_ROOT                    Default: $PLUMOS_SDCARD_ROOT/plumos
   PLUMOS_SYSTEMS_JSON            Default: $PLUMOS_ROOT/config/frontend/systems.json
+  PLUMOS_SCRAPER_SOURCES         Default: $PLUMOS_ROOT/config/frontend/scraper-sources.tsv
   PLUMOS_ROM_ROOT                Default: scan both $PLUMOS_SDCARD_ROOT/Roms and /roms
   PLUMOS_IMAGE_ROOT              Default: $PLUMOS_SDCARD_ROOT/Images
   PLUMOS_THUMBNAIL_STATE_DIR     Default: $PLUMOS_ROOT/state/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_CACHE_DIR     Default: $PLUMOS_ROOT/cache/frontend/artwork-scraper
+  PLUMOS_THUMBNAIL_PRELOAD_DIR   Default: $PLUMOS_ROOT/share/frontend/artwork-scraper
 
 Output:
   --list-systems:
@@ -59,7 +66,10 @@ Output:
   --plan:
     status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_workers download_workers
 
-The planner does not print ROM file names.
+  --fetch:
+    status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match download_failed invalid_png skipped_zip skipped_tool
+
+The runner does not print ROM file names.
 USAGE
 }
 
@@ -296,6 +306,213 @@ print_plan_header() {
   printf 'status\tsystem\tenabled\treason\taliases_seen\trom_candidates\texisting_thumbnails\tmissing_thumbnails\tcrc_workers\tdownload_workers\n'
 }
 
+print_fetch_header() {
+  printf 'status\tsystem\tenabled\treason\taliases_seen\trom_candidates\texisting_thumbnails\tmissing_thumbnails\tcrc_checked\tcrc_matched\tdownloaded\tno_match\tdownload_failed\tinvalid_png\tskipped_zip\tskipped_tool\n'
+}
+
+source_field() {
+  system="$1"
+  field="$2"
+  [ -r "$SOURCES_TSV" ] || return 1
+  awk -F "$TAB_CHAR" -v target="$system" -v field="$field" '
+    $1 == target {
+      print $field
+      exit
+    }
+  ' "$SOURCES_TSV"
+}
+
+source_playlist() {
+  source_field "$1" 2
+}
+
+source_dat_path() {
+  source_field "$1" 3
+}
+
+space_encode() {
+  printf '%s' "$1" | sed 's/ /%20/g'
+}
+
+dat_source_url() {
+  dat_path="$(source_dat_path "$1")" || return 1
+  [ -n "$dat_path" ] || return 1
+  printf 'https://raw.githubusercontent.com/libretro/libretro-database/master/%s\n' "$(space_encode "$dat_path")"
+}
+
+thumb_base_url() {
+  playlist="$(source_playlist "$1")" || return 1
+  [ -n "$playlist" ] || return 1
+  printf 'http://thumbnails.libretro.com/%s/%s\n' "$(space_encode "$playlist")" "$KIND"
+}
+
+fetch_url() {
+  url="$1"
+  output="$2"
+  tmp="${output}.tmp.$$"
+
+  rm -f "$tmp" 2>/dev/null || true
+  mkdir -p "$(dirname "$output")" 2>/dev/null || true
+  if command -v curl >/dev/null 2>&1; then
+    if curl -fsSL --retry 2 --connect-timeout 10 --max-time 90 -o "$tmp" "$url"; then
+      mv "$tmp" "$output"
+      return 0
+    fi
+  elif command -v wget >/dev/null 2>&1; then
+    if wget -q -O "$tmp" "$url"; then
+      mv "$tmp" "$output"
+      return 0
+    fi
+  else
+    return 127
+  fi
+
+  rm -f "$tmp" 2>/dev/null || true
+  return 1
+}
+
+dat_to_crc_index() {
+  dat_file="$1"
+  index_file="$2"
+  awk '
+    /^game[[:space:]]*\(/ {
+      game = ""
+      next
+    }
+    /^[[:space:]]*name[[:space:]]+"/ && game == "" {
+      line = $0
+      sub(/^[[:space:]]*name[[:space:]]+"/, "", line)
+      sub(/"$/, "", line)
+      game = line
+      next
+    }
+    /^[[:space:]]*rom[[:space:]]*\(/ && game != "" {
+      if (match($0, /crc[[:space:]][0-9A-Fa-f]+/)) {
+        crc = substr($0, RSTART + 4, RLENGTH - 4)
+        gsub(/[[:space:]]/, "", crc)
+        print tolower(crc) "\t" game
+      }
+    }
+  ' "$dat_file" > "$index_file"
+}
+
+html_to_thumb_index() {
+  html_file="$1"
+  index_file="$2"
+  awk '
+    /<a[[:space:]][^>]*href="[^"]+\.png"/ {
+      line = $0
+      href = line
+      sub(/^.*<a[[:space:]][^>]*href="/, "", href)
+      sub(/".*$/, "", href)
+      label = line
+      sub(/^.*">/, "", label)
+      sub(/<\/a>.*$/, "", label)
+      sub(/\.png$/, "", label)
+      gsub(/&amp;/, "\\&", label)
+      gsub(/&quot;/, "\"", label)
+      gsub(/&#39;/, sprintf("%c", 39), label)
+      if (href !~ /^\// && label != "") {
+        print label "\t" href
+      }
+    }
+  ' "$html_file" > "$index_file"
+}
+
+ensure_dat_index() {
+  system="$1"
+  preloaded="${PRELOAD_DIR}/dat/${system}.crc.tsv"
+  cached="${CACHE_DIR}/dat/${system}.crc.tsv"
+  source_dat="${CACHE_DIR}/dat-source/${system}.dat"
+  url=""
+
+  if [ -s "$preloaded" ]; then
+    printf '%s\n' "$preloaded"
+    return 0
+  fi
+  if [ -s "$cached" ]; then
+    printf '%s\n' "$cached"
+    return 0
+  fi
+
+  url="$(dat_source_url "$system" || true)"
+  [ -n "$url" ] || return 1
+  mkdir -p "${CACHE_DIR}/dat" "${CACHE_DIR}/dat-source" 2>/dev/null || true
+  fetch_url "$url" "$source_dat" || return 1
+  dat_to_crc_index "$source_dat" "${cached}.tmp" || return 1
+  mv "${cached}.tmp" "$cached"
+  printf '%s\n' "$cached"
+}
+
+ensure_thumb_index() {
+  system="$1"
+  preloaded="${PRELOAD_DIR}/thumb-names/${system}/${KIND}.tsv"
+  cached="${CACHE_DIR}/thumb-names/${system}/${KIND}.tsv"
+  html="${CACHE_DIR}/thumb-html/${system}/${KIND}.html"
+  base=""
+
+  if [ -s "$preloaded" ]; then
+    printf '%s\n' "$preloaded"
+    return 0
+  fi
+  if [ -s "$cached" ]; then
+    printf '%s\n' "$cached"
+    return 0
+  fi
+
+  base="$(thumb_base_url "$system" || true)"
+  [ -n "$base" ] || return 1
+  mkdir -p "${CACHE_DIR}/thumb-names/${system}" "${CACHE_DIR}/thumb-html/${system}" 2>/dev/null || true
+  fetch_url "${base}/" "$html" || return 1
+  html_to_thumb_index "$html" "${cached}.tmp" || return 1
+  mv "${cached}.tmp" "$cached"
+  printf '%s\n' "$cached"
+}
+
+lookup_crc_name() {
+  index="$1"
+  crc="$2"
+  awk -F "$TAB_CHAR" -v crc="$crc" '$1 == crc { print $2; exit }' "$index"
+}
+
+lookup_thumb_href() {
+  index="$1"
+  name="$2"
+  awk -F "$TAB_CHAR" -v name="$name" '$1 == name { print $2; exit }' "$index"
+}
+
+compute_crc32() {
+  crc32 "$1" 2>/dev/null | awk '{ print tolower($1); exit }'
+}
+
+is_png_file() {
+  file="$1"
+  sig="${CACHE_DIR}/png-signature.bin"
+  [ -s "$file" ] || return 1
+  mkdir -p "$CACHE_DIR" 2>/dev/null || true
+  printf '\211PNG\r\n\032\n' > "$sig"
+  dd if="$file" bs=8 count=1 2>/dev/null | cmp -s - "$sig"
+}
+
+first_zip_member() {
+  zip_path="$1"
+  allowed_list="$2"
+  command -v unzip >/dev/null 2>&1 || return 1
+  unzip -lq "$zip_path" 2>/dev/null | while IFS= read -r member; do
+    case "$member" in
+      ""|*/|*"/") continue ;;
+    esac
+    ext="$(lower_ext "$member" 2>/dev/null || true)"
+    [ -n "$ext" ] || continue
+    case "$ext" in
+      zip|7z) continue ;;
+    esac
+    extension_allowed "$ext" "$allowed_list" || continue
+    printf '%s\n' "$member"
+    return 0
+  done
+}
+
 print_system_policy() {
   policy_system="$1"
   block="$(system_block "$policy_system")"
@@ -418,6 +635,159 @@ plan_system() {
   return 0
 }
 
+fetch_system() {
+  fetch_system_id="$1"
+  explicit="$2"
+  block="$(system_block "$fetch_system_id")"
+  [ -n "$block" ] || die "unknown system: $fetch_system_id"
+
+  enabled="$(scraper_enabled "$block")"
+  reason="$(scraper_reason "$block")"
+  extensions="$(scraper_extensions "$block")"
+
+  if [ "${enabled:-false}" != "true" ]; then
+    if [ "$explicit" = 1 ]; then
+      printf 'disabled\t%s\tfalse\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' "$fetch_system_id" "${reason:--}"
+      log "fetch disabled system=${fetch_system_id} reason=${reason:--}"
+      return 2
+    fi
+    return 0
+  fi
+
+  [ -n "$extensions" ] || die "enabled system has no scraper extensions: $fetch_system_id"
+  [ -r "$SOURCES_TSV" ] || die "scraper sources are not readable: $SOURCES_TSV"
+
+  mkdir -p "$STATE_DIR" "$CACHE_DIR" "$LOG_DIR" 2>/dev/null || true
+  tmp_list="${STATE_DIR}/fetch-${fetch_system_id}-$$.list"
+  payload_tmp="${STATE_DIR}/payload-${fetch_system_id}-$$.rom"
+  rm -f "$tmp_list" "$payload_tmp" 2>/dev/null || true
+
+  aliases_seen=0
+  rom_candidates=0
+  existing_thumbnails=0
+  missing_thumbnails=0
+  crc_checked=0
+  crc_matched=0
+  downloaded=0
+  no_match=0
+  download_failed=0
+  invalid_png=0
+  skipped_zip=0
+  skipped_tool=0
+  seen_dirs=" "
+  stop_scan=0
+
+  dat_index="$(ensure_dat_index "$fetch_system_id" 2>/dev/null || true)"
+  thumb_index="$(ensure_thumb_index "$fetch_system_id" 2>/dev/null || true)"
+  thumb_base="$(thumb_base_url "$fetch_system_id" 2>/dev/null || true)"
+  if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
+    skipped_tool=1
+    printf 'fetch\t%s\ttrue\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t%s\n' \
+      "$fetch_system_id" "${reason:--}" "$skipped_tool"
+    log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
+    return 0
+  fi
+
+  aliases="$(directory_aliases "$block")"
+  for rom_root in $ROM_ROOTS; do
+    for alias in $aliases; do
+      alias_dir="${rom_root%/}/${alias}"
+      [ -d "$alias_dir" ] || continue
+
+      identity="$(dir_identity "$alias_dir")"
+      case "$seen_dirs" in
+        *" ${identity} "*) continue ;;
+      esac
+      seen_dirs="${seen_dirs}${identity} "
+      aliases_seen=$((aliases_seen + 1))
+
+      find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
+      while IFS= read -r rom_path; do
+        ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
+        [ -n "$ext" ] || continue
+        extension_allowed "$ext" "$extensions" || continue
+
+        rom_candidates=$((rom_candidates + 1))
+        rel_path="${rom_path#"$alias_dir"/}"
+        rel_stem="${rel_path%.*}"
+        flat_stem="${rel_stem##*/}"
+
+        if thumbnail_exists "$fetch_system_id" "$rel_stem" "$flat_stem"; then
+          existing_thumbnails=$((existing_thumbnails + 1))
+        else
+          missing_thumbnails=$((missing_thumbnails + 1))
+
+          payload="$rom_path"
+          rm -f "$payload_tmp" 2>/dev/null || true
+          if [ "$ext" = "zip" ]; then
+            member="$(first_zip_member "$rom_path" "$extensions" || true)"
+            if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
+              skipped_zip=$((skipped_zip + 1))
+              if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then
+                stop_scan=1
+                break
+              fi
+              continue
+            fi
+            payload="$payload_tmp"
+          fi
+
+          crc="$(compute_crc32 "$payload" || true)"
+          rm -f "$payload_tmp" 2>/dev/null || true
+          if [ -z "$crc" ]; then
+            skipped_tool=$((skipped_tool + 1))
+          else
+            crc_checked=$((crc_checked + 1))
+            canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
+            if [ -z "$canonical" ]; then
+              no_match=$((no_match + 1))
+            else
+              crc_matched=$((crc_matched + 1))
+              href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
+              if [ -z "$href" ]; then
+                no_match=$((no_match + 1))
+              else
+                dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
+                url="${thumb_base}/${href}"
+                mkdir -p "$(dirname "$dest")" 2>/dev/null || true
+                tmp_dest="${dest}.tmp.$$"
+                if ! fetch_url "$url" "$tmp_dest"; then
+                  rm -f "$tmp_dest" 2>/dev/null || true
+                  download_failed=$((download_failed + 1))
+                elif ! is_png_file "$tmp_dest"; then
+                  rm -f "$tmp_dest" 2>/dev/null || true
+                  invalid_png=$((invalid_png + 1))
+                else
+                  mv "$tmp_dest" "$dest"
+                  downloaded=$((downloaded + 1))
+                fi
+              fi
+            fi
+          fi
+        fi
+
+        if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then
+          stop_scan=1
+          break
+        fi
+      done < "$tmp_list"
+
+      [ "$stop_scan" = 1 ] && break
+    done
+    [ "$stop_scan" = 1 ] && break
+  done
+
+  rm -f "$tmp_list" "$payload_tmp" 2>/dev/null || true
+
+  printf 'fetch\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$fetch_system_id" "${reason:--}" "$aliases_seen" "$rom_candidates" \
+    "$existing_thumbnails" "$missing_thumbnails" "$crc_checked" "$crc_matched" \
+    "$downloaded" "$no_match" "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
+
+  log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} limit=${LIMIT}"
+  return 0
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --list-systems)
@@ -440,6 +810,11 @@ while [ "$#" -gt 0 ]; do
     --fetch)
       ACTION=fetch
       ;;
+    --kind)
+      shift
+      [ "$#" -gt 0 ] || die "--kind requires a value"
+      KIND="$1"
+      ;;
     --limit)
       shift
       [ "$#" -gt 0 ] || die "--limit requires a number"
@@ -458,6 +833,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -r "$SYSTEMS_JSON" ] || die "systems.json is not readable: $SYSTEMS_JSON"
+case "$KIND" in
+  Named_Boxarts|Named_Snaps|Named_Titles) ;;
+  *) die "invalid --kind: $KIND" ;;
+esac
 
 case "$ACTION" in
   list)
@@ -467,7 +846,17 @@ case "$ACTION" in
     done
     ;;
   fetch)
-    die "--fetch is reserved for the next CRC/download implementation; run without --fetch to plan safely"
+    if [ -z "$SYSTEM_FILTER" ] && [ "$PLAN_ALL" = 0 ]; then
+      PLAN_ALL=1
+    fi
+    print_fetch_header
+    if [ -n "$SYSTEM_FILTER" ]; then
+      fetch_system "$SYSTEM_FILTER" 1
+      exit $?
+    fi
+    for system_id in $(all_system_ids); do
+      fetch_system "$system_id" 0 || true
+    done
     ;;
   plan)
     if [ -z "$SYSTEM_FILTER" ] && [ "$PLAN_ALL" = 0 ]; then

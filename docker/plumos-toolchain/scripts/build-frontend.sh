@@ -20,6 +20,7 @@ CONTROLLER_MALI_OUT="${BIN_DIR}/plumos-controller-ui-mali.bin"
 CONTROLLER_MALI_WRAPPER="${BIN_DIR}/plumos-controller-ui-mali"
 SAFE_HOTKEYD_OUT="${BIN_DIR}/plumos-safe-hotkeyd"
 MANIFEST="${DOC_DIR}/manifest.txt"
+PREFETCH_THUMBNAIL_CACHE="${PLUMOS_PREFETCH_THUMBNAIL_CACHE:-auto}"
 
 CC="${CC:-arm-linux-gnueabihf-gcc}"
 STRIP="${STRIP:-arm-linux-gnueabihf-strip}"
@@ -29,6 +30,36 @@ mkdir -p "$BIN_DIR" "$LIB_DIR" "$DOC_DIR"
 if [ -d "$PACKAGE_DIR" ]; then
   cp -a "${PACKAGE_DIR}/." "${DIST_DIR}/plumos/"
 fi
+
+prefetch_thumbnail_cache() {
+  local scraper_cache_dir="${DIST_DIR}/plumos/share/frontend/artwork-scraper"
+  local prefetch_script="${ROOT_DIR}/scripts/prefetch-thumbnail-scraper-cache.sh"
+
+  case "$PREFETCH_THUMBNAIL_CACHE" in
+    0|false|no|skip)
+      echo "Skipping thumbnail scraper cache prefetch"
+      return 0
+      ;;
+    1|true|yes|auto) ;;
+    *)
+      echo "error: invalid PLUMOS_PREFETCH_THUMBNAIL_CACHE=${PREFETCH_THUMBNAIL_CACHE}" >&2
+      return 1
+      ;;
+  esac
+
+  if "$prefetch_script" \
+      --systems-json "${DIST_DIR}/plumos/config/frontend/systems.json" \
+      --sources "${DIST_DIR}/plumos/config/frontend/scraper-sources.tsv" \
+      --output "$scraper_cache_dir"; then
+    return 0
+  fi
+
+  if [ "$PREFETCH_THUMBNAIL_CACHE" = "auto" ]; then
+    echo "warning: thumbnail scraper cache prefetch failed; continuing because PLUMOS_PREFETCH_THUMBNAIL_CACHE=auto" >&2
+    return 0
+  fi
+  return 1
+}
 
 build_one() {
   local src="$1"
@@ -175,6 +206,7 @@ build_one "$TEXT_UI_SRC" "$TEXT_UI_OUT"
 build_one "$CONTROLLER_UI_SRC" "$CONTROLLER_UI_OUT"
 build_one "$SAFE_HOTKEYD_SRC" "$SAFE_HOTKEYD_OUT"
 build_mali_controller
+prefetch_thumbnail_cache
 
 sha256sum \
   "$FRONTEND_OUT" \

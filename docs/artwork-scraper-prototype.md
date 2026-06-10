@@ -197,7 +197,9 @@ A30_TARGET=root@192.168.10.165 \
 
 `package/frontend/plumos/bin/plumos-thumbnail-scraper` は、FE へ button UI を付ける前に
 実機上で scraper policy と既存 thumbnail skip の件数を確認するための package runner です。
-現時点では CRC 計算、DAT lookup、thumbnail download は行わず、`--fetch` は明示的に拒否します。
+`--plan` / `--dry-run` では CRC 計算や network access を行わず、`--fetch` では既存 thumbnail が
+ない ROM だけ CRC -> DAT lookup -> thumbnail index lookup -> PNG download を行います。
+runner は標準出力と log に ROM file 名を出さず、system ごとの集計だけを出します。
 
 主な用途:
 
@@ -205,6 +207,7 @@ A30_TARGET=root@192.168.10.165 \
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --list-systems
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --limit 20
 ```
 
 環境変数:
@@ -212,11 +215,13 @@ A30_TARGET=root@192.168.10.165 \
 - `PLUMOS_SDCARD_ROOT`: default `/mnt/SDCARD`
 - `PLUMOS_ROOT`: default `$PLUMOS_SDCARD_ROOT/plumos`
 - `PLUMOS_SYSTEMS_JSON`: default `$PLUMOS_ROOT/config/frontend/systems.json`
+- `PLUMOS_SCRAPER_SOURCES`: default `$PLUMOS_ROOT/config/frontend/scraper-sources.tsv`
 - `PLUMOS_ROM_ROOT`: 指定時はこの root だけを見る。未指定時は `/mnt/SDCARD/Roms` と
   `/mnt/SDCARD/roms` を frontend と同じように見る
 - `PLUMOS_IMAGE_ROOT`: default `$PLUMOS_SDCARD_ROOT/Images`
 - `PLUMOS_THUMBNAIL_STATE_DIR`: default `$PLUMOS_ROOT/state/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
+- `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 
 `--system <id>` は disabled system の場合、理由を出して exit code `2` を返します。`--all` は
 enabled system だけを plan します。出力は TSV で、ROM file 名は出しません。
@@ -231,6 +236,37 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 `existing_thumbnails` は frontend と同じ lookup 順で `/mnt/SDCARD/Images/<system_id>` を見て、
 subdirectory 画像、flat fallback 画像のどちらかが存在した件数です。`missing_thumbnails` だけが、
 次段階の CRC/DAT/download queue に入る対象です。
+
+fetch 出力の列:
+
+```text
+status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match download_failed invalid_png skipped_zip skipped_tool
+```
+
+`--fetch` は `PLUMOS_ROOT/bin` を PATH 先頭に追加し、plumOS 同梱 BusyBox の `crc32`, `wget`,
+`unzip` などを使います。DAT/index はまず `PLUMOS_THUMBNAIL_PRELOAD_DIR` を見て、無い場合だけ
+`PLUMOS_THUMBNAIL_CACHE_DIR` へ取得します。thumbnail PNG は libretro thumbnail server の
+HTTP URL から取得し、`/mnt/SDCARD/Images/<system_id>/<relative stem>.png` へ保存します。
+
+source 定義は `package/frontend/plumos/config/frontend/scraper-sources.tsv` です。列は
+`system_id`, `libretro_playlist`, `libretro_dat_path` です。`systems.json` の
+`scraper.enabled=true` system だけを prefetch/fetch 対象にします。
+
+## 事前取得 cache
+
+`scripts/prefetch-thumbnail-scraper-cache.sh` は host/build 用の事前取得入口です。libretro DAT を
+`crc -> canonical game name` の TSV に変換し、thumbnail directory index を
+`canonical game name -> encoded png href` の TSV に変換します。generated data は git に入れず、
+frontend build 時に `dist/plumos-frontend/plumos/share/frontend/artwork-scraper/` へ入れます。
+
+```sh
+scripts/prefetch-thumbnail-scraper-cache.sh \
+  --output dist/plumos-frontend/plumos/share/frontend/artwork-scraper
+```
+
+`docker/plumos-toolchain/scripts/build-frontend.sh` は
+`PLUMOS_PREFETCH_THUMBNAIL_CACHE=auto` を default とし、network が使える場合はこの cache を
+事前生成します。`0` / `false` / `skip` で省略、`1` / `true` で失敗を build error にできます。
 
 ## 試験対象
 
