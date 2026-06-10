@@ -33,6 +33,7 @@ SSH キットを作成しました。SSH 経由で起動処理、マウント状
 - [A30 設定 UI 方針](docs/a30-settings-policy.md)
 - [plumOS ネットワークサービス](docs/network-services.md)
 - [plumOS USB Disk Mode](docs/usb-disk-mode.md)
+- [サムネイルスクレイピング結果](docs/thumbnail-scraping-results.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.md)
 - [SSH 導入手順](docs/ssh-bringup.md)
 - [TODO](TODO.md)

@@ -302,11 +302,13 @@ run they just started. Detailed logs are still written to
 - `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
 - `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
 - `Thumbnail Results`: summarizes the latest log as readable multi-line rows.
-  `Thumbnail Plan` system rows are split into the system name,
-  `ROMs N, existing N`, and `missing N`. `Fetch Thumbnails` system rows are
-  split into the system name, `ROMs N, downloaded N`, and
-  `no match N, failed N`. The screen scrolls one row with up/down and one page
-  with left/right.
+  `Thumbnail Plan` shows `reason`, `aliases seen`, `ROMs`, `existing`,
+  `missing`, `CRC workers`, and `DL workers`. `Fetch Thumbnails` shows
+  `reason`, `aliases seen`, `ROMs`, `existing`, `missing`, `CRC checked`,
+  `CRC matched`, `downloaded`, `no match`, `CRC miss`, `image miss`,
+  `download failed`, `invalid PNG`, `skipped zip`, and `skipped tool`.
+  The screen scrolls one row with up/down and one page with left/right.
+  Field meanings and recovery notes live in `docs/thumbnail-scraping-results.en.md`.
 
 Source definitions live in
 `package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are

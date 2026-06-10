@@ -268,10 +268,13 @@ FE の START -> Apps には以下の入口を置きます。`Thumbnail Plan` と
 - `Thumbnail Plan`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50`
 - `Fetch Thumbnails`: `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20`
 - `Thumbnail Results`: 最新 log を読みやすい複数行にまとめて表示する。
-  `Thumbnail Plan` の system 行は system 名、`ROMs N, existing N`、
-  `missing N` に分ける。`Fetch Thumbnails` の system 行は system 名、
-  `ROMs N, downloaded N`、`no match N, failed N` に分ける。
-  画面は上下で 1 行スクロール、左右でページ移動できる。
+  `Thumbnail Plan` は `reason`、`aliases seen`、`ROMs`、`existing`、
+  `missing`、`CRC workers`、`DL workers` を表示する。
+  `Fetch Thumbnails` は `reason`、`aliases seen`、`ROMs`、`existing`、
+  `missing`、`CRC checked`、`CRC matched`、`downloaded`、`no match`、
+  `CRC miss`、`image miss`、`download failed`、`invalid PNG`、`skipped zip`、
+  `skipped tool` を表示する。画面は上下で 1 行スクロール、左右でページ移動できる。
+  各項目の意味と対処は `docs/thumbnail-scraping-results.md` にまとめる。
 
 source 定義は `package/frontend/plumos/config/frontend/scraper-sources.tsv` です。列は
 `system_id`, `libretro_playlist`, `libretro_dat_path` です。`systems.json` の

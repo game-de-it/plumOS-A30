@@ -34,6 +34,7 @@ Project notes:
 - [A30 settings UI policy](docs/a30-settings-policy.en.md)
 - [plumOS network services](docs/network-services.en.md)
 - [plumOS USB Disk Mode](docs/usb-disk-mode.en.md)
+- [Thumbnail scraping results](docs/thumbnail-scraping-results.en.md)
 - [Stock reuse decision template](docs/decisions/stock-reuse-template.en.md)
 - [SSH bring-up](docs/ssh-bringup.en.md)
 - [TODO](TODO.en.md)

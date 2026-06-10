@@ -170,7 +170,7 @@ struct input_event {
 #define UI_PATH_MAX 1024
 #define UI_RENDER_MAX_LINES 64
 #define UI_RENDER_LINE_MAX 512
-#define UI_THUMBNAIL_RESULT_MAX_LINES 96
+#define UI_THUMBNAIL_RESULT_MAX_LINES 256
 #define UI_KEY_REPEAT_DELAY_MS 350
 #define UI_KEY_REPEAT_INTERVAL_MS 95
 #define UI_SETTING_VALUE_REPEAT_INTERVAL_MS 250
@@ -4415,17 +4415,65 @@ static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *
   if (strcmp(fields[0], "plan") == 0 && count >= 8) {
     snprintf(out, sizeof(out), "%s", fields[1]);
     add_thumbnail_result_line(ui, out);
-    snprintf(out, sizeof(out), "ROMs %s, existing %s", fields[5], fields[6]);
+    snprintf(out, sizeof(out), "reason %s", fields[3]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "aliases seen %s", fields[4]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "ROMs %s", fields[5]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "existing %s", fields[6]);
     add_thumbnail_result_line(ui, out);
     snprintf(out, sizeof(out), "missing %s", fields[7]);
     add_thumbnail_result_line(ui, out);
+    if (count >= 10) {
+      snprintf(out, sizeof(out), "CRC workers %s", fields[8]);
+      add_thumbnail_result_line(ui, out);
+      snprintf(out, sizeof(out), "DL workers %s", fields[9]);
+      add_thumbnail_result_line(ui, out);
+    }
+    add_thumbnail_result_line(ui, "----------------");
   } else if (strcmp(fields[0], "fetch") == 0 && count >= 15) {
     snprintf(out, sizeof(out), "%s", fields[1]);
     add_thumbnail_result_line(ui, out);
-    snprintf(out, sizeof(out), "ROMs %s, downloaded %s", fields[5], fields[10]);
+    snprintf(out, sizeof(out), "reason %s", fields[3]);
     add_thumbnail_result_line(ui, out);
-    snprintf(out, sizeof(out), "no match %s, failed %s", fields[11], fields[14]);
+    snprintf(out, sizeof(out), "aliases seen %s", fields[4]);
     add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "ROMs %s", fields[5]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "existing %s", fields[6]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "missing %s", fields[7]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "CRC checked %s", fields[8]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "CRC matched %s", fields[9]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "downloaded %s", fields[10]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "no match %s", fields[11]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "CRC miss %s", fields[12]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "image miss %s", fields[13]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "download failed %s", fields[14]);
+    add_thumbnail_result_line(ui, out);
+    if (count >= 18) {
+      snprintf(out, sizeof(out), "invalid PNG %s", fields[15]);
+      add_thumbnail_result_line(ui, out);
+      snprintf(out, sizeof(out), "skipped zip %s", fields[16]);
+      add_thumbnail_result_line(ui, out);
+      snprintf(out, sizeof(out), "skipped tool %s", fields[17]);
+      add_thumbnail_result_line(ui, out);
+    }
+    add_thumbnail_result_line(ui, "----------------");
+  } else if (strcmp(fields[0], "disabled") == 0 && count >= 4) {
+    snprintf(out, sizeof(out), "%s", fields[1]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "disabled %s", fields[3]);
+    add_thumbnail_result_line(ui, out);
+    add_thumbnail_result_line(ui, "----------------");
   } else if (strcmp(fields[0], "app_start") == 0 && count >= 2) {
     snprintf(out, sizeof(out), "%s", thumbnail_action_label(fields[1]));
     add_thumbnail_result_line(ui, out);
