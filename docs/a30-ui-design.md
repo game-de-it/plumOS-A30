@@ -105,12 +105,13 @@
 成立するカード/プレビュー型UIを基準にする。Settings、HELP、SAFE、Network、System系の
 操作画面は視認性と誤操作防止を優先し、当面は現行の青バー付きlist UIを使う。
 
-- TOP は `PLUMOS A30 GUI` のカードグリッドにする。1ページは3列x2行の正方形6件を
-  基準にし、system logo を判別できる大きさで表示する。
+- TOP は `PLUMOS A30 GUI` のカードUIにする。`tile_grid` は1ページ3列x2行の正方形6件、
+  `tile_strip` は1ページ1行x2列の正方形2件を基準にし、system logo を判別できる大きさで表示する。
 - TOP card は system logo、system 名、ROM数、fallback initials を表示する。
   画像がなくても空に見せない。
-- Graphic TOP の十字キーはタイルの見た目に合わせる。左右は横移動、上下は縦移動とし、
-  行端では前後の行へ回り込む。ページ境界を越える場合は前/次ページへ自然に移動する。
+- Graphic TOP の十字キーはタイルの見た目に合わせる。`tile_grid` は左右で横移動、上下で縦移動とし、
+  行端では前後の行へ回り込む。`tile_strip` は左右移動のみを基本にする。
+  ページ境界を越える場合は前/次ページへ自然に移動する。
 - Graphic TOP のページ遷移は theme の `graphic_mode.transition` で見た目だけを切り替える。
   現時点の正式値は `none` と `slide`。`slide` は次ページが下から上へ、前ページが上から下へ
   eased motion で入れ替わる上下方向の演出にする。theme は入力、ページサイズ、決定/戻る動作を変えない。

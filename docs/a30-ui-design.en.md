@@ -177,9 +177,10 @@ misclick prevention.
   grid of six square cards so system logos remain large enough to identify.
 - TOP cards show system logo, system name, ROM count, and fallback initials so
   they never look empty when artwork is missing.
-- Graphic TOP directional input follows the grid: Left/Right move horizontally,
-  Up/Down move vertically, row edges wrap to the previous/next row, and page
-  boundaries move naturally to the previous/next page.
+- Graphic TOP directional input follows the layout: `tile_grid` uses Left/Right
+  for horizontal movement and Up/Down for vertical movement, while `tile_strip`
+  primarily uses Left/Right movement. Page boundaries move naturally to the
+  previous/next page.
 - Graphic TOP page transitions are presentation-only theme settings under
   `graphic_mode.transition`. The currently supported values are `none` and
   `slide`. `slide` is eased vertical motion: the next page rises from below and

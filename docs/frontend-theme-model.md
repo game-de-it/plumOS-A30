@@ -140,6 +140,8 @@ theme が扱えないもの:
 
 `graphic_mode.transition` は見た目だけを変える設定です。現時点の正式値は `none` と
 `slide` です。Graphic TOP の `slide` はページ全体が eased vertical motion で上下に入れ替わる演出です。
+`top_layout` は `tile_grid` / `tile_strip` を指定できます。`tile_grid` は3列x2行の6件表示、
+`tile_strip` は1行2件表示で横スクロールテーマ向けです。
 `transition_ms` は `80..1000` の範囲で扱い、未指定時の `slide` は `260ms` を基準にします。
 `transition_axis` は `vertical` / `horizontal`、`transition_easing` は `smoothstep` / `linear`
 を指定できます。

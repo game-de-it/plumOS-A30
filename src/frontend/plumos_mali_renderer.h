@@ -2611,6 +2611,7 @@ struct plumos_mali_graphic_theme {
   struct plumos_mali_rgb danger;
   char background_image[PLUMOS_MALI_RENDER_LINE_MAX];
   char placeholder_thumbnail[PLUMOS_MALI_RENDER_LINE_MAX];
+  char top_layout[32];
   char transition_axis[32];
   char transition_easing[32];
 };
@@ -2661,6 +2662,7 @@ static void plumos_mali_graphic_theme_defaults(
   theme->selection_background = plumos_mali_rgb(0.14f, 0.23f, 0.20f);
   theme->selection_foreground = plumos_mali_rgb(1.0f, 0.90f, 0.48f);
   theme->danger = plumos_mali_rgb(1.0f, 0.08f, 0.04f);
+  snprintf(theme->top_layout, sizeof(theme->top_layout), "%s", "tile_grid");
   snprintf(theme->transition_axis, sizeof(theme->transition_axis), "%s", "vertical");
   snprintf(theme->transition_easing, sizeof(theme->transition_easing), "%s",
            "smoothstep");
@@ -2767,7 +2769,11 @@ static void plumos_mali_graphic_theme_parse_line(
   if (plumos_mali_starts_with(line, prefix_color)) {
     plumos_mali_graphic_theme_set_color(theme, key, value);
   } else if (plumos_mali_starts_with(line, prefix_motion)) {
-    if (strcmp(key, "transition_axis") == 0 &&
+    if (strcmp(key, "top_layout") == 0 &&
+        (strcmp(value, "tile_grid") == 0 || strcmp(value, "tile_strip") == 0)) {
+      snprintf(theme->top_layout, sizeof(theme->top_layout), "%s",
+               strcmp(value, "tile_strip") == 0 ? "tile_strip" : "tile_grid");
+    } else if (strcmp(key, "transition_axis") == 0 &&
         (strcmp(value, "vertical") == 0 || strcmp(value, "horizontal") == 0)) {
       snprintf(theme->transition_axis, sizeof(theme->transition_axis), "%s",
                strcmp(value, "horizontal") == 0 ? "horizontal" : "vertical");
@@ -2931,37 +2937,80 @@ static void plumos_mali_graphic_top_bar(struct plumos_mali_renderer *renderer,
                            12.0f, 2, theme->muted, 1.0f);
 }
 
+static void plumos_mali_graphic_top_layout_metrics(
+    const struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_theme *theme,
+    size_t *columns_out, size_t *rows_out, float *grid_x_out, float *grid_y_out,
+    float *tile_size_out, float *gap_out) {
+  int strip = theme && strcmp(theme->top_layout, "tile_strip") == 0;
+  size_t columns = strip ? 2u : 3u;
+  size_t rows = strip ? 1u : 2u;
+  float horizontal_margin = strip ? 32.0f : 22.0f;
+  float grid_y = strip ? 116.0f : 70.0f;
+  float bottom_margin = strip ? 42.0f : 18.0f;
+  float gap = strip ? 16.0f : 10.0f;
+  float width_limited =
+      ((float)renderer->width - horizontal_margin * 2.0f -
+       gap * (float)(columns - 1)) /
+      (float)columns;
+  float height_limited =
+      ((float)renderer->height - grid_y - bottom_margin -
+       gap * (float)(rows - 1)) /
+      (float)rows;
+  float tile_size = width_limited < height_limited ? width_limited
+                                                   : height_limited;
+  float grid_width = tile_size * (float)columns +
+                     gap * (float)(columns - 1);
+  float grid_x = ((float)renderer->width - grid_width) * 0.5f;
+
+  if (strip && tile_size > 260.0f) {
+    tile_size = 260.0f;
+    grid_width = tile_size * (float)columns + gap * (float)(columns - 1);
+    grid_x = ((float)renderer->width - grid_width) * 0.5f;
+  }
+  if (grid_x < 8.0f) {
+    grid_x = 8.0f;
+  }
+  if (columns_out) {
+    *columns_out = columns;
+  }
+  if (rows_out) {
+    *rows_out = rows;
+  }
+  if (grid_x_out) {
+    *grid_x_out = grid_x;
+  }
+  if (grid_y_out) {
+    *grid_y_out = grid_y;
+  }
+  if (tile_size_out) {
+    *tile_size_out = tile_size;
+  }
+  if (gap_out) {
+    *gap_out = gap;
+  }
+}
+
 static void plumos_mali_graphic_draw_top_entries(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
     float x_offset, float y_offset) {
-  const size_t columns = 3;
-  const size_t rows = 2;
-  const float horizontal_margin = 22.0f;
-  const float grid_y = 70.0f;
-  const float bottom_margin = 18.0f;
-  const float gap = 10.0f;
-  const float width_limited =
-      ((float)renderer->width - horizontal_margin * 2.0f -
-       gap * (float)(columns - 1)) /
-      (float)columns;
-  const float height_limited =
-      ((float)renderer->height - grid_y - bottom_margin -
-       gap * (float)(rows - 1)) /
-      (float)rows;
-  const float tile_size = width_limited < height_limited ? width_limited
-                                                         : height_limited;
-  const float tile_w = tile_size;
-  const float tile_h = tile_size;
-  const float grid_width = tile_w * (float)columns +
-                           gap * (float)(columns - 1);
-  float grid_x = ((float)renderer->width - grid_width) * 0.5f;
+  size_t columns = 3;
+  size_t rows = 2;
+  float grid_x = 0.0f;
+  float grid_y = 0.0f;
+  float tile_size = 0.0f;
+  float gap = 10.0f;
+  float tile_w;
+  float tile_h;
   size_t i;
 
-  if (grid_x < 8.0f) {
-    grid_x = 8.0f;
-  }
+  plumos_mali_graphic_top_layout_metrics(renderer, theme, &columns, &rows,
+                                         &grid_x, &grid_y, &tile_size, &gap);
+  tile_w = tile_size;
+  tile_h = tile_size;
+  (void)rows;
 
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;

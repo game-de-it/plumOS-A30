@@ -150,6 +150,9 @@ omits it, `260ms` is the baseline. Themes may not change input mappings,
 page size, confirm/back behavior, or menu actions. `transition_axis` supports
 `vertical` / `horizontal`, and `transition_easing` supports `smoothstep` /
 `linear`.
+`top_layout` supports `tile_grid` and `tile_strip`. `tile_grid` shows six
+entries in a 3x2 grid; `tile_strip` shows two entries in one row for horizontal
+scroll themes.
 
 `behavior_policy` is a safety check. If any value is `true`, the controller UI
 treats the theme as requesting behavior control, blocks that request, and uses

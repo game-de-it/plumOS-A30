@@ -300,6 +300,7 @@ struct theme_state {
   char background[UI_PATH_MAX];
   char system_logo_root[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
+  char graphic_top_layout[32];
   char graphic_transition[32];
   char graphic_transition_axis[32];
   char graphic_transition_easing[32];
@@ -2500,6 +2501,8 @@ static void init_theme_state(struct theme_state *theme, const char *theme_id,
   copy_string(theme->layout_preset, sizeof(theme->layout_preset), "grid_preview");
   copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
   copy_string(theme->system_logo_root, sizeof(theme->system_logo_root), "logos/systems");
+  copy_string(theme->graphic_top_layout, sizeof(theme->graphic_top_layout),
+              "tile_grid");
   copy_string(theme->graphic_transition, sizeof(theme->graphic_transition), "none");
   copy_string(theme->graphic_transition_axis, sizeof(theme->graphic_transition_axis),
               "vertical");
@@ -2627,6 +2630,9 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
                     ui->theme.color_danger, sizeof(ui->theme.color_danger));
   }
   if (json_find_object(json, json_end, "graphic_mode", &graphic_start, &graphic_end)) {
+    json_get_string(graphic_start, graphic_end, "top_layout",
+                    ui->theme.graphic_top_layout,
+                    sizeof(ui->theme.graphic_top_layout));
     json_get_string(graphic_start, graphic_end, "transition",
                     ui->theme.graphic_transition,
                     sizeof(ui->theme.graphic_transition));
@@ -2648,6 +2654,11 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
       strcmp(ui->theme.graphic_transition, "none") != 0) {
     copy_string(ui->theme.graphic_transition,
                 sizeof(ui->theme.graphic_transition), "none");
+  }
+  if (strcmp(ui->theme.graphic_top_layout, "tile_grid") != 0 &&
+      strcmp(ui->theme.graphic_top_layout, "tile_strip") != 0) {
+    copy_string(ui->theme.graphic_top_layout,
+                sizeof(ui->theme.graphic_top_layout), "tile_grid");
   }
   if (strcmp(ui->theme.graphic_transition_axis, "vertical") != 0 &&
       strcmp(ui->theme.graphic_transition_axis, "horizontal") != 0) {
@@ -4380,15 +4391,35 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
          strcmp(ui->frontend_settings.ui_mode, "graphic") == 0;
 }
 
-#define UI_GRAPHIC_TOP_COLUMNS 3
-#define UI_GRAPHIC_TOP_ROWS 2
-#define UI_GRAPHIC_TOP_PAGE_SIZE (UI_GRAPHIC_TOP_COLUMNS * UI_GRAPHIC_TOP_ROWS)
+#define UI_GRAPHIC_TOP_GRID_COLUMNS 3
+#define UI_GRAPHIC_TOP_GRID_ROWS 2
+#define UI_GRAPHIC_TOP_GRID_PAGE_SIZE \
+  (UI_GRAPHIC_TOP_GRID_COLUMNS * UI_GRAPHIC_TOP_GRID_ROWS)
+#define UI_GRAPHIC_TOP_STRIP_COLUMNS 2
+#define UI_GRAPHIC_TOP_STRIP_ROWS 1
+#define UI_GRAPHIC_TOP_STRIP_PAGE_SIZE \
+  (UI_GRAPHIC_TOP_STRIP_COLUMNS * UI_GRAPHIC_TOP_STRIP_ROWS)
 #define UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS 260
+
+static int ui_graphic_top_uses_strip(const struct ui_state *ui) {
+  return ui_uses_graphic_mode(ui) &&
+         strcmp(ui->theme.graphic_top_layout, "tile_strip") == 0;
+}
+
+static size_t ui_graphic_top_page_size(const struct ui_state *ui) {
+  return ui_graphic_top_uses_strip(ui) ? UI_GRAPHIC_TOP_STRIP_PAGE_SIZE
+                                       : UI_GRAPHIC_TOP_GRID_PAGE_SIZE;
+}
+
+static size_t ui_graphic_top_columns(const struct ui_state *ui) {
+  return ui_graphic_top_uses_strip(ui) ? UI_GRAPHIC_TOP_STRIP_COLUMNS
+                                       : UI_GRAPHIC_TOP_GRID_COLUMNS;
+}
 
 static size_t ui_list_window_size(const struct ui_state *ui) {
   if (ui_uses_graphic_mode(ui)) {
     if (ui->screen == SCREEN_TOP) {
-      return UI_GRAPHIC_TOP_PAGE_SIZE;
+      return ui_graphic_top_page_size(ui);
     }
     if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
         ui->screen == SCREEN_RECENT) {
@@ -4410,8 +4441,13 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
   return 10;
 }
 
-static size_t ui_graphic_top_page_for_cursor(size_t cursor) {
-  return cursor / UI_GRAPHIC_TOP_PAGE_SIZE;
+static size_t ui_graphic_top_page_for_cursor(const struct ui_state *ui,
+                                             size_t cursor) {
+  size_t page_size = ui_graphic_top_page_size(ui);
+  if (page_size == 0) {
+    page_size = 1;
+  }
+  return cursor / page_size;
 }
 
 static int ui_graphic_top_slide_enabled(const struct ui_state *ui) {
@@ -4446,8 +4482,8 @@ static void ui_start_graphic_top_transition(struct ui_state *ui,
   if (!ui || from_cursor == to_cursor || !ui_graphic_top_slide_enabled(ui)) {
     return;
   }
-  from_page = ui_graphic_top_page_for_cursor(from_cursor);
-  to_page = ui_graphic_top_page_for_cursor(to_cursor);
+  from_page = ui_graphic_top_page_for_cursor(ui, from_cursor);
+  to_page = ui_graphic_top_page_for_cursor(ui, to_cursor);
   if (from_page == to_page) {
     return;
   }
@@ -4481,7 +4517,7 @@ static double ui_graphic_top_transition_progress(struct ui_state *ui) {
     return 0.0;
   }
   progress = (double)elapsed / (double)ui->top_transition_duration_ms;
-  return progress * progress * (3.0 - 2.0 * progress);
+  return progress;
 }
 
 static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action action) {
@@ -4493,7 +4529,13 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
   }
   cursor = ui->top_cursor;
   next = cursor;
-  if (action == ACTION_LEFT) {
+  if (ui_graphic_top_uses_strip(ui)) {
+    if (action == ACTION_LEFT && cursor > 0) {
+      next = cursor - 1;
+    } else if (action == ACTION_RIGHT && cursor + 1 < ui->top_count) {
+      next = cursor + 1;
+    }
+  } else if (action == ACTION_LEFT) {
     if (cursor > 0) {
       next = cursor - 1;
     }
@@ -4502,14 +4544,16 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
       next = cursor + 1;
     }
   } else if (action == ACTION_UP) {
-    if (cursor >= UI_GRAPHIC_TOP_COLUMNS) {
-      next = cursor - UI_GRAPHIC_TOP_COLUMNS;
+    size_t columns = ui_graphic_top_columns(ui);
+    if (cursor >= columns) {
+      next = cursor - columns;
     }
   } else if (action == ACTION_DOWN) {
-    next = cursor + UI_GRAPHIC_TOP_COLUMNS;
+    size_t columns = ui_graphic_top_columns(ui);
+    next = cursor + columns;
     if (next >= ui->top_count) {
       size_t next_row_start =
-          ((cursor / UI_GRAPHIC_TOP_COLUMNS) + 1) * UI_GRAPHIC_TOP_COLUMNS;
+          ((cursor / columns) + 1) * columns;
       if (next_row_start < ui->top_count) {
         next = ui->top_count - 1;
       } else {
@@ -4571,6 +4615,7 @@ static void ui_emit_graphic_theme(struct ui_state *ui) {
   ui_emit_graphic_theme_color(ui, "selection_foreground",
                               ui->theme.color_selection_foreground);
   ui_emit_graphic_theme_color(ui, "danger", ui->theme.color_danger);
+  ui_emit_graphic_theme_motion(ui, "top_layout", ui->theme.graphic_top_layout);
   ui_emit_graphic_theme_motion(ui, "transition", ui->theme.graphic_transition);
   ui_emit_graphic_theme_motion(ui, "transition_axis",
                                ui->theme.graphic_transition_axis);
@@ -4604,14 +4649,16 @@ static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
             ui->top_count ? ui->top_cursor + 1 : 0);
 
   if (ui->top_transition_active &&
-      ui->top_transition_to_page == ui_graphic_top_page_for_cursor(ui->top_cursor) &&
+      ui->top_transition_to_page ==
+          ui_graphic_top_page_for_cursor(ui, ui->top_cursor) &&
       ui_graphic_top_slide_enabled(ui)) {
     transition_progress = ui_graphic_top_transition_progress(ui);
     transition_active = ui->top_transition_active && transition_progress < 1.0;
   }
   if (transition_active) {
-    size_t prev_start = ui->top_transition_from_page * UI_GRAPHIC_TOP_PAGE_SIZE;
-    size_t prev_end = prev_start + UI_GRAPHIC_TOP_PAGE_SIZE;
+    size_t page_size = ui_graphic_top_page_size(ui);
+    size_t prev_start = ui->top_transition_from_page * page_size;
+    size_t prev_end = prev_start + page_size;
 
     if (prev_end > ui->top_count) {
       prev_end = ui->top_count;
