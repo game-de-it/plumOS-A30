@@ -2882,6 +2882,7 @@ static void plumos_mali_graphic_draw_top(
     char initials[8];
     int initials_width;
     int detail_width;
+    int logo_drawn = 0;
 
     plumos_mali_copy_utf8_cells(entries[i].title, title, sizeof(title), 18);
     plumos_mali_copy_utf8_cells(entries[i].detail, detail, sizeof(detail), 18);
@@ -2905,13 +2906,23 @@ static void plumos_mali_graphic_draw_top(
                              selected ? theme->selection_background
                                       : theme->media_panel,
                              1.0f);
-    initials_width = plumos_mali_text_width(initials, 4);
-    plumos_mali_graphic_text(renderer, initials,
-                             x + (tile_w - (float)initials_width) * 0.5f,
-                             y + 24.0f, 4,
-                             selected ? theme->selection_foreground
-                                      : theme->foreground,
-                             1.0f);
+#ifdef PLUMOS_ENABLE_MALI_PNG
+    if (entries[i].thumbnail[0]) {
+      logo_drawn =
+          plumos_mali_graphic_draw_texture(renderer, entries[i].thumbnail,
+                                           x + 12.0f, y + 14.0f,
+                                           tile_w - 24.0f, 50.0f);
+    }
+#endif
+    if (!logo_drawn) {
+      initials_width = plumos_mali_text_width(initials, 4);
+      plumos_mali_graphic_text(renderer, initials,
+                               x + (tile_w - (float)initials_width) * 0.5f,
+                               y + 24.0f, 4,
+                               selected ? theme->selection_foreground
+                                        : theme->foreground,
+                               1.0f);
+    }
     plumos_mali_graphic_text_clipped(renderer, title, x + 12.0f, y + 78.0f,
                                      2, 1, x + 12.0f, x + tile_w - 12.0f,
                                      selected ? theme->selection_foreground

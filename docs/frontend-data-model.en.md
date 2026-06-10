@@ -242,6 +242,7 @@ are not the official plumOS theme specification.
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"

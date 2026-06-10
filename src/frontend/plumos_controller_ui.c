@@ -298,6 +298,7 @@ struct theme_state {
   char font_ui[UI_PATH_MAX];
   char font_fallback[64];
   char background[UI_PATH_MAX];
+  char system_logo_root[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
   char color_background[16];
   char color_foreground[16];
@@ -2487,6 +2488,7 @@ static void init_theme_state(struct theme_state *theme, const char *theme_id,
   copy_string(theme->display_name, sizeof(theme->display_name), "Built-in Graphic");
   copy_string(theme->layout_preset, sizeof(theme->layout_preset), "grid_preview");
   copy_string(theme->font_fallback, sizeof(theme->font_fallback), "builtin");
+  copy_string(theme->system_logo_root, sizeof(theme->system_logo_root), "logos/systems");
   copy_string(theme->status, sizeof(theme->status), "builtin graphic fallback");
   if (theme_path) {
     copy_string(theme->path, sizeof(theme->path), theme_path);
@@ -2566,12 +2568,19 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
                     sizeof(ui->theme.font_fallback));
     json_get_string(assets_start, assets_end, "background", ui->theme.background,
                     sizeof(ui->theme.background));
+    json_get_string(assets_start, assets_end, "system_logo_root",
+                    ui->theme.system_logo_root,
+                    sizeof(ui->theme.system_logo_root));
     json_get_string(assets_start, assets_end, "placeholder_thumbnail",
                     ui->theme.placeholder_thumbnail,
                     sizeof(ui->theme.placeholder_thumbnail));
   }
   if (!ui->theme.font_fallback[0]) {
     copy_string(ui->theme.font_fallback, sizeof(ui->theme.font_fallback), "builtin");
+  }
+  if (!ui->theme.system_logo_root[0]) {
+    copy_string(ui->theme.system_logo_root, sizeof(ui->theme.system_logo_root),
+                "logos/systems");
   }
 
   if (json_find_object(json, json_end, "colors", &colors_start, &colors_end)) {
@@ -2660,6 +2669,25 @@ static int resolve_theme_asset_path(const struct theme_state *theme, const char 
     return copy_string(out, out_size, candidate);
   }
   return 0;
+}
+
+static int resolve_theme_system_logo_path(const struct ui_state *ui,
+                                          const char *system_id,
+                                          char *out, size_t out_size) {
+  char asset[UI_PATH_MAX];
+  const char *root;
+
+  if (!ui || !system_id || !valid_system_id(system_id) ||
+      !out || out_size == 0 || !ui->theme.loaded || ui->theme.fallback) {
+    return 0;
+  }
+  out[0] = '\0';
+  root = ui->theme.system_logo_root[0] ? ui->theme.system_logo_root : "logos/systems";
+  if (snprintf(asset, sizeof(asset), "%s/%s.png", root, system_id) >=
+      (int)sizeof(asset)) {
+    return 0;
+  }
+  return resolve_theme_asset_path(&ui->theme, asset, out, out_size);
 }
 
 static int graphic_theme_choice_cmp(const void *a, const void *b) {
@@ -4412,8 +4440,12 @@ static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
             ui->top_count ? ui->top_cursor + 1 : 0);
   for (i = start; i < end; i++) {
     const struct top_entry *entry = &ui->top_entries[i];
-    ui_printf(ui, "graphic_entry\t%d\t%s\t%ld ROMS\n",
-              i == ui->top_cursor ? 1 : 0, entry->display_name, entry->rom_count);
+    char logo_path[PATH_MAX] = "";
+
+    resolve_theme_system_logo_path(ui, entry->id, logo_path, sizeof(logo_path));
+    ui_printf(ui, "graphic_entry\t%d\t%s\t%ld ROMS\t%s\n",
+              i == ui->top_cursor ? 1 : 0, entry->display_name,
+              entry->rom_count, logo_path);
   }
   if (ui->top_count == 0) {
     ui_printf(ui, "graphic_entry\t1\tNo Systems\t0 ROMS\n");

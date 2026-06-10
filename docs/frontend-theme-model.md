@@ -24,6 +24,7 @@ importer として検討します。
     default/
       theme.json
       fonts/
+      logos/systems/
       icons/systems/
       images/
       sounds/
@@ -36,6 +37,7 @@ importer として検討します。
 ## 素材仕様
 
 - 背景画像: PNG、推奨 `640x480`、画面全体に表示される。
+- system logo: PNG、推奨 `256x96` 以上。Graphic TOP の tile media area に表示される。
 - ROM preview placeholder: PNG、推奨 `280x156`、thumbnail が無い時に表示される。
 - system icon: 将来用。推奨 PNG、正方形 `128x128` 以上。
 - font asset: 将来用。現時点では Graphic mode の TTF/CJK fallback を優先する。
@@ -93,6 +95,7 @@ theme が扱えないもの:
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"

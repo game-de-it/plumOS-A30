@@ -27,6 +27,7 @@ an importer.
     default/
       theme.json
       fonts/
+      logos/systems/
       icons/systems/
       images/
       sounds/
@@ -39,6 +40,8 @@ Graphic mode remains usable through built-in color/font fallback.
 ## Asset Spec
 
 - Background image: PNG, recommended `640x480`, displayed across the screen.
+- System logo: PNG, recommended `256x96` or larger, displayed in the Graphic TOP
+  tile media area.
 - ROM preview placeholder: PNG, recommended `280x156`, used when no thumbnail
   exists.
 - System icon: future use, PNG, square, recommended `128x128` or larger.
@@ -97,6 +100,7 @@ Themes may not control:
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,
     "sound_effect_root": "sounds"
