@@ -76,18 +76,23 @@ default 以外の key を使う場合:
 ssh -i ~/.ssh/YOUR_KEY -p 2222 root@A30_IP_ADDRESS
 ```
 
-SSH shell と `ssh host command` の PATH は、plumOS runtime を優先するように build 時の
-Dropbear default と `start-ssh.sh` の両方で設定します。
+SSH shell と `ssh host command` の PATH は、plumOS runtime を優先するように設定します。
 
 ```text
 /mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ```
 
+`ssh host command` の PATH は build 時の Dropbear default で決まります。対話ログインの
+BusyBox ash は stockOS の `/etc/profile` で PATH を一度 stock 値へ戻すため、Dropbear が
+`ENV=/mnt/SDCARD/plumos/ssh/etc/ashrc` を渡し、ash が `/etc/profile` の後に SD カード上の
+`ashrc` を読んで PATH を戻します。rootfs の `/etc/profile` は変更しません。
+
 これにより、ログイン直後から `crc32`, `unzip`, `wget`, `plumos-fe-control` などを
 full path なしで実行できます。`PLUMOS_SSH_PATH` を指定して `start-ssh.sh` を起動した場合は、
 起動 script 側の PATH だけを上書きできます。ただし session 内の default PATH は
-Dropbear build に固定されるため、release 用には `scripts/build-ssh-kit.sh` の
-`DEFAULT_ROOT_PATH` を更新して rebuild します。
+Dropbear build と `plumos/ssh/etc/ashrc` に固定されるため、release 用には
+`scripts/build-ssh-kit.sh` の `DEFAULT_ROOT_PATH` と `package/ssh-kit/plumos/ssh/etc/ashrc`
+を更新して rebuild します。
 
 ## 実機情報の収集
 

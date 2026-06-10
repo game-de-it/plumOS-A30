@@ -76,19 +76,26 @@ If you use a non-default key:
 ssh -i ~/.ssh/YOUR_KEY -p 2222 root@A30_IP_ADDRESS
 ```
 
-The SSH shell and `ssh host command` PATH prefer the plumOS runtime. This is
-set in both the Dropbear build-time defaults and `start-ssh.sh`.
+The SSH shell and `ssh host command` PATH prefer the plumOS runtime.
 
 ```text
 /mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ```
 
+The `ssh host command` PATH comes from the Dropbear build-time defaults. For an
+interactive login, BusyBox ash reads the stockOS `/etc/profile`, which resets
+PATH back to the stock value. Dropbear therefore passes
+`ENV=/mnt/SDCARD/plumos/ssh/etc/ashrc`, and ash reads that SD-card file after
+`/etc/profile` to restore the plumOS PATH. The rootfs `/etc/profile` is not
+modified.
+
 This makes `crc32`, `unzip`, `wget`, `plumos-fe-control`, and other plumOS
 tools available without full paths immediately after login. Starting
 `start-ssh.sh` with `PLUMOS_SSH_PATH` overrides only the launcher-side PATH.
-The per-session default PATH is compiled into Dropbear, so release changes
-should update `DEFAULT_ROOT_PATH` in `scripts/build-ssh-kit.sh` and rebuild the
-SSH kit.
+The per-session default PATH is compiled into Dropbear and mirrored in
+`plumos/ssh/etc/ashrc`, so release changes should update `DEFAULT_ROOT_PATH` in
+`scripts/build-ssh-kit.sh`, update `package/ssh-kit/plumos/ssh/etc/ashrc`, and
+rebuild the SSH kit.
 
 ## Collect Device Information
 

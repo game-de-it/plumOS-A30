@@ -75,6 +75,7 @@ prepare_source() {
 #define DROPBEAR_SVR_REMOTESTREAMFWD 0
 #define DEFAULT_PATH "/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/bin:/bin"
 #define DEFAULT_ROOT_PATH "/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+#define PLUMOS_SSH_ASHRC "/mnt/SDCARD/plumos/ssh/etc/ashrc"
 EOF
 
   # The A30 SD card is usually FAT/exFAT, and the stock rootfs may be
@@ -83,6 +84,13 @@ EOF
   perl -0pi -e 's/static int checkpubkeyperms\(\) \{\n\tchar \*path = authorized_keys_filepath\(\), \*sep = NULL;\n\tint ret = DROPBEAR_SUCCESS;\n\n\tTRACE\(\("enter checkpubkeyperms"\)\)\n\n\t\/\* Walk back up path checking permissions, stopping at either homedir,\n\t \* or root if the path is outside of the homedir\. \*\/\n\twhile \(\(sep = strrchr\(path, '"'"'\/'"'"'\)\) != NULL\) \{\n\t\tif \(sep == path\) \{\t\/\* root directory \*\/\n\t\t\tsep\+\+;\n\t\t\}\n\t\t\*sep = '"'"'\\0'"'"';\n\t\tif \(checkfileperm\(path\) != DROPBEAR_SUCCESS\) \{\n\t\t\tTRACE\(\("checkpubkeyperms: bad perm on %s", path\)\)\n\t\t\tret = DROPBEAR_FAILURE;\n\t\t\}\n\t\tif \(strcmp\(path, ses\.authstate\.pw_dir\) == 0 \|\| strcmp\(path, "\/"\) == 0\) \{\n\t\t\tbreak;\n\t\t\}\n\t\}\n\n\t\/\* all looks ok, return success \*\/\n\tm_free\(path\);\n\n\tTRACE\(\("leave checkpubkeyperms"\)\)\n\treturn ret;\n\}/static int checkpubkeyperms() {\n\treturn DROPBEAR_SUCCESS;\n}/s' "${SRC_DIR}/src/svr-authpubkey.c"
   grep -A2 'static int checkpubkeyperms' "${SRC_DIR}/src/svr-authpubkey.c" | grep -q 'return DROPBEAR_SUCCESS' \
     || die "failed to relax Dropbear authorized_keys permission checks"
+
+  # BusyBox ash reads /etc/profile for interactive login shells, and stockOS
+  # resets PATH there. Point ash at an SD-card rc file so plumOS PATH is
+  # restored after /etc/profile without modifying rootfs.
+  perl -0pi -e 's/(\tif \(cp != NULL\) \{)/\taddnewvar("ENV", PLUMOS_SSH_ASHRC);\n\n$1/s' "${SRC_DIR}/src/svr-chansession.c"
+  grep -q 'addnewvar("ENV", PLUMOS_SSH_ASHRC)' "${SRC_DIR}/src/svr-chansession.c" \
+    || die "failed to add Dropbear ash ENV hook"
 }
 
 configure_and_build() {

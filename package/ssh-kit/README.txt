@@ -14,6 +14,7 @@ plumOS A30 SSH kit
 SSH shell の PATH:
    /mnt/SDCARD/plumos/gnu/bin と /mnt/SDCARD/plumos/bin が自動で先頭に入ります。
    例: crc32, unzip, wget, plumos-fe-control などを full path なしで実行できます。
+   対話ログインでは stockOS の /etc/profile 後に plumos/ssh/etc/ashrc が PATH を戻します。
 
 logの出力先:
    plumos/ssh/log/dropbear.log
