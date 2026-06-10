@@ -217,6 +217,49 @@ A30_TARGET=root@192.168.10.165 \
 Save measurement results under `artifacts/` before turning them into per-system
 policy.
 
+## Device Runner
+
+`package/frontend/plumos/bin/plumos-thumbnail-scraper` is the packaged runner
+used to validate scraper policy and existing-thumbnail skip counts on the
+device before adding a button UI to the FE. At this stage it does not compute
+CRCs, read DAT indexes, or download thumbnails. `--fetch` is reserved and
+returns an error intentionally.
+
+Common commands:
+
+```sh
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --list-systems
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
+```
+
+Environment:
+
+- `PLUMOS_SDCARD_ROOT`: default `/mnt/SDCARD`
+- `PLUMOS_ROOT`: default `$PLUMOS_SDCARD_ROOT/plumos`
+- `PLUMOS_SYSTEMS_JSON`: default `$PLUMOS_ROOT/config/frontend/systems.json`
+- `PLUMOS_ROM_ROOT`: when set, scan only this root. Otherwise scan both
+  `/mnt/SDCARD/Roms` and `/mnt/SDCARD/roms`, matching the frontend scanner
+- `PLUMOS_IMAGE_ROOT`: default `$PLUMOS_SDCARD_ROOT/Images`
+- `PLUMOS_THUMBNAIL_STATE_DIR`: default `$PLUMOS_ROOT/state/frontend/artwork-scraper`
+- `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
+
+`--system <id>` prints the reason and exits with status `2` for disabled
+systems. `--all` plans enabled systems only. Output is TSV and does not print
+ROM filenames.
+
+Plan columns:
+
+```text
+status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_workers download_workers
+```
+
+`rom_candidates` counts files matching `scraper.extensions` from `systems.json`.
+`existing_thumbnails` uses the same `/mnt/SDCARD/Images/<system_id>` lookup
+order as the frontend, including subdirectory thumbnails before flat fallback
+thumbnails. Only `missing_thumbnails` should enter the next CRC/DAT/download
+queue.
+
 ## Test Inputs
 
 Current host-side test ROM roots:

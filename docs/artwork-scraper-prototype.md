@@ -193,6 +193,45 @@ A30_TARGET=root@192.168.10.165 \
 
 測定結果は system 別 policy の根拠として `artifacts/` に保存します。
 
+## 実機 runner
+
+`package/frontend/plumos/bin/plumos-thumbnail-scraper` は、FE へ button UI を付ける前に
+実機上で scraper policy と既存 thumbnail skip の件数を確認するための package runner です。
+現時点では CRC 計算、DAT lookup、thumbnail download は行わず、`--fetch` は明示的に拒否します。
+
+主な用途:
+
+```sh
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --list-systems
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --system gb
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
+```
+
+環境変数:
+
+- `PLUMOS_SDCARD_ROOT`: default `/mnt/SDCARD`
+- `PLUMOS_ROOT`: default `$PLUMOS_SDCARD_ROOT/plumos`
+- `PLUMOS_SYSTEMS_JSON`: default `$PLUMOS_ROOT/config/frontend/systems.json`
+- `PLUMOS_ROM_ROOT`: 指定時はこの root だけを見る。未指定時は `/mnt/SDCARD/Roms` と
+  `/mnt/SDCARD/roms` を frontend と同じように見る
+- `PLUMOS_IMAGE_ROOT`: default `$PLUMOS_SDCARD_ROOT/Images`
+- `PLUMOS_THUMBNAIL_STATE_DIR`: default `$PLUMOS_ROOT/state/frontend/artwork-scraper`
+- `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
+
+`--system <id>` は disabled system の場合、理由を出して exit code `2` を返します。`--all` は
+enabled system だけを plan します。出力は TSV で、ROM file 名は出しません。
+
+plan 出力の列:
+
+```text
+status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_workers download_workers
+```
+
+`rom_candidates` は `systems.json` の `scraper.extensions` に一致した file 数です。
+`existing_thumbnails` は frontend と同じ lookup 順で `/mnt/SDCARD/Images/<system_id>` を見て、
+subdirectory 画像、flat fallback 画像のどちらかが存在した件数です。`missing_thumbnails` だけが、
+次段階の CRC/DAT/download queue に入る対象です。
+
 ## 試験対象
 
 現時点の host-side 試験対象:

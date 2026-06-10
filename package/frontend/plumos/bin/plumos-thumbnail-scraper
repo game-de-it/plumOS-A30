@@ -1,0 +1,488 @@
+#!/bin/sh
+# Policy-aware thumbnail scraper entrypoint.
+#
+# This packaged runner is intentionally a planner for now: it reads
+# systems.json, applies the scraper policy, and counts ROMs that still need
+# thumbnail work without computing CRCs or using the network.
+
+set -u
+
+SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}"
+SDCARD_ROOT="${SDCARD_ROOT%/}"
+PLUMOS_ROOT="${PLUMOS_ROOT:-${SDCARD_ROOT}/plumos}"
+SYSTEMS_JSON="${PLUMOS_SYSTEMS_JSON:-${PLUMOS_ROOT}/config/frontend/systems.json}"
+IMAGE_ROOT="${PLUMOS_IMAGE_ROOT:-${SDCARD_ROOT}/Images}"
+IMAGE_ROOT="${IMAGE_ROOT%/}"
+STATE_DIR="${PLUMOS_THUMBNAIL_STATE_DIR:-${PLUMOS_ROOT}/state/frontend/artwork-scraper}"
+CACHE_DIR="${PLUMOS_THUMBNAIL_CACHE_DIR:-${PLUMOS_ROOT}/cache/frontend/artwork-scraper}"
+LOG_DIR="${PLUMOS_LOG_DIR:-${PLUMOS_ROOT}/logs}"
+LOG_FILE="${PLUMOS_THUMBNAIL_SCRAPER_LOG:-${LOG_DIR}/thumbnail-scraper.log}"
+
+if [ -n "${PLUMOS_ROM_ROOT:-}" ]; then
+  ROM_ROOTS="${PLUMOS_ROM_ROOT%/}"
+else
+  ROM_ROOTS="${SDCARD_ROOT}/Roms
+${SDCARD_ROOT}/roms"
+fi
+
+ACTION=plan
+SYSTEM_FILTER=
+PLAN_ALL=0
+LIMIT=0
+
+usage() {
+  cat <<'USAGE'
+Usage: plumos-thumbnail-scraper [options]
+
+Options:
+  --list-systems     Print scraper policy from systems.json.
+  --system ID        Plan one system.
+  --all              Plan all scraper-enabled systems. Default.
+  --dry-run, --plan  Count ROMs and existing thumbnails only. Default.
+  --fetch            Reserved for the next CRC/download implementation.
+  --limit N          Stop after N candidate ROMs per system.
+  -h, --help         Show this help.
+
+Environment:
+  PLUMOS_SDCARD_ROOT             Default: /mnt/SDCARD
+  PLUMOS_ROOT                    Default: $PLUMOS_SDCARD_ROOT/plumos
+  PLUMOS_SYSTEMS_JSON            Default: $PLUMOS_ROOT/config/frontend/systems.json
+  PLUMOS_ROM_ROOT                Default: scan both $PLUMOS_SDCARD_ROOT/Roms and /roms
+  PLUMOS_IMAGE_ROOT              Default: $PLUMOS_SDCARD_ROOT/Images
+  PLUMOS_THUMBNAIL_STATE_DIR     Default: $PLUMOS_ROOT/state/frontend/artwork-scraper
+  PLUMOS_THUMBNAIL_CACHE_DIR     Default: $PLUMOS_ROOT/cache/frontend/artwork-scraper
+
+Output:
+  --list-systems:
+    system enabled reason crc_default crc_bulk crc_max dl_default dl_bulk dl_max extensions
+
+  --plan:
+    status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_workers download_workers
+
+The planner does not print ROM file names.
+USAGE
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+log() {
+  mkdir -p "$LOG_DIR" 2>/dev/null || true
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+is_safe_system_id() {
+  case "$1" in
+    ''|*[!A-Za-z0-9_-]*) return 1 ;;
+  esac
+  return 0
+}
+
+is_positive_int_or_zero() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  return 0
+}
+
+all_system_ids() {
+  awk '
+    /^[ ][ ][ ][ ]\{/ { in_obj = 1 }
+    in_obj && /^[[:space:]]*"id"[[:space:]]*:/ {
+      line = $0
+      sub(/^.*"id"[[:space:]]*:[[:space:]]*"/, "", line)
+      sub(/".*$/, "", line)
+      print line
+    }
+    in_obj && /^[ ][ ][ ][ ]\}[,]?[[:space:]]*$/ { in_obj = 0 }
+  ' "$SYSTEMS_JSON"
+}
+
+system_block() {
+  awk -v target="$1" '
+    /^[ ][ ][ ][ ]\{/ {
+      in_obj = 1
+      found = 0
+      buf = $0 ORS
+      next
+    }
+    in_obj {
+      buf = buf $0 ORS
+      if ($0 ~ /^[[:space:]]*"id"[[:space:]]*:/) {
+        line = $0
+        sub(/^.*"id"[[:space:]]*:[[:space:]]*"/, "", line)
+        sub(/".*$/, "", line)
+        if (line == target) {
+          found = 1
+        }
+      }
+      if ($0 ~ /^[ ][ ][ ][ ]\}[,]?[[:space:]]*$/) {
+        if (found) {
+          printf "%s", buf
+          exit 0
+        }
+        in_obj = 0
+        buf = ""
+      }
+    }
+  ' "$SYSTEMS_JSON"
+}
+
+scraper_enabled() {
+  printf '%s\n' "$1" | awk '
+    /"scraper"[[:space:]]*:/ { in_scraper = 1 }
+    in_scraper && /"enabled"[[:space:]]*:/ {
+      if ($0 ~ /true/) {
+        print "true"
+      } else {
+        print "false"
+      }
+      exit
+    }
+  '
+}
+
+scraper_reason() {
+  printf '%s\n' "$1" | awk '
+    /"scraper"[[:space:]]*:/ { in_scraper = 1 }
+    in_scraper && /"reason"[[:space:]]*:/ {
+      line = $0
+      sub(/^.*"reason"[[:space:]]*:[[:space:]]*"/, "", line)
+      sub(/".*$/, "", line)
+      print line
+      exit
+    }
+  '
+}
+
+scraper_extensions() {
+  printf '%s\n' "$1" | awk '
+    /"scraper"[[:space:]]*:/ { in_scraper = 1 }
+    in_scraper && /"extensions"[[:space:]]*:/ {
+      line = $0
+      sub(/^.*\[/, "", line)
+      sub(/\].*$/, "", line)
+      gsub(/"/, "", line)
+      gsub(/,/, " ", line)
+      gsub(/[[:space:]]+/, " ", line)
+      gsub(/^[[:space:]]+/, "", line)
+      gsub(/[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  '
+}
+
+scraper_workers() {
+  key="$2"
+  printf '%s\n' "$1" | awk -v key="$key" '
+    /"scraper"[[:space:]]*:/ { in_scraper = 1 }
+    in_scraper && index($0, "\"" key "\"") {
+      line = $0
+      default_value = line
+      bulk_value = line
+      max_value = line
+      sub(/^.*"default"[[:space:]]*:[[:space:]]*/, "", default_value)
+      sub(/[^0-9].*$/, "", default_value)
+      sub(/^.*"bulk"[[:space:]]*:[[:space:]]*/, "", bulk_value)
+      sub(/[^0-9].*$/, "", bulk_value)
+      sub(/^.*"max"[[:space:]]*:[[:space:]]*/, "", max_value)
+      sub(/[^0-9].*$/, "", max_value)
+      print default_value " " bulk_value " " max_value
+      exit
+    }
+  '
+}
+
+directory_aliases() {
+  printf '%s\n' "$1" | awk '
+    /"directory_aliases"[[:space:]]*:/ {
+      in_aliases = 1
+      next
+    }
+    in_aliases && /^[[:space:]]*\]/ { exit }
+    in_aliases && /"name"[[:space:]]*:/ {
+      line = $0
+      sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "", line)
+      sub(/".*$/, "", line)
+      print line
+    }
+  '
+}
+
+lower_ext() {
+  file_name="${1##*/}"
+  case "$file_name" in
+    *.*) printf '%s\n' "${file_name##*.}" | tr '[:upper:]' '[:lower:]' ;;
+    *) return 1 ;;
+  esac
+}
+
+extension_allowed() {
+  wanted="$1"
+  allowed_list="$2"
+  for allowed in $allowed_list; do
+    [ "$wanted" = "$allowed" ] && return 0
+  done
+  return 1
+}
+
+find_case_insensitive_file() {
+  candidate="$1"
+  [ -f "$candidate" ] && [ -s "$candidate" ] && return 0
+
+  candidate_dir="${candidate%/*}"
+  candidate_base="${candidate##*/}"
+  [ "$candidate_dir" != "$candidate" ] || candidate_dir=.
+  [ -d "$candidate_dir" ] || return 1
+
+  wanted="$(printf '%s' "$candidate_base" | tr '[:upper:]' '[:lower:]')"
+  find "$candidate_dir" -maxdepth 1 -type f 2>/dev/null |
+    awk -v wanted="$wanted" '
+      function basename(path) {
+        sub(/^.*\//, "", path)
+        return path
+      }
+      {
+        name = tolower(basename($0))
+        if (name == wanted) {
+          found = 1
+          exit
+        }
+      }
+      END {
+        exit found ? 0 : 1
+      }
+    '
+}
+
+thumbnail_exists() {
+  thumb_system="$1"
+  rel_stem="$2"
+  flat_stem="$3"
+  thumb_root="${IMAGE_ROOT}/${thumb_system}"
+
+  for stem in "$rel_stem" "$flat_stem"; do
+    [ -n "$stem" ] || continue
+    for image_ext in png jpg jpeg webp; do
+      find_case_insensitive_file "${thumb_root}/${stem}.${image_ext}" && return 0
+    done
+  done
+  return 1
+}
+
+dir_identity() {
+  if [ -d "$1" ]; then
+    inode="$(ls -id "$1" 2>/dev/null | awk '{ print $1 }')"
+    if [ -n "$inode" ]; then
+      printf 'inode:%s\n' "$inode"
+      return 0
+    fi
+    (
+      cd "$1" 2>/dev/null && pwd -P
+    ) || printf '%s\n' "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+print_policy_header() {
+  printf 'system\tenabled\treason\tcrc_default\tcrc_bulk\tcrc_max\tdl_default\tdl_bulk\tdl_max\textensions\n'
+}
+
+print_plan_header() {
+  printf 'status\tsystem\tenabled\treason\taliases_seen\trom_candidates\texisting_thumbnails\tmissing_thumbnails\tcrc_workers\tdownload_workers\n'
+}
+
+print_system_policy() {
+  policy_system="$1"
+  block="$(system_block "$policy_system")"
+  [ -n "$block" ] || return 1
+
+  enabled="$(scraper_enabled "$block")"
+  reason="$(scraper_reason "$block")"
+  extensions="$(scraper_extensions "$block")"
+  crc_workers="$(scraper_workers "$block" crc_workers)"
+  dl_workers="$(scraper_workers "$block" download_workers)"
+
+  set -- $crc_workers
+  crc_default="${1:--}"
+  crc_bulk="${2:--}"
+  crc_max="${3:--}"
+  set -- $dl_workers
+  dl_default="${1:--}"
+  dl_bulk="${2:--}"
+  dl_max="${3:--}"
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$policy_system" "${enabled:-false}" "${reason:--}" \
+    "$crc_default" "$crc_bulk" "$crc_max" \
+    "$dl_default" "$dl_bulk" "$dl_max" "${extensions:-"-"}"
+}
+
+plan_system() {
+  plan_system_id="$1"
+  explicit="$2"
+  block="$(system_block "$plan_system_id")"
+  [ -n "$block" ] || die "unknown system: $plan_system_id"
+
+  enabled="$(scraper_enabled "$block")"
+  reason="$(scraper_reason "$block")"
+  extensions="$(scraper_extensions "$block")"
+  crc_workers="$(scraper_workers "$block" crc_workers)"
+  dl_workers="$(scraper_workers "$block" download_workers)"
+
+  if [ "${enabled:-false}" != "true" ]; then
+    if [ "$explicit" = 1 ]; then
+      printf 'disabled\t%s\tfalse\t%s\t0\t0\t0\t0\t-\t-\n' "$plan_system_id" "${reason:--}"
+      log "plan disabled system=${plan_system_id} reason=${reason:--}"
+      return 2
+    fi
+    return 0
+  fi
+
+  [ -n "$extensions" ] || die "enabled system has no scraper extensions: $plan_system_id"
+
+  mkdir -p "$STATE_DIR" "$CACHE_DIR" "$LOG_DIR" 2>/dev/null || true
+  tmp_list="${STATE_DIR}/planner-${plan_system_id}-$$.list"
+  rm -f "$tmp_list" 2>/dev/null || true
+
+  aliases_seen=0
+  rom_candidates=0
+  existing_thumbnails=0
+  missing_thumbnails=0
+  seen_dirs=" "
+  stop_scan=0
+
+  aliases="$(directory_aliases "$block")"
+  for rom_root in $ROM_ROOTS; do
+    for alias in $aliases; do
+      alias_dir="${rom_root%/}/${alias}"
+      [ -d "$alias_dir" ] || continue
+
+      identity="$(dir_identity "$alias_dir")"
+      case "$seen_dirs" in
+        *" ${identity} "*) continue ;;
+      esac
+      seen_dirs="${seen_dirs}${identity} "
+      aliases_seen=$((aliases_seen + 1))
+
+      find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
+      while IFS= read -r rom_path; do
+        ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
+        [ -n "$ext" ] || continue
+        extension_allowed "$ext" "$extensions" || continue
+
+        rom_candidates=$((rom_candidates + 1))
+        rel_path="${rom_path#"$alias_dir"/}"
+        rel_stem="${rel_path%.*}"
+        flat_stem="${rel_stem##*/}"
+
+        if thumbnail_exists "$plan_system_id" "$rel_stem" "$flat_stem"; then
+          existing_thumbnails=$((existing_thumbnails + 1))
+        else
+          missing_thumbnails=$((missing_thumbnails + 1))
+        fi
+
+        if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then
+          stop_scan=1
+          break
+        fi
+      done < "$tmp_list"
+
+      [ "$stop_scan" = 1 ] && break
+    done
+    [ "$stop_scan" = 1 ] && break
+  done
+
+  rm -f "$tmp_list" 2>/dev/null || true
+
+  set -- $crc_workers
+  crc_default="${1:--}"
+  crc_bulk="${2:--}"
+  crc_max="${3:--}"
+  set -- $dl_workers
+  dl_default="${1:--}"
+  dl_bulk="${2:--}"
+  dl_max="${3:--}"
+
+  printf 'plan\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s/%s/%s\t%s/%s/%s\n' \
+    "$plan_system_id" "${reason:--}" "$aliases_seen" "$rom_candidates" \
+    "$existing_thumbnails" "$missing_thumbnails" \
+    "$crc_default" "$crc_bulk" "$crc_max" \
+    "$dl_default" "$dl_bulk" "$dl_max"
+
+  log "plan system=${plan_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} limit=${LIMIT}"
+  return 0
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --list-systems)
+      ACTION=list
+      ;;
+    --system)
+      shift
+      [ "$#" -gt 0 ] || die "--system requires an ID"
+      is_safe_system_id "$1" || die "unsafe system id: $1"
+      SYSTEM_FILTER="$1"
+      PLAN_ALL=0
+      ;;
+    --all)
+      PLAN_ALL=1
+      SYSTEM_FILTER=
+      ;;
+    --dry-run|--plan)
+      ACTION=plan
+      ;;
+    --fetch)
+      ACTION=fetch
+      ;;
+    --limit)
+      shift
+      [ "$#" -gt 0 ] || die "--limit requires a number"
+      is_positive_int_or_zero "$1" || die "invalid --limit: $1"
+      LIMIT="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+[ -r "$SYSTEMS_JSON" ] || die "systems.json is not readable: $SYSTEMS_JSON"
+
+case "$ACTION" in
+  list)
+    print_policy_header
+    for system_id in $(all_system_ids); do
+      print_system_policy "$system_id" || true
+    done
+    ;;
+  fetch)
+    die "--fetch is reserved for the next CRC/download implementation; run without --fetch to plan safely"
+    ;;
+  plan)
+    if [ -z "$SYSTEM_FILTER" ] && [ "$PLAN_ALL" = 0 ]; then
+      PLAN_ALL=1
+    fi
+    print_plan_header
+    if [ -n "$SYSTEM_FILTER" ]; then
+      plan_system "$SYSTEM_FILTER" 1
+      exit $?
+    fi
+    for system_id in $(all_system_ids); do
+      plan_system "$system_id" 0 || true
+    done
+    ;;
+  *)
+    die "unknown action: $ACTION"
+    ;;
+esac
