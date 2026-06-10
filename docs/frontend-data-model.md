@@ -51,7 +51,7 @@
     cursor-state.json         last selected system/ROM/view position
     scan-stats.json           scan timing and fallback policy state
   cache/frontend/
-    thumbnails/               generated/cached thumbnail images
+    render-cache/             optional disposable resized render cache
     text-index/               optional search/sort cache
   frontend/
     themes/
@@ -86,9 +86,7 @@
   "extensions": ["gen", "md", "smd", "32x", "bin", "chd", "zip", "7z"],
   "artwork": {
     "lookup": [
-      { "root": "plumos", "path": "media/megadrive" },
-      { "root": "sdcard", "path": "Imgs/MD" },
-      { "root": "sdcard", "path": "Imgs/megadrive" }
+      { "root": "sdcard", "path": "Images/megadrive" }
     ]
   },
   "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -105,7 +103,8 @@ Field:
 - `scan_directories`: true の場合、alias root 直下の directory を ROM entry として扱う。
   ScummVM/EasyRPG のように game が directory 単位で配布される system 用
 - `extensions`: この機種に属する ROM 拡張子。dot は付けない
-- `artwork.lookup`: thumbnail/capture/cover の探索先。順番に見る
+- `artwork.lookup`: thumbnail/capture/cover の探索先。通常は
+  `/mnt/SDCARD/Images/<system_id>` の 1 経路だけにする
 - `launch_profiles`: 起動候補。実体は frontend ではなく launcher 側で解決する
 
 ### `DirectoryAlias`
@@ -148,7 +147,7 @@ scan 結果として生成される ROM 単位の entry です。手書きしま
   "extension": "gba",
   "directory_alias": "GBA",
   "media": {
-    "thumbnail": "/mnt/SDCARD/Imgs/GBA/example.png"
+    "thumbnail": "/mnt/SDCARD/Images/gba/example.png"
   },
   "metadata": {
     "source": "scan"
@@ -161,14 +160,16 @@ scan 結果として生成される ROM 単位の entry です。手書きしま
 
 ### Artwork lookup
 
-thumbnail は `RomEntry` の代表 ROM path から解決します。ROM が subdirectory にある場合は、
-ROM directory alias root からの相対 path を artwork directory 側にも反映します。
+thumbnail は `RomEntry` の代表 ROM path から、system ごとの canonical thumbnail root
+`/mnt/SDCARD/Images/<system_id>` だけを見て解決します。scraper が取得した画像とユーザーが
+手で置いた画像は同じ directory に保存します。ROM が subdirectory にある場合は、ROM
+directory alias root からの相対 path を thumbnail directory 側にも反映します。
 
 例:
 
 ```text
 rom alias root: /mnt/SDCARD/Roms/nes
-artwork dir:    /mnt/SDCARD/images/nes
+thumbnail dir:  /mnt/SDCARD/Images/nes
 rom path:       /mnt/SDCARD/Roms/nes/01/test.nes
 relative stem:  01/test
 ```
@@ -176,20 +177,24 @@ relative stem:  01/test
 lookup priority:
 
 ```text
-1. /mnt/SDCARD/images/nes/01/test.png
-2. /mnt/SDCARD/images/nes/01/test.jpg
-3. /mnt/SDCARD/images/nes/01/test.jpeg
-4. /mnt/SDCARD/images/nes/01/test.webp
-5. /mnt/SDCARD/images/nes/test.png
-6. /mnt/SDCARD/images/nes/test.jpg
-7. /mnt/SDCARD/images/nes/test.jpeg
-8. /mnt/SDCARD/images/nes/test.webp
+1. /mnt/SDCARD/Images/nes/01/test.png
+2. /mnt/SDCARD/Images/nes/01/test.jpg
+3. /mnt/SDCARD/Images/nes/01/test.jpeg
+4. /mnt/SDCARD/Images/nes/01/test.webp
+5. /mnt/SDCARD/Images/nes/test.png
+6. /mnt/SDCARD/Images/nes/test.jpg
+7. /mnt/SDCARD/Images/nes/test.jpeg
+8. /mnt/SDCARD/Images/nes/test.webp
 9. placeholder
 ```
 
 rules:
 
-- `artwork.lookup` に複数 directory がある場合は、定義順に上の候補を試す
+- `artwork.lookup` は通常 1 system につき 1 directory だけにする
+- scraper の保存先、ユーザー手動配置、frontend lookup はすべて
+  `/mnt/SDCARD/Images/<system_id>` に揃える
+- stockOS 由来の `/mnt/SDCARD/Imgs/*` や旧 lowercase `/mnt/SDCARD/images/*` は
+  通常 lookup には使わず、必要になった場合だけ importer/migration の入力として扱う
 - extension の canonical list は lowercase の `png`, `jpg`, `jpeg`, `webp` とし、
   file 探索時は case-insensitive に扱う
 - subdirectory 構造を保った画像を flat 配置より優先する
@@ -414,7 +419,7 @@ schema:
       "title": "example",
       "file_name": "example.nes",
       "path": "/mnt/SDCARD/Roms/FC/example.nes",
-      "thumbnail": "/mnt/SDCARD/images/nes/example.png"
+      "thumbnail": "/mnt/SDCARD/Images/nes/example.png"
     }
   ]
 }
@@ -456,7 +461,7 @@ schema:
       "title": "example",
       "file_name": "example.gba",
       "path": "/mnt/SDCARD/Roms/GBA/example.gba",
-      "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+      "thumbnail": "/mnt/SDCARD/Images/gba/example.png",
       "launch_profile": "retroarch:mgba",
       "last_played_at": "2026-06-06T12:34:56Z",
       "resume_available": true
@@ -483,7 +488,7 @@ schema:
   "title": "example",
   "file_name": "example.gba",
   "path": "/mnt/SDCARD/Roms/GBA/example.gba",
-  "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+  "thumbnail": "/mnt/SDCARD/Images/gba/example.png",
   "launch_profile": "retroarch:mgba",
   "updated_at": "2026-06-06T12:34:56Z",
   "auto_state_load": true
@@ -685,9 +690,7 @@ scan root は複数持てます。
     "/mnt/SDCARD/roms"
   ],
   "artwork_roots": [
-    "/mnt/SDCARD/plumos/media",
-    "/mnt/SDCARD/Imgs",
-    "/mnt/SDCARD/images"
+    "/mnt/SDCARD/Images"
   ]
 }
 ```
@@ -784,7 +787,6 @@ sidecar が無い場合、初期 fallback は既存検証ROMに合わせて `sky
 - `GB`/`GBC` のような共有 directory を TOP で分けて見せるか、統合 entry にするか
 - arcade 系を `Arcade` に統合するか、`FBNeo`, `MAME`, `CPS1/2/3` を分けるか
 - gallery mode の TOP を grid にするか、ROM list と同じ 1 item slide に寄せるか
-- artwork の正式配置を `plumos/media/<system>` にするか、`Roms/<system>/media` にするか
 - `systems.json` を手書き JSON にするか、build 時に `systems.seed.json` から生成するか
 
 ## 参考

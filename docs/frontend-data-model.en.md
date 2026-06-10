@@ -55,7 +55,7 @@ official plumOS specification.
     cursor-state.json
     scan-stats.json
   cache/frontend/
-    thumbnails/
+    render-cache/
     text-index/
   frontend/
     themes/
@@ -90,9 +90,7 @@ The unit shown on the TOP screen.
   "extensions": ["gen", "md", "smd", "32x", "bin", "chd", "zip", "7z"],
   "artwork": {
     "lookup": [
-      { "root": "plumos", "path": "media/megadrive" },
-      { "root": "sdcard", "path": "Imgs/MD" },
-      { "root": "sdcard", "path": "Imgs/megadrive" }
+      { "root": "sdcard", "path": "Images/megadrive" }
     ]
   },
   "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -110,7 +108,8 @@ Important fields:
   treated as ROM entries. This is for directory-based systems such as ScummVM and
   EasyRPG.
 - `extensions`: ROM extensions without dots.
-- `artwork.lookup`: ordered thumbnail/cover lookup paths.
+- `artwork.lookup`: thumbnail/cover lookup path. Normal systems use only
+  `/mnt/SDCARD/Images/<system_id>`.
 - `launch_profiles`: launcher-side candidates; the frontend does not execute
   cores directly.
 
@@ -152,7 +151,7 @@ Generated scan result. It is not hand-written.
   "extension": "gba",
   "directory_alias": "GBA",
   "media": {
-    "thumbnail": "/mnt/SDCARD/Imgs/GBA/example.png"
+    "thumbnail": "/mnt/SDCARD/Images/gba/example.png"
   },
   "metadata": {
     "source": "scan"
@@ -165,15 +164,18 @@ file hash, mtime, and size.
 
 ### Artwork Lookup
 
-Thumbnails are resolved from the representative ROM path stored in `RomEntry`.
-When a ROM lives in a subdirectory, preserve the path relative to the ROM
-directory alias root when looking under the artwork directory.
+Thumbnails are resolved from the representative ROM path stored in `RomEntry`
+using only the canonical per-system thumbnail root
+`/mnt/SDCARD/Images/<system_id>`. Scraped images and user-provided images live
+in the same directory. When a ROM lives in a subdirectory, preserve the path
+relative to the ROM directory alias root when looking under the thumbnail
+directory.
 
 Example:
 
 ```text
 rom alias root: /mnt/SDCARD/Roms/nes
-artwork dir:    /mnt/SDCARD/images/nes
+thumbnail dir:  /mnt/SDCARD/Images/nes
 rom path:       /mnt/SDCARD/Roms/nes/01/test.nes
 relative stem:  01/test
 ```
@@ -181,21 +183,25 @@ relative stem:  01/test
 Lookup priority:
 
 ```text
-1. /mnt/SDCARD/images/nes/01/test.png
-2. /mnt/SDCARD/images/nes/01/test.jpg
-3. /mnt/SDCARD/images/nes/01/test.jpeg
-4. /mnt/SDCARD/images/nes/01/test.webp
-5. /mnt/SDCARD/images/nes/test.png
-6. /mnt/SDCARD/images/nes/test.jpg
-7. /mnt/SDCARD/images/nes/test.jpeg
-8. /mnt/SDCARD/images/nes/test.webp
+1. /mnt/SDCARD/Images/nes/01/test.png
+2. /mnt/SDCARD/Images/nes/01/test.jpg
+3. /mnt/SDCARD/Images/nes/01/test.jpeg
+4. /mnt/SDCARD/Images/nes/01/test.webp
+5. /mnt/SDCARD/Images/nes/test.png
+6. /mnt/SDCARD/Images/nes/test.jpg
+7. /mnt/SDCARD/Images/nes/test.jpeg
+8. /mnt/SDCARD/Images/nes/test.webp
 9. placeholder
 ```
 
 Rules:
 
-- If `artwork.lookup` has multiple directories, try these candidates in
-  definition order.
+- `artwork.lookup` normally has exactly one directory per system.
+- The scraper output, user-provided thumbnails, and frontend lookup all use
+  `/mnt/SDCARD/Images/<system_id>`.
+- StockOS `/mnt/SDCARD/Imgs/*` and old lowercase `/mnt/SDCARD/images/*` paths
+  are not normal lookup paths. Treat them only as importer/migration inputs if
+  needed.
 - The canonical extension list is lowercase `png`, `jpg`, `jpeg`, and `webp`;
   file lookup is case-insensitive.
 - Prefer artwork that preserves the ROM subdirectory layout over flat artwork.
@@ -421,7 +427,7 @@ Schema:
       "title": "example",
       "file_name": "example.nes",
       "path": "/mnt/SDCARD/Roms/FC/example.nes",
-      "thumbnail": "/mnt/SDCARD/images/nes/example.png"
+      "thumbnail": "/mnt/SDCARD/Images/nes/example.png"
     }
   ]
 }
@@ -465,7 +471,7 @@ Schema:
       "title": "example",
       "file_name": "example.gba",
       "path": "/mnt/SDCARD/Roms/GBA/example.gba",
-      "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+      "thumbnail": "/mnt/SDCARD/Images/gba/example.png",
       "launch_profile": "retroarch:mgba",
       "last_played_at": "2026-06-06T12:34:56Z",
       "resume_available": true
@@ -492,7 +498,7 @@ Schema:
   "title": "example",
   "file_name": "example.gba",
   "path": "/mnt/SDCARD/Roms/GBA/example.gba",
-  "thumbnail": "/mnt/SDCARD/images/gba/example.png",
+  "thumbnail": "/mnt/SDCARD/Images/gba/example.png",
   "launch_profile": "retroarch:mgba",
   "updated_at": "2026-06-06T12:34:56Z",
   "auto_state_load": true
@@ -707,9 +713,7 @@ Rules:
     "/mnt/SDCARD/roms"
   ],
   "artwork_roots": [
-    "/mnt/SDCARD/plumos/media",
-    "/mnt/SDCARD/Imgs",
-    "/mnt/SDCARD/images"
+    "/mnt/SDCARD/Images"
   ]
 }
 ```
@@ -810,8 +814,6 @@ on A30 performance, available cores, and user experience.
 - Should arcade remain one `Arcade` entry or split into `FBNeo`, `MAME`, and
   `CPS1/2/3`?
 - Should gallery TOP use a grid, or the same one-item slide model as ROM lists?
-- Should official artwork live under `plumos/media/<system>` or
-  `Roms/<system>/media`?
 - Should `systems.json` be hand-written, or generated from a smaller
   `systems.seed.json` during build?
 

@@ -17,9 +17,7 @@
       "extensions": ["nes", "unf", "unif", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/nes" },
-          { "root": "sdcard", "path": "Imgs/FC" },
-          { "root": "sdcard", "path": "images/nes" }
+          { "root": "sdcard", "path": "Images/nes" }
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
@@ -43,10 +41,7 @@
       "extensions": ["fds", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/fds" },
-          { "root": "sdcard", "path": "Imgs/FDS" },
-          { "root": "sdcard", "path": "Imgs/FC" },
-          { "root": "sdcard", "path": "images/fds" }
+          { "root": "sdcard", "path": "Images/fds" }
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
@@ -70,10 +65,7 @@
       "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/sfc" },
-          { "root": "sdcard", "path": "Imgs/SFC" },
-          { "root": "sdcard", "path": "images/sfc" },
-          { "root": "sdcard", "path": "images/snes" }
+          { "root": "sdcard", "path": "Images/sfc" }
         ]
       },
       "launch_profiles": ["retroarch:snes9x2005_plus", "retroarch:snes9x"],
@@ -96,9 +88,7 @@
       "extensions": ["gb", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/gb" },
-          { "root": "sdcard", "path": "Imgs/GB" },
-          { "root": "sdcard", "path": "images/gb" }
+          { "root": "sdcard", "path": "Images/gb" }
         ]
       },
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
@@ -122,10 +112,7 @@
       "extensions": ["gbc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/gbc" },
-          { "root": "sdcard", "path": "Imgs/GBC" },
-          { "root": "sdcard", "path": "Imgs/GB" },
-          { "root": "sdcard", "path": "images/gbc" }
+          { "root": "sdcard", "path": "Images/gbc" }
         ]
       },
       "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
@@ -148,9 +135,7 @@
       "extensions": ["gba", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/gba" },
-          { "root": "sdcard", "path": "Imgs/GBA" },
-          { "root": "sdcard", "path": "images/gba" }
+          { "root": "sdcard", "path": "Images/gba" }
         ]
       },
       "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
@@ -174,10 +159,7 @@
       "extensions": ["gen", "md", "smd", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/megadrive" },
-          { "root": "sdcard", "path": "Imgs/MD" },
-          { "root": "sdcard", "path": "images/megadrive" },
-          { "root": "sdcard", "path": "images/genesis" }
+          { "root": "sdcard", "path": "Images/megadrive" }
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -201,9 +183,7 @@
       "extensions": ["sms", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/mastersystem" },
-          { "root": "sdcard", "path": "Imgs/MS" },
-          { "root": "sdcard", "path": "images/mastersystem" }
+          { "root": "sdcard", "path": "Images/mastersystem" }
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -228,10 +208,7 @@
       "extensions": ["gg", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/gamegear" },
-          { "root": "sdcard", "path": "Imgs/GG" },
-          { "root": "sdcard", "path": "Imgs/GameGear" },
-          { "root": "sdcard", "path": "images/gamegear" }
+          { "root": "sdcard", "path": "Images/gamegear" }
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -255,9 +232,7 @@
       "extensions": ["32x", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/sega32x" },
-          { "root": "sdcard", "path": "Imgs/THIRTYTWOX" },
-          { "root": "sdcard", "path": "images/sega32x" }
+          { "root": "sdcard", "path": "Images/sega32x" }
         ]
       },
       "launch_profiles": ["retroarch:picodrive"],
@@ -281,10 +256,7 @@
       "extensions": ["cue", "chd", "iso", "m3u", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/segacd" },
-          { "root": "sdcard", "path": "Imgs/SEGACD" },
-          { "root": "sdcard", "path": "images/segacd" },
-          { "root": "sdcard", "path": "images/megacd" }
+          { "root": "sdcard", "path": "Images/segacd" }
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -308,10 +280,7 @@
       "extensions": ["pce", "sgx", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/pcengine" },
-          { "root": "sdcard", "path": "Imgs/PCE" },
-          { "root": "sdcard", "path": "images/pcengine" },
-          { "root": "sdcard", "path": "images/tg16" }
+          { "root": "sdcard", "path": "Images/pcengine" }
         ]
       },
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
@@ -335,10 +304,7 @@
       "extensions": ["cue", "chd", "iso", "m3u"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/pcenginecd" },
-          { "root": "sdcard", "path": "Imgs/PCECD" },
-          { "root": "sdcard", "path": "images/pcenginecd" },
-          { "root": "sdcard", "path": "images/tg16cd" }
+          { "root": "sdcard", "path": "Images/pcenginecd" }
         ]
       },
       "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:beetle_pce_fast"],
@@ -362,10 +328,7 @@
       "extensions": ["cue", "chd", "pbp", "m3u", "iso", "img", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/psx" },
-          { "root": "sdcard", "path": "Imgs/PS" },
-          { "root": "sdcard", "path": "Imgs/PSX" },
-          { "root": "sdcard", "path": "images/psx" }
+          { "root": "sdcard", "path": "Images/psx" }
         ]
       },
       "launch_profiles": ["standalone:pcsx_rearmed", "retroarch:pcsx_rearmed"],
@@ -390,10 +353,7 @@
       "extensions": ["iso", "cso", "pbp"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/psp" },
-          { "root": "sdcard", "path": "Imgs/PSP" },
-          { "root": "sdcard", "path": "Imgs/PPSSPP" },
-          { "root": "sdcard", "path": "images/psp" }
+          { "root": "sdcard", "path": "Images/psp" }
         ]
       },
       "launch_profiles": ["standalone:ppsspp", "retroarch:ppsspp"],
@@ -417,9 +377,7 @@
       "extensions": ["z64", "n64", "v64", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/n64" },
-          { "root": "sdcard", "path": "Imgs/N64" },
-          { "root": "sdcard", "path": "images/n64" }
+          { "root": "sdcard", "path": "Images/n64" }
         ]
       },
       "launch_profiles": ["retroarch:mupen64plus_next", "retroarch:parallel_n64"],
@@ -442,9 +400,7 @@
       "extensions": ["chd", "cdi", "gdi", "m3u"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/dreamcast" },
-          { "root": "sdcard", "path": "Imgs/DC" },
-          { "root": "sdcard", "path": "images/dreamcast" }
+          { "root": "sdcard", "path": "Images/dreamcast" }
         ]
       },
       "launch_profiles": ["retroarch:flycast"],
@@ -467,9 +423,7 @@
       "extensions": ["cue", "chd", "iso", "m3u", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/saturn" },
-          { "root": "sdcard", "path": "Imgs/SATURN" },
-          { "root": "sdcard", "path": "images/saturn" }
+          { "root": "sdcard", "path": "Images/saturn" }
         ]
       },
       "launch_profiles": ["retroarch:yabasanshiro", "retroarch:beetle_saturn"],
@@ -492,9 +446,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/neogeo" },
-          { "root": "sdcard", "path": "Imgs/NEOGEO" },
-          { "root": "sdcard", "path": "images/neogeo" }
+          { "root": "sdcard", "path": "Images/neogeo" }
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus"],
@@ -517,9 +469,7 @@
       "extensions": ["ngp", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/ngp" },
-          { "root": "sdcard", "path": "Imgs/NGP" },
-          { "root": "sdcard", "path": "images/ngp" }
+          { "root": "sdcard", "path": "Images/ngp" }
         ]
       },
       "launch_profiles": ["retroarch:race"],
@@ -543,10 +493,7 @@
       "extensions": ["ngc", "ngpc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/ngpc" },
-          { "root": "sdcard", "path": "Imgs/NGPC" },
-          { "root": "sdcard", "path": "Imgs/NGP" },
-          { "root": "sdcard", "path": "images/ngpc" }
+          { "root": "sdcard", "path": "Images/ngpc" }
         ]
       },
       "launch_profiles": ["retroarch:race"],
@@ -570,9 +517,7 @@
       "extensions": ["ws", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/wonderswan" },
-          { "root": "sdcard", "path": "Imgs/WS" },
-          { "root": "sdcard", "path": "images/wonderswan" }
+          { "root": "sdcard", "path": "Images/wonderswan" }
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
@@ -595,9 +540,7 @@
       "extensions": ["wsc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/wonderswancolor" },
-          { "root": "sdcard", "path": "Imgs/WSC" },
-          { "root": "sdcard", "path": "images/wonderswancolor" }
+          { "root": "sdcard", "path": "Images/wonderswancolor" }
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
@@ -620,9 +563,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/arcade" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/arcade" }
+          { "root": "sdcard", "path": "Images/arcade" }
         ]
       },
       "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo"],
@@ -646,10 +587,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/fbneo" },
-          { "root": "sdcard", "path": "Imgs/FBNEO" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/fbneo" }
+          { "root": "sdcard", "path": "Images/fbneo" }
         ]
       },
       "launch_profiles": ["retroarch:fbneo"],
@@ -673,10 +611,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/mame2003plus" },
-          { "root": "sdcard", "path": "Imgs/MAME2003PLUS" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/mame" }
+          { "root": "sdcard", "path": "Images/mame2003plus" }
         ]
       },
       "launch_profiles": ["retroarch:mame2003_plus"],
@@ -700,10 +635,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/cps1" },
-          { "root": "sdcard", "path": "Imgs/CPS1" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/cps1" }
+          { "root": "sdcard", "path": "Images/cps1" }
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps1"],
@@ -727,10 +659,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/cps2" },
-          { "root": "sdcard", "path": "Imgs/CPS2" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/cps2" }
+          { "root": "sdcard", "path": "Images/cps2" }
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012_cps2"],
@@ -754,10 +683,7 @@
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/cps3" },
-          { "root": "sdcard", "path": "Imgs/CPS3" },
-          { "root": "sdcard", "path": "Imgs/ARCADE" },
-          { "root": "sdcard", "path": "images/cps3" }
+          { "root": "sdcard", "path": "Images/cps3" }
         ]
       },
       "launch_profiles": ["retroarch:fbneo"],
@@ -780,9 +706,7 @@
       "extensions": ["dosz", "conf", "exe", "bat", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/dos" },
-          { "root": "sdcard", "path": "Imgs/DOS" },
-          { "root": "sdcard", "path": "images/pc" }
+          { "root": "sdcard", "path": "Images/dos" }
         ]
       },
       "launch_profiles": ["retroarch:dosbox_pure"],
@@ -806,9 +730,7 @@
       "extensions": ["easyrpg", "ldb", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/easyrpg" },
-          { "root": "sdcard", "path": "Imgs/EASYRPG" },
-          { "root": "sdcard", "path": "images/easyrpg" }
+          { "root": "sdcard", "path": "Images/easyrpg" }
         ]
       },
       "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
@@ -832,10 +754,7 @@
       "extensions": ["p8", "png"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/pico8" },
-          { "root": "sdcard", "path": "Imgs/PICO8" },
-          { "root": "sdcard", "path": "Imgs/PICO" },
-          { "root": "sdcard", "path": "images/pico-8" }
+          { "root": "sdcard", "path": "Images/pico8" }
         ]
       },
       "launch_profiles": ["retroarch:fake08"],
@@ -859,9 +778,7 @@
       "extensions": ["scummvm", "svm"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/scummvm" },
-          { "root": "sdcard", "path": "Imgs/SCUMMVM" },
-          { "root": "sdcard", "path": "images/scummvm" }
+          { "root": "sdcard", "path": "Images/scummvm" }
         ]
       },
       "launch_profiles": ["standalone:scummvm", "retroarch:scummvm"],
@@ -884,9 +801,7 @@
       "extensions": ["pak"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/openbor" },
-          { "root": "sdcard", "path": "Imgs/OPENBOR" },
-          { "root": "sdcard", "path": "images/openbor" }
+          { "root": "sdcard", "path": "Images/openbor" }
         ]
       },
       "launch_profiles": ["external:openbor"],
@@ -908,9 +823,7 @@
       "extensions": ["sh"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/ports" },
-          { "root": "sdcard", "path": "Imgs/PORTS" },
-          { "root": "sdcard", "path": "images/ports" }
+          { "root": "sdcard", "path": "Images/ports" }
         ]
       },
       "launch_profiles": ["external:port"],
@@ -931,9 +844,7 @@
       "extensions": ["rom", "mx1", "mx2", "dsk", "cas", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/msx" },
-          { "root": "sdcard", "path": "Imgs/MSX" },
-          { "root": "sdcard", "path": "images/msx" }
+          { "root": "sdcard", "path": "Images/msx" }
         ]
       },
       "launch_profiles": ["retroarch:bluemsx", "retroarch:fmsx"],
@@ -956,9 +867,7 @@
       "extensions": ["d88", "u88", "m3u", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/pc88" },
-          { "root": "sdcard", "path": "Imgs/PC88" },
-          { "root": "sdcard", "path": "images/pc-8800" }
+          { "root": "sdcard", "path": "Images/pc88" }
         ]
       },
       "launch_profiles": ["retroarch:quasi88"],
@@ -981,9 +890,7 @@
       "extensions": ["d88", "fdi", "hdi", "fdd", "nhd", "hdd", "m3u", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/pc98" },
-          { "root": "sdcard", "path": "Imgs/PC98" },
-          { "root": "sdcard", "path": "images/pc-9800" }
+          { "root": "sdcard", "path": "Images/pc98" }
         ]
       },
       "launch_profiles": ["retroarch:np2kai"],
@@ -1006,9 +913,7 @@
       "extensions": ["dim", "hdf", "xdf", "m3u", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/x68000" },
-          { "root": "sdcard", "path": "Imgs/X68000" },
-          { "root": "sdcard", "path": "images/x68000" }
+          { "root": "sdcard", "path": "Images/x68000" }
         ]
       },
       "launch_profiles": ["retroarch:px68k"],
@@ -1031,9 +936,7 @@
       "extensions": ["tic"],
       "artwork": {
         "lookup": [
-          { "root": "plumos", "path": "media/tic80" },
-          { "root": "sdcard", "path": "Imgs/TIC" },
-          { "root": "sdcard", "path": "images/tic-80" }
+          { "root": "sdcard", "path": "Images/tic80" }
         ]
       },
       "launch_profiles": ["retroarch:tic80"],

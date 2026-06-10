@@ -103,6 +103,7 @@ Implemented:
 - ROM extension filtering.
 - `RomEntry` generation.
 - Thumbnail lookup that preserves paths relative to the ROM alias root.
+- Single canonical thumbnail root: `/mnt/SDCARD/Images/<system_id>`.
 - Subdirectory artwork priority, flat artwork fallback, and placeholder
   fallback.
 - Case-insensitive lookup for `png`, `jpg`, `jpeg`, and `webp`.
@@ -587,8 +588,9 @@ Observations:
 
 - On the current SD card, many configured ROM directories exist, but ROM files
   are almost empty.
-- `Imgs` contains existing artwork, so plumOS should be able to reference
-  artwork without moving it.
+- `Imgs` contains stock artwork. The normal plumOS thumbnail location is
+  `/mnt/SDCARD/Images/<system_id>`; `Imgs` is treated as an importer input if
+  migration is needed.
 - `RApp/mednafen_wswan/config.json` has `imgpath` set to `../..Imgs/WSC`, which
   appears to be a typo for `../../Imgs/WSC`. Stock compatibility should detect
   and optionally correct cases like this.
