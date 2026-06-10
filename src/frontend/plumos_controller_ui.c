@@ -538,7 +538,6 @@ struct ui_state {
   unsigned int repeat_key_code;
   long long repeat_next_ms;
   char mali_rotation[16];
-  char mali_style[16];
   char mali_tty_entry_scale[8];
   char render_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t render_line_count;
@@ -5084,7 +5083,7 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
       return 8;
     }
   }
-  if (ui && ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
+  if (ui && ui->renderer_mali) {
     if (strcmp(ui->mali_tty_entry_scale, "2") == 0 ||
         strcmp(ui->mali_tty_entry_scale, "2.0") == 0 ||
         strcmp(ui->mali_tty_entry_scale, "20") == 0) {
@@ -6371,7 +6370,6 @@ static int init_ui_renderer(struct ui_state *ui) {
                render_error[0] ? render_error : "-");
       return 0;
     }
-    plumos_mali_renderer_set_style(&ui->mali_renderer, ui->mali_style);
     plumos_mali_renderer_set_tty_entry_scale(&ui->mali_renderer,
                                              ui->mali_tty_entry_scale);
     plumos_mali_renderer_reset_marquee(&ui->mali_renderer);
@@ -9494,11 +9492,10 @@ static int ui_needs_periodic_refresh(const struct ui_state *ui) {
   if (ui->renderer_mali && ui->top_transition_active) {
     return 1;
   }
-  if (ui_uses_graphic_mode(ui)) {
-    return ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
-           ui->screen == SCREEN_RECENT;
+  if (ui_uses_graphic_mode(ui) && ui->screen == SCREEN_TOP) {
+    return 0;
   }
-  return ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0;
+  return ui->renderer_mali;
 }
 
 static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
@@ -9508,7 +9505,7 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
   if (ui->renderer_mali && ui->top_transition_active) {
     return 16;
   }
-  if (ui->renderer_mali && strcmp(ui->mali_style, "tty") == 0) {
+  if (ui->renderer_mali) {
     return 100;
   }
   if (ui->rescue_network) {
@@ -9748,7 +9745,7 @@ static void usage(const char *argv0) {
   printf("Usage:\n");
   printf("  %s [--all] [--refresh] [--once] [--timeout SEC] [--event PATH]\n", argv0);
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
-  printf("     [--rotation auto|none|cw|ccw] [--font PATH] [--ui-style classic|tty]\n");
+  printf("     [--rotation auto|none|cw|ccw] [--font PATH]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
   printf("     [--rescue-network]  # disabled compatibility screen\n");
   printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
@@ -9765,7 +9762,6 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_GLES_LIB     Default for Mali renderer: /usr/lib/libGLESv2.so\n");
   printf("  PLUMOS_MALI_ROTATION auto, none, cw, or ccw. Default: auto\n");
   printf("  PLUMOS_MALI_FONT    Optional FreeType font for non-ASCII Mali text\n");
-  printf("  PLUMOS_MALI_STYLE   classic or tty. Default: classic\n");
   printf("  PLUMOS_MALI_TTY_ENTRY_SCALE  1, 1.5, or 2. Default: 1\n");
   printf("  PLUMOS_CONTROLLER_RESCUE network opens a disabled compatibility screen\n");
   printf("  PLUMOS_SYSTEM_SETTINGS_JSON  Default: $PLUMOS_ROOT/config/system/settings.json\n");
@@ -9845,7 +9841,6 @@ int main(int argc, char **argv) {
   const char *gles_path;
   const char *rotation_env;
   const char *mali_font_env;
-  const char *mali_style_env;
   const char *mali_tty_entry_scale_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
@@ -9897,12 +9892,9 @@ int main(int argc, char **argv) {
   gles_path = getenv("PLUMOS_GLES_LIB");
   rotation_env = getenv("PLUMOS_MALI_ROTATION");
   mali_font_env = getenv("PLUMOS_MALI_FONT");
-  mali_style_env = getenv("PLUMOS_MALI_STYLE");
   mali_tty_entry_scale_env = getenv("PLUMOS_MALI_TTY_ENTRY_SCALE");
   copy_string(ui.mali_rotation, sizeof(ui.mali_rotation),
               rotation_env && rotation_env[0] ? rotation_env : "auto");
-  copy_string(ui.mali_style, sizeof(ui.mali_style),
-              mali_style_env && mali_style_env[0] ? mali_style_env : "classic");
   copy_string(ui.mali_tty_entry_scale, sizeof(ui.mali_tty_entry_scale),
               mali_tty_entry_scale_env && mali_tty_entry_scale_env[0]
                   ? mali_tty_entry_scale_env
@@ -9956,14 +9948,6 @@ int main(int argc, char **argv) {
       copy_string(ui.mali_rotation, sizeof(ui.mali_rotation), rotation);
     } else if (strcmp(argv[i], "--font") == 0 && i + 1 < argc) {
       mali_font_env = argv[++i];
-    } else if (strcmp(argv[i], "--ui-style") == 0 && i + 1 < argc) {
-      const char *style = argv[++i];
-      if (strcmp(style, "classic") != 0 && strcmp(style, "default") != 0 &&
-          strcmp(style, "tty") != 0 && strcmp(style, "console") != 0) {
-        fprintf(stderr, "error: unknown UI style: %s\n", style);
-        return 2;
-      }
-      copy_string(ui.mali_style, sizeof(ui.mali_style), style);
     } else if (strcmp(argv[i], "--tty-entry-scale") == 0 && i + 1 < argc) {
       const char *scale = argv[++i];
       if (strcmp(scale, "1") != 0 && strcmp(scale, "1.0") != 0 &&

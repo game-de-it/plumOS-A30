@@ -108,11 +108,6 @@ enum plumos_mali_rotation {
   PLUMOS_MALI_ROTATION_CCW = 2
 };
 
-enum plumos_mali_style {
-  PLUMOS_MALI_STYLE_CLASSIC = 0,
-  PLUMOS_MALI_STYLE_TTY = 1
-};
-
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
 struct plumos_mali_ft_advance_cache_entry {
   unsigned int codepoint;
@@ -214,7 +209,6 @@ struct plumos_mali_renderer {
   int width;
   int height;
   enum plumos_mali_rotation rotation;
-  enum plumos_mali_style style;
   int tty_entry_scale_x10;
   long long marquee_focus_ms;
   EGLDisplay display;
@@ -275,24 +269,6 @@ static enum plumos_mali_rotation plumos_mali_parse_rotation(const char *mode,
     return PLUMOS_MALI_ROTATION_CCW;
   }
   return fb_height > fb_width ? PLUMOS_MALI_ROTATION_CCW : PLUMOS_MALI_ROTATION_NONE;
-}
-
-static enum plumos_mali_style plumos_mali_parse_style(const char *mode) {
-  if (!mode || !mode[0] || strcmp(mode, "classic") == 0 || strcmp(mode, "default") == 0) {
-    return PLUMOS_MALI_STYLE_CLASSIC;
-  }
-  if (strcmp(mode, "tty") == 0 || strcmp(mode, "console") == 0) {
-    return PLUMOS_MALI_STYLE_TTY;
-  }
-  return PLUMOS_MALI_STYLE_CLASSIC;
-}
-
-static void plumos_mali_renderer_set_style(struct plumos_mali_renderer *renderer,
-                                           const char *style_mode) {
-  if (!renderer) {
-    return;
-  }
-  renderer->style = plumos_mali_parse_style(style_mode);
 }
 
 static int plumos_mali_parse_tty_entry_scale(const char *scale) {
@@ -2188,27 +2164,6 @@ static void plumos_mali_battery_label(char *out, size_t out_size) {
     prefix = "CHG";
   }
   snprintf(out, out_size, "%s %.3s", prefix, capacity);
-}
-
-static void plumos_mali_draw_status_bar(struct plumos_mali_renderer *renderer) {
-  char time_label[16];
-  char wifi_label[16];
-  char battery_label[24];
-  float margin = 14.0f;
-  int scale = 2;
-  int battery_width;
-
-  plumos_mali_time_label(time_label, sizeof(time_label));
-  plumos_mali_wifi_label(wifi_label, sizeof(wifi_label));
-  plumos_mali_battery_label(battery_label, sizeof(battery_label));
-
-  plumos_mali_text(renderer, time_label, margin, 10.0f, scale, 0.76f, 0.92f, 0.92f, 1.0f);
-  plumos_mali_text(renderer, wifi_label, (float)(renderer->width / 2 - 36), 10.0f, scale,
-                   0.76f, 0.92f, 0.92f, 1.0f);
-  battery_width = plumos_mali_text_width(battery_label, scale);
-  plumos_mali_text(renderer, battery_label,
-                   (float)(renderer->width - 14 - battery_width), 10.0f, scale,
-                   0.76f, 0.92f, 0.92f, 1.0f);
 }
 
 static int plumos_mali_starts_with(const char *s, const char *prefix) {
@@ -4276,67 +4231,11 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
 static int plumos_mali_render_lines(struct plumos_mali_renderer *renderer,
                                     const char lines[][PLUMOS_MALI_RENDER_LINE_MAX],
                                     size_t line_count) {
-  size_t i;
-  char title[80];
-  char meta[160];
-  char status[160];
-  char entries[18][PLUMOS_MALI_RENDER_LINE_MAX];
-  size_t entry_count = 0;
-  float margin = 14.0f;
-  float y;
-  float line_height = 28.0f;
-
   if (plumos_mali_has_prefixed_line(lines, line_count, "graphic_mode=")) {
     return plumos_mali_render_lines_graphic(renderer, lines, line_count);
   }
 
-  if (renderer->style == PLUMOS_MALI_STYLE_TTY) {
-    return plumos_mali_render_lines_tty(renderer, lines, line_count);
-  }
-
-  plumos_mali_collect_lines(lines, line_count, title, sizeof(title),
-                            meta, sizeof(meta), status, sizeof(status),
-                            entries, sizeof(entries) / sizeof(entries[0]), &entry_count);
-
-  renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
-  renderer->gl.UseProgram(renderer->program);
-  renderer->gl.ClearColor(0.012f, 0.016f, 0.018f, 1.0f);
-  renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
-
-  plumos_mali_rect(renderer, 0.0f, 0.0f, (float)renderer->width, 36.0f,
-                   0.020f, 0.055f, 0.060f, 1.0f);
-  plumos_mali_draw_status_bar(renderer);
-
-  plumos_mali_text(renderer, title, margin, 50.0f, 2, 0.78f, 0.98f, 0.94f, 1.0f);
-  if (meta[0]) {
-    plumos_mali_text(renderer, meta, margin, 74.0f, 2, 0.58f, 0.76f, 0.78f, 1.0f);
-  }
-
-  y = meta[0] ? 106.0f : 82.0f;
-  for (i = 0; i < entry_count; i++) {
-    const char *line = entries[i];
-    float r = 0.82f;
-    float g = 0.86f;
-    float b = 0.84f;
-    if (line[0] == '>') {
-      plumos_mali_rect(renderer, 8.0f, y - 7.0f, (float)renderer->width - 16.0f,
-                       26.0f, 0.12f, 0.18f, 0.15f, 1.0f);
-      r = 1.0f;
-      g = 0.91f;
-      b = 0.55f;
-    }
-    plumos_mali_text(renderer, line, margin, y, 2, r, g, b, 1.0f);
-    y += line_height;
-    if (y > (float)renderer->height - 18.0f) {
-      break;
-    }
-  }
-  if (entry_count == 0) {
-    plumos_mali_text(renderer, "No entries", margin, y, 2, 0.72f, 0.78f, 0.76f, 1.0f);
-  }
-  (void)status;
-  renderer->gl.Finish();
-  return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
+  return plumos_mali_render_lines_tty(renderer, lines, line_count);
 }
 
 #endif

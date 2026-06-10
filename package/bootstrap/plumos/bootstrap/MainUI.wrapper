@@ -27,11 +27,9 @@ SSH_START="${PLUMOS_SSH_START:-${PLUMOS_ROOT}/ssh/start-ssh.sh}"
 STOCK_MAINUI="${PLUMOS_STOCK_MAINUI:-/mnt/SDCARD/miyoo/app/MainUI.stock}"
 DISABLE_FILE="${PLUMOS_DISABLE_FILE:-${PLUMOS_ROOT}/config/disable-mainui-wrapper}"
 SYSTEM_SETTINGS="${PLUMOS_SYSTEM_SETTINGS_JSON:-${PLUMOS_ROOT}/config/system/settings.json}"
-FRONTEND_SETTINGS="${PLUMOS_FRONTEND_SETTINGS_JSON:-${PLUMOS_ROOT}/config/frontend/settings.json}"
 FE_READY_FLAG="${PLUMOS_FE_READY_FLAG:-/tmp/plumos-fe-ready}"
 FE_PAUSE_FILE="${PLUMOS_FE_PAUSE_FILE:-/tmp/plumos-fe-paused}"
 UI_ROTATION="${PLUMOS_MALI_ROTATION:-auto}"
-UI_STYLE="${PLUMOS_MALI_STYLE:-}"
 UI_ENTRY_SCALE="${PLUMOS_MALI_TTY_ENTRY_SCALE:-2}"
 
 mkdir -p "$LOG_DIR" "${PLUMOS_ROOT}/config" 2>/dev/null || true
@@ -80,25 +78,6 @@ apply_timezone() {
   fi
 }
 
-frontend_ui_mode() {
-  mode="$(json_string_value ui_mode "$FRONTEND_SETTINGS" 2>/dev/null || true)"
-  case "$mode" in
-    graphic) printf '%s\n' "graphic" ;;
-    *) printf '%s\n' "text" ;;
-  esac
-}
-
-choose_ui_style() {
-  if [ -n "$UI_STYLE" ]; then
-    return
-  fi
-
-  case "$(frontend_ui_mode)" in
-    graphic) UI_STYLE="classic" ;;
-    *) UI_STYLE="tty" ;;
-  esac
-}
-
 exit_if_fe_ready() {
   reason="$1"
   if [ -e "$FE_READY_FLAG" ]; then
@@ -128,29 +107,26 @@ run_controller_ui() {
   if [ -x "$ENV_WRAPPER" ]; then
     PLUMOS_ROOT="$PLUMOS_ROOT" \
     PLUMOS_SYSTEM_SETTINGS_JSON="$SYSTEM_SETTINGS" \
-    PLUMOS_MALI_STYLE="$UI_STYLE" \
     PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
-      "$ENV_WRAPPER" "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
+      "$ENV_WRAPPER" "$CONTROLLER_UI" --rotation "$UI_ROTATION" \
       --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
   else
     PLUMOS_ROOT="$PLUMOS_ROOT" \
     PLUMOS_SYSTEM_SETTINGS_JSON="$SYSTEM_SETTINGS" \
-    PLUMOS_MALI_STYLE="$UI_STYLE" \
     PLUMOS_MALI_TTY_ENTRY_SCALE="$UI_ENTRY_SCALE" \
-      "$CONTROLLER_UI" --rotation "$UI_ROTATION" --ui-style "$UI_STYLE" \
+      "$CONTROLLER_UI" --rotation "$UI_ROTATION" \
       --tty-entry-scale "$UI_ENTRY_SCALE" >> "${LOG_DIR}/plumos-controller-ui-mali.log" 2>&1
   fi
 }
 
 apply_timezone
-choose_ui_style
 
 while [ -e "$FE_PAUSE_FILE" ]; do
   log "FE pause file exists; waiting: ${FE_PAUSE_FILE}"
   sleep 1
 done
 
-log "wrapper start pid=$$ pwd=$(pwd) ui_mode=$(frontend_ui_mode) ui_style=${UI_STYLE}"
+log "wrapper start pid=$$ pwd=$(pwd) ui_style=tty"
 
 if [ -x "$STOCK_SERVICES" ]; then
   log "normalizing stock services: ${STOCK_SERVICES}"

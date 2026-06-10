@@ -69,6 +69,8 @@ This document defines the design rules for plumOS frontend UI on the A30's
 
 The current Linux-console-style TOP/list UI should follow these rules.
 
+- The Mali renderer's normal fallback screen should only use the TTY list UI.
+  Do not use the old mock-derived classic list style in production UI.
 - The header shows only `PLUMOS A30 TTY1`, time, Wi-Fi, and Battery/Charge.
 - Do not show `PATH`, `STATUS`, `ENTRIES`, `CURSOR`, or debug/status lines.
 - The START first layer should be `UI Settings`, `System Settings`,

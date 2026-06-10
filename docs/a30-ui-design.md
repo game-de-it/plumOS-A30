@@ -55,6 +55,8 @@
 
 現行の Linux console 風 TOP/list UI は次の仕様を基準にする。
 
+- Mali renderer の通常 fallback 画面は TTY list UI だけにする。旧 mock 由来の
+  classic list style は production UI では使わない。
 - Header は `PLUMOS A30 TTY1`、時刻、Wi-Fi、Battery/Charge だけを表示する。
 - `PATH`、`STATUS`、`ENTRIES`、`CURSOR`、debug/status line は表示しない。
 - START 第一階層は `UI Settings`、`System Settings`、`Network Settings`、
