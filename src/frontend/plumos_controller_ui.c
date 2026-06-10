@@ -4324,7 +4324,7 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
 }
 
 #define UI_GRAPHIC_TOP_COLUMNS 3
-#define UI_GRAPHIC_TOP_ROWS 3
+#define UI_GRAPHIC_TOP_ROWS 2
 #define UI_GRAPHIC_TOP_PAGE_SIZE (UI_GRAPHIC_TOP_COLUMNS * UI_GRAPHIC_TOP_ROWS)
 
 static size_t ui_list_window_size(const struct ui_state *ui) {

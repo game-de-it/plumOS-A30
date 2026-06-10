@@ -105,8 +105,10 @@
 成立するカード/プレビュー型UIを基準にする。Settings、HELP、SAFE、Network、System系の
 操作画面は視認性と誤操作防止を優先し、当面は現行の青バー付きlist UIを使う。
 
-- TOP は `PLUMOS A30 GUI` のカードグリッドにする。1ページは3列x3行の9件を基準にする。
-- TOP card は system 名、ROM数、fallback initials を表示する。画像がなくても空に見せない。
+- TOP は `PLUMOS A30 GUI` のカードグリッドにする。1ページは3列x2行の正方形6件を
+  基準にし、system logo を判別できる大きさで表示する。
+- TOP card は system logo、system 名、ROM数、fallback initials を表示する。
+  画像がなくても空に見せない。
 - Graphic TOP の十字キーはタイルの見た目に合わせる。左右は横移動、上下は縦移動とし、
   行端では前後の行へ回り込む。ページ境界を越える場合は前/次ページへ自然に移動する。
 - ROM list は左に選択リスト、右に選択中ROMのプレビューパネルを置く。1ページは8件を基準にする。

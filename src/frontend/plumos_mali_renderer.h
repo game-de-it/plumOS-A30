@@ -2858,24 +2858,46 @@ static void plumos_mali_graphic_draw_top(
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
     const char *status) {
   const size_t columns = 3;
-  const float grid_x = 22.0f;
+  const size_t rows = 2;
+  const float horizontal_margin = 22.0f;
   const float grid_y = 70.0f;
+  const float bottom_margin = 18.0f;
   const float gap = 10.0f;
-  const float tile_w = ((float)renderer->width - grid_x - 14.0f -
-                        gap * (float)(columns - 1)) /
-                       (float)columns;
-  const float tile_h = 126.0f;
+  const float width_limited =
+      ((float)renderer->width - horizontal_margin * 2.0f -
+       gap * (float)(columns - 1)) /
+      (float)columns;
+  const float height_limited =
+      ((float)renderer->height - grid_y - bottom_margin -
+       gap * (float)(rows - 1)) /
+      (float)rows;
+  const float tile_size = width_limited < height_limited ? width_limited
+                                                         : height_limited;
+  const float tile_w = tile_size;
+  const float tile_h = tile_size;
+  const float grid_width = tile_w * (float)columns +
+                           gap * (float)(columns - 1);
+  float grid_x = ((float)renderer->width - grid_width) * 0.5f;
   size_t i;
 
   plumos_mali_graphic_top_bar(renderer, theme, "PLUMOS A30 GUI");
   plumos_mali_graphic_rect(renderer, 0.0f, 0.0f, 5.0f, (float)renderer->height,
                            theme->accent, 1.0f);
+  if (grid_x < 8.0f) {
+    grid_x = 8.0f;
+  }
 
   for (i = 0; i < entry_count; i++) {
     size_t col = i % columns;
     size_t row = i / columns;
     float x = grid_x + (float)col * (tile_w + gap);
     float y = grid_y + (float)row * (tile_h + gap);
+    float media_x = x + 14.0f;
+    float media_y = y + 14.0f;
+    float title_y = y + tile_h - 58.0f;
+    float detail_y = y + tile_h - 30.0f;
+    float media_w = tile_w - 28.0f;
+    float media_h = title_y - media_y - 10.0f;
     int selected = entries[i].selected;
     char title[96];
     char detail[96];
@@ -2901,8 +2923,7 @@ static void plumos_mali_graphic_draw_top(
                                tile_w - 4.0f, tile_h - 4.0f,
                                theme->panel_inner, 1.0f);
     }
-    plumos_mali_graphic_rect(renderer, x + 10.0f, y + 12.0f,
-                             tile_w - 20.0f, 54.0f,
+    plumos_mali_graphic_rect(renderer, media_x, media_y, media_w, media_h,
                              selected ? theme->selection_background
                                       : theme->media_panel,
                              1.0f);
@@ -2910,20 +2931,20 @@ static void plumos_mali_graphic_draw_top(
     if (entries[i].thumbnail[0]) {
       logo_drawn =
           plumos_mali_graphic_draw_texture(renderer, entries[i].thumbnail,
-                                           x + 12.0f, y + 14.0f,
-                                           tile_w - 24.0f, 50.0f);
+                                           media_x + 4.0f, media_y + 4.0f,
+                                           media_w - 8.0f, media_h - 8.0f);
     }
 #endif
     if (!logo_drawn) {
       initials_width = plumos_mali_text_width(initials, 4);
       plumos_mali_graphic_text(renderer, initials,
                                x + (tile_w - (float)initials_width) * 0.5f,
-                               y + 24.0f, 4,
+                               media_y + (media_h - 32.0f) * 0.5f, 4,
                                selected ? theme->selection_foreground
                                         : theme->foreground,
                                1.0f);
     }
-    plumos_mali_graphic_text_clipped(renderer, title, x + 12.0f, y + 78.0f,
+    plumos_mali_graphic_text_clipped(renderer, title, x + 12.0f, title_y,
                                      2, 1, x + 12.0f, x + tile_w - 12.0f,
                                      selected ? theme->selection_foreground
                                               : theme->foreground,
@@ -2931,7 +2952,7 @@ static void plumos_mali_graphic_draw_top(
     detail_width = plumos_mali_text_width(detail, 2);
     plumos_mali_graphic_text_clipped(renderer, detail,
                                      x + tile_w - 12.0f - (float)detail_width,
-                                     y + tile_h - 30.0f, 2, 0,
+                                     detail_y, 2, 0,
                                      x + 12.0f, x + tile_w - 12.0f,
                                      theme->muted, 1.0f);
   }

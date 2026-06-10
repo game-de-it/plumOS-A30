@@ -173,10 +173,10 @@ still works before artwork is curated. Settings, HELP, SAFE, Network, and System
 operation screens keep the current blue-accent list UI for readability and
 misclick prevention.
 
-- TOP uses a `PLUMOS A30 GUI` card grid. One page shows a 3-column by 3-row
-  grid with 9 entries.
-- TOP cards show system name, ROM count, and fallback initials so they never look
-  empty when artwork is missing.
+- TOP uses a `PLUMOS A30 GUI` card grid. One page shows a 3-column by 2-row
+  grid of six square cards so system logos remain large enough to identify.
+- TOP cards show system logo, system name, ROM count, and fallback initials so
+  they never look empty when artwork is missing.
 - Graphic TOP directional input follows the grid: Left/Right move horizontally,
   Up/Down move vertically, row edges wrap to the previous/next row, and page
   boundaries move naturally to the previous/next page.
