@@ -248,6 +248,7 @@ Environment:
 - `PLUMOS_THUMBNAIL_STATE_DIR`: default `$PLUMOS_ROOT/state/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_CACHE_DIR`: default `$PLUMOS_ROOT/cache/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
+- `PLUMOS_THUMBNAIL_FETCH_TIMEOUT`: default `45` seconds
 
 `--system <id>` prints the reason and exits with status `2` for disabled
 systems. `--all` plans enabled systems only. Output is TSV and does not print
@@ -268,7 +269,7 @@ queue.
 Fetch columns:
 
 ```text
-status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match download_failed invalid_png skipped_zip skipped_tool
+status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match crc_miss thumbnail_miss download_failed invalid_png skipped_zip skipped_tool
 ```
 
 `--fetch` prepends `PLUMOS_ROOT/bin` to `PATH` and uses plumOS BusyBox applets
@@ -277,6 +278,11 @@ such as `crc32`, `wget`, and `unzip`. DAT/index lookup first checks
 `PLUMOS_THUMBNAIL_CACHE_DIR`. Thumbnail PNGs are downloaded from the libretro
 thumbnail server over HTTP and saved to
 `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+`no_match` is the sum of `crc_miss + thumbnail_miss`. `crc_miss` means the ROM
+CRC was not present in the DAT index; `thumbnail_miss` means the CRC matched but
+the thumbnail index had no PNG with that canonical name.
+`wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
+stall the UI path indefinitely.
 
 Source definitions live in
 `package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are
@@ -336,7 +342,8 @@ The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
 4. Look up `crc -> canonical game name` in the per-system DAT index.
 5. When CRC matches, derive the URL from the canonical game name and try a
    direct download.
-6. Save the image when the download succeeds. Return `no_match` when it fails.
+6. Save the image when the download succeeds. Return `download_failed` or
+   `invalid_png` when it fails.
 7. When CRC does not match, default behavior returns `no_match`.
 8. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
    `candidate-report` lookup.
@@ -403,7 +410,8 @@ PLUMOS_SDCARD_ROOT=/mnt/SDCARD \
 
 ## Before FE Integration
 
-- Split `no_match` results into CRC misses and thumbnail misses.
+- Review the `crc_miss` / `thumbnail_miss` split to confirm URL resolution
+  rates per system.
 - Decide where `--loose-index` is worthwhile.
 - If serial HEAD/download is too slow, determine shell prototype concurrency
   before moving the design into an FE queue.

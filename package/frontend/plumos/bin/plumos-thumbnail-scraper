@@ -32,6 +32,7 @@ SYSTEM_FILTER=
 PLAN_ALL=0
 LIMIT=0
 KIND=Named_Boxarts
+FETCH_TIMEOUT="${PLUMOS_THUMBNAIL_FETCH_TIMEOUT:-45}"
 
 usage() {
   cat <<'USAGE'
@@ -58,6 +59,7 @@ Environment:
   PLUMOS_THUMBNAIL_STATE_DIR     Default: $PLUMOS_ROOT/state/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_CACHE_DIR     Default: $PLUMOS_ROOT/cache/frontend/artwork-scraper
   PLUMOS_THUMBNAIL_PRELOAD_DIR   Default: $PLUMOS_ROOT/share/frontend/artwork-scraper
+  PLUMOS_THUMBNAIL_FETCH_TIMEOUT Default: 45 seconds
 
 Output:
   --list-systems:
@@ -67,7 +69,7 @@ Output:
     status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_workers download_workers
 
   --fetch:
-    status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match download_failed invalid_png skipped_zip skipped_tool
+    status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match crc_miss thumbnail_miss download_failed invalid_png skipped_zip skipped_tool
 
 The runner does not print ROM file names.
 USAGE
@@ -307,7 +309,7 @@ print_plan_header() {
 }
 
 print_fetch_header() {
-  printf 'status\tsystem\tenabled\treason\taliases_seen\trom_candidates\texisting_thumbnails\tmissing_thumbnails\tcrc_checked\tcrc_matched\tdownloaded\tno_match\tdownload_failed\tinvalid_png\tskipped_zip\tskipped_tool\n'
+  printf 'status\tsystem\tenabled\treason\taliases_seen\trom_candidates\texisting_thumbnails\tmissing_thumbnails\tcrc_checked\tcrc_matched\tdownloaded\tno_match\tcrc_miss\tthumbnail_miss\tdownload_failed\tinvalid_png\tskipped_zip\tskipped_tool\n'
 }
 
 source_field() {
@@ -354,12 +356,12 @@ fetch_url() {
   rm -f "$tmp" 2>/dev/null || true
   mkdir -p "$(dirname "$output")" 2>/dev/null || true
   if command -v curl >/dev/null 2>&1; then
-    if curl -fsSL --retry 2 --connect-timeout 10 --max-time 90 -o "$tmp" "$url"; then
+    if curl -fsSL --retry 2 --connect-timeout 10 --max-time "$FETCH_TIMEOUT" -o "$tmp" "$url"; then
       mv "$tmp" "$output"
       return 0
     fi
   elif command -v wget >/dev/null 2>&1; then
-    if wget -q -O "$tmp" "$url"; then
+    if wget -q -T "$FETCH_TIMEOUT" -O "$tmp" "$url"; then
       mv "$tmp" "$output"
       return 0
     fi
@@ -406,7 +408,7 @@ html_to_thumb_index() {
       sub(/^.*<a[[:space:]][^>]*href="/, "", href)
       sub(/".*$/, "", href)
       label = line
-      sub(/^.*">/, "", label)
+      sub(/^.*href="[^"]+">/, "", label)
       sub(/<\/a>.*$/, "", label)
       sub(/\.png$/, "", label)
       gsub(/&amp;/, "\\&", label)
@@ -417,6 +419,16 @@ html_to_thumb_index() {
       }
     }
   ' "$html_file" > "$index_file"
+}
+
+thumb_index_valid() {
+  index_file="$1"
+  [ -s "$index_file" ] || return 1
+  awk -F "$TAB_CHAR" '
+    NR > 20 { exit }
+    $1 ~ /[<>]/ { bad = 1; exit }
+    END { exit bad ? 1 : 0 }
+  ' "$index_file"
 }
 
 ensure_dat_index() {
@@ -451,14 +463,15 @@ ensure_thumb_index() {
   html="${CACHE_DIR}/thumb-html/${system}/${KIND}.html"
   base=""
 
-  if [ -s "$preloaded" ]; then
+  if thumb_index_valid "$preloaded"; then
     printf '%s\n' "$preloaded"
     return 0
   fi
-  if [ -s "$cached" ]; then
+  if thumb_index_valid "$cached"; then
     printf '%s\n' "$cached"
     return 0
   fi
+  rm -f "$cached" 2>/dev/null || true
 
   base="$(thumb_base_url "$system" || true)"
   [ -n "$base" ] || return 1
@@ -647,7 +660,7 @@ fetch_system() {
 
   if [ "${enabled:-false}" != "true" ]; then
     if [ "$explicit" = 1 ]; then
-      printf 'disabled\t%s\tfalse\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' "$fetch_system_id" "${reason:--}"
+      printf 'disabled\t%s\tfalse\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' "$fetch_system_id" "${reason:--}"
       log "fetch disabled system=${fetch_system_id} reason=${reason:--}"
       return 2
     fi
@@ -670,6 +683,8 @@ fetch_system() {
   crc_matched=0
   downloaded=0
   no_match=0
+  crc_miss=0
+  thumbnail_miss=0
   download_failed=0
   invalid_png=0
   skipped_zip=0
@@ -682,7 +697,7 @@ fetch_system() {
   thumb_base="$(thumb_base_url "$fetch_system_id" 2>/dev/null || true)"
   if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
     skipped_tool=1
-    printf 'fetch\t%s\ttrue\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t%s\n' \
+    printf 'fetch\t%s\ttrue\t%s\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t%s\n' \
       "$fetch_system_id" "${reason:--}" "$skipped_tool"
     log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
     return 0
@@ -741,11 +756,13 @@ fetch_system() {
             canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
             if [ -z "$canonical" ]; then
               no_match=$((no_match + 1))
+              crc_miss=$((crc_miss + 1))
             else
               crc_matched=$((crc_matched + 1))
               href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
               if [ -z "$href" ]; then
                 no_match=$((no_match + 1))
+                thumbnail_miss=$((thumbnail_miss + 1))
               else
                 dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
                 url="${thumb_base}/${href}"
@@ -779,12 +796,13 @@ fetch_system() {
 
   rm -f "$tmp_list" "$payload_tmp" 2>/dev/null || true
 
-  printf 'fetch\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf 'fetch\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$fetch_system_id" "${reason:--}" "$aliases_seen" "$rom_candidates" \
     "$existing_thumbnails" "$missing_thumbnails" "$crc_checked" "$crc_matched" \
-    "$downloaded" "$no_match" "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
+    "$downloaded" "$no_match" "$crc_miss" "$thumbnail_miss" \
+    "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
 
-  log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} limit=${LIMIT}"
+  log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} crc_miss=${crc_miss} thumbnail_miss=${thumbnail_miss} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} limit=${LIMIT}"
   return 0
 }
 
