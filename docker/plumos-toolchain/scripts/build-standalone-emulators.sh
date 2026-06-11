@@ -779,6 +779,8 @@ Environment:
   PLUMOS_A30_PSP_UI_SCALE             Legacy append-profile UI scale. Used only when append profile is enabled.
   PLUMOS_A30_PSP_PROFILE              Legacy append profile: standard, none.
   PLUMOS_A30_PSP_LAYOUT               Legacy append layout: a30-landscape, portrait-vertical, none.
+  PLUMOS_A30_PSP_CONTROLS=standard    Repair/create PPSSPP controls.ini. Default: none.
+  PLUMOS_A30_PSP_FORCE_CONTROLS=1     Replace PPSSPP controls.ini when controls repair is enabled.
   PLUMOS_A30_PSP_ESCAPE_EXIT=1        Make PPSSPP exit when a Pause-mapped key is pressed.
   PLUMOS_A30_PSP_RESET_INSTANCE_COUNTER=0 Do not clear stale PPSSPP audio-silencing state.
   PLUMOS_A30_SCUMMVM_DEFAULT_CONFIG=0 Do not inject ScummVM A30 defaults when --config is absent.
@@ -1199,7 +1201,7 @@ ensure_ppsspp_pause_menu_mapping() {
 }
 
 ensure_ppsspp_controls_config() {
-  case "${PLUMOS_A30_PSP_CONTROLS:-standard}" in
+  case "${PLUMOS_A30_PSP_CONTROLS:-none}" in
     none|0|no|NO|false|FALSE) return 0 ;;
   esac
 
@@ -1667,6 +1669,9 @@ PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=standard
 PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE=axisYR
 PLUMOS_A30_PSP_JOYSTICKD_Y_SOURCE=axisXR
 PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=none
+
+PLUMOS_A30_PSP_CONTROLS=none
+PLUMOS_A30_PSP_FORCE_CONTROLS=0
 
 PLUMOS_A30_PSP_APPEND_PROFILE=0
 PLUMOS_A30_PSP_ESCAPE_EXIT=0

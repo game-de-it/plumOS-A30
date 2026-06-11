@@ -52,6 +52,10 @@ plumOS configuration.
     the generated `plumos-standalone-launch` script.
   - This directory is protected by `deploy-a30.sh`, so standalone package
     redeploys keep local tuning.
+  - PPSSPP `ppsspp.ini` / `controls.ini` are user-managed PPSSPP settings and
+    are not repaired during normal launcher startup. Enable
+    `PLUMOS_A30_PSP_CONTROLS=standard` only when controls repair is explicitly
+    needed.
 - `/mnt/SDCARD/plumos/config/input/mapping.json`
   - plumOS input mapping, hotkeys, and physical button integration.
 
