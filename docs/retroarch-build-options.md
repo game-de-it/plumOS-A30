@@ -127,14 +127,15 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 
 
 RetroArch 1.22.2 practical:
 
-- `./scripts/docker-build.sh retroarch-practical` で OSS/ALSA audio、SDL2 joypad、Network Command、
+- `./scripts/docker-build.sh retroarch-practical` で ALSA/OSS audio、SDL2 joypad、Network Command、
   LibretroDB、7zip、screenshots/images を含む実用寄り runtime を build する。
 - 実機では `input_driver = "null"` + `input_joypad_driver = "sdl2"` +
   `plumos-joystickd --device-mode xbox` で `plumOS A30 Gamepad` が認識された。
 - `udev`/`linuxraw` を primary input driver にした probe は初期化に失敗したため、
   初期実用 config は SDL2 joypad を優先する。
 - OSS audio + SDL2 joypad + `audio_latency = 128` + CPU `performance` では画面/音/操作が
-  ユーザー目視で良好。
+  ユーザー目視で良好だった。その後、System Settings の `volume` を全体音量として扱うため、
+  既定は ALSA `default` + `Soft Volume Master` に移行し、OSS は互換 fallback として残す。
 - CPU `ondemand` では音途切れが出た。CPU `userspace fixed 648000 kHz` + 2 cores は
   NES/GB で画面/音/操作が良好で、電池消費と安定性のバランス上、軽量 core の初期値にする。
 - 電源ケーブルを抜いた状態の dummy CPU負荷計測では、2 cores + performance が約 1.98 W、
@@ -167,8 +168,9 @@ RetroArch 1.22.2 practical:
 
 最初の practical runtime は、minimal video 経路を維持しつつ以下だけ増やすのがよいです。
 
-- OSS audio と SDL2 joypad を初期実用 config とする。
-- ALSA は `libasound` と実機 device が安定して扱える場合だけ併用または比較する。
+- ALSA `default` と SDL2 joypad を初期実用 config とし、`plumos-volume-control` の
+  `Soft Volume Master` を volume backend にする。
+- OSS は互換 fallback として維持し、OSS 明示時だけ RetroArch software volume へ保存値を反映する。
 - controller UI の SAFE menu/START Shutdown と `plumos-safe-hotkeyd` から接続済みの
   安全終了flowは、物理 Function 押下と power/sleep backend dry-run まで確認済み。
   次は必要ならゲーム中SAFE menu、または実 poweroff / 実 suspend の発火確認へ広げる。

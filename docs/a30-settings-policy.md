@@ -27,7 +27,7 @@
 `/config/system.json` には触れません。`Language` 以外は、plumOS 設定保存後に
 A30 runtime backend へ即時反映します。
 
-- `Volume`: `volume`。左右で `0..20` を変更し、RetroArch 起動時の `audio_volume` へ反映する。将来は物理音量ボタンと連動する
+- `Volume`: `volume`。左右で `0..20` を変更し、ALSA `Soft Volume Master` へ反映する。将来は物理音量ボタンと連動する
 - `Brightness`: `brightness`。左右で `1..20` を変更し、下記の表で `/sys/devices/virtual/disp/disp/attr/lcdbl` の RAW 値へ反映する。将来は START + 音量ボタンなどの hotkey と連動する
 - `Lumination`: `lumination`。左右で `0..10` を変更し、display `enhance` へ反映する
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
@@ -42,7 +42,7 @@ A30 runtime backend へ即時反映します。
 - `SD Card`: `statvfs()` で見た空き容量/総容量
 - `plumOS System Config`: `/mnt/SDCARD/plumos/config/system/settings.json` の読み取り状態
 - `Input Device`: `gpio-keys-polled` から見つけた `/dev/input/event*`
-- `Audio Backend`: 検出した audio backend。A30 では RetroArch `audio_volume` を使い、hardware mixer control は検証中
+- `Audio Backend`: 検出した audio backend。A30 では ALSA `Soft Volume Master` を使う
 - `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
 - `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針
 
@@ -139,10 +139,12 @@ UI からは plumOS 側の `brightness`, `lumination`, `contrast`, `hue`,
 
 plumOS 側では `/mnt/SDCARD/plumos/config/system/settings.json` に `volume` を持ちます。
 UI からは plumOS 側の `volume` を backup 付き atomic write で更新します。
-RetroArch launcher は起動時にこの値を読み、`volume 20` を `audio_volume = 0.000000`、
-`volume 0` を mute 相当、途中値を 2dB 刻みの減衰として append config に書きます。
-A30 実機の ALSA mixer には想定していた `Soft Volume Master` が存在しないため、
-hardware mixer への直接反映は codec control mapping を検証するまで保留します。
+`plumos-volume-control` はこの値を読み、`0..20` を ALSA softvol の `0..255` へ丸めて
+`Soft Volume Master` に反映します。`Soft Volume Master` は ALSA default PCM を一度
+open するまで見えないため、FE と launcher は必要に応じて短い無音再生で初期化します。
+RetroArch と standalone emulator の plumOS launcher は ALSA `default` を既定にし、
+同じ softvol を通します。OSS を明示した RetroArch 起動は互換用 fallback とし、その場合だけ
+RetroArch の software volume に保存値を反映します。
 物理音量ボタン連動は別タスクです。
 
 ## Wi-Fi

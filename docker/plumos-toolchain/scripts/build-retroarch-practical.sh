@@ -295,8 +295,8 @@ video_rotation = "1"
 screen_orientation = "1"
 
 audio_enable = "true"
-audio_driver = "oss"
-audio_device = "/dev/dsp"
+audio_driver = "alsa"
+audio_device = "default"
 audio_latency = "128"
 audio_sync = "true"
 audio_rate_control = "true"
@@ -361,7 +361,7 @@ EOF
 
   cat > "${TARGET_DIR}/plumos/retroarch/config/retroarch-practical-alsa-append.cfg" <<'EOF'
 audio_driver = "alsa"
-audio_device = "hw:0,0"
+audio_device = "default"
 EOF
 
   cat > "${TARGET_DIR}/plumos/retroarch/autoconfig/sdl2/plumOS A30 Gamepad.cfg" <<'EOF'
@@ -531,6 +531,7 @@ PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
 RA="$PLUMOS_ROOT/bin/plumos-retroarch-practical"
 JOY="$PLUMOS_ROOT/bin/plumos-joystickd"
 UDP="$PLUMOS_ROOT/bin/plumos-udp-send"
+VOLUME_CONTROL="$PLUMOS_ROOT/bin/plumos-volume-control"
 LOG_DIR="$PLUMOS_ROOT/retroarch/logs"
 APPEND="/tmp/plumos-retroarch-launch-$$.cfg"
 CPU_STATE="/tmp/plumos-retroarch-launch-cpustate-$$"
@@ -541,7 +542,7 @@ NETCMD_LOG="$LOG_DIR/launch-netcmd-last.log"
 CORE=""
 ROM=""
 SYSTEM=""
-AUDIO="${PLUMOS_RA_AUDIO:-oss}"
+AUDIO="${PLUMOS_RA_AUDIO:-alsa}"
 AUDIO_LATENCY="${PLUMOS_RA_AUDIO_LATENCY:-}"
 CPU_POLICY="${PLUMOS_RA_CPU_POLICY:-fixed}"
 CPU_FREQ="${PLUMOS_RA_CPU_FREQ:-648000}"
@@ -568,7 +569,7 @@ Usage: plumos-retroarch-launch --core CORE --rom ROM [options]
        plumos-retroarch-launch --system nes|gb [--rom ROM] [options]
 
 Options:
-  --audio oss|alsa          Audio driver. Default: ${AUDIO}
+  --audio alsa|oss          Audio driver. Default: ${AUDIO}
   --audio-latency MS        RetroArch audio latency override.
   --cpu performance|fixed
                             CPU policy. Default: ${CPU_POLICY}
@@ -762,6 +763,12 @@ retroarch_audio_volume_db() {
     printf '%s\n' "0.000000"
   else
     printf '%d.000000\n' $(( (volume - 20) * 2 ))
+  fi
+}
+
+apply_system_volume() {
+  if [ -x "$VOLUME_CONTROL" ]; then
+    "$VOLUME_CONTROL" apply >>"$LOG_DIR/volume-control-last.log" 2>&1 || true
   fi
 }
 
@@ -1042,20 +1049,11 @@ esac
 
 mkdir -p "$LOG_DIR"
 trap cleanup EXIT INT TERM
-
-SYSTEM_VOLUME="$(read_system_volume)"
-RA_AUDIO_VOLUME="$(retroarch_audio_volume_db "$SYSTEM_VOLUME")"
-if [ "$SYSTEM_VOLUME" -le 0 ]; then
-  RA_AUDIO_MUTE=true
-else
-  RA_AUDIO_MUTE=false
-fi
+apply_system_volume
 
 cat > "$APPEND" <<APPEND
 config_save_on_exit = "false"
 state_slot = "$SAFE_STATE_SLOT"
-audio_volume = "$RA_AUDIO_VOLUME"
-audio_mute_enable = "$RA_AUDIO_MUTE"
 APPEND
 if [ -n "$QUIT_PRESS_TWICE" ]; then
   cat >> "$APPEND" <<APPEND
@@ -1066,7 +1064,21 @@ fi
 if [ "$AUDIO" = "alsa" ]; then
   cat >> "$APPEND" <<APPEND
 audio_driver = "alsa"
-audio_device = "hw:0,0"
+audio_device = "default"
+APPEND
+elif [ "$AUDIO" = "oss" ]; then
+  SYSTEM_VOLUME="$(read_system_volume)"
+  RA_AUDIO_VOLUME="$(retroarch_audio_volume_db "$SYSTEM_VOLUME")"
+  if [ "$SYSTEM_VOLUME" -le 0 ]; then
+    RA_AUDIO_MUTE=true
+  else
+    RA_AUDIO_MUTE=false
+  fi
+  cat >> "$APPEND" <<APPEND
+audio_driver = "oss"
+audio_device = "/dev/dsp"
+audio_volume = "$RA_AUDIO_VOLUME"
+audio_mute_enable = "$RA_AUDIO_MUTE"
 APPEND
 fi
 if [ -n "$AUDIO_LATENCY" ]; then

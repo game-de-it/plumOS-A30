@@ -1,0 +1,123 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
+SYSTEM_SETTINGS=${PLUMOS_SYSTEM_SETTINGS_JSON:-$PLUMOS_ROOT/config/system/settings.json}
+LOG=${PLUMOS_VOLUME_LOG:-/tmp/.plumos_volume_set}
+SOFTVOL_NAME=${PLUMOS_VOLUME_SOFTVOL_NAME:-Soft Volume Master}
+SILENCE_RAW=${PLUMOS_VOLUME_SILENCE_RAW:-/tmp/plumos-volume-silence.raw}
+
+find_cmd() {
+  for path in "$@"; do
+    if [ -x "$path" ]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
+AMIXER=${PLUMOS_AMIXER:-$(find_cmd /usr/bin/amixer /bin/amixer /sbin/amixer 2>/dev/null || true)}
+APLAY=${PLUMOS_APLAY:-$(find_cmd /usr/bin/aplay /bin/aplay /sbin/aplay 2>/dev/null || true)}
+
+usage() {
+  cat <<USAGE
+Usage: plumos-volume-control init|apply [0..20]|get|status
+
+Initializes and applies the A30 stock-compatible ALSA softvol control.
+USAGE
+}
+
+read_volume() {
+  value=""
+  if [ -r "$SYSTEM_SETTINGS" ]; then
+    value="$(sed -n 's/.*"volume"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$SYSTEM_SETTINGS" 2>/dev/null | head -n 1)"
+  fi
+  case "$value" in
+    ""|*[!0-9]*) value=20 ;;
+  esac
+  value="$(printf '%s' "$value" | sed 's/^0*//')"
+  [ -n "$value" ] || value=0
+  if [ "$value" -gt 20 ]; then
+    value=20
+  fi
+  printf '%s\n' "$value"
+}
+
+normalize_volume() {
+  value=${1:-}
+  case "$value" in
+    ""|*[!0-9]*) return 1 ;;
+  esac
+  value="$(printf '%s' "$value" | sed 's/^0*//')"
+  [ -n "$value" ] || value=0
+  if [ "$value" -gt 20 ]; then
+    value=20
+  fi
+  printf '%s\n' "$value"
+}
+
+softvol_exists() {
+  [ -n "$AMIXER" ] || return 1
+  "$AMIXER" cget iface=MIXER,name="$SOFTVOL_NAME" >/dev/null 2>&1
+}
+
+init_softvol() {
+  [ -n "$AMIXER" ] || {
+    echo "amixer not found" >"$LOG"
+    return 1
+  }
+  softvol_exists && return 0
+  [ -n "$APLAY" ] || {
+    echo "aplay not found and softvol is not initialized" >"$LOG"
+    return 1
+  }
+
+  dd if=/dev/zero of="$SILENCE_RAW" bs=3840 count=1 >/dev/null 2>&1 || : >"$SILENCE_RAW"
+  "$APLAY" -q -D default -f S16_LE -r 48000 -c 2 "$SILENCE_RAW" >>"$LOG" 2>&1 || true
+  softvol_exists
+}
+
+scale_volume() {
+  volume=$1
+  printf '%s\n' $(( (volume * 255 + 10) / 20 ))
+}
+
+apply_volume() {
+  if [ "$#" -gt 0 ]; then
+    volume="$(normalize_volume "$1")" || {
+      echo "invalid volume: $1" >"$LOG"
+      return 2
+    }
+  else
+    volume="$(read_volume)"
+  fi
+  value="$(scale_volume "$volume")"
+  init_softvol || return 1
+  "$AMIXER" cset iface=MIXER,name="$SOFTVOL_NAME" "$value" >"$LOG" 2>&1
+}
+
+get_volume() {
+  init_softvol || return 1
+  "$AMIXER" cget iface=MIXER,name="$SOFTVOL_NAME"
+}
+
+case "${1:-status}" in
+  init)
+    init_softvol
+    ;;
+  apply|set)
+    shift
+    apply_volume "$@"
+    ;;
+  get|status)
+    get_volume
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

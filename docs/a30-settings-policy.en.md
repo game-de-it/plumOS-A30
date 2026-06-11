@@ -30,8 +30,8 @@ touch stockOS `/config/system.json`. Except for `Language`, saves
 are applied immediately to the A30 runtime backend.
 
 - `Volume`: `volume`; Left/Right changes `0..20` and applies it to
-  RetroArch `audio_volume` at launch time. Later
-  this should track the physical volume buttons
+  ALSA `Soft Volume Master`. Later this should track the physical volume
+  buttons
 - `Brightness`: `brightness`; Left/Right changes `1..20` and applies the mapped
   RAW value to `/sys/devices/virtual/disp/disp/attr/lcdbl`. Later this should
   track a hotkey such as START + volume
@@ -54,8 +54,8 @@ The `INFORMATION` subpage owns these read-only entries:
 - `plumOS System Config`: read status for
   `/mnt/SDCARD/plumos/config/system/settings.json`
 - `Input Device`: `/dev/input/event*` found from `gpio-keys-polled`
-- `Audio Backend`: detected audio backend. On A30 this uses RetroArch
-  `audio_volume`; hardware mixer control mapping is still being validated.
+- `Audio Backend`: detected audio backend. On A30 this uses ALSA
+  `Soft Volume Master`.
 - `Display Backend`: detected display backend. On A30 this is
   `disp attr lcdbl/enhance`
 - `Write Policy`: save under plumOS only; stockOS remains untouched
@@ -162,13 +162,15 @@ maps to the following RAW lcdbl values based on visual testing:
 ## Volume
 
 plumOS stores `volume` in `/mnt/SDCARD/plumos/config/system/settings.json`.
-The UI updates `volume` using backed-up atomic writes. The RetroArch launcher
-reads this value at startup and writes an append config where `volume 20` maps
-to `audio_volume = 0.000000`, `volume 0` is effectively muted, and intermediate
-values attenuate audio in 2dB steps. The tested A30 ALSA mixer does not expose
-the expected `Soft Volume Master` control, so direct hardware-mixer volume is
-deferred until the codec control mapping is validated. Physical volume button
-tracking is a separate task.
+The UI updates `volume` using backed-up atomic writes. `plumos-volume-control`
+reads this value, maps `0..20` onto ALSA softvol `0..255`, and applies it to
+`Soft Volume Master`. `Soft Volume Master` is visible only after the ALSA
+default PCM has been opened once, so the FE and launchers initialize it with
+short silence playback when needed. RetroArch and standalone emulator launchers
+default to ALSA `default` so they share this softvol. Explicit RetroArch OSS
+launches are kept as a compatibility fallback, and only that path maps the
+saved value into RetroArch software volume. Physical volume button tracking is a
+separate task.
 
 ## Wi-Fi
 

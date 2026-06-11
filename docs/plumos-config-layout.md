@@ -55,11 +55,13 @@ stockOS の `/config/system.json` とは切り離します。
 - `timezone`: POSIX TZ 文字列。既定値は `JST-9`
 
 2026-06-11 時点では、`Language` 以外の値は保存直後と FE 起動時に A30
-runtime へ反映します。`volume` は RetroArch 起動時に `audio_volume` へ反映し、`brightness` は
+runtime へ反映します。`volume` は `plumos-volume-control` で ALSA default PCM の
+`Soft Volume Master` へ反映し、RetroArch/standalone emulator は ALSA `default` を通すことで
+同じ音量設定を使います。`brightness` は
 `/sys/devices/virtual/disp/disp/attr/lcdbl`、`lumination` / `contrast` / `hue` /
 `saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` を使います。
-実機の ALSA mixer には想定していた `Soft Volume Master` が存在しないため、hardware mixer
-への直接反映は control mapping を検証するまで保留します。
+`Soft Volume Master` は ALSA default PCM を一度 open した後に作られるため、
+FE と launcher は必要に応じて短い無音再生で初期化してから反映します。
 Brightness は `1..20` を保存し、RAW は
 `2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190` へ割り当てます。
 `timezone` は plumOS config を原本とし、保存時・FE 起動時・MainUI wrapper 起動時に

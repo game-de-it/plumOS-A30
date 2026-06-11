@@ -1414,10 +1414,57 @@ static const char *runtime_volume_backend_path(void) {
   return NULL;
 }
 
+static const char *runtime_plumos_root(void) {
+  const char *root = getenv("PLUMOS_ROOT");
+  return root && root[0] ? root : "/mnt/SDCARD/plumos";
+}
+
+static int runtime_volume_control_path(char *out, size_t out_size) {
+  return join_path(out, out_size, runtime_plumos_root(), "bin/plumos-volume-control");
+}
+
+static int run_volume_control_command(const char *action, long volume,
+                                      int include_volume) {
+  char helper[PATH_MAX];
+  char volume_buf[32];
+  char cmd[PATH_MAX + 256];
+  size_t pos = 0;
+
+  if (!runtime_volume_control_path(helper, sizeof(helper)) ||
+      access(helper, X_OK) != 0) {
+    return 0;
+  }
+  if (include_volume) {
+    snprintf(volume_buf, sizeof(volume_buf), "%ld", clamp_long(volume, 0, 20));
+  } else {
+    volume_buf[0] = '\0';
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, runtime_plumos_root()) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, helper) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, action)) {
+    return 0;
+  }
+  if (include_volume &&
+      (!append_string(cmd, sizeof(cmd), &pos, " ") ||
+       !append_shell_quoted(cmd, sizeof(cmd), &pos, volume_buf))) {
+    return 0;
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, " >/tmp/.plumos_volume_set 2>&1")) {
+    return 0;
+  }
+  return system_command_succeeded(system(cmd));
+}
+
 static int runtime_volume_backend_available(void) {
   const char *amixer_path = runtime_volume_backend_path();
   char cmd[256];
 
+  if (run_volume_control_command("init", 0, 0)) {
+    return 1;
+  }
   if (!amixer_path) {
     return 0;
   }
@@ -1444,13 +1491,13 @@ static void update_device_backend_status(struct device_settings *device) {
   }
   if (runtime_volume_backend_available()) {
     copy_string(device->volume_backend, sizeof(device->volume_backend),
-                "Soft Volume Master (amixer)");
+                "ALSA Soft Volume Master");
   } else if (runtime_volume_backend_path()) {
     copy_string(device->volume_backend, sizeof(device->volume_backend),
-                "RetroArch audio_volume; mixer unmapped");
+                "ALSA softvol unavailable");
   } else {
     copy_string(device->volume_backend, sizeof(device->volume_backend),
-                "RetroArch audio_volume only");
+                "amixer unavailable");
   }
 
   lcd_available = runtime_lcd_backend_available();
@@ -1477,6 +1524,9 @@ static int apply_runtime_volume(const struct device_settings *device) {
 
   if (!device) {
     return 0;
+  }
+  if (run_volume_control_command("apply", device->volume, 1)) {
+    return 1;
   }
   amixer_path = runtime_volume_backend_path();
   if (!amixer_path) {
@@ -1605,15 +1655,10 @@ static int apply_device_runtime_settings(const struct device_settings *device,
                   strcmp(id, "system_hue") == 0 ||
                   strcmp(id, "system_saturation") == 0;
 
-  if (needs_volume && runtime_volume_backend_available()) {
+  if (needs_volume) {
     attempted = 1;
     if (!apply_runtime_volume(device)) {
       ok = 0;
-    }
-  } else if (needs_volume) {
-    attempted = 1;
-    if (status && status_size > 0 && id && strcmp(id, "system_volume") == 0) {
-      copy_string(status, status_size, "applies to RetroArch on launch");
     }
   }
   if (needs_brightness && runtime_lcd_backend_available()) {
@@ -6095,7 +6140,7 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strncmp(id, "system_", 7) == 0) {
     if (strcmp(id, "system_volume") == 0) {
       copy_string(line1, line1_size, "System-wide volume setting.");
-      copy_string(line2, line2_size, "Applies to RetroArch on launch.");
+      copy_string(line2, line2_size, "Applies to ALSA Soft Volume Master.");
     } else if (strcmp(id, "system_brightness") == 0) {
       copy_string(line1, line1_size, "Screen brightness setting.");
       copy_string(line2, line2_size, "LEFT/RIGHT changes 1..20 and applies lcdbl.");

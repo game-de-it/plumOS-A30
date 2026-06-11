@@ -175,8 +175,9 @@ order after deploying the staged package:
 ## Open checks after bulk build
 
 - RetroArch audio/input smoke: the practical runtime has confirmed OSS audio
-  plus SDL2 joypad and `plumos-joystickd --device-mode xbox` with NES/GB, but
-  the full bulk-built core set is not validated yet.
+  plus SDL2 joypad and `plumos-joystickd --device-mode xbox` with NES/GB. The
+  current default is ALSA `default` plus `Soft Volume Master` and SDL2 joypad,
+  but the full bulk-built core set is not validated yet.
 - Core build recipes are recorded in `dist/plumos-libretro-cores/docs/manifest.txt`;
   raw per-core details from the doubled run are kept as `manifest.raw-double-run.txt`.
 - Standalone emulator build recipes are recorded in
@@ -186,7 +187,7 @@ order after deploying the staged package:
   `.plumos-scummvm-target`, `scummvm-target.txt`, `.scummvm`, or sibling
   `.scummvm`/`.svm` sidecars, falling back to `sky` only when no sidecar exists.
   DOSBox Staging standalone was tested but is not a normal target.
-- DOSBox-Pure libretro can store per-ROM `#EXE` suffixes, OSS/ALSA audio
+- DOSBox-Pure libretro can store per-ROM `#EXE` suffixes, ALSA/OSS audio
   driver, audio latency, `dosbox_pure_force60fps`, `dosbox_pure_cycles`, and
   CPU policy/frequency/core-count settings in `core-overrides.json`. On A30,
   `DOS/DOSBOX_DIGGER.ZIP` is configured with `#DIGGER.EXE`, OSS latency 256,

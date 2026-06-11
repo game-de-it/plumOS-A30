@@ -130,14 +130,16 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 
 RetroArch 1.22.2 practical:
 
 - `./scripts/docker-build.sh retroarch-practical` builds a practical runtime
-  with OSS/ALSA audio, SDL2 joypad, Network Command, LibretroDB, 7zip, and
+  with ALSA/OSS audio, SDL2 joypad, Network Command, LibretroDB, 7zip, and
   screenshots/images.
 - On the A30, `input_driver = "null"` plus `input_joypad_driver = "sdl2"` and
   `plumos-joystickd --device-mode xbox` detected `plumOS A30 Gamepad`.
 - Probes using `udev`/`linuxraw` as the primary input driver failed to
   initialize, so the initial practical config prefers SDL2 joypad.
 - OSS audio + SDL2 joypad + `audio_latency = 128` + CPU `performance` had
-  working screen, sound, and controls in user visual testing.
+  working screen, sound, and controls in user visual testing. The default later
+  moved to ALSA `default` plus `Soft Volume Master` so System Settings `volume`
+  works as a shared volume backend; OSS remains a compatibility fallback.
 - CPU `ondemand` caused audio stutter. CPU `userspace fixed 648000 kHz` with
   2 cores worked well for NES/GB and is the initial lightweight-core default
   for a better stability/battery balance.
@@ -177,8 +179,10 @@ RetroArch 1.22.2 practical:
 The first practical runtime should keep the minimal video path and add only the
 next needed pieces:
 
-- Use OSS audio and SDL2 joypad as the initial practical config.
-- Enable/compare ALSA only if `libasound` and device behavior are stable.
+- Use ALSA `default` and SDL2 joypad as the initial practical config, with
+  `plumos-volume-control` `Soft Volume Master` as the volume backend.
+- Keep OSS as a compatibility fallback and map the saved volume into RetroArch
+  software volume only when OSS is explicitly selected.
 - The safe-exit flow wired through controller UI SAFE/START and
   `plumos-safe-hotkeyd` is verified through the physical Function press and
   power/sleep backend dry-runs. Next is extending it to an in-game SAFE menu if

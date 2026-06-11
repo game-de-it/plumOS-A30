@@ -762,7 +762,9 @@ Rules:
   `#DIGGER.EXE`. The launch plan appends it only at execution time, and direct
   `ROM.zip#EXE` launch targets fall back to the base ROM override.
 - `audio_driver` and `audio_latency_ms` resolve to the RetroArch launcher's
-  `--audio` and `--audio-latency` options.
+  `--audio` and `--audio-latency` options. When unset, the launcher default is
+  ALSA `default`; `oss` is used only as an explicit per-ROM compatibility
+  fallback.
 - `dosbox_pure_force60fps` and `dosbox_pure_cycles` are written to the launcher's
   temporary append config as DOSBox-Pure core options.
 - Moving or renaming a ROM does not automatically move its per-ROM override.

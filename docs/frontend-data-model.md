@@ -724,7 +724,8 @@ rules:
   実行時だけ ROM path に suffix を足し、`ROM.zip#EXE` を直接指定した場合も base ROM の
   override を fallback 参照する
 - `audio_driver` と `audio_latency_ms` は RetroArch launcher の `--audio` /
-  `--audio-latency` に解決する
+  `--audio-latency` に解決する。未指定時は launcher 既定の ALSA `default` を使い、
+  `oss` はROM別の互換 fallback として明示した場合だけ使う
 - `dosbox_pure_force60fps` と `dosbox_pure_cycles` は DOSBox-Pure core option として
   launcher の一時 append config に書き込む
 - ROM file を移動/rename した場合、per-ROM override は自動追跡しない

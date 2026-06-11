@@ -825,6 +825,7 @@ esac
 
 STATE_DIR=${PLUMOS_ROOT}/state/standalone/${state_id}
 LOG_DIR=${PLUMOS_ROOT}/logs/standalone
+VOLUME_CONTROL=${PLUMOS_VOLUME_CONTROL:-${PLUMOS_ROOT}/bin/plumos-volume-control}
 CPU_STATE=/tmp/plumos-standalone-launch-cpustate-$$
 mkdir -p "${STATE_DIR}" "${STATE_DIR}/config" "${STATE_DIR}/data" "${LOG_DIR}"
 
@@ -934,6 +935,12 @@ apply_cpu_policy() {
         echo "${freq}" >"$p/scaling_setspeed" 2>/dev/null || true
       ;;
   esac
+}
+
+apply_system_volume() {
+  if [ -x "${VOLUME_CONTROL}" ]; then
+    "${VOLUME_CONTROL}" apply >>"${LOG_DIR}/volume-control-last.log" 2>&1 || true
+  fi
 }
 
 find_resident_joystickd() {
@@ -1422,6 +1429,8 @@ ppsspp_escape_exit_arg() {
     1|yes|YES|true|TRUE) echo "--escape-exit" ;;
   esac
 }
+
+apply_system_volume
 
 case "${id}" in
   ppsspp)
