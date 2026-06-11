@@ -5242,14 +5242,8 @@ static void core_append_line(struct ui_state *ui, const char *line) {
 }
 
 static const char *core_profile_display_name(const char *profile) {
-  const char *colon;
-
   if (!profile || !profile[0]) {
     return "auto";
-  }
-  colon = strchr(profile, ':');
-  if (colon && colon[1]) {
-    return colon + 1;
   }
   return profile;
 }
