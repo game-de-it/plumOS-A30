@@ -94,6 +94,14 @@ Dropbear build と `plumos/ssh/etc/ashrc` に固定されるため、release 用
 `scripts/build-ssh-kit.sh` の `DEFAULT_ROOT_PATH` と `package/ssh-kit/plumos/ssh/etc/ashrc`
 を更新して rebuild します。
 
+対話 SSH の command history は `plumos/ssh/etc/ashrc` で `HISTSIZE=9999` に設定し、
+`/mnt/SDCARD/plumos/state/ssh/ash_history` に保存します。保存先は
+`PLUMOS_SSH_HISTFILE`、件数は `PLUMOS_SSH_HISTSIZE` で上書きできます。履歴には入力した
+command がそのまま残るため、SSID、password、token などの機微情報を command line に直接
+書かない運用にします。stock `/bin/sh` は履歴を file に保存しない構成のため、対話 SSH では
+`ashrc` から `/mnt/SDCARD/plumos/bin/busybox ash -i` へ一度だけ切り替えます。
+`ssh host command` のような非対話 command には影響しません。
+
 対話 SSH の TTY へ BusyBox `ls` が名前だけを直接出す場合、UTF-8 の日本語 file name を
 `?` に置き換えることがあります。`ashrc` では対話 session の `ls` を shell function とし、
 TTY 出力時だけ BusyBox `ls` の stdout を一度 pipe/file 経由にして、UTF-8 file name を

@@ -97,6 +97,16 @@ The per-session default PATH is compiled into Dropbear and mirrored in
 `scripts/build-ssh-kit.sh`, update `package/ssh-kit/plumos/ssh/etc/ashrc`, and
 rebuild the SSH kit.
 
+Interactive SSH command history is configured by `plumos/ssh/etc/ashrc` with
+`HISTSIZE=9999` and is stored in
+`/mnt/SDCARD/plumos/state/ssh/ash_history`. Override the path with
+`PLUMOS_SSH_HISTFILE` and the count with `PLUMOS_SSH_HISTSIZE`. The history file
+stores entered commands verbatim, so avoid putting SSIDs, passwords, tokens, or
+other sensitive values directly on command lines. The stock `/bin/sh` build does
+not save history to a file, so interactive SSH sessions switch once from
+`ashrc` into `/mnt/SDCARD/plumos/bin/busybox ash -i`. Non-interactive commands
+such as `ssh host command` are not affected.
+
 When BusyBox `ls` writes bare names directly to an interactive SSH TTY, it may
 replace UTF-8 Japanese file names with `?`. The `ashrc` file defines an
 interactive `ls` shell function that sends BusyBox `ls` stdout through a

@@ -1,5 +1,24 @@
 export PATH="/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+export HISTFILE="${PLUMOS_SSH_HISTFILE:-/mnt/SDCARD/plumos/state/ssh/ash_history}"
+export HISTSIZE="${PLUMOS_SSH_HISTSIZE:-9999}"
+export HISTFILESIZE="${PLUMOS_SSH_HISTFILESIZE:-9999}"
+
+_plumos_hist_dir="${HISTFILE%/*}"
+if [ -n "$_plumos_hist_dir" ] && [ "$_plumos_hist_dir" != "$HISTFILE" ]; then
+  /mnt/SDCARD/plumos/bin/mkdir -p "$_plumos_hist_dir" 2>/dev/null || true
+fi
+if [ -n "$HISTFILE" ] && [ ! -e "$HISTFILE" ]; then
+  : > "$HISTFILE" 2>/dev/null || true
+fi
+unset _plumos_hist_dir
+
+if [ -z "${PLUMOS_SSH_ASH:-}" ] && [ -t 0 ] && [ -t 1 ] &&
+   [ -x /mnt/SDCARD/plumos/bin/busybox ]; then
+  export PLUMOS_SSH_ASH=1
+  exec /mnt/SDCARD/plumos/bin/busybox ash -i
+fi
+
 ls() {
   if [ -t 1 ]; then
     _plumos_ls_out="/tmp/plumos-ls-$$.out"
