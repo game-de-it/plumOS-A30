@@ -22,7 +22,7 @@ APLAY=${PLUMOS_APLAY:-$(find_cmd /usr/bin/aplay /bin/aplay /sbin/aplay 2>/dev/nu
 
 usage() {
   cat <<USAGE
-Usage: plumos-volume-control init|apply [0..20]|get|status
+Usage: plumos-volume-control init|apply [0..20]|up|down|step +/-N|get|status
 
 Initializes and applies the A30 stock-compatible ALSA softvol control.
 USAGE
@@ -55,6 +55,17 @@ normalize_volume() {
     value=20
   fi
   printf '%s\n' "$value"
+}
+
+valid_signed_int() {
+  value=${1:-}
+  case "$value" in
+    -*) value=${value#-} ;;
+  esac
+  case "$value" in
+    ""|*[!0-9]*) return 1 ;;
+  esac
+  return 0
 }
 
 softvol_exists() {
@@ -97,6 +108,127 @@ apply_volume() {
   "$AMIXER" cset iface=MIXER,name="$SOFTVOL_NAME" "$value" >"$LOG" 2>&1
 }
 
+backup_settings_once() {
+  [ -r "$SYSTEM_SETTINGS" ] || return 0
+  backup_dir="$PLUMOS_ROOT/backups/system"
+  backup_path="$backup_dir/settings.json.before-volume-control"
+  [ -e "$backup_path" ] && return 0
+  mkdir -p "$backup_dir" 2>/dev/null || return 0
+  cp -p "$SYSTEM_SETTINGS" "$backup_path" 2>/dev/null || cp "$SYSTEM_SETTINGS" "$backup_path" 2>/dev/null || true
+}
+
+write_volume_setting() {
+  volume="$(normalize_volume "$1")" || {
+    echo "invalid volume: $1" >"$LOG"
+    return 2
+  }
+  settings_dir=${SYSTEM_SETTINGS%/*}
+  if [ "$settings_dir" = "$SYSTEM_SETTINGS" ]; then
+    settings_dir=.
+  fi
+  tmp="$SYSTEM_SETTINGS.tmp.$$"
+
+  mkdir -p "$settings_dir" 2>/dev/null || {
+    echo "cannot create settings dir: $settings_dir" >"$LOG"
+    return 1
+  }
+  backup_settings_once
+
+  if [ -r "$SYSTEM_SETTINGS" ]; then
+    if grep -q '"volume"[[:space:]]*:' "$SYSTEM_SETTINGS" 2>/dev/null; then
+      sed 's/"volume"[[:space:]]*:[[:space:]]*[0-9][0-9]*/"volume": '"$volume"'/' \
+        "$SYSTEM_SETTINGS" >"$tmp" || {
+          rm -f "$tmp"
+          echo "cannot update volume in settings" >"$LOG"
+          return 1
+        }
+    else
+      awk -v volume="$volume" '
+        BEGIN { inserted = 0; pending = "" }
+        {
+          if (!inserted && $0 ~ /^[[:space:]]*}[[:space:]]*[,]?[[:space:]]*$/) {
+            if (pending != "") {
+              sub(/[[:space:]]*$/, "", pending)
+              if (pending !~ /,[[:space:]]*$/) {
+                pending = pending ","
+              }
+              print pending
+              pending = ""
+            }
+            print "  \"volume\": " volume
+            print $0
+            inserted = 1
+            next
+          }
+          if (pending != "") {
+            print pending
+          }
+          pending = $0
+        }
+        END {
+          if (pending != "") {
+            print pending
+          }
+          if (!inserted) {
+            print "{"
+            print "  \"version\": 1,"
+            print "  \"volume\": " volume
+            print "}"
+          }
+        }
+      ' "$SYSTEM_SETTINGS" >"$tmp" || {
+        rm -f "$tmp"
+        echo "cannot insert volume in settings" >"$LOG"
+        return 1
+      }
+    fi
+  else
+    {
+      echo "{"
+      echo "  \"version\": 1,"
+      echo "  \"volume\": $volume"
+      echo "}"
+    } >"$tmp" || {
+      rm -f "$tmp"
+      echo "cannot create settings" >"$LOG"
+      return 1
+    }
+  fi
+
+  mv "$tmp" "$SYSTEM_SETTINGS" 2>/dev/null || {
+    rm -f "$tmp"
+    echo "cannot replace settings" >"$LOG"
+    return 1
+  }
+  sync
+  printf '%s\n' "$volume"
+}
+
+change_volume() {
+  delta=${1:-}
+  valid_signed_int "$delta" || {
+    echo "invalid volume delta: $delta" >"$LOG"
+    return 2
+  }
+  current="$(read_volume)"
+  next=$(( current + delta ))
+  if [ "$next" -lt 0 ]; then
+    next=0
+  elif [ "$next" -gt 20 ]; then
+    next=20
+  fi
+  if [ "$next" = "$current" ]; then
+    apply_volume "$next" || return $?
+    echo "volume=$next" >"$LOG"
+    printf 'volume=%s\n' "$next"
+    return 0
+  fi
+  write_volume_setting "$next" >/dev/null || return $?
+  apply_volume "$next" || return $?
+  echo "volume=$next" >"$LOG"
+  printf 'volume=%s\n' "$next"
+}
+
 get_volume() {
   init_softvol || return 1
   "$AMIXER" cget iface=MIXER,name="$SOFTVOL_NAME"
@@ -109,6 +241,16 @@ case "${1:-status}" in
   apply|set)
     shift
     apply_volume "$@"
+    ;;
+  up|increase|plus)
+    change_volume 1
+    ;;
+  down|decrease|minus)
+    change_volume -1
+    ;;
+  step)
+    shift
+    change_volume "${1:-}"
     ;;
   get|status)
     get_volume

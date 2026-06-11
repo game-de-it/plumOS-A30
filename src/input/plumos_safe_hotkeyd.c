@@ -38,6 +38,12 @@ struct input_event {
 #ifndef KEY_ESC
 #define KEY_ESC 1
 #endif
+#ifndef KEY_VOLUMEDOWN
+#define KEY_VOLUMEDOWN 114
+#endif
+#ifndef KEY_VOLUMEUP
+#define KEY_VOLUMEUP 115
+#endif
 
 #define DEFAULT_ROOT "/mnt/SDCARD/plumos"
 #define DEFAULT_SDCARD_ROOT "/mnt/SDCARD"
@@ -65,6 +71,7 @@ struct config {
   int dry_run;
   int trigger_now;
   int verbose;
+  int volume_keys_enabled;
 };
 
 static void handle_signal(int sig) {
@@ -364,6 +371,7 @@ static int init_config(struct config *cfg) {
   }
   cfg->key_code = KEY_ESC;
   cfg->debounce_ms = DEFAULT_DEBOUNCE_MS;
+  cfg->volume_keys_enabled = 1;
 
   env = getenv("PLUMOS_ROOT");
   if (env && env[0] && !copy_string(cfg->root, sizeof(cfg->root), env)) {
@@ -412,6 +420,14 @@ static int init_config(struct config *cfg) {
                                       &cfg->debounce_ms)) {
     return 0;
   }
+  env = getenv("PLUMOS_SAFE_HOTKEYD_VOLUME_KEYS");
+  if (env && env[0]) {
+    cfg->volume_keys_enabled =
+        !(strcmp(env, "0") == 0 || strcmp(env, "false") == 0 ||
+          strcmp(env, "False") == 0 || strcmp(env, "no") == 0 ||
+          strcmp(env, "No") == 0 || strcmp(env, "off") == 0 ||
+          strcmp(env, "Off") == 0);
+  }
   return 1;
 }
 
@@ -433,6 +449,7 @@ static void usage(const char *argv0) {
   printf("  --timeout-ms MS        Exit after MS without a trigger. Default: 0, run forever.\n");
   printf("  --debounce-ms MS       Ignore repeated triggers for MS. Default: %d.\n",
          DEFAULT_DEBOUNCE_MS);
+  printf("  --no-volume-keys       Do not handle KEY_VOLUMEUP/KEY_VOLUMEDOWN.\n");
   printf("  --oneshot              Exit after the first trigger command completes.\n");
   printf("  --dry-run              Log triggers without running the command.\n");
   printf("  --trigger-now          Run the trigger command immediately, then exit.\n");
@@ -498,6 +515,8 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       if (!parse_int_arg("--debounce-ms", argv[++i], 0, 60000, &cfg->debounce_ms)) {
         return 0;
       }
+    } else if (strcmp(argv[i], "--no-volume-keys") == 0) {
+      cfg->volume_keys_enabled = 0;
     } else if (strcmp(argv[i], "--oneshot") == 0) {
       cfg->oneshot = 1;
     } else if (strcmp(argv[i], "--dry-run") == 0) {
@@ -557,6 +576,67 @@ static int run_trigger_command(struct config *cfg, const char *source) {
   return status == 0 ? 0 : 1;
 }
 
+static int run_volume_key_command(struct config *cfg, int direction) {
+  char bin[PATH_MAX];
+  char command_log[PATH_MAX];
+  char q_root[SHELL_QUOTE_MAX];
+  char q_bin[SHELL_QUOTE_MAX];
+  char q_command_log[SHELL_QUOTE_MAX];
+  char command[COMMAND_MAX];
+  const char *action = direction > 0 ? "up" : "down";
+  const char *source = direction > 0 ? "volume_up" : "volume_down";
+  long long start;
+  long long elapsed;
+  int rc;
+  int status;
+  int n;
+
+  emit_msg(cfg, "trigger source=%s action=volume dry_run=%d", source, cfg->dry_run);
+  if (cfg->dry_run) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=0 dry_run=1", source);
+    return 0;
+  }
+  if (!join_path(bin, sizeof(bin), cfg->root, "bin/plumos-volume-control") ||
+      !join_path(command_log, sizeof(command_log), cfg->root,
+                 "logs/safe-hotkeyd-command.log")) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=1 reason=path", source);
+    return 1;
+  }
+  if (!shell_quote(q_root, sizeof(q_root), cfg->root) ||
+      !shell_quote(q_bin, sizeof(q_bin), bin) ||
+      !shell_quote(q_command_log, sizeof(q_command_log), command_log)) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=1 reason=quote", source);
+    return 1;
+  }
+
+  n = snprintf(command, sizeof(command), "PLUMOS_ROOT=%s %s %s >> %s 2>&1",
+               q_root, q_bin, action, q_command_log);
+  if (n < 0 || (size_t)n >= sizeof(command)) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=1 reason=command_length",
+             source);
+    return 1;
+  }
+
+  start = now_ms();
+  rc = system(command);
+  elapsed = now_ms() - start;
+  if (rc == -1) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=-1 errno=%d elapsed_ms=%lld",
+             source, errno, elapsed);
+    return 1;
+  }
+  if (WIFEXITED(rc)) {
+    status = WEXITSTATUS(rc);
+  } else if (WIFSIGNALED(rc)) {
+    status = 128 + WTERMSIG(rc);
+  } else {
+    status = 1;
+  }
+  emit_msg(cfg, "result=plumos_safe_hotkeyd_volume source=%s rc=%d elapsed_ms=%lld",
+           source, status, elapsed);
+  return status == 0 ? 0 : 1;
+}
+
 static int handle_trigger(struct config *cfg, const char *source, long long *last_trigger_ms) {
   long long now;
 
@@ -591,8 +671,10 @@ static int event_loop(struct config *cfg) {
     deadline = start + cfg->timeout_ms;
   }
   emit_msg(cfg,
-           "plumos-safe-hotkeyd event=%s key_code=%d action=%s timeout_ms=%d oneshot=%d",
-           cfg->event_path, cfg->key_code, cfg->action, cfg->timeout_ms, cfg->oneshot);
+           "plumos-safe-hotkeyd event=%s key_code=%d action=%s timeout_ms=%d oneshot=%d "
+           "volume_keys=%d",
+           cfg->event_path, cfg->key_code, cfg->action, cfg->timeout_ms, cfg->oneshot,
+           cfg->volume_keys_enabled);
 
   while (!g_stop) {
     struct pollfd pfd;
@@ -650,6 +732,12 @@ static int event_loop(struct config *cfg) {
       }
       if ((size_t)n != sizeof(ev)) {
         log_msg(cfg, "ignored short_read bytes=%ld", (long)n);
+        continue;
+      }
+      if (ev.type == EV_KEY && cfg->volume_keys_enabled &&
+          (ev.code == KEY_VOLUMEDOWN || ev.code == KEY_VOLUMEUP) &&
+          (ev.value == 1 || ev.value == 2)) {
+        run_volume_key_command(cfg, ev.code == KEY_VOLUMEUP ? 1 : -1);
         continue;
       }
       if (ev.type == EV_KEY && ev.code == cfg->key_code && ev.value == 1) {

@@ -94,7 +94,7 @@
 - [ ] Scraper の retry UI を追加する。
 - [ ] CRC miss 時の filename 候補 rescue option を FE に追加する。
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
-- [ ] 物理音量ボタンと brightness hotkey を System Settings と連動する。
+- [ ] brightness hotkey を System Settings と連動する。
 - [ ] UI 文言の language localization を実装する。
 - [ ] Theme selection の候補名/path/適用範囲を決める。
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。

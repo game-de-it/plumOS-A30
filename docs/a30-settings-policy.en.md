@@ -29,12 +29,11 @@ reads and writes `/mnt/SDCARD/plumos/config/system/settings.json`; it does not
 touch stockOS `/config/system.json`. Except for `Language`, saves
 are applied immediately to the A30 runtime backend.
 
-- `Volume`: `volume`; Left/Right changes `0..20` and applies it to
-  ALSA `Soft Volume Master`. Later this should track the physical volume
-  buttons
+- `Volume`: `volume`; Left/Right or the physical volume buttons change
+  `0..20` and apply it to ALSA `Soft Volume Master`
 - `Brightness`: `brightness`; Left/Right changes `1..20` and applies the mapped
   RAW value to `/sys/devices/virtual/disp/disp/attr/lcdbl`. Later this should
-  track a hotkey such as START + volume
+  track a brightness hotkey
 - `Lumination`: `lumination`; Left/Right changes `0..10`
 - `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
   each change in the `0..20` range
@@ -169,8 +168,9 @@ default PCM has been opened once, so the FE and launchers initialize it with
 short silence playback when needed. RetroArch and standalone emulator launchers
 default to ALSA `default` so they share this softvol. Explicit RetroArch OSS
 launches are kept as a compatibility fallback, and only that path maps the
-saved value into RetroArch software volume. Physical volume button tracking is a
-separate task.
+saved value into RetroArch software volume. During FE screens, the controller UI
+handles the physical volume buttons; while an emulator is running,
+`plumos-safe-hotkeyd` calls the equivalent of `plumos-volume-control up|down`.
 
 ## Wi-Fi
 

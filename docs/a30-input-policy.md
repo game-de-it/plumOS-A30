@@ -94,8 +94,8 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | R | 14 | `KEY_BACKSPACE` | `r` | reserved |
 | L2 | 18 | `KEY_E` | `l2` | reserved |
 | R2 | 20 | `KEY_T` | `r2` | reserved |
-| 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | reserved |
-| 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | reserved |
+| 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
+| 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
@@ -107,8 +107,10 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 - START menu は物理 START (`KEY_ENTER`) で開きます。
 - Function (`KEY_ESC`) は START の代替としては扱わず、safe shutdown/resume menu の
   第一候補として扱います。
-- X/Y/L/R/L2/R2/音量ボタンは probe では識別しますが、現時点の controller UI では
-  通常操作に割り当てません。
+- 音量ボタンは plumOS の `volume 0..20` を1段階ずつ更新し、ALSA `Soft Volume Master`
+  へ即時反映します。emulator 実行中は `plumos-safe-hotkeyd` が同じ処理を担当します。
+- X/Y/L/R/L2/R2 は probe では識別しますが、現時点の controller UI では通常操作に
+  割り当てません。
 - 電源ボタンは stock 側または kernel 側の sleep/shutdown 介入を避けるため未確定です。
   plumOS の自動再開機能は電源ボタンに依存せず、Function button 代替を優先して設計します。
 

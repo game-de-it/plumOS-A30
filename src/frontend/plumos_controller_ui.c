@@ -446,6 +446,8 @@ enum ui_action {
   ACTION_START,
   ACTION_SELECT,
   ACTION_FUNCTION,
+  ACTION_VOLUME_DOWN,
+  ACTION_VOLUME_UP,
   ACTION_QUIT
 };
 
@@ -7771,6 +7773,7 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
     ui->renderer_mali = 0;
   }
   settle_input_after_child(ui);
+  load_device_settings(ui);
   if (ui->screen == SCREEN_RECENT) {
     load_recent_entries(ui);
   }
@@ -8865,6 +8868,39 @@ static int save_setting_number(struct ui_state *ui, const char *id,
   return 1;
 }
 
+static int change_system_volume(struct ui_state *ui, int direction) {
+  long value;
+  char runtime_status[128];
+
+  if (!ui || direction == 0) {
+    return 0;
+  }
+  value = clamp_long(ui->device.volume + (direction > 0 ? 1 : -1), 0, 20);
+  if (value == ui->device.volume) {
+    if (!apply_device_runtime_settings(&ui->device, "system_volume",
+                                       runtime_status,
+                                       sizeof(runtime_status))) {
+      snprintf(ui->status, sizeof(ui->status), "Volume %ld/20; apply failed", value);
+    } else {
+      snprintf(ui->status, sizeof(ui->status), "Volume %ld/20", value);
+    }
+    return 1;
+  }
+  if (!save_system_config_number(ui, "volume", value)) {
+    set_status(ui, "volume write failed");
+    return 0;
+  }
+  ui->device.volume = value;
+  if (!apply_device_runtime_settings(&ui->device, "system_volume", runtime_status,
+                                     sizeof(runtime_status))) {
+    snprintf(ui->status, sizeof(ui->status), "Volume %ld/20; apply failed", value);
+  } else {
+    snprintf(ui->status, sizeof(ui->status), "Volume %ld/20", value);
+  }
+  update_settings_entries_after_save(ui);
+  return 1;
+}
+
 static int save_brightness_test_value(struct ui_state *ui, long value) {
   char raw[64];
 
@@ -9203,6 +9239,10 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
 
 static void handle_action(struct ui_state *ui, enum ui_action action) {
   if (action == ACTION_NONE) {
+    return;
+  }
+  if (action == ACTION_VOLUME_DOWN || action == ACTION_VOLUME_UP) {
+    change_system_volume(ui, action == ACTION_VOLUME_UP ? 1 : -1);
     return;
   }
   if (action == ACTION_QUIT) {
@@ -9778,6 +9818,10 @@ static enum ui_action action_from_key_code(unsigned int code) {
     return ACTION_SELECT;
   case KEY_ESC:
     return ACTION_FUNCTION;
+  case KEY_VOLUMEDOWN:
+    return ACTION_VOLUME_DOWN;
+  case KEY_VOLUMEUP:
+    return ACTION_VOLUME_UP;
   case KEY_Q:
     return ACTION_QUIT;
   default:
@@ -9816,6 +9860,13 @@ static enum ui_action action_from_stdin_char(int ch) {
   case 'f':
   case 'F':
     return ACTION_FUNCTION;
+  case '-':
+  case '[':
+    return ACTION_VOLUME_DOWN;
+  case '+':
+  case '=':
+  case ']':
+    return ACTION_VOLUME_UP;
   case 'q':
   case 'Q':
     return ACTION_QUIT;
@@ -9852,6 +9903,14 @@ static enum ui_action action_from_script_token(const char *token) {
   if (strcmp(token, "function") == 0 || strcmp(token, "safe") == 0) {
     return ACTION_FUNCTION;
   }
+  if (strcmp(token, "volume_down") == 0 || strcmp(token, "volumedown") == 0 ||
+      strcmp(token, "voldown") == 0) {
+    return ACTION_VOLUME_DOWN;
+  }
+  if (strcmp(token, "volume_up") == 0 || strcmp(token, "volumeup") == 0 ||
+      strcmp(token, "volup") == 0) {
+    return ACTION_VOLUME_UP;
+  }
   if (strcmp(token, "q") == 0 || strcmp(token, "quit") == 0) {
     return ACTION_QUIT;
   }
@@ -9880,6 +9939,9 @@ static int settings_value_action_repeats(const struct ui_state *ui,
 static int action_repeat_interval_ms(const struct ui_state *ui,
                                      enum ui_action action) {
   if (action == ACTION_UP || action == ACTION_DOWN) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
+  if (action == ACTION_VOLUME_DOWN || action == ACTION_VOLUME_UP) {
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
   if (ui && ui->screen == SCREEN_WIFI_CONNECT &&
@@ -10328,10 +10390,10 @@ static void usage(const char *argv0) {
   printf("     [--rotation auto|none|cw|ccw] [--font PATH]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
   printf("     [--rescue-network]  # disabled compatibility screen\n");
-  printf("  %s --script up,down,a,b,select,start,function,q [--no-clear]\n", argv0);
+  printf("  %s --script up,down,a,b,select,start,function,volume_up,volume_down,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
-  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, f, q.\n");
+  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, f, +/- for volume, q.\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");

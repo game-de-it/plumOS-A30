@@ -572,7 +572,9 @@ rules:
   第一候補にする。電源ボタンは kernel 側で処理される可能性があるため、必須経路にしない
 - FE が emulator 待ちでブロックされる間は、`plumos-safe-hotkeyd` が
   `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視し、Function=`KEY_ESC` から
-  `plumos-safe-shutdown --shutdown --no-poweroff` を起動する候補にする。2026-06-08 時点では
+  `plumos-safe-shutdown --shutdown --no-poweroff` を起動する候補にする。同時に
+  `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱い、
+  emulator 実行中も plumOS の `volume` と ALSA softvol を更新する。2026-06-08 時点では
   `plumos-text-ui launch --execute` が RetroArch/standalone launch 中だけ
   `plumos-safe-hotkeyd --oneshot` を自動起動し、`SIGUSR1` trigger で RetroArch 実行中の
   安全終了pathを確認済み。`scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で

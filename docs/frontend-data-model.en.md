@@ -599,8 +599,11 @@ Rules:
   kernel side, so it must not be the only path.
 - While the frontend is blocked waiting for an emulator, `plumos-safe-hotkeyd`
   should watch `/dev/input/event3` (`gpio-keys-polled`) non-exclusively and use
-  Function=`KEY_ESC` to run `plumos-safe-shutdown --shutdown --no-poweroff`. As
-  of 2026-06-08, `plumos-text-ui launch --execute` auto-starts
+  Function=`KEY_ESC` to run `plumos-safe-shutdown --shutdown --no-poweroff`.
+  It also treats `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` like
+  `plumos-volume-control up|down`, so emulator sessions can update plumOS
+  `volume` and ALSA softvol. As of 2026-06-08,
+  `plumos-text-ui launch --execute` auto-starts
   `plumos-safe-hotkeyd --oneshot` only during RetroArch/standalone launches, and
   the same trigger path is verified with `SIGUSR1` while RetroArch is running.
   `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the

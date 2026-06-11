@@ -97,8 +97,8 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | R | 14 | `KEY_BACKSPACE` | `r` | reserved |
 | L2 | 18 | `KEY_E` | `l2` | reserved |
 | R2 | 20 | `KEY_T` | `r2` | reserved |
-| Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | reserved |
-| Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | reserved |
+| Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
+| Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
@@ -110,8 +110,11 @@ Notes:
 - The START menu opens from physical START (`KEY_ENTER`).
 - Function (`KEY_ESC`) is not treated as an alternate START button. It is the
   primary candidate for a safe shutdown/resume menu.
-- X/Y/L/R/L2/R2/volume buttons are identified by the probe but are not assigned
-  to normal controller UI actions yet.
+- The volume buttons update plumOS `volume 0..20` one step at a time and apply
+  it immediately to ALSA `Soft Volume Master`. While an emulator is running,
+  `plumos-safe-hotkeyd` handles the same path.
+- X/Y/L/R/L2/R2 are identified by the probe but are not assigned to normal
+  controller UI actions yet.
 - The power button remains unconfirmed to avoid stock or kernel-side
   sleep/shutdown side effects. Design plumOS auto-resume without depending on
   the power button, with Function as the preferred fallback trigger.
