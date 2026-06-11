@@ -95,6 +95,16 @@ while the pause file exists instead of launching the FE. `start` and `restart`
 remove the pause file and verify that `/dev/fb0` is owned by exactly one plumOS
 FE process after startup.
 
+## Boot Splash
+
+The StockOS `LOADING` screen is not a kernel logo. `/etc/init.d/boot` extracts
+`/usr/miyoo/res/loading.data.tgz` and writes it to `/dev/fb0` from userland.
+plumOS does not modify the rootfs; instead, `MainUI.wrapper` redraws the screen
+with `/mnt/SDCARD/plumos/bin/plumos-boot-splash` immediately after the wrapper
+starts. The helper exits as soon as it has drawn the splash, so it does not block
+the following SD-card UTF-8 remount. If
+`/mnt/SDCARD/plumos/config/disable-mainui-wrapper` exists, the splash is skipped.
+
 ## Disable
 
 To keep the wrapper installed but boot stock MainUI directly, create this file

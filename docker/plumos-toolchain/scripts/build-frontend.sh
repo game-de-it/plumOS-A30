@@ -6,6 +6,7 @@ FRONTEND_SRC="${ROOT_DIR}/src/frontend/plumos_frontend.c"
 SCAN_SRC="${ROOT_DIR}/src/frontend/plumos_library_scan.c"
 TEXT_UI_SRC="${ROOT_DIR}/src/frontend/plumos_text_ui.c"
 CONTROLLER_UI_SRC="${ROOT_DIR}/src/frontend/plumos_controller_ui.c"
+BOOT_SPLASH_SRC="${ROOT_DIR}/src/frontend/plumos_boot_splash.c"
 SAFE_HOTKEYD_SRC="${ROOT_DIR}/src/input/plumos_safe_hotkeyd.c"
 PACKAGE_DIR="${ROOT_DIR}/package/frontend/plumos"
 DIST_DIR="${ROOT_DIR}/dist/plumos-frontend"
@@ -18,6 +19,7 @@ TEXT_UI_OUT="${BIN_DIR}/plumos-text-ui"
 CONTROLLER_UI_OUT="${BIN_DIR}/plumos-controller-ui"
 CONTROLLER_MALI_OUT="${BIN_DIR}/plumos-controller-ui-mali.bin"
 CONTROLLER_MALI_WRAPPER="${BIN_DIR}/plumos-controller-ui-mali"
+BOOT_SPLASH_OUT="${BIN_DIR}/plumos-boot-splash"
 SAFE_HOTKEYD_OUT="${BIN_DIR}/plumos-safe-hotkeyd"
 MANIFEST="${DOC_DIR}/manifest.txt"
 PREFETCH_THUMBNAIL_CACHE="${PLUMOS_PREFETCH_THUMBNAIL_CACHE:-auto}"
@@ -204,6 +206,7 @@ build_one "$FRONTEND_SRC" "$FRONTEND_OUT"
 build_one "$SCAN_SRC" "$SCAN_OUT"
 build_one "$TEXT_UI_SRC" "$TEXT_UI_OUT"
 build_one "$CONTROLLER_UI_SRC" "$CONTROLLER_UI_OUT"
+build_one "$BOOT_SPLASH_SRC" "$BOOT_SPLASH_OUT"
 build_one "$SAFE_HOTKEYD_SRC" "$SAFE_HOTKEYD_OUT"
 build_mali_controller
 prefetch_thumbnail_cache
@@ -213,6 +216,7 @@ sha256sum \
   "$SCAN_OUT" \
   "$TEXT_UI_OUT" \
   "$CONTROLLER_UI_OUT" \
+  "$BOOT_SPLASH_OUT" \
   "$SAFE_HOTKEYD_OUT" \
   "$CONTROLLER_MALI_OUT" \
   "$CONTROLLER_MALI_WRAPPER" \
@@ -227,6 +231,7 @@ sha256sum \
   file "$SCAN_OUT"
   file "$TEXT_UI_OUT"
   file "$CONTROLLER_UI_OUT"
+  file "$BOOT_SPLASH_OUT"
   file "$SAFE_HOTKEYD_OUT"
   file "$CONTROLLER_MALI_OUT"
   echo
@@ -241,6 +246,9 @@ sha256sum \
   echo
   echo "== plumOS controller UI =="
   "$READELF" -h "$CONTROLLER_UI_OUT"
+  echo
+  echo "== plumOS boot splash =="
+  "$READELF" -h "$BOOT_SPLASH_OUT"
   echo
   echo "== plumOS safe hotkey daemon =="
   "$READELF" -h "$SAFE_HOTKEYD_OUT"

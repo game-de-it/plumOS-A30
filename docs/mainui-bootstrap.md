@@ -89,6 +89,15 @@ stock `/etc/main` は wrapper を再実行しますが、wrapper は pause file 
 FE を起動せず待機します。`start` または `restart` は pause file を削除し、
 起動後に `/dev/fb0` owner が plumOS FE 1 process だけであることを確認します。
 
+## 起動スプラッシュ
+
+StockOS の `LOADING` 表示は kernel logo ではなく、`/etc/init.d/boot` が
+`/usr/miyoo/res/loading.data.tgz` を展開して `/dev/fb0` へ書き込む userland 表示です。
+rootfs は変更せず、plumOS の `MainUI.wrapper` が起動した直後に
+`/mnt/SDCARD/plumos/bin/plumos-boot-splash` で `/dev/fb0` へ plumOS splash を描き直します。
+helper は描画後すぐ終了するため、直後の SD card UTF-8 remount をブロックしません。
+`/mnt/SDCARD/plumos/config/disable-mainui-wrapper` がある場合は splash も表示しません。
+
 ## disable
 
 wrapper を残したまま stock MainUI を起動したい場合は、A30 上で以下を作ります。

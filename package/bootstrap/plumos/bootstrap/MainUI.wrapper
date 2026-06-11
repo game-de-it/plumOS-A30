@@ -20,6 +20,7 @@ LOG_FILE="${PLUMOS_MAINUI_LOG:-${LOG_DIR}/mainui-wrapper.log}"
 FRONTEND="${PLUMOS_FRONTEND:-${PLUMOS_ROOT}/bin/plumos-frontend}"
 ENV_WRAPPER="${PLUMOS_ENV:-${PLUMOS_ROOT}/bin/plumos-env}"
 CONTROLLER_UI="${PLUMOS_CONTROLLER_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
+BOOT_SPLASH="${PLUMOS_BOOT_SPLASH:-${PLUMOS_ROOT}/bin/plumos-boot-splash}"
 NETWORK_SERVICES="${PLUMOS_NETWORK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-network-services}"
 STOCK_SERVICES="${PLUMOS_STOCK_SERVICES:-${PLUMOS_ROOT}/bin/plumos-stock-services}"
 NETWORK_CONTROL="${PLUMOS_NETWORK_CONTROL:-${PLUMOS_ROOT}/bin/plumos-network-control}"
@@ -52,6 +53,14 @@ run_stock_services_boot() {
   fi
   rm -f "$tmp_log" 2>/dev/null || true
   return "$status"
+}
+
+show_boot_splash() {
+  [ -x "$BOOT_SPLASH" ] || {
+    log "boot splash helper missing: ${BOOT_SPLASH}"
+    return 0
+  }
+  "$BOOT_SPLASH" --quiet >/dev/null 2>&1 || log "boot splash helper failed"
 }
 
 wlan_has_ip() {
@@ -161,6 +170,10 @@ while [ -e "$FE_PAUSE_FILE" ]; do
 done
 
 log "wrapper start pid=$$ pwd=$(pwd) ui_style=tty"
+
+if [ ! -e "$DISABLE_FILE" ]; then
+  show_boot_splash
+fi
 
 if [ -x "$STOCK_SERVICES" ]; then
   log "normalizing stock services: ${STOCK_SERVICES}"
