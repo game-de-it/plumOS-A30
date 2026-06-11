@@ -3329,6 +3329,18 @@ static size_t plumos_mali_graphic_selected_index(
   return 0;
 }
 
+static const struct plumos_mali_graphic_entry *plumos_mali_graphic_selected_entry(
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count) {
+  if (!entries || entry_count == 0) {
+    return NULL;
+  }
+  return &entries[plumos_mali_graphic_selected_index(entries, entry_count)];
+}
+
+static float plumos_mali_lerp_float(float from, float to, float progress) {
+  return from + (to - from) * progress;
+}
+
 static void plumos_mali_graphic_draw_gallery_background(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme) {
@@ -3381,25 +3393,16 @@ static void plumos_mali_graphic_draw_gallery_card(
   if (!entry) {
     return;
   }
-  plumos_mali_rect(renderer, x + 8.0f, y + 10.0f, w, h,
-                   0.0f, 0.0f, 0.0f, selected ? 0.48f : 0.34f);
-  plumos_mali_graphic_rect(renderer, x - 4.0f, y - 4.0f, w + 8.0f, h + 8.0f,
-                           selected ? theme->accent : theme->panel, 1.0f);
-  plumos_mali_graphic_rect(renderer, x, y, w, h,
-                           selected ? theme->panel_inner : theme->media_panel,
-                           1.0f);
 #ifdef PLUMOS_ENABLE_MALI_PNG
   if (entry->thumbnail[0]) {
     thumbnail_drawn =
         plumos_mali_graphic_draw_texture(renderer, entry->thumbnail,
-                                         x + 4.0f, y + 4.0f,
-                                         w - 8.0f, h - 8.0f);
+                                         x, y, w, h);
   }
   if (!thumbnail_drawn && theme->placeholder_thumbnail[0]) {
     thumbnail_drawn =
         plumos_mali_graphic_draw_texture(renderer, theme->placeholder_thumbnail,
-                                         x + 4.0f, y + 4.0f,
-                                         w - 8.0f, h - 8.0f);
+                                         x, y, w, h);
   }
 #endif
   if (!thumbnail_drawn) {
@@ -3456,6 +3459,62 @@ static void plumos_mali_graphic_draw_gallery_entries(
   }
 }
 
+static void plumos_mali_graphic_draw_gallery_transition_entries(
+    struct plumos_mali_renderer *renderer,
+    const struct plumos_mali_graphic_theme *theme,
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
+    const struct plumos_mali_graphic_entry *prev_entries,
+    size_t prev_entry_count, int transition_direction,
+    float transition_progress) {
+  const struct plumos_mali_graphic_entry *old_entry =
+      plumos_mali_graphic_selected_entry(prev_entries, prev_entry_count);
+  const struct plumos_mali_graphic_entry *new_entry =
+      plumos_mali_graphic_selected_entry(entries, entry_count);
+  const float center_w = 360.0f;
+  const float center_h = 270.0f;
+  const float side_w = 240.0f;
+  const float side_h = 180.0f;
+  const float center_x = ((float)renderer->width - center_w) * 0.5f;
+  const float center_y = 84.0f;
+  const float side_y = 128.0f;
+  const float visible_side = 76.0f;
+  const float left_x = -side_w + visible_side;
+  const float right_x = (float)renderer->width - visible_side;
+  float old_target_x;
+  float new_start_x;
+
+  if (!old_entry || !new_entry) {
+    plumos_mali_graphic_draw_gallery_entries(renderer, theme, entries,
+                                             entry_count, 0.0f);
+    return;
+  }
+  if (transition_progress < 0.0f) {
+    transition_progress = 0.0f;
+  } else if (transition_progress > 1.0f) {
+    transition_progress = 1.0f;
+  }
+  if (transition_direction < 0) {
+    old_target_x = right_x;
+    new_start_x = left_x;
+  } else {
+    old_target_x = left_x;
+    new_start_x = right_x;
+  }
+
+  plumos_mali_graphic_draw_gallery_card(
+      renderer, theme, old_entry,
+      plumos_mali_lerp_float(center_x, old_target_x, transition_progress),
+      plumos_mali_lerp_float(center_y, side_y, transition_progress),
+      plumos_mali_lerp_float(center_w, side_w, transition_progress),
+      plumos_mali_lerp_float(center_h, side_h, transition_progress), 0);
+  plumos_mali_graphic_draw_gallery_card(
+      renderer, theme, new_entry,
+      plumos_mali_lerp_float(new_start_x, center_x, transition_progress),
+      plumos_mali_lerp_float(side_y, center_y, transition_progress),
+      plumos_mali_lerp_float(side_w, center_w, transition_progress),
+      plumos_mali_lerp_float(side_h, center_h, transition_progress), 1);
+}
+
 static void plumos_mali_graphic_draw_gallery_footer(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
@@ -3503,8 +3562,6 @@ static void plumos_mali_graphic_draw_gallery(
       entry_count > 0 ? &entries[selected_index] : NULL;
   int slide_active = transition && strcmp(transition, "slide") == 0 &&
                      prev_entry_count > 0 && transition_progress < 1.0f;
-  float current_offset = 0.0f;
-  float prev_offset = 0.0f;
 
   plumos_mali_graphic_draw_gallery_background(renderer, theme);
   if (transition_progress < 0.0f) {
@@ -3516,15 +3573,13 @@ static void plumos_mali_graphic_draw_gallery(
     float eased_progress =
         plumos_mali_graphic_ease_slide_progress(transition_progress,
                                                 theme->transition_easing);
-    int direction = transition_direction < 0 ? -1 : 1;
-    prev_offset = -((float)direction) * (float)renderer->width * eased_progress;
-    current_offset = ((float)direction) * (float)renderer->width *
-                     (1.0f - eased_progress);
-    plumos_mali_graphic_draw_gallery_entries(renderer, theme, prev_entries,
-                                             prev_entry_count, prev_offset);
+    plumos_mali_graphic_draw_gallery_transition_entries(
+        renderer, theme, entries, entry_count, prev_entries, prev_entry_count,
+        transition_direction < 0 ? -1 : 1, eased_progress);
+  } else {
+    plumos_mali_graphic_draw_gallery_entries(renderer, theme, entries,
+                                             entry_count, 0.0f);
   }
-  plumos_mali_graphic_draw_gallery_entries(renderer, theme, entries,
-                                           entry_count, current_offset);
   plumos_mali_graphic_top_bar(renderer, theme,
                               system && system[0] ? system : "GALLERY");
   plumos_mali_graphic_draw_gallery_footer(renderer, theme, selected);

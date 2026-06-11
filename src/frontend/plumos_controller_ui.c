@@ -188,7 +188,7 @@ struct input_event {
 #define UI_SCRAPING_FIELD_IMAGE 0
 #define UI_SCRAPING_FIELD_EXISTING 1
 #define UI_SCRAPING_FIELD_SYSTEM 2
-#define UI_GALLERY_TRANSITION_MS 240
+#define UI_GALLERY_TRANSITION_MS 360
 #define UI_SDCARD_CLEANUP_MIN_INTERVAL_MS 60000
 #define UI_ROM_SCAN_REFRESH_MIN_INTERVAL_MS 3000
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
@@ -10736,6 +10736,9 @@ static int ui_needs_periodic_refresh(const struct ui_state *ui) {
   if (ui->renderer_mali && ui->gallery_transition_active) {
     return 1;
   }
+  if (ui_uses_graphic_mode(ui) && ui->screen == SCREEN_GALLERY) {
+    return 1;
+  }
   if (ui->rom_scan_refresh_pid > 0) {
     return 1;
   }
@@ -10753,6 +10756,9 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
     return 16;
   }
   if (ui->renderer_mali && ui->gallery_transition_active) {
+    return 16;
+  }
+  if (ui_uses_graphic_mode(ui) && ui->screen == SCREEN_GALLERY) {
     return 16;
   }
   if (ui->renderer_mali) {

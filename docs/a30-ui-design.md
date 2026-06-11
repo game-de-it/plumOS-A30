@@ -145,6 +145,8 @@
   左右端に見切れる前後ROM画像を表示し、左右で 1 件ずつ横 slide する。中央のROM画像枠は
   4:3を基準にし、下部のROM名は通常ROM listより大きく表示する。上下は 5 件 jump、A は起動、
   B/X は元の ROM list に戻る。
+- Gallery のROM画像は背景パネルや影を描かず、画像だけを表示する。ROM名 marquee と左右slide は
+  60fps 相当の再描画周期を維持する。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。
