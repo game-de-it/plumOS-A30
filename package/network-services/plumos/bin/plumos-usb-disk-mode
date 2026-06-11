@@ -7,7 +7,7 @@ ANDROID_USB="${PLUMOS_ANDROID_USB:-/sys/class/android_usb/android0}"
 MASS_STORAGE="${ANDROID_USB}/f_mass_storage"
 LUN="${MASS_STORAGE}/lun"
 SD_DEVICE="${PLUMOS_USB_DISK_DEVICE:-/dev/mmcblk0p1}"
-SDCARD_MOUNT_OPTS="${PLUMOS_SDCARD_MOUNT_OPTS:-rw,utf8=1,shortname=mixed,fmask=0022,dmask=0022}"
+SDCARD_MOUNT_OPTS="${PLUMOS_SDCARD_MOUNT_OPTS:-rw,iocharset=utf8,shortname=mixed,fmask=0022,dmask=0022}"
 STATE_DIR="${PLUMOS_USB_DISK_STATE_DIR:-/tmp/plumos-usb-disk-mode}"
 LOG_FILE="${PLUMOS_USB_DISK_LOG:-/tmp/plumos-usb-disk-mode.log}"
 EXIT_FLAG="${STATE_DIR}/exit"
@@ -470,8 +470,8 @@ remount_sdcard() {
   err="${STATE_DIR}/mount.err"
   for opts in \
     "$SDCARD_MOUNT_OPTS" \
-    "rw,utf8,shortname=mixed,fmask=0022,dmask=0022" \
-    "rw,iocharset=utf8,shortname=mixed,fmask=0022,dmask=0022"; do
+    "rw,iocharset=utf8,shortname=mixed,fmask=0022,dmask=0022" \
+    "rw,utf8,shortname=mixed,fmask=0022,dmask=0022"; do
     if mount -t vfat -o "$opts" "$SD_DEVICE" "$PLUMOS_SDCARD_ROOT" 2>"$err"; then
       rm -f "$err"
       log "remounted ${SD_DEVICE} on ${PLUMOS_SDCARD_ROOT} options=${opts}"

@@ -39,6 +39,21 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >> "$LOG_FILE" 2>/dev/null || true
 }
 
+run_stock_services_boot() {
+  tmp_log="${PLUMOS_STOCK_SERVICES_BOOT_LOG:-/tmp/plumos-stock-services-boot.log}"
+  rm -f "$tmp_log" 2>/dev/null || true
+  PLUMOS_STOCK_SERVICES_TMP_LOG="${PLUMOS_STOCK_SERVICES_TMP_LOG:-/tmp/plumos-stock-services.log}" \
+    "$STOCK_SERVICES" boot > "$tmp_log" 2>&1
+  status="$?"
+  if [ -s "$tmp_log" ]; then
+    while IFS= read line; do
+      log "stock-services boot: ${line}"
+    done < "$tmp_log"
+  fi
+  rm -f "$tmp_log" 2>/dev/null || true
+  return "$status"
+}
+
 wlan_has_ip() {
   iface="${PLUMOS_WIFI_INTERFACE:-wlan0}"
   ifconfig "$iface" 2>/dev/null |
@@ -149,7 +164,7 @@ log "wrapper start pid=$$ pwd=$(pwd) ui_style=tty"
 
 if [ -x "$STOCK_SERVICES" ]; then
   log "normalizing stock services: ${STOCK_SERVICES}"
-  "$STOCK_SERVICES" boot >> "$LOG_FILE" 2>&1 || true
+  run_stock_services_boot || true
 else
   log "stock services helper missing: ${STOCK_SERVICES}"
 fi
