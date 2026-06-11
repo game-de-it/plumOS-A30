@@ -1,1 +1,14 @@
 export PATH="/mnt/SDCARD/plumos/gnu/bin:/mnt/SDCARD/plumos/bin:/usr/miyoo/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+ls() {
+  if [ -t 1 ]; then
+    _plumos_ls_out="/tmp/plumos-ls-$$.out"
+    /mnt/SDCARD/plumos/bin/busybox ls "$@" > "$_plumos_ls_out"
+    _plumos_ls_status=$?
+    /mnt/SDCARD/plumos/bin/cat "$_plumos_ls_out"
+    /mnt/SDCARD/plumos/bin/rm -f "$_plumos_ls_out"
+    return "$_plumos_ls_status"
+  fi
+
+  /mnt/SDCARD/plumos/bin/busybox ls "$@"
+}

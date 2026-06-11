@@ -94,6 +94,11 @@ Dropbear build と `plumos/ssh/etc/ashrc` に固定されるため、release 用
 `scripts/build-ssh-kit.sh` の `DEFAULT_ROOT_PATH` と `package/ssh-kit/plumos/ssh/etc/ashrc`
 を更新して rebuild します。
 
+対話 SSH の TTY へ BusyBox `ls` が名前だけを直接出す場合、UTF-8 の日本語 file name を
+`?` に置き換えることがあります。`ashrc` では対話 session の `ls` を shell function とし、
+TTY 出力時だけ BusyBox `ls` の stdout を一度 pipe/file 経由にして、UTF-8 file name を
+そのまま表示します。`ssh host command` のような非対話 command には影響しません。
+
 ## 実機情報の収集
 
 SSH 接続できるようになったら、作業用 PC 側で以下を実行します。

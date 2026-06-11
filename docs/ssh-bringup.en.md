@@ -97,6 +97,12 @@ The per-session default PATH is compiled into Dropbear and mirrored in
 `scripts/build-ssh-kit.sh`, update `package/ssh-kit/plumos/ssh/etc/ashrc`, and
 rebuild the SSH kit.
 
+When BusyBox `ls` writes bare names directly to an interactive SSH TTY, it may
+replace UTF-8 Japanese file names with `?`. The `ashrc` file defines an
+interactive `ls` shell function that sends BusyBox `ls` stdout through a
+temporary non-TTY path only for TTY output, preserving UTF-8 file names. This
+does not affect non-interactive commands such as `ssh host command`.
+
 ## Collect Device Information
 
 After SSH works:
