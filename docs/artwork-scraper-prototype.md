@@ -267,6 +267,9 @@ ZIP ROM は BusyBox `unzip -lq` の `Length Date Time Name` 形式から member 
 `gbc` 配下に `.gb` payload が混入しているような場合は、その ROM だけ GB の DAT/thumbnail
 source で照合し、保存先は選択中の system に合わせて `/mnt/SDCARD/Images/gbc/<zip stem>.png`
 のままにします。これは混入 ROM の救済であり、通常は ROM を正しい system directory に整理します。
+NES payload が `NES\x1A` で始まる iNES 形式の場合、libretro No-Intro DAT との照合では
+先頭 16 byte の iNES header を除外した CRC32 を使います。header なし payload はそのまま
+CRC32 を使います。
 `--fetch --all` でも、ROM 候補が無い system や既存 thumbnail だけで足りる system では
 DAT/index を取得しません。最初の missing thumbnail が見つかった時だけ、その system の DAT/index を
 用意します。

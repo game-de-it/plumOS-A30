@@ -631,6 +631,31 @@ compute_crc32() {
   crc32 "$1" 2>/dev/null | awk '{ print tolower($1); exit }'
 }
 
+payload_has_ines_header() {
+  sig="$(dd if="$1" bs=4 count=1 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n')"
+  [ "$sig" = "4e45531a" ]
+}
+
+compute_payload_crc32() {
+  crc_system="$1"
+  crc_payload="$2"
+  crc_tmp="${STATE_DIR}/crc-nohdr-${crc_system}-$$.rom"
+  crc_value=""
+
+  if [ "$crc_system" = "nes" ] && payload_has_ines_header "$crc_payload"; then
+    rm -f "$crc_tmp" 2>/dev/null || true
+    if dd if="$crc_payload" of="$crc_tmp" bs=16 skip=1 2>/dev/null; then
+      crc_value="$(compute_crc32 "$crc_tmp" || true)"
+    fi
+    rm -f "$crc_tmp" 2>/dev/null || true
+    [ -n "$crc_value" ] || return 1
+    printf '%s\n' "$crc_value"
+    return 0
+  fi
+
+  compute_crc32 "$crc_payload"
+}
+
 is_png_file() {
   file="$1"
   sig="${CACHE_DIR}/png-signature.bin"
@@ -1011,7 +1036,7 @@ fetch_system() {
     fi
 
     if [ "$index_available" = 1 ]; then
-      crc="$(compute_crc32 "$payload" || true)"
+      crc="$(compute_payload_crc32 "$lookup_system" "$payload" || true)"
       rm -f "$payload_tmp" 2>/dev/null || true
       if [ -z "$crc" ]; then
         skipped_tool=$((skipped_tool + 1))

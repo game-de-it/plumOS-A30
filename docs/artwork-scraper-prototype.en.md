@@ -301,6 +301,9 @@ are supported. If a `.gb` payload is mixed into `Roms/gbc`, that ROM is matched 
 the GB DAT/thumbnail source while the saved image still follows the selected system,
 for example `/mnt/SDCARD/Images/gbc/<zip stem>.png`. This is a rescue path for mixed
 ROMs; the normal recommendation is to keep ROMs in the correct system directory.
+When an NES payload starts with the `NES\x1A` iNES signature, the runner strips
+the 16-byte iNES header before computing the CRC32 used for libretro No-Intro
+DAT lookup. Headerless payloads are CRC'd as-is.
 Even for `--fetch --all`, systems without ROM candidates, or systems whose
 existing thumbnails already cover all candidates, do not fetch DAT/index data.
 The runner prepares DAT/index data only after it sees the first missing
