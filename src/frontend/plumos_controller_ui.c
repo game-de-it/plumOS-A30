@@ -491,6 +491,7 @@ struct ui_state {
   int fe_ready_flag_written;
   int timeout_sec;
   enum ui_screen screen;
+  enum ui_screen rom_entry_screen;
   enum ui_screen back_screen;
   enum ui_screen safe_back_screen;
   enum ui_screen core_back_screen;
@@ -7653,6 +7654,14 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   } else {
     set_status(ui, "ROM list ready");
   }
+  if (ui_uses_graphic_mode(ui) && ui->rom_entry_screen == SCREEN_GALLERY &&
+      ui->rom_count > 0) {
+    ui->gallery_back_screen = SCREEN_TOP;
+    ui->screen = SCREEN_GALLERY;
+    ui->gallery_transition_active = 0;
+    ui->gallery_pending_active = 0;
+    set_status(ui, "Gallery ready");
+  }
   reset_marquee(ui);
 }
 
@@ -10094,7 +10103,17 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       move_gallery_cursor(ui, 5);
       return;
     }
-    if (action == ACTION_B || action == ACTION_X) {
+    if (action == ACTION_B) {
+      ui->rom_entry_screen = SCREEN_GALLERY;
+      ui->screen = SCREEN_TOP;
+      ui->gallery_transition_active = 0;
+      ui->gallery_pending_active = 0;
+      set_status(ui, "back to TOP");
+      reset_marquee(ui);
+      return;
+    }
+    if (action == ACTION_X) {
+      ui->rom_entry_screen = SCREEN_ROMS;
       ui->screen = (ui->gallery_back_screen == SCREEN_FAVORITES ||
                     ui->gallery_back_screen == SCREEN_RECENT)
                        ? ui->gallery_back_screen
@@ -10447,6 +10466,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
   if (action == ACTION_B) {
+    ui->rom_entry_screen = SCREEN_ROMS;
     ui->screen = SCREEN_TOP;
     set_status(ui, "back to TOP");
     return;
@@ -11204,6 +11224,7 @@ int main(int argc, char **argv) {
 
   memset(&ui, 0, sizeof(ui));
   ui.input_event_fd = -1;
+  ui.rom_entry_screen = SCREEN_ROMS;
   ui.sdcard_root = getenv("PLUMOS_SDCARD_ROOT");
   if (!ui.sdcard_root || !ui.sdcard_root[0]) {
     ui.sdcard_root = "/mnt/SDCARD";
