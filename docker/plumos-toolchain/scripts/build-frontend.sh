@@ -84,6 +84,27 @@ build_one() {
   chmod 0755 "$out"
 }
 
+build_boot_splash() {
+  "$CC" \
+    -std=gnu99 \
+    -Os \
+    -pipe \
+    -static \
+    -march="${PLUMOS_MARCH:-armv7-a}" \
+    -mfpu="${PLUMOS_MFPU:-neon-vfpv4}" \
+    -mfloat-abi="${PLUMOS_MFLOAT_ABI:-hard}" \
+    -Wall \
+    -Wextra \
+    "$BOOT_SPLASH_SRC" \
+    -o "$BOOT_SPLASH_OUT" \
+    -lpng \
+    -lz \
+    -lm
+
+  "$STRIP" "$BOOT_SPLASH_OUT" 2>/dev/null || true
+  chmod 0755 "$BOOT_SPLASH_OUT"
+}
+
 find_lib() {
   local soname="$1"
   local dir
@@ -206,7 +227,7 @@ build_one "$FRONTEND_SRC" "$FRONTEND_OUT"
 build_one "$SCAN_SRC" "$SCAN_OUT"
 build_one "$TEXT_UI_SRC" "$TEXT_UI_OUT"
 build_one "$CONTROLLER_UI_SRC" "$CONTROLLER_UI_OUT"
-build_one "$BOOT_SPLASH_SRC" "$BOOT_SPLASH_OUT"
+build_boot_splash
 build_one "$SAFE_HOTKEYD_SRC" "$SAFE_HOTKEYD_OUT"
 build_mali_controller
 prefetch_thumbnail_cache

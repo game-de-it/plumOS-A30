@@ -9,6 +9,9 @@
 #include <unistd.h>
 
 #include <linux/fb.h>
+#include <png.h>
+
+#define DEFAULT_SPLASH_IMAGE "/mnt/SDCARD/plumos/config/frontend/boot-splash.png"
 
 struct fb_ctx {
   int fd;
@@ -19,6 +22,12 @@ struct fb_ctx {
   int logical_w;
   int logical_h;
   int rotate_ccw;
+};
+
+struct rgba_image {
+  unsigned char *pixels;
+  int width;
+  int height;
 };
 
 static uint32_t pack_color(const struct fb_ctx *ctx, uint8_t r, uint8_t g, uint8_t b) {
@@ -38,6 +47,32 @@ static uint32_t pack_color(const struct fb_ctx *ctx, uint8_t r, uint8_t g, uint8
     pixel |= ((uint32_t)(a >> (8 - ctx->var.transp.length))) << ctx->var.transp.offset;
   }
   return pixel;
+}
+
+static uint32_t blend_color(const struct fb_ctx *ctx, uint8_t r, uint8_t g, uint8_t b,
+                            uint8_t a, uint32_t dst) {
+  uint8_t dr;
+  uint8_t dg;
+  uint8_t db;
+
+  if (a == 255) {
+    return pack_color(ctx, r, g, b);
+  }
+  if (a == 0) {
+    return dst;
+  }
+
+  dr = (uint8_t)((dst >> ctx->var.red.offset) & ((1u << ctx->var.red.length) - 1u));
+  dg = (uint8_t)((dst >> ctx->var.green.offset) & ((1u << ctx->var.green.length) - 1u));
+  db = (uint8_t)((dst >> ctx->var.blue.offset) & ((1u << ctx->var.blue.length) - 1u));
+  dr = (uint8_t)(dr << (8 - ctx->var.red.length));
+  dg = (uint8_t)(dg << (8 - ctx->var.green.length));
+  db = (uint8_t)(db << (8 - ctx->var.blue.length));
+
+  r = (uint8_t)(((int)r * a + (int)dr * (255 - a)) / 255);
+  g = (uint8_t)(((int)g * a + (int)dg * (255 - a)) / 255);
+  b = (uint8_t)(((int)b * a + (int)db * (255 - a)) / 255);
+  return pack_color(ctx, r, g, b);
 }
 
 static void put_fb_pixel(struct fb_ctx *ctx, int fx, int fy, uint32_t color) {
@@ -62,6 +97,27 @@ static void put_fb_pixel(struct fb_ctx *ctx, int fx, int fy, uint32_t color) {
   }
 }
 
+static uint32_t get_fb_pixel(struct fb_ctx *ctx, int fx, int fy) {
+  int bytes_per_pixel;
+  size_t offset;
+
+  if (fx < 0 || fy < 0 || fx >= (int)ctx->var.xres || fy >= (int)ctx->var.yres) {
+    return 0;
+  }
+  bytes_per_pixel = (int)ctx->var.bits_per_pixel / 8;
+  if (bytes_per_pixel < 2) {
+    return 0;
+  }
+  offset = (size_t)fy * ctx->fix.line_length + (size_t)fx * (size_t)bytes_per_pixel;
+  if (offset + (size_t)bytes_per_pixel > ctx->mem_len) {
+    return 0;
+  }
+  if (bytes_per_pixel == 2) {
+    return *(uint16_t *)(ctx->mem + offset);
+  }
+  return *(uint32_t *)(ctx->mem + offset);
+}
+
 static void put_pixel(struct fb_ctx *ctx, int x, int y, uint32_t color) {
   int fx = x;
   int fy = y;
@@ -74,6 +130,26 @@ static void put_pixel(struct fb_ctx *ctx, int x, int y, uint32_t color) {
     fy = (int)ctx->var.yres - 1 - x;
   }
   put_fb_pixel(ctx, fx, fy, color);
+}
+
+static uint32_t get_pixel(struct fb_ctx *ctx, int x, int y) {
+  int fx = x;
+  int fy = y;
+
+  if (x < 0 || y < 0 || x >= ctx->logical_w || y >= ctx->logical_h) {
+    return 0;
+  }
+  if (ctx->rotate_ccw) {
+    fx = y;
+    fy = (int)ctx->var.yres - 1 - x;
+  }
+  return get_fb_pixel(ctx, fx, fy);
+}
+
+static void put_rgba_pixel(struct fb_ctx *ctx, int x, int y, const unsigned char *rgba) {
+  uint32_t dst = get_pixel(ctx, x, y);
+  uint32_t color = blend_color(ctx, rgba[0], rgba[1], rgba[2], rgba[3], dst);
+  put_pixel(ctx, x, y, color);
 }
 
 static uint8_t mix_channel(uint8_t a, uint8_t b, int t, int max_t) {
@@ -240,6 +316,172 @@ static void draw_splash(struct fb_ctx *ctx) {
   draw_bar(ctx);
 }
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclobbered"
+#endif
+static int load_png_rgba(const char *path, struct rgba_image *image) {
+  FILE *f;
+  png_structp png = NULL;
+  png_infop info = NULL;
+  png_bytep *rows = NULL;
+  png_bytep pixels = NULL;
+  png_uint_32 width;
+  png_uint_32 height;
+  int bit_depth;
+  int color_type;
+  int interlace_type;
+  size_t row_bytes;
+  png_uint_32 y;
+  int ok = 0;
+
+  if (!path || !path[0] || !image) {
+    return 0;
+  }
+  memset(image, 0, sizeof(*image));
+
+  f = fopen(path, "rb");
+  if (!f) {
+    return 0;
+  }
+
+  png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if (!png) {
+    fclose(f);
+    return 0;
+  }
+  info = png_create_info_struct(png);
+  if (!info) {
+    png_destroy_read_struct(&png, NULL, NULL);
+    fclose(f);
+    return 0;
+  }
+  if (setjmp(png_jmpbuf(png))) {
+    goto done;
+  }
+
+  png_init_io(png, f);
+  png_read_info(png, info);
+  png_get_IHDR(png, info, &width, &height, &bit_depth, &color_type,
+               &interlace_type, NULL, NULL);
+  if (width == 0 || height == 0 || width > 4096 || height > 4096) {
+    goto done;
+  }
+  if (bit_depth == 16) {
+    png_set_strip_16(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_PALETTE) {
+    png_set_palette_to_rgb(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) {
+    png_set_expand_gray_1_2_4_to_8(png);
+  }
+  if (png_get_valid(png, info, PNG_INFO_tRNS)) {
+    png_set_tRNS_to_alpha(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+    png_set_gray_to_rgb(png);
+  }
+  if ((color_type & PNG_COLOR_MASK_ALPHA) == 0) {
+    png_set_filler(png, 0xff, PNG_FILLER_AFTER);
+  }
+  (void)png_set_interlace_handling(png);
+  png_read_update_info(png, info);
+  row_bytes = png_get_rowbytes(png, info);
+  if (row_bytes != (size_t)width * 4u) {
+    goto done;
+  }
+
+  pixels = (png_bytep)malloc(row_bytes * (size_t)height);
+  rows = (png_bytep *)malloc(sizeof(png_bytep) * (size_t)height);
+  if (!pixels || !rows) {
+    goto done;
+  }
+  for (y = 0; y < height; y++) {
+    rows[y] = pixels + row_bytes * (size_t)y;
+  }
+  png_read_image(png, rows);
+  png_read_end(png, NULL);
+
+  image->pixels = pixels;
+  image->width = (int)width;
+  image->height = (int)height;
+  pixels = NULL;
+  ok = 1;
+
+done:
+  free(rows);
+  free(pixels);
+  png_destroy_read_struct(&png, &info, NULL);
+  fclose(f);
+  return ok;
+}
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+static void free_rgba_image(struct rgba_image *image) {
+  if (!image) {
+    return;
+  }
+  free(image->pixels);
+  image->pixels = NULL;
+  image->width = 0;
+  image->height = 0;
+}
+
+static void draw_png_contain(struct fb_ctx *ctx, const struct rgba_image *image) {
+  int draw_w;
+  int draw_h;
+  int off_x;
+  int off_y;
+  int x;
+  int y;
+  int64_t lhs;
+  int64_t rhs;
+
+  if (!ctx || !image || !image->pixels || image->width <= 0 || image->height <= 0) {
+    return;
+  }
+
+  lhs = (int64_t)ctx->logical_w * image->height;
+  rhs = (int64_t)ctx->logical_h * image->width;
+  if (lhs <= rhs) {
+    draw_w = ctx->logical_w;
+    draw_h = (int)((int64_t)image->height * draw_w / image->width);
+  } else {
+    draw_h = ctx->logical_h;
+    draw_w = (int)((int64_t)image->width * draw_h / image->height);
+  }
+  if (draw_w <= 0 || draw_h <= 0) {
+    return;
+  }
+
+  off_x = (ctx->logical_w - draw_w) / 2;
+  off_y = (ctx->logical_h - draw_h) / 2;
+  for (y = 0; y < draw_h; y++) {
+    int src_y = (int)((int64_t)y * image->height / draw_h);
+    for (x = 0; x < draw_w; x++) {
+      int src_x = (int)((int64_t)x * image->width / draw_w);
+      const unsigned char *rgba =
+          image->pixels + ((size_t)src_y * image->width + (size_t)src_x) * 4u;
+      put_rgba_pixel(ctx, off_x + x, off_y + y, rgba);
+    }
+  }
+}
+
+static int draw_user_splash(struct fb_ctx *ctx, const char *image_path) {
+  struct rgba_image image;
+
+  if (!load_png_rgba(image_path, &image)) {
+    return 0;
+  }
+  fill_background(ctx);
+  draw_png_contain(ctx, &image);
+  free_rgba_image(&image);
+  return 1;
+}
+
 static int setup_fb(struct fb_ctx *ctx, const char *fb_path) {
   size_t map_len;
 
@@ -296,14 +538,20 @@ static void cleanup_fb(struct fb_ctx *ctx) {
 }
 
 static void usage(const char *argv0) {
-  printf("Usage: %s [--fb PATH] [--quiet]\n", argv0);
+  printf("Usage: %s [--fb PATH] [--image PATH] [--quiet]\n", argv0);
 }
 
 int main(int argc, char **argv) {
   const char *fb_path = "/dev/fb0";
+  const char *image_path = getenv("PLUMOS_BOOT_SPLASH_IMAGE");
   int quiet = 0;
   struct fb_ctx ctx;
+  int used_image = 0;
   int i;
+
+  if (!image_path || !image_path[0]) {
+    image_path = DEFAULT_SPLASH_IMAGE;
+  }
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--fb") == 0) {
@@ -312,6 +560,12 @@ int main(int argc, char **argv) {
         return 2;
       }
       fb_path = argv[++i];
+    } else if (strcmp(argv[i], "--image") == 0) {
+      if (i + 1 >= argc) {
+        fprintf(stderr, "error: --image requires a path\n");
+        return 2;
+      }
+      image_path = argv[++i];
     } else if (strcmp(argv[i], "--quiet") == 0) {
       quiet = 1;
     } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -328,11 +582,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  draw_splash(&ctx);
+  used_image = draw_user_splash(&ctx, image_path);
+  if (!used_image) {
+    draw_splash(&ctx);
+  }
   msync(ctx.mem, ctx.mem_len, MS_ASYNC);
   if (!quiet) {
-    printf("splash fb=%s size=%ux%u logical=%dx%d bpp=%u\n", fb_path, ctx.var.xres,
-           ctx.var.yres, ctx.logical_w, ctx.logical_h, ctx.var.bits_per_pixel);
+    printf("splash fb=%s image=%s image_used=%s size=%ux%u logical=%dx%d bpp=%u\n",
+           fb_path, image_path, used_image ? "yes" : "no", ctx.var.xres, ctx.var.yres,
+           ctx.logical_w, ctx.logical_h, ctx.var.bits_per_pixel);
   }
   cleanup_fb(&ctx);
   return 0;

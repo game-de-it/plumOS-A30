@@ -105,6 +105,14 @@ starts. The helper exits as soon as it has drawn the splash, so it does not bloc
 the following SD-card UTF-8 remount. If
 `/mnt/SDCARD/plumos/config/disable-mainui-wrapper` exists, the splash is skipped.
 
+User-provided splash art lives at
+`/mnt/SDCARD/plumos/config/frontend/boot-splash.png`. The recommended image is a
+landscape `640x480` PNG, 24-bit/32-bit sRGB. The A30 framebuffer is physically
+`480x640`, but plumOS treats the screen as the same `640x480` landscape logical
+space used by the UI. If the file is missing or cannot be decoded as PNG, the
+built-in splash is used. Images with other sizes are aspect-fit inside the
+screen, with the built-in splash background filling any margins.
+
 ## Disable
 
 To keep the wrapper installed but boot stock MainUI directly, create this file

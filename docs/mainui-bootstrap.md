@@ -98,6 +98,12 @@ rootfs は変更せず、plumOS の `MainUI.wrapper` が起動した直後に
 helper は描画後すぐ終了するため、直後の SD card UTF-8 remount をブロックしません。
 `/mnt/SDCARD/plumos/config/disable-mainui-wrapper` がある場合は splash も表示しません。
 
+ユーザー差し替え画像は `/mnt/SDCARD/plumos/config/frontend/boot-splash.png` に置きます。
+推奨解像度は横向き `640x480`、PNG 24bit/32bit sRGB です。A30 の framebuffer は
+物理的には `480x640` ですが、plumOS UI と同じ横向き論理解像度 `640x480` として扱います。
+画像が無い、または PNG として読めない場合は内蔵 splash に fallback します。サイズが
+`640x480` 以外の場合は縦横比を維持して画面内に収め、余白は内蔵 splash と同じ背景で埋めます。
+
 ## disable
 
 wrapper を残したまま stock MainUI を起動したい場合は、A30 上で以下を作ります。
