@@ -147,6 +147,8 @@
   B/X は元の ROM list に戻る。
 - Gallery のROM画像は背景パネルや影を描かず、画像だけを表示する。ROM名 marquee と左右slide は
   60fps 相当の再描画周期を維持する。
+- Gallery slide 中は移動先のさらに隣のROM画像も先に端へ描き、slide完了時に端の画像が
+  後から出現して見えないようにする。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。

@@ -3337,6 +3337,29 @@ static const struct plumos_mali_graphic_entry *plumos_mali_graphic_selected_entr
   return &entries[plumos_mali_graphic_selected_index(entries, entry_count)];
 }
 
+static const struct plumos_mali_graphic_entry *
+plumos_mali_graphic_selected_neighbor(
+    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
+    int delta) {
+  size_t selected_index;
+
+  if (!entries || entry_count == 0 || delta == 0) {
+    return NULL;
+  }
+  selected_index = plumos_mali_graphic_selected_index(entries, entry_count);
+  if (delta < 0) {
+    size_t step = (size_t)(-delta);
+    if (selected_index < step) {
+      return NULL;
+    }
+    return &entries[selected_index - step];
+  }
+  if (selected_index + (size_t)delta >= entry_count) {
+    return NULL;
+  }
+  return &entries[selected_index + (size_t)delta];
+}
+
 static float plumos_mali_lerp_float(float from, float to, float progress) {
   return from + (to - from) * progress;
 }
@@ -3470,6 +3493,7 @@ static void plumos_mali_graphic_draw_gallery_transition_entries(
       plumos_mali_graphic_selected_entry(prev_entries, prev_entry_count);
   const struct plumos_mali_graphic_entry *new_entry =
       plumos_mali_graphic_selected_entry(entries, entry_count);
+  const struct plumos_mali_graphic_entry *edge_entry = NULL;
   const float center_w = 360.0f;
   const float center_h = 270.0f;
   const float side_w = 240.0f;
@@ -3496,11 +3520,21 @@ static void plumos_mali_graphic_draw_gallery_transition_entries(
   if (transition_direction < 0) {
     old_target_x = right_x;
     new_start_x = left_x;
+    edge_entry =
+        plumos_mali_graphic_selected_neighbor(entries, entry_count, -1);
   } else {
     old_target_x = left_x;
     new_start_x = right_x;
+    edge_entry =
+        plumos_mali_graphic_selected_neighbor(entries, entry_count, 1);
   }
 
+  if (edge_entry) {
+    plumos_mali_graphic_draw_gallery_card(
+        renderer, theme, edge_entry,
+        transition_direction < 0 ? left_x : right_x,
+        side_y, side_w, side_h, 0);
+  }
   plumos_mali_graphic_draw_gallery_card(
       renderer, theme, old_entry,
       plumos_mali_lerp_float(center_x, old_target_x, transition_progress),
