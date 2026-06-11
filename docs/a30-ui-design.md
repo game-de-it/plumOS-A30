@@ -142,8 +142,9 @@
   decomposed かな濁点/半濁点は表示時だけ合成する。長い文字列は選択中ROMと同じ marquee timer で
   `1000ms` 待ってから横スクロールし、行番号、debug/status、cursor代わりの縦バーは表示しない。
 - Graphic mode の ROM list では X で Gallery list に入る。Gallery は背景、中央の選択ROM画像、
-  左右端に見切れる前後ROM画像を表示し、左右で 1 件ずつ横 slide する。上下は 5 件 jump、
-  A は起動、B/X は元の ROM list に戻る。
+  左右端に見切れる前後ROM画像を表示し、左右で 1 件ずつ横 slide する。中央のROM画像枠は
+  4:3を基準にし、下部のROM名は通常ROM listより大きく表示する。上下は 5 件 jump、A は起動、
+  B/X は元の ROM list に戻る。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。

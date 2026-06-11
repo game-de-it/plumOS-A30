@@ -3421,14 +3421,14 @@ static void plumos_mali_graphic_draw_gallery_entries(
     float x_offset) {
   size_t selected_index;
   size_t i;
-  const float center_w = 238.0f;
-  const float center_h = 304.0f;
-  const float side_w = 178.0f;
-  const float side_h = 254.0f;
+  const float center_w = 360.0f;
+  const float center_h = 270.0f;
+  const float side_w = 240.0f;
+  const float side_h = 180.0f;
   const float center_x = ((float)renderer->width - center_w) * 0.5f;
-  const float center_y = 86.0f;
-  const float side_y = 112.0f;
-  const float visible_side = 70.0f;
+  const float center_y = 84.0f;
+  const float side_y = 128.0f;
+  const float visible_side = 76.0f;
 
   if (!entries || entry_count == 0) {
     return;
@@ -3460,16 +3460,16 @@ static void plumos_mali_graphic_draw_gallery_footer(
     struct plumos_mali_renderer *renderer,
     const struct plumos_mali_graphic_theme *theme,
     const struct plumos_mali_graphic_entry *selected) {
-  const float footer_y = (float)renderer->height - 78.0f;
-  const float text_left = 78.0f;
-  const float text_right = (float)renderer->width - 78.0f;
+  const float footer_y = (float)renderer->height - 84.0f;
+  const float text_left = 86.0f;
+  const float text_right = (float)renderer->width - 86.0f;
   const char *title = selected && selected->title[0] ? selected->title : "NO ENTRY";
-  int title_width = plumos_mali_text_width_font(renderer, title, 2, 1);
+  int title_width = plumos_mali_text_width_font(renderer, title, 3, 1);
   int available_width = (int)(text_right - text_left);
   int scroll_px = 0;
   float title_x;
 
-  plumos_mali_rect(renderer, 0.0f, footer_y, (float)renderer->width, 78.0f,
+  plumos_mali_rect(renderer, 0.0f, footer_y, (float)renderer->width, 84.0f,
                    0.015f, 0.013f, 0.012f, 0.92f);
   plumos_mali_rect(renderer, 0.0f, footer_y, (float)renderer->width, 2.0f,
                    0.50f, 0.24f, 0.10f, 1.0f);
@@ -3480,13 +3480,13 @@ static void plumos_mali_graphic_draw_gallery_footer(
   } else {
     title_x = ((float)renderer->width - (float)title_width) * 0.5f;
   }
-  plumos_mali_graphic_text_clipped(renderer, title, title_x, footer_y + 27.0f,
-                                   2, 1, text_left, text_right,
+  plumos_mali_graphic_text_clipped(renderer, title, title_x, footer_y + 23.0f,
+                                   3, 1, text_left, text_right,
                                    theme->selection_foreground, 1.0f);
-  plumos_mali_graphic_text(renderer, "<", 24.0f, footer_y + 28.0f, 3,
+  plumos_mali_graphic_text(renderer, "<", 24.0f, footer_y + 27.0f, 3,
                            theme->muted, 1.0f);
   plumos_mali_graphic_text(renderer, ">",
-                           (float)renderer->width - 42.0f, footer_y + 28.0f,
+                           (float)renderer->width - 42.0f, footer_y + 27.0f,
                            3, theme->muted, 1.0f);
 }
 
