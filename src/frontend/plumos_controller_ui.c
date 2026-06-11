@@ -590,8 +590,6 @@ struct ui_state {
   char performance_system_name[128];
   char performance_cpu_policy[32];
   char performance_cpu_label[64];
-  char performance_cpu_source[64];
-  char performance_cpu_cores_source[64];
   long performance_cpu_freq_khz;
   long performance_cpu_cores;
   char status[256];
@@ -4218,10 +4216,6 @@ static void performance_parse_current_cpu(struct ui_state *ui, const char *line)
   source = strstr(value, " (");
   copy_trimmed_range(label, sizeof(label), value,
                      source ? (size_t)(source - value) : strlen(value));
-  if (source) {
-    copy_parenthesized_source(ui->performance_cpu_source,
-                              sizeof(ui->performance_cpu_source), source);
-  }
 
   ui->performance_cpu_policy[0] = '\0';
   ui->performance_cpu_freq_khz = 0;
@@ -4255,10 +4249,6 @@ static void performance_parse_current_cpu_cores(struct ui_state *ui, const char 
   source = strstr(value, " (");
   copy_trimmed_range(label, sizeof(label), value,
                      source ? (size_t)(source - value) : strlen(value));
-  if (source) {
-    copy_parenthesized_source(ui->performance_cpu_cores_source,
-                              sizeof(ui->performance_cpu_cores_source), source);
-  }
   errno = 0;
   cores = strtol(label, &endptr, 10);
   if (errno == 0 && endptr && endptr != label &&
@@ -4283,26 +4273,14 @@ static int load_performance_core_state(struct ui_state *ui) {
   ui->performance_cpu_cores = 0;
   copy_string(ui->performance_cpu_label, sizeof(ui->performance_cpu_label),
               "launcher default");
-  copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-              "unavailable");
-  copy_string(ui->performance_cpu_cores_source,
-              sizeof(ui->performance_cpu_cores_source), "unavailable");
 
   if (!performance_ensure_system(ui)) {
-    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-                "no system");
-    copy_string(ui->performance_cpu_cores_source,
-                sizeof(ui->performance_cpu_cores_source), "no system");
     return 0;
   }
   if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
-    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-                "text-ui path too long");
     return 0;
   }
   if (!file_exists(text_ui)) {
-    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-                "plumos-text-ui missing");
     return 0;
   }
 
@@ -4316,15 +4294,11 @@ static int load_performance_core_state(struct ui_state *ui) {
       !append_string(cmd, sizeof(cmd), &pos, " core system ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->performance_system_id) ||
       !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
-    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-                "core command too long");
     return 0;
   }
 
   pipe = popen(cmd, "r");
   if (!pipe) {
-    copy_string(ui->performance_cpu_source, sizeof(ui->performance_cpu_source),
-                "cannot run plumos-text-ui");
     return 0;
   }
   while (fgets(line, sizeof(line), pipe)) {
@@ -4349,10 +4323,6 @@ static void add_performance_settings_entries(struct ui_state *ui) {
     copy_string(value, sizeof(value), "launcher default");
   }
   add_setting_entry(ui, "performance_cpu_cores", "CPU Cores", value);
-  add_setting_entry(ui, "performance_cpu_source", "CPU Source",
-                    ui->performance_cpu_source);
-  add_setting_entry(ui, "performance_cpu_cores_source", "Core Source",
-                    ui->performance_cpu_cores_source);
   add_setting_entry(ui, "performance_clear_cpu_override", "Reset to Default", "");
 }
 
