@@ -293,28 +293,29 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は START 代替ではなく、
 SAFE menu に割り当てています。
 
-`plumos-safe-hotkeyd` は、emulator 実行中に frontend がブロックされる間の
-安全終了用 helper です。`gpio-keys-polled` を自動検出して `/dev/input/event3`
-相当を非排他で読み、既定では Function=`KEY_ESC` の押下で
-`plumos-safe-shutdown --shutdown --no-poweroff` を実行します。`SIGUSR1` でも同じ
+`plumos-safe-hotkeyd` は、RetroArch 実行中に frontend がブロックされる間の
+安全終了用 helper です。既定では `/dev/input/event0` (`axp22-supplyer`) の
+電源ボタン短押し `KEY_POWER` で
+`plumos-safe-shutdown --shutdown --no-poweroff` を実行します。音量キー用には
+`gpio-keys-polled` (`/dev/input/event3` 相当) も非排他で読みます。`SIGUSR1` でも同じ
 trigger path を通るため、物理ボタンなしの実機試験に使えます。
 2026-06-08 に NES/RetroArch 実行中の `SIGUSR1` 試験で、safe shutdown、resume hold、
 CPU復元、FE再起動まで確認しました。artifact は
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes` です。
-`plumos-text-ui launch --execute` は RetroArch/standalone launch 中だけ
+`plumos-text-ui launch --execute` は RetroArch launch 中だけ
 `plumos-safe-hotkeyd --oneshot` を自動起動します。`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0`
 で無効化できます。自動起動した hotkeyd の `SIGUSR1` trigger は
 `artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`
 で確認済みです。
 再実行用に `scripts/probe-a30-safe-hotkeyd.sh` を追加しました。`--trigger signal` は
-自動試験、`--trigger physical` は実機の Function 押下待ちです。script経由の最新
+自動試験、`--trigger physical` は実機の安全終了キー押下待ちです。script経由の最新
 signal artifact は
 `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes` です。
 この artifact では `SAVE_STATE_SLOT 999` と `.state999` 作成、pending resume plan の
 `--entry-slot 999` も確認済みです。
-物理 Function 押下そのものは
+物理 Function 押下での旧 trigger は
 `artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`
-で確認済みで、`safe-hotkeyd.log` に `trigger source=key` が残ります。ゲーム中に
+で確認済みでした。現在の物理 trigger は電源ボタン `KEY_POWER` です。ゲーム中に
 SAFE menu を重ねる方式は継続確認項目です。
 
 `plumos-controller-ui-mali` は同じ controller UI の Mali EGL renderer 付き binary です。
@@ -445,8 +446,8 @@ SAFE menu:
 - `Cancel` と B は元の画面へ戻る。LEFT/RIGHT と Function は決定/戻るには使わない
 - `plumos-safe-shutdown` 側には power/sleep backend 選択を接続済み。SAFE menu 既定では
   まだ実 poweroff / 実 suspend を発火せず、保存・終了・`sync`・resume hold までを実行する
-- emulator 実行中は `plumos-safe-hotkeyd` の直接安全終了pathを先に検証済み。
-  物理 Function 押下も確認済み。ゲーム中 overlay menu は未完了
+- RetroArch 実行中は `plumos-safe-hotkeyd` の直接安全終了pathを先に検証済み。
+  物理 trigger は電源ボタンへ移行。ゲーム中 overlay menu は未完了
 
 Settings 画面では plumOS frontend 設定と theme 状態に加えて、plumOS-owned な
 system 設定も表示します。UI Settings の `Show Empty Systems`、

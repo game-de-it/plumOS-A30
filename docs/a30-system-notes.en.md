@@ -194,9 +194,12 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - `gpio-keys-polled` is `/dev/input/event3`.
 - Even while `keymon` and `MainUI` are running, plumOS can open and poll
   `/dev/input/event3` directly.
-- Physical button mapping is confirmed for every button except power:
+- Physical button mapping is confirmed:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
   SELECT=`KEY_RIGHTCTRL`, Function=`KEY_ESC`.
+- A short power-button press is readable from `/dev/input/event0`
+  (`axp22-supplyer`) as `KEY_POWER` (`116`). Under the regular plumOS frontend,
+  a short press has not triggered stock sleep/shutdown behavior.
 - Left stick axes were not observed as `EV_ABS` under `/dev/input/event*`.
   MainUI calibration updates `/config/joypad.config`.
 - The spruceOS A30 implementation converts `/dev/ttyS2` raw serial data into
@@ -243,8 +246,8 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - With the plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe, the
   `plumos-joystickd --device-mode xbox` composite virtual pad was also
   auto-detected through the `Xbox 360 Controller` mapping.
-- Because the power button may be handled on the kernel side, use Function as
-  the primary candidate for the safe shutdown/resume menu.
+- Use a short power-button press as the RetroArch safe shutdown trigger.
+  Function should remain available to standalone emulator menus.
 
 For now, keep stock `keymon` while the plumOS frontend reads
 `/dev/input/event3` directly. Details live in

@@ -975,15 +975,16 @@ static void redirect_stdio_to_devnull(void) {
   }
 }
 
-static int launch_plan_uses_emulator(const struct launch_plan *plan) {
-  return plan && (strcmp(plan->kind, "retroarch") == 0 || strcmp(plan->kind, "standalone") == 0);
+static int launch_plan_uses_safe_hotkeyd(const struct launch_plan *plan) {
+  return plan && strcmp(plan->kind, "retroarch") == 0;
 }
 
 static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_plan *plan) {
   char hotkeyd_path[PATH_MAX];
   pid_t pid;
 
-  if (!launch_plan_uses_emulator(plan) || env_flag_disabled("PLUMOS_SAFE_HOTKEYD_AUTOSTART")) {
+  if (!launch_plan_uses_safe_hotkeyd(plan) ||
+      env_flag_disabled("PLUMOS_SAFE_HOTKEYD_AUTOSTART")) {
     return 0;
   }
   if (!join_path(hotkeyd_path, sizeof(hotkeyd_path), plumos_root, "bin/plumos-safe-hotkeyd")) {

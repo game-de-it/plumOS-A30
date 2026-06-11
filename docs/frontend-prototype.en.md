@@ -305,29 +305,30 @@ SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is not an alternate START button; it
 opens the SAFE menu.
 
 `plumos-safe-hotkeyd` is the safe-exit helper for the period where the frontend
-is blocked by an emulator. It auto-detects `gpio-keys-polled`, reads the
-`/dev/input/event3` equivalent non-exclusively, and by default runs
-`plumos-safe-shutdown --shutdown --no-poweroff` when Function=`KEY_ESC` is
-pressed. `SIGUSR1` uses the same trigger path, so it can be tested without a
+is blocked by RetroArch. By default it watches `/dev/input/event0`
+(`axp22-supplyer`) and runs `plumos-safe-shutdown --shutdown --no-poweroff`
+when a short power-button press emits `KEY_POWER`. It also reads
+`gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively for volume
+keys. `SIGUSR1` uses the same trigger path, so it can be tested without a
 physical button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
 completed safe shutdown, resume hold, CPU restore, and frontend restart. The
 artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
 `plumos-text-ui launch --execute` automatically starts
-`plumos-safe-hotkeyd --oneshot` only while a RetroArch/standalone launch is
-running. Set `PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable it. The auto-started
+`plumos-safe-hotkeyd --oneshot` only while a RetroArch launch is running. Set
+`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable it. The auto-started
 hotkeyd `SIGUSR1` trigger is verified in
 `artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
 `scripts/probe-a30-safe-hotkeyd.sh` can rerun this path. `--trigger signal`
-runs the automated test, while `--trigger physical` waits for a physical
-Function press. The latest script-driven signal artifact is
+runs the automated test, while `--trigger physical` waits for the physical safe
+exit key. The latest script-driven signal artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`.
 That artifact also verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a
 pending resume plan using `--entry-slot 999`.
-The physical Function press itself is verified in
+The old physical Function trigger was verified in
 `artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`;
-`safe-hotkeyd.log` records `trigger source=key`. An in-game SAFE overlay menu
-remains to be validated.
+the current physical trigger is the power button `KEY_POWER`. An in-game SAFE
+overlay menu remains to be validated.
 
 `plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
 It uses `/dev/fb0` and `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so`, without
@@ -477,9 +478,9 @@ SAFE menu:
 - Power/sleep backend selection is wired in `plumos-safe-shutdown`. The SAFE
   menu default still does not trigger real poweroff or real suspend; it runs
   through save, exit, `sync`, and resume hold.
-- While an emulator is running, the direct `plumos-safe-hotkeyd` safe-exit path
-  is verified first. The physical Function press is also verified. The in-game
-  overlay menu still needs validation.
+- While RetroArch is running, the direct `plumos-safe-hotkeyd` safe-exit path
+  is verified first. The physical trigger has moved to the power button. The
+  in-game overlay menu still needs validation.
 
 The Settings screen also shows plumOS-owned system settings, separate from
 frontend settings and theme state. UI Settings entries such

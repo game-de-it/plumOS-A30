@@ -167,7 +167,7 @@ RetroArch 1.22.2 practical:
   frontend restart, and no residual processes. `plumos-text-ui launch --execute`
   auto-starting `plumos-safe-hotkeyd --oneshot` is also verified.
   `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the
-  path, and the physical Function press is verified as `trigger source=key`.
+  path. The physical trigger has moved from Function to power-button `KEY_POWER`.
   The 2026-06-08 artifact
   `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
   verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a resume plan using
@@ -184,7 +184,8 @@ next needed pieces:
 - Keep OSS as a compatibility fallback and map the saved volume into RetroArch
   software volume only when OSS is explicitly selected.
 - The safe-exit flow wired through controller UI SAFE/START and
-  `plumos-safe-hotkeyd` is verified through the physical Function press and
-  power/sleep backend dry-runs. Next is extending it to an in-game SAFE menu if
-  needed, or live-fire real poweroff / real suspend checks.
+  `plumos-safe-hotkeyd` is verified through power/sleep backend dry-runs. The
+  physical trigger has moved to power-button `KEY_POWER`. Next is extending it
+  to an in-game SAFE menu if needed, or live-fire real poweroff / real suspend
+  checks.
 - Enable/compare CHD/FLAC before PS1/PCE CD/Mega CD/Neo Geo CD core smoke tests.

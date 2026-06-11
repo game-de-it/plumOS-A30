@@ -594,21 +594,18 @@ Rules:
   pending resume state before launch and clears it after the emulator returns.
 - RetroArch Auto Save State / Auto Load State integration belongs to the later
   launcher/RetroArch implementation.
-- While RetroArch is running, prefer Function as the safe shutdown/resume menu
-  trigger instead of the power button. The power button may be handled on the
-  kernel side, so it must not be the only path.
-- While the frontend is blocked waiting for an emulator, `plumos-safe-hotkeyd`
-  should watch `/dev/input/event3` (`gpio-keys-polled`) non-exclusively and use
-  Function=`KEY_ESC` to run `plumos-safe-shutdown --shutdown --no-poweroff`.
-  It also treats `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` like
-  `plumos-volume-control up|down`, so emulator sessions can update plumOS
-  `volume` and ALSA softvol. As of 2026-06-08,
+- While RetroArch is running, use a short power-button press rather than
+  Function as the safe shutdown/resume trigger. On the A30 this is readable as
+  `KEY_POWER` from `/dev/input/event0` (`axp22-supplyer`).
+- While the frontend is blocked waiting for RetroArch, `plumos-safe-hotkeyd`
+  watches the power-button event and `/dev/input/event3` (`gpio-keys-polled`)
+  non-exclusively. The power button runs
+  `plumos-safe-shutdown --shutdown --no-poweroff`, while `KEY_VOLUMEUP` /
+  `KEY_VOLUMEDOWN` are handled like `plumos-volume-control up|down`.
   `plumos-text-ui launch --execute` auto-starts
-  `plumos-safe-hotkeyd --oneshot` only during RetroArch/standalone launches, and
-  the same trigger path is verified with `SIGUSR1` while RetroArch is running.
-  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the
-  path. The physical Function press is verified as `trigger source=key`. Whether
-  to show an overlay menu still needs validation.
+  `plumos-safe-hotkeyd --oneshot` only during RetroArch launches. `SIGUSR1`
+  remains available for tests without a physical button. Standalone emulators
+  do not auto-start safe-hotkeyd.
 
 ## SAFE Menu
 
@@ -643,10 +640,10 @@ Rules:
   wired through `plumos-safe-shutdown --no-poweroff` for launcher/RetroArch save,
   exit, `sync`, and resume hold. `plumos-safe-shutdown` can select power and
   sleep backends, but real poweroff/suspend still needs a live-fire check.
-- The direct in-emulator `plumos-safe-hotkeyd` safe-exit path is verified through
-  text-ui launch auto-start and `.state999` creation. The UX choice between
-  showing this SAFE menu over a running game and directly entering
-  shutdown/sleep-style safe exit from Function remains open.
+- The direct RetroArch `plumos-safe-hotkeyd` safe-exit path is verified through
+  text-ui launch auto-start and `.state999` creation. The in-game overlay menu
+  still needs validation, but the direct trigger now belongs to the power button
+  so Function can remain available to emulator-side menus.
 
 ## START Menu
 

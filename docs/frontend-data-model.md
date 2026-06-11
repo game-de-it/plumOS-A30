@@ -568,18 +568,15 @@ rules:
 - ROM list で A を押すと `plumos-text-ui launch ... --execute` を呼び、起動前に
   pending resume を保存し、エミュレータ終了後に pending resume を clear する
 - RetroArch の Auto Save State / Auto Load State との実接続は launcher/RetroArch 実装時に行う
-- RetroArch 実行中の safe shutdown/resume menu は、電源ボタンではなく Function button を
-  第一候補にする。電源ボタンは kernel 側で処理される可能性があるため、必須経路にしない
-- FE が emulator 待ちでブロックされる間は、`plumos-safe-hotkeyd` が
-  `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視し、Function=`KEY_ESC` から
-  `plumos-safe-shutdown --shutdown --no-poweroff` を起動する候補にする。同時に
-  `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱い、
-  emulator 実行中も plumOS の `volume` と ALSA softvol を更新する。2026-06-08 時点では
-  `plumos-text-ui launch --execute` が RetroArch/standalone launch 中だけ
-  `plumos-safe-hotkeyd --oneshot` を自動起動し、`SIGUSR1` trigger で RetroArch 実行中の
-  安全終了pathを確認済み。`scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で
-  再実行できる。物理 Function 押下は `trigger source=key` で確認済み。overlay menu の
-  有無は継続確認する
+- RetroArch 実行中の safe shutdown/resume trigger は Function ではなく電源ボタン短押しを
+  使う。A30 では `/dev/input/event0` (`axp22-supplyer`) から `KEY_POWER` として読める。
+- FE が RetroArch 待ちでブロックされる間は、`plumos-safe-hotkeyd` が電源ボタン event と
+  `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視する。電源ボタンから
+  `plumos-safe-shutdown --shutdown --no-poweroff` を起動し、`KEY_VOLUMEUP` /
+  `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱う。
+  `plumos-text-ui launch --execute` は RetroArch launch 中だけ
+  `plumos-safe-hotkeyd --oneshot` を自動起動する。`SIGUSR1` trigger は引き続き物理
+  ボタンなしの実機試験に使える。standalone emulator では safe-hotkeyd を自動起動しない。
 
 ## SAFE menu model
 
@@ -612,9 +609,9 @@ rules:
   `plumos-safe-shutdown --no-poweroff` 経由で launcher/RetroArch 側の保存・終了・`sync`・
   resume hold まで接続済み。`plumos-safe-shutdown` は power backend と sleep backend を
   選べるが、実 poweroff/suspend 発火は別途確認する
-- emulator 実行中の `plumos-safe-hotkeyd` 直接安全終了pathは、text-ui launch 中の
-  自動起動と `.state999` 作成まで確認済み。ゲーム中にこの SAFE menu を重ねるか、
-  Function で直接 shutdown/sleep 相当へ入るかはUX決定待ち
+- RetroArch 実行中の `plumos-safe-hotkeyd` 直接安全終了pathは、text-ui launch 中の
+  自動起動と `.state999` 作成まで確認済み。ゲーム中 overlay menu は未完了だが、
+  直接 trigger は電源ボタンへ寄せ、Function は emulator 側 menu と競合させない
 
 ## START menu model
 

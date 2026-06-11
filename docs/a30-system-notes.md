@@ -199,9 +199,12 @@ CPU policy 実測:
 - stock `MainUI` も `event0`, `event1`, `event3` を開いている
 - `gpio-keys-polled` は `/dev/input/event3`
 - `keymon` と `MainUI` が動作中でも plumOS は `/dev/input/event3` を直接 open/poll できる
-- 電源ボタン以外の物理ボタン mapping を確認済み:
+- 物理ボタン mapping を確認済み:
   A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, SELECT=`KEY_RIGHTCTRL`,
   Function=`KEY_ESC`
+- 電源ボタン短押しは `/dev/input/event0` (`axp22-supplyer`) から `KEY_POWER`
+  (`116`) として読める。plumOS 常用 FE 起動中の短押しでは stock sleep/shutdown
+  介入は観測していない
 - 左スティック軸は `/dev/input/event*` の `EV_ABS` としては観測できず、MainUI の
   calibration が `/config/joypad.config` を更新することを確認した
 - spruceOS の A30 実装は `/dev/ttyS2` raw serial を `joystickinput` で virtual input
@@ -247,8 +250,8 @@ CPU policy 実測:
 - plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
   `plumos-joystickd --device-mode xbox` の composite virtual pad は
   `Xbox 360 Controller` mapping として自動認識された
-- 電源ボタンは kernel 側で処理される可能性があるため、safe shutdown/resume menu は
-  Function button を第一候補にする
+- RetroArch 実行中の safe shutdown trigger は電源ボタン短押しへ寄せる。
+  Function button は standalone emulator の menu 操作と競合させない
 
 当面は stock `keymon` を残しつつ、plumOS frontend は `/dev/input/event3` を直接読む方針です。
 詳細は [A30 input policy](a30-input-policy.md) に分離しています。

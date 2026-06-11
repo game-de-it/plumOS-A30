@@ -131,8 +131,8 @@
 - [x] CPU governor/frequency/core policy を計測し、FE default を 648MHz / 2 cores にする。
 - [x] Wi-Fi power sequence、DHCP、Dropbear 復旧を複数回確認する。
 - [ ] 左スティック上下左右を個別 capture し、X/Y と符号を確定する。
-- [ ] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
-- [ ] RetroArch 実行中の Function UX を overlay menu にするか direct safe exit にするか決める。
+- [x] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
+- [ ] RetroArch 実行中の safe shutdown UX を overlay menu にするか direct power-key exit にするか決める。
 - [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
 - [ ] SSH を開発用 package のままにするか、plumOS service にするか決める。
 

@@ -44,6 +44,9 @@ struct input_event {
 #ifndef KEY_VOLUMEUP
 #define KEY_VOLUMEUP 115
 #endif
+#ifndef KEY_POWER
+#define KEY_POWER 116
+#endif
 
 #define DEFAULT_ROOT "/mnt/SDCARD/plumos"
 #define DEFAULT_SDCARD_ROOT "/mnt/SDCARD"
@@ -59,6 +62,7 @@ struct config {
   char root[PATH_MAX];
   char sdcard_root[PATH_MAX];
   char event_path[PATH_MAX];
+  char volume_event_path[PATH_MAX];
   char log_path[PATH_MAX];
   char command[COMMAND_MAX];
   char action[16];
@@ -72,6 +76,8 @@ struct config {
   int trigger_now;
   int verbose;
   int volume_keys_enabled;
+  int event_path_explicit;
+  int volume_event_path_explicit;
 };
 
 static void handle_signal(int sig) {
@@ -289,25 +295,26 @@ static int parse_action(const char *value, char *out, size_t out_size) {
   return 0;
 }
 
-static int discover_input_event(char *out, size_t out_size) {
+static int discover_named_input_event(char *out, size_t out_size, const char *target_name,
+                                      const char *fallback_path) {
   FILE *f;
   char line[512];
-  int in_gpio = 0;
+  int in_target = 0;
 
   f = fopen("/proc/bus/input/devices", "rb");
   if (!f) {
-    return copy_string(out, out_size, "/dev/input/event3");
+    return copy_string(out, out_size, fallback_path);
   }
   while (fgets(line, sizeof(line), f)) {
     if (line[0] == '\n') {
-      in_gpio = 0;
+      in_target = 0;
       continue;
     }
-    if (strstr(line, "Name=\"gpio-keys-polled\"")) {
-      in_gpio = 1;
+    if (strstr(line, "Name=\"") && strstr(line, target_name)) {
+      in_target = 1;
       continue;
     }
-    if (in_gpio && strstr(line, "Handlers=")) {
+    if (in_target && strstr(line, "Handlers=")) {
       char *event = strstr(line, "event");
       if (event) {
         char name[32];
@@ -323,7 +330,22 @@ static int discover_input_event(char *out, size_t out_size) {
     }
   }
   fclose(f);
-  return copy_string(out, out_size, "/dev/input/event3");
+  return copy_string(out, out_size, fallback_path);
+}
+
+static int discover_input_event(char *out, size_t out_size, int key_code) {
+  if (key_code == KEY_POWER) {
+    return discover_named_input_event(out, out_size, "axp22-supplyer", "/dev/input/event0");
+  }
+  return discover_named_input_event(out, out_size, "gpio-keys-polled", "/dev/input/event3");
+}
+
+static int discover_volume_input_event(char *out, size_t out_size) {
+  return discover_named_input_event(out, out_size, "gpio-keys-polled", "/dev/input/event3");
+}
+
+static int same_path(const char *a, const char *b) {
+  return a && b && strcmp(a, b) == 0;
 }
 
 static int build_default_command(struct config *cfg) {
@@ -369,7 +391,7 @@ static int init_config(struct config *cfg) {
       !copy_string(cfg->action, sizeof(cfg->action), "shutdown")) {
     return 0;
   }
-  cfg->key_code = KEY_ESC;
+  cfg->key_code = KEY_POWER;
   cfg->debounce_ms = DEFAULT_DEBOUNCE_MS;
   cfg->volume_keys_enabled = 1;
 
@@ -381,12 +403,27 @@ static int init_config(struct config *cfg) {
   if (env && env[0] && !copy_string(cfg->sdcard_root, sizeof(cfg->sdcard_root), env)) {
     return 0;
   }
+  env = getenv("PLUMOS_SAFE_HOTKEY_KEY_CODE");
+  if (env && env[0] && !parse_int_arg("PLUMOS_SAFE_HOTKEY_KEY_CODE", env, 0, 1024,
+                                      &cfg->key_code)) {
+    return 0;
+  }
   env = getenv("PLUMOS_SAFE_HOTKEY_EVENT");
   if (env && env[0]) {
     if (!copy_string(cfg->event_path, sizeof(cfg->event_path), env)) {
       return 0;
     }
-  } else if (!discover_input_event(cfg->event_path, sizeof(cfg->event_path))) {
+    cfg->event_path_explicit = 1;
+  } else if (!discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
+    return 0;
+  }
+  env = getenv("PLUMOS_SAFE_HOTKEY_VOLUME_EVENT");
+  if (env && env[0]) {
+    if (!copy_string(cfg->volume_event_path, sizeof(cfg->volume_event_path), env)) {
+      return 0;
+    }
+    cfg->volume_event_path_explicit = 1;
+  } else if (!discover_volume_input_event(cfg->volume_event_path, sizeof(cfg->volume_event_path))) {
     return 0;
   }
   env = getenv("PLUMOS_SAFE_HOTKEY_LOG");
@@ -404,11 +441,6 @@ static int init_config(struct config *cfg) {
       return 0;
     }
     cfg->command_set = 1;
-  }
-  env = getenv("PLUMOS_SAFE_HOTKEY_KEY_CODE");
-  if (env && env[0] && !parse_int_arg("PLUMOS_SAFE_HOTKEY_KEY_CODE", env, 0, 1024,
-                                      &cfg->key_code)) {
-    return 0;
   }
   env = getenv("PLUMOS_SAFE_HOTKEY_TIMEOUT_MS");
   if (env && env[0] && !parse_int_arg("PLUMOS_SAFE_HOTKEY_TIMEOUT_MS", env, 0, 86400000,
@@ -434,7 +466,7 @@ static int init_config(struct config *cfg) {
 static void usage(const char *argv0) {
   printf("Usage: %s [options]\n", argv0);
   printf("Options:\n");
-  printf("  --event PATH           Raw input event device. Default: auto gpio-keys-polled.\n");
+  printf("  --event PATH           Trigger input device. Default: auto by key code.\n");
   printf("  --root PATH            plumOS root. Default: %s.\n", DEFAULT_ROOT);
   printf("  --sdcard-root PATH     SD card root. Default: %s.\n", DEFAULT_SDCARD_ROOT);
   printf("  --log PATH             Daemon log path. Default: PLUMOS_ROOT/logs/safe-hotkeyd.log.\n");
@@ -444,8 +476,9 @@ static void usage(const char *argv0) {
   printf("  --poweroff             Pass --poweroff to plumos-safe-shutdown.\n");
   printf("  --no-poweroff          Pass --no-poweroff to plumos-safe-shutdown. Default.\n");
   printf("  --command COMMAND      Shell command to run on trigger.\n");
-  printf("  --key-code N           EV_KEY code to watch. Default: %d (KEY_ESC/Function).\n",
-         KEY_ESC);
+  printf("  --key-code N           EV_KEY code to watch. Default: %d (KEY_POWER).\n",
+         KEY_POWER);
+  printf("  --volume-event PATH    Event device for volume keys. Default: auto gpio-keys-polled.\n");
   printf("  --timeout-ms MS        Exit after MS without a trigger. Default: 0, run forever.\n");
   printf("  --debounce-ms MS       Ignore repeated triggers for MS. Default: %d.\n",
          DEFAULT_DEBOUNCE_MS);
@@ -456,7 +489,7 @@ static void usage(const char *argv0) {
   printf("  --verbose              Mirror log lines to stdout.\n");
   printf("  -h, --help             Show this help.\n");
   printf("\nSignals:\n");
-  printf("  SIGUSR1                Trigger the same command path as the Function key.\n");
+  printf("  SIGUSR1                Trigger the same command path as the physical safe key.\n");
 }
 
 static int parse_args(struct config *cfg, int argc, char **argv) {
@@ -464,11 +497,26 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
     if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
       const char *value = argv[++i];
       if (strcmp(value, "auto") == 0) {
-        if (!discover_input_event(cfg->event_path, sizeof(cfg->event_path))) {
+        if (!discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
           return 0;
         }
+        cfg->event_path_explicit = 0;
       } else if (!copy_string(cfg->event_path, sizeof(cfg->event_path), value)) {
         return 0;
+      } else {
+        cfg->event_path_explicit = 1;
+      }
+    } else if (strcmp(argv[i], "--volume-event") == 0 && i + 1 < argc) {
+      const char *value = argv[++i];
+      if (strcmp(value, "auto") == 0) {
+        if (!discover_volume_input_event(cfg->volume_event_path, sizeof(cfg->volume_event_path))) {
+          return 0;
+        }
+        cfg->volume_event_path_explicit = 0;
+      } else if (!copy_string(cfg->volume_event_path, sizeof(cfg->volume_event_path), value)) {
+        return 0;
+      } else {
+        cfg->volume_event_path_explicit = 1;
       }
     } else if (strcmp(argv[i], "--root") == 0 && i + 1 < argc) {
       if (!copy_string(cfg->root, sizeof(cfg->root), argv[++i])) {
@@ -507,6 +555,10 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       if (!parse_int_arg("--key-code", argv[++i], 0, 1024, &cfg->key_code)) {
         return 0;
       }
+      if (!cfg->event_path_explicit &&
+          !discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
+        return 0;
+      }
     } else if (strcmp(argv[i], "--timeout-ms") == 0 && i + 1 < argc) {
       if (!parse_int_arg("--timeout-ms", argv[++i], 0, 86400000, &cfg->timeout_ms)) {
         return 0;
@@ -536,6 +588,14 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
   }
   if (!cfg->log_path[0] &&
       !join_path(cfg->log_path, sizeof(cfg->log_path), cfg->root, "logs/safe-hotkeyd.log")) {
+    return 0;
+  }
+  if (!cfg->event_path[0] &&
+      !discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
+    return 0;
+  }
+  if (!cfg->volume_event_path[0] &&
+      !discover_volume_input_event(cfg->volume_event_path, sizeof(cfg->volume_event_path))) {
     return 0;
   }
   if (!cfg->command_set && !build_default_command(cfg)) {
@@ -651,8 +711,46 @@ static int handle_trigger(struct config *cfg, const char *source, long long *las
   return run_trigger_command(cfg, source);
 }
 
+static int drain_event_fd(struct config *cfg, int fd, const char *source, long long *last_trigger_ms,
+                          int *exit_rc) {
+  for (;;) {
+    struct input_event ev;
+    ssize_t n = read(fd, &ev, sizeof(ev));
+    if (n < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+        break;
+      }
+      emit_msg(cfg, "error read source=%s errno=%d", source, errno);
+      *exit_rc = 1;
+      return 0;
+    }
+    if (n == 0) {
+      break;
+    }
+    if ((size_t)n != sizeof(ev)) {
+      log_msg(cfg, "ignored short_read source=%s bytes=%ld", source, (long)n);
+      continue;
+    }
+    if (ev.type == EV_KEY && cfg->volume_keys_enabled &&
+        (ev.code == KEY_VOLUMEDOWN || ev.code == KEY_VOLUMEUP) &&
+        (ev.value == 1 || ev.value == 2)) {
+      run_volume_key_command(cfg, ev.code == KEY_VOLUMEUP ? 1 : -1);
+      continue;
+    }
+    if (ev.type == EV_KEY && ev.code == cfg->key_code && ev.value == 1) {
+      *exit_rc = handle_trigger(cfg, "key", last_trigger_ms);
+      if (cfg->oneshot) {
+        g_stop = 1;
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
 static int event_loop(struct config *cfg) {
   int fd;
+  int volume_fd = -1;
   long long start;
   long long deadline = 0;
   long long last_trigger_ms = 0;
@@ -665,19 +763,28 @@ static int event_loop(struct config *cfg) {
     log_msg(cfg, "error open_event path=%s errno=%d", cfg->event_path, errno);
     return 1;
   }
+  if (cfg->volume_keys_enabled && cfg->volume_event_path[0] &&
+      !same_path(cfg->event_path, cfg->volume_event_path)) {
+    volume_fd = open(cfg->volume_event_path, O_RDONLY | O_NONBLOCK);
+    if (volume_fd < 0) {
+      log_msg(cfg, "warning open_volume_event path=%s errno=%d", cfg->volume_event_path, errno);
+    }
+  }
 
   start = now_ms();
   if (cfg->timeout_ms > 0) {
     deadline = start + cfg->timeout_ms;
   }
   emit_msg(cfg,
-           "plumos-safe-hotkeyd event=%s key_code=%d action=%s timeout_ms=%d oneshot=%d "
-           "volume_keys=%d",
-           cfg->event_path, cfg->key_code, cfg->action, cfg->timeout_ms, cfg->oneshot,
-           cfg->volume_keys_enabled);
+           "plumos-safe-hotkeyd event=%s key_code=%d volume_event=%s action=%s timeout_ms=%d "
+           "oneshot=%d volume_keys=%d",
+           cfg->event_path, cfg->key_code,
+           volume_fd >= 0 ? cfg->volume_event_path : cfg->event_path, cfg->action,
+           cfg->timeout_ms, cfg->oneshot, cfg->volume_keys_enabled);
 
   while (!g_stop) {
-    struct pollfd pfd;
+    struct pollfd pfds[2];
+    nfds_t nfds = 1;
     int poll_ms = DEFAULT_POLL_MS;
     int prc;
 
@@ -700,10 +807,17 @@ static int event_loop(struct config *cfg) {
       }
     }
 
-    pfd.fd = fd;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
-    prc = poll(&pfd, 1, poll_ms);
+    pfds[0].fd = fd;
+    pfds[0].events = POLLIN;
+    pfds[0].revents = 0;
+    if (volume_fd >= 0) {
+      pfds[1].fd = volume_fd;
+      pfds[1].events = POLLIN;
+      pfds[1].revents = 0;
+      nfds = 2;
+    }
+
+    prc = poll(pfds, nfds, poll_ms);
     if (prc < 0) {
       if (errno == EINTR) {
         continue;
@@ -712,41 +826,17 @@ static int event_loop(struct config *cfg) {
       exit_rc = 1;
       break;
     }
-    if (prc == 0 || !(pfd.revents & POLLIN)) {
+    if (prc == 0) {
       continue;
     }
 
-    for (;;) {
-      struct input_event ev;
-      ssize_t n = read(fd, &ev, sizeof(ev));
-      if (n < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-          break;
-        }
-        emit_msg(cfg, "error read errno=%d", errno);
-        exit_rc = 1;
-        break;
-      }
-      if (n == 0) {
-        break;
-      }
-      if ((size_t)n != sizeof(ev)) {
-        log_msg(cfg, "ignored short_read bytes=%ld", (long)n);
-        continue;
-      }
-      if (ev.type == EV_KEY && cfg->volume_keys_enabled &&
-          (ev.code == KEY_VOLUMEDOWN || ev.code == KEY_VOLUMEUP) &&
-          (ev.value == 1 || ev.value == 2)) {
-        run_volume_key_command(cfg, ev.code == KEY_VOLUMEUP ? 1 : -1);
-        continue;
-      }
-      if (ev.type == EV_KEY && ev.code == cfg->key_code && ev.value == 1) {
-        exit_rc = handle_trigger(cfg, "key", &last_trigger_ms);
-        if (cfg->oneshot) {
-          g_stop = 1;
-          break;
-        }
-      }
+    if ((pfds[0].revents & POLLIN) &&
+        !drain_event_fd(cfg, fd, "trigger", &last_trigger_ms, &exit_rc)) {
+      break;
+    }
+    if (volume_fd >= 0 && (pfds[1].revents & POLLIN) &&
+        !drain_event_fd(cfg, volume_fd, "volume", &last_trigger_ms, &exit_rc)) {
+      break;
     }
     if (exit_rc != 0 && cfg->oneshot) {
       break;
@@ -754,6 +844,9 @@ static int event_loop(struct config *cfg) {
   }
 
   close(fd);
+  if (volume_fd >= 0) {
+    close(volume_fd);
+  }
   log_msg(cfg, "exit rc=%d stop=%d", exit_rc, (int)g_stop);
   return exit_rc;
 }

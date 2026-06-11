@@ -99,6 +99,7 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
 | Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
+| Power | 116 | `KEY_POWER` | `power` | safe shutdown trigger |
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
@@ -108,16 +109,19 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 Notes:
 
 - The START menu opens from physical START (`KEY_ENTER`).
-- Function (`KEY_ESC`) is not treated as an alternate START button. It is the
-  primary candidate for a safe shutdown/resume menu.
+- Function (`KEY_ESC`) is not treated as an alternate START button. It remains a
+  frontend SAFE menu candidate.
+- A short power-button press is readable as `KEY_POWER` through
+  `/dev/input/event0` (`axp22-supplyer`). During emulator runs, plumOS uses the
+  power button rather than Function as the safe shutdown trigger.
 - The volume buttons update plumOS `volume 0..20` one step at a time and apply
-  it immediately to ALSA `Soft Volume Master`. While an emulator is running,
+  it immediately to ALSA `Soft Volume Master`. While RetroArch is running,
   `plumos-safe-hotkeyd` handles the same path.
 - X/Y/L/R/L2/R2 are identified by the probe but are not assigned to normal
   controller UI actions yet.
-- The power button remains unconfirmed to avoid stock or kernel-side
-  sleep/shutdown side effects. Design plumOS auto-resume without depending on
-  the power button, with Function as the preferred fallback trigger.
+- Long-press power behavior and stock-side power policy remain separate checks,
+  but under the regular plumOS frontend a short press has not triggered stock
+  sleep/shutdown behavior.
 
 ## Left Analog Stick
 
@@ -269,9 +273,9 @@ Judgment:
 - Implement plumOS frontend controls by reading `/dev/input/event3` directly.
 - Do not use exclusive mechanisms such as `EVIOCGRAB` while coexisting with
   stock MainUI.
-- Button code/action mapping is confirmed for every button except power.
-- Prefer opening the safe shutdown/resume menu from Function instead of the
-  power key.
+- Button code/action mapping is confirmed, including short power-button presses.
+- Use the power button as the in-emulator safe shutdown trigger so Function can
+  remain available to emulator-side menus.
 - Revisit whether to keep or stop `keymon` when plumOS becomes the regular
   boot frontend.
 - Do not include the left-stick click in the initial mapping. Revisit only if

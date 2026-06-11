@@ -158,8 +158,8 @@ RetroArch 1.22.2 practical:
   `SIGUSR1` trigger では、RetroArch 実行中に同じ安全終了pathを通し、resume hold、
   CPU復元、FE再起動、残留なしまで確認済み。`plumos-text-ui launch --execute` からの
   `plumos-safe-hotkeyd --oneshot` 自動起動も確認済み。
-  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で再実行でき、物理
-  Function 押下は `trigger source=key` として確認済み。2026-06-08 の
+  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で再実行できる。
+  物理 trigger は Function から電源ボタン `KEY_POWER` へ移行した。2026-06-08 の
   `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
   では `SAVE_STATE_SLOT 999`、`.state999` 作成、resume plan の `--entry-slot 999`
   まで確認済み。次はゲーム中SAFE menuを出すか直接安全終了にするかのUX決定。
@@ -172,6 +172,7 @@ RetroArch 1.22.2 practical:
   `Soft Volume Master` を volume backend にする。
 - OSS は互換 fallback として維持し、OSS 明示時だけ RetroArch software volume へ保存値を反映する。
 - controller UI の SAFE menu/START Shutdown と `plumos-safe-hotkeyd` から接続済みの
-  安全終了flowは、物理 Function 押下と power/sleep backend dry-run まで確認済み。
+  安全終了flowは、power/sleep backend dry-run まで確認済み。物理 trigger は電源ボタン
+  `KEY_POWER` へ移行した。
   次は必要ならゲーム中SAFE menu、または実 poweroff / 実 suspend の発火確認へ広げる。
 - CHD/FLAC は PS1/PCE CD/Mega CD/Neo Geo CD の core smoke 前に有効化して比較する。

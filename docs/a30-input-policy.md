@@ -96,6 +96,7 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
 | 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
+| 電源 | 116 | `KEY_POWER` | `power` | safe shutdown trigger |
 | Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
@@ -105,14 +106,17 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 注意:
 
 - START menu は物理 START (`KEY_ENTER`) で開きます。
-- Function (`KEY_ESC`) は START の代替としては扱わず、safe shutdown/resume menu の
-  第一候補として扱います。
+- Function (`KEY_ESC`) は START の代替としては扱わず、frontend 表示中の SAFE menu
+  候補として扱います。
+- 電源ボタン短押しは `/dev/input/event0` (`axp22-supplyer`) の `KEY_POWER` として
+  読めます。plumOS の emulator 実行中 safe shutdown trigger は Function ではなく
+  電源ボタンを使います。
 - 音量ボタンは plumOS の `volume 0..20` を1段階ずつ更新し、ALSA `Soft Volume Master`
-  へ即時反映します。emulator 実行中は `plumos-safe-hotkeyd` が同じ処理を担当します。
+  へ即時反映します。RetroArch 実行中は `plumos-safe-hotkeyd` が同じ処理を担当します。
 - X/Y/L/R/L2/R2 は probe では識別しますが、現時点の controller UI では通常操作に
   割り当てません。
-- 電源ボタンは stock 側または kernel 側の sleep/shutdown 介入を避けるため未確定です。
-  plumOS の自動再開機能は電源ボタンに依存せず、Function button 代替を優先して設計します。
+- 電源ボタン長押しや stock 側の power policy は別途確認対象ですが、plumOS 常用 FE
+  では短押しによる stock sleep/shutdown 介入は観測していません。
 
 ## 左アナログスティック
 
@@ -257,8 +261,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 - 初期 frontend では stock `keymon` を残す
 - plumOS frontend の操作入力は `/dev/input/event3` の直接読み取りで実装する
 - stock MainUI と共存している間は `EVIOCGRAB` のような排他取得は使わない
-- 電源ボタン以外の button code/action mapping は実機で確定済み
-- safe shutdown/resume menu は電源キーではなく Function button から開く案を第一候補にする
+- 電源ボタン短押しを含む button code/action mapping は実機で確定済み
+- emulator 実行中の safe shutdown trigger は電源ボタンに寄せ、Function は emulator
+  側 menu と競合しないようにする
 - plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
 - 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
 - emulator 向け analog stick は `plumos-joystickd` の composite virtual pad mode を
