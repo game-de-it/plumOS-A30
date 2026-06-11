@@ -627,6 +627,61 @@ lookup_thumb_href() {
   awk -F "$TAB_CHAR" -v name="$name" '$1 == name { print $2; exit }' "$index"
 }
 
+thumbnail_name_candidates() {
+  name="$1"
+
+  {
+    printf '%s\n' "$name"
+    printf '%s\n' "$name" | sed \
+      -e 's/ (En)//g' \
+      -e 's/ (Ja)//g' \
+      -e 's/ (En,Ja)//g' \
+      -e 's/ (Ja,En)//g' \
+      -e 's/ (Fr)//g' \
+      -e 's/ (De)//g' \
+      -e 's/ (Es)//g' \
+      -e 's/ (It)//g' \
+      -e 's/ (Nl)//g' \
+      -e 's/ (Sv)//g' \
+      -e 's/ (Pt)//g' \
+      -e 's/ (Ru)//g' \
+      -e 's/ (Ko)//g' \
+      -e 's/ (Zh)//g'
+    printf '%s\n' "$name" | sed \
+      -e 's/ (Rev [^)]*)//g' \
+      -e 's/ (En)//g' \
+      -e 's/ (Ja)//g' \
+      -e 's/ (En,Ja)//g' \
+      -e 's/ (Ja,En)//g'
+    printf '%s\n' "$name" | sed \
+      -e 's/ (Beta[^)]*)//g' \
+      -e 's/ (Proto[^)]*)//g' \
+      -e 's/ (Sample[^)]*)//g' \
+      -e 's/ (Program[^)]*)//g' \
+      -e 's/ (Aftermarket[^)]*)//g' \
+      -e 's/ (Unl[^)]*)//g' \
+      -e 's/ (Virtual Console[^)]*)//g' \
+      -e 's/ (Rev [^)]*)//g' \
+      -e 's/ (En)//g' \
+      -e 's/ (Ja)//g' \
+      -e 's/ (En,Ja)//g' \
+      -e 's/ (Ja,En)//g'
+  } | awk 'NF && !seen[$0]++'
+}
+
+lookup_thumb_href_rescue() {
+  index="$1"
+  canonical="$2"
+
+  thumbnail_name_candidates "$canonical" | while IFS= read -r candidate; do
+    href="$(lookup_thumb_href "$index" "$candidate" || true)"
+    if [ -n "$href" ]; then
+      printf '%s\n' "$href"
+      return 0
+    fi
+  done
+}
+
 compute_crc32() {
   crc32 "$1" 2>/dev/null | awk '{ print tolower($1); exit }'
 }
@@ -689,6 +744,96 @@ first_zip_member() {
     printf '%s\n' "$member"
     return 0
   done
+}
+
+zip_payload_summary() {
+  zip_path="$1"
+  allowed_list="$2"
+  command -v unzip >/dev/null 2>&1 || return 1
+
+  unzip -lq "$zip_path" 2>/dev/null | awk -v allowed="$allowed_list" '
+    BEGIN {
+      split(allowed, allowed_exts, " ")
+      for (idx in allowed_exts) {
+        allowed_map[allowed_exts[idx]] = 1
+      }
+      payload_count = 0
+      regular_count = 0
+      payload_ext = ""
+    }
+    $2 ~ /^[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]$/ && $3 ~ /^[0-9][0-9]:[0-9][0-9]$/ {
+      line = $0
+      sub(/^[[:space:]]*[0-9]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+/, "", line)
+      if (line == "" || line ~ /\/$/) {
+        next
+      }
+      regular_count++
+      if (line ~ /(^|\/)__MACOSX\// || line ~ /(^|\/)\._/ ||
+          line ~ /(^|\/)\.DS_Store$/ || line ~ /(^|\/)Thumbs\.db$/ ||
+          line ~ /(^|\/)desktop\.ini$/) {
+        next
+      }
+      lower = tolower(line)
+      ext = lower
+      sub(/^.*\./, "", ext)
+      if (ext == lower || ext == "" || ext == "zip" || ext == "7z") {
+        next
+      }
+      if (allowed_map[ext]) {
+        payload_count++
+        payload_ext = ext
+      }
+    }
+    END {
+      print payload_count " " regular_count " " payload_ext
+    }
+  '
+}
+
+ZIP_PAYLOAD_EXT=
+ZIP_PAYLOAD_MODE=
+
+extract_zip_payload() {
+  zip_path="$1"
+  allowed_list="$2"
+  output="$3"
+  member=""
+  member_ext=""
+  summary=""
+  payload_count=0
+  regular_count=0
+  fallback_ext=""
+
+  ZIP_PAYLOAD_EXT=
+  ZIP_PAYLOAD_MODE=
+  rm -f "$output" 2>/dev/null || true
+
+  member="$(first_zip_member "$zip_path" "$allowed_list" || true)"
+  if [ -n "$member" ]; then
+    member_ext="$(lower_ext "$member" 2>/dev/null || true)"
+    if unzip -p "$zip_path" "$member" > "$output" 2>/dev/null && [ -s "$output" ]; then
+      ZIP_PAYLOAD_EXT="$member_ext"
+      ZIP_PAYLOAD_MODE=member
+      return 0
+    fi
+    rm -f "$output" 2>/dev/null || true
+  fi
+
+  summary="$(zip_payload_summary "$zip_path" "$allowed_list" || true)"
+  set -- $summary
+  payload_count="${1:-0}"
+  regular_count="${2:-0}"
+  fallback_ext="${3:-}"
+  if [ "$payload_count" = 1 ] && [ "$regular_count" = 1 ] && [ -n "$fallback_ext" ]; then
+    if unzip -p "$zip_path" > "$output" 2>/dev/null && [ -s "$output" ]; then
+      ZIP_PAYLOAD_EXT="$fallback_ext"
+      ZIP_PAYLOAD_MODE=single_payload
+      return 0
+    fi
+  fi
+
+  rm -f "$output" 2>/dev/null || true
+  return 1
 }
 
 append_unique_word() {
@@ -917,6 +1062,8 @@ fetch_system() {
   invalid_png=0
   skipped_zip=0
   skipped_tool=0
+  thumbnail_rescued=0
+  zip_single_payload=0
   seen_dirs=" "
   stop_scan=0
   missing_processed=0
@@ -1000,15 +1147,16 @@ fetch_system() {
 
     if [ "$ext" = "zip" ]; then
       payload_extensions="$(zip_payload_extensions "$fetch_system_id" "$extensions")"
-      member="$(first_zip_member "$rom_path" "$payload_extensions" || true)"
-      if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
+      if ! extract_zip_payload "$rom_path" "$payload_extensions" "$payload_tmp"; then
         skipped_zip=$((skipped_zip + 1))
         missing_processed=$((missing_processed + 1))
         emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
         continue
       fi
-      member_ext="$(lower_ext "$member" 2>/dev/null || true)"
-      lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$member_ext")"
+      if [ "$ZIP_PAYLOAD_MODE" = single_payload ]; then
+        zip_single_payload=$((zip_single_payload + 1))
+      fi
+      lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ZIP_PAYLOAD_EXT")"
       payload="$payload_tmp"
     fi
 
@@ -1050,6 +1198,10 @@ fetch_system() {
           crc_matched=$((crc_matched + 1))
           href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
           if [ -z "$href" ]; then
+            href="$(lookup_thumb_href_rescue "$thumb_index" "$canonical" || true)"
+            [ -n "$href" ] && thumbnail_rescued=$((thumbnail_rescued + 1))
+          fi
+          if [ -z "$href" ]; then
             no_match=$((no_match + 1))
             thumbnail_miss=$((thumbnail_miss + 1))
           else
@@ -1085,6 +1237,7 @@ fetch_system() {
     "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
 
   log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} crc_miss=${crc_miss} thumbnail_miss=${thumbnail_miss} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
+  log "fetch rescue system=${fetch_system_id} thumbnail_rescued=${thumbnail_rescued} zip_single_payload=${zip_single_payload} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
   return 0
 }
 

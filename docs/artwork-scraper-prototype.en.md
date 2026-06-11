@@ -297,7 +297,11 @@ slow server waits; set `PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` to enable it.
 Images are saved to `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
 For ZIP ROMs, the runner parses BusyBox `unzip -lq` output in `Length Date Time Name`
 format and CRCs the first supported ROM payload member. Japanese outer ZIP filenames
-are supported. If a `.gb` payload is mixed into `Roms/gbc`, that ROM is matched against
+are supported. If the ZIP member name is rounded to `????` by the terminal/BusyBox
+path and named-member `unzip -p` returns empty output, the runner falls back to
+plain `unzip -p` only when the ZIP contains exactly one regular ROM payload file.
+ZIPs with sidecars or multiple payloads are left as `skipped_zip` to avoid ambiguous
+CRC input. If a `.gb` payload is mixed into `Roms/gbc`, that ROM is matched against
 the GB DAT/thumbnail source while the saved image still follows the selected system,
 for example `/mnt/SDCARD/Images/gbc/<zip stem>.png`. This is a rescue path for mixed
 ROMs; the normal recommendation is to keep ROMs in the correct system directory.
@@ -310,7 +314,12 @@ The runner prepares DAT/index data only after it sees the first missing
 thumbnail for that system.
 `no_match` is the sum of `crc_miss + thumbnail_miss`. `crc_miss` means the ROM
 CRC was not present in the DAT index; `thumbnail_miss` means the CRC matched but
-the thumbnail index had no PNG with that canonical name.
+the thumbnail index had no PNG with that canonical name. Some libretro DAT
+canonical names include language tags such as `(En)` while the thumbnail index
+stores only the regional name. In that case the runner builds conservative
+candidates from the CRC-confirmed canonical name, dropping language and selected
+auxiliary tags only, and saves the image only when the candidate still fully
+matches the thumbnail index.
 Thumbnail indexes still come from the `https://thumbnails.libretro.com/`
 directory index, while PNG bytes use GitHub raw by default.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
@@ -407,7 +416,9 @@ also accepts `--kind Named_Snaps`, but that option is not exposed in the FE.
 3. Compute CRC32 for the ROM payload.
 4. Look up `crc -> canonical game name` in the per-system DAT index.
 5. When CRC matches, derive the URL from the canonical game name and try a
-   direct download.
+   direct download. If the exact URL is absent, try exact thumbnail-index matches
+   for candidates made only by dropping language and selected auxiliary tags from
+   the canonical name.
 6. Save the image when the download succeeds. Return `download_failed` or
    `invalid_png` when it fails.
 7. When CRC does not match, default behavior returns `no_match`.
