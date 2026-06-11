@@ -506,7 +506,9 @@ flow and saves per-system `CPU freq` and `CPU Cores` to `core-overrides.json`.
 `648 MHz` / `2 cores` plumOS defaults.
 The TOP/ROM SELECT core menu is a shared screen. It does not show an operation
 prompt; it changes the `launch_profile` override with Left/Right through
-`Cores < core_name >`.
+`Cores < core_name >`. Below a separator, `CPU freq < value >` and
+`CPU Cores < value >` save to the same `core-overrides.json`; TOP writes a
+system override, while ROM lists write a ROM override.
 `Theme` remains read-only
 until candidate names and paths are defined safely. In the Mali renderer, the
 first Settings row is `HELP`, which opens the
@@ -545,9 +547,12 @@ menu: start
 plumOS controller UI - Core Settings
 target=nes
 source=plumOS default
-entries=1 cursor=1
+entries=4 cursor=1
 
 >   1  Cores < fceumm >
+    2  ------------------------------
+    3  CPU freq < 648 MHz >
+    4  CPU Cores < 2 >
 
 plumOS text UI - Favorites
 count: 0

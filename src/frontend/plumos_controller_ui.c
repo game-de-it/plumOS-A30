@@ -572,8 +572,15 @@ struct ui_state {
   struct core_profile_choice core_profiles[UI_MAX_CORE_PROFILES];
   size_t core_profile_count;
   size_t core_profile_cursor;
+  size_t core_menu_cursor;
   char core_current_profile[128];
   char core_current_source[64];
+  char core_cpu_policy[32];
+  char core_cpu_label[64];
+  char core_cpu_source[64];
+  char core_cpu_cores_source[64];
+  long core_cpu_freq_khz;
+  long core_cpu_cores;
   char core_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t core_line_count;
   char safe_target_system_id[64];
@@ -614,6 +621,14 @@ static const size_t PERFORMANCE_CPU_PRESET_COUNT =
 static const long PERFORMANCE_CPU_CORE_PRESETS[] = {2, 4};
 static const size_t PERFORMANCE_CPU_CORE_PRESET_COUNT =
     sizeof(PERFORMANCE_CPU_CORE_PRESETS) / sizeof(PERFORMANCE_CPU_CORE_PRESETS[0]);
+
+enum core_menu_row {
+  CORE_MENU_ROW_PROFILE = 0,
+  CORE_MENU_ROW_SEPARATOR = 1,
+  CORE_MENU_ROW_CPU_FREQ = 2,
+  CORE_MENU_ROW_CPU_CORES = 3,
+  CORE_MENU_ROW_COUNT = 4,
+};
 
 static const char *WIFI_KEYBOARD_ROWS_LOWER[UI_WIFI_COMMAND_ROW] = {
     "0123456789",
@@ -5269,6 +5284,45 @@ static const char *core_profile_display_name(const char *profile) {
   return profile;
 }
 
+static int core_menu_row_is_selectable(size_t row) {
+  return row < CORE_MENU_ROW_COUNT && row != CORE_MENU_ROW_SEPARATOR;
+}
+
+static void core_menu_clamp_cursor(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  if (ui->core_menu_cursor >= CORE_MENU_ROW_COUNT) {
+    ui->core_menu_cursor = CORE_MENU_ROW_PROFILE;
+  }
+  if (!core_menu_row_is_selectable(ui->core_menu_cursor)) {
+    ui->core_menu_cursor = CORE_MENU_ROW_CPU_FREQ;
+  }
+}
+
+static void move_core_menu_cursor(struct ui_state *ui, int direction) {
+  size_t row;
+
+  if (!ui || direction == 0) {
+    return;
+  }
+  core_menu_clamp_cursor(ui);
+  row = ui->core_menu_cursor;
+  while (1) {
+    if (direction > 0) {
+      row = (row + 1) % CORE_MENU_ROW_COUNT;
+    } else if (row == 0) {
+      row = CORE_MENU_ROW_COUNT - 1;
+    } else {
+      row--;
+    }
+    if (core_menu_row_is_selectable(row)) {
+      ui->core_menu_cursor = row;
+      return;
+    }
+  }
+}
+
 static void reset_core_profile_choices(struct ui_state *ui) {
   if (!ui) {
     return;
@@ -5278,6 +5332,13 @@ static void reset_core_profile_choices(struct ui_state *ui) {
   ui->core_profile_cursor = 0;
   ui->core_current_profile[0] = '\0';
   ui->core_current_source[0] = '\0';
+  ui->core_cpu_policy[0] = '\0';
+  ui->core_cpu_freq_khz = 0;
+  ui->core_cpu_cores = 0;
+  copy_string(ui->core_cpu_label, sizeof(ui->core_cpu_label), "launcher default");
+  copy_string(ui->core_cpu_source, sizeof(ui->core_cpu_source), "unavailable");
+  copy_string(ui->core_cpu_cores_source, sizeof(ui->core_cpu_cores_source),
+              "unavailable");
   ui->core_line_count = 0;
 }
 
@@ -5328,6 +5389,68 @@ static void parse_core_current_profile_line(struct ui_state *ui, const char *lin
     }
   } else {
     copy_truncated_string(ui->core_current_profile, sizeof(ui->core_current_profile), value);
+  }
+}
+
+static void parse_core_current_cpu_line(struct ui_state *ui, const char *line) {
+  const char *value;
+  const char *source;
+  char label[96];
+  char *endptr = NULL;
+  long freq;
+
+  if (!ui || !line || strncmp(line, "current_cpu: ", 13) != 0) {
+    return;
+  }
+  value = line + 13;
+  source = strstr(value, " (");
+  copy_trimmed_range(label, sizeof(label), value,
+                     source ? (size_t)(source - value) : strlen(value));
+  if (source) {
+    copy_parenthesized_source(ui->core_cpu_source, sizeof(ui->core_cpu_source),
+                              source);
+  }
+
+  ui->core_cpu_policy[0] = '\0';
+  ui->core_cpu_freq_khz = 0;
+  if (strncmp(label, "fixed ", 6) == 0) {
+    errno = 0;
+    freq = strtol(label + 6, &endptr, 10);
+    if (errno == 0 && endptr && freq > 0) {
+      copy_string(ui->core_cpu_policy, sizeof(ui->core_cpu_policy), "fixed");
+      ui->core_cpu_freq_khz = freq;
+    }
+  } else if (strcmp(label, "performance") == 0) {
+    copy_string(ui->core_cpu_policy, sizeof(ui->core_cpu_policy), label);
+  }
+  performance_format_cpu_label(ui->core_cpu_label, sizeof(ui->core_cpu_label),
+                               ui->core_cpu_policy, ui->core_cpu_freq_khz);
+}
+
+static void parse_core_current_cpu_cores_line(struct ui_state *ui,
+                                              const char *line) {
+  const char *value;
+  const char *source;
+  char label[96];
+  char *endptr = NULL;
+  long cores;
+
+  if (!ui || !line || strncmp(line, "current_cpu_cores: ", 19) != 0) {
+    return;
+  }
+  value = line + 19;
+  source = strstr(value, " (");
+  copy_trimmed_range(label, sizeof(label), value,
+                     source ? (size_t)(source - value) : strlen(value));
+  if (source) {
+    copy_parenthesized_source(ui->core_cpu_cores_source,
+                              sizeof(ui->core_cpu_cores_source), source);
+  }
+  errno = 0;
+  cores = strtol(label, &endptr, 10);
+  if (errno == 0 && endptr && endptr != label &&
+      (*endptr == '\0' || isspace((unsigned char)*endptr))) {
+    ui->core_cpu_cores = cores;
   }
 }
 
@@ -6386,6 +6509,9 @@ static void render_help(struct ui_state *ui) {
 static void render_core_select(struct ui_state *ui) {
   size_t i;
   const char *profile = NULL;
+  char cores_label[64];
+  const char *footer1 = "Launch core/profile used for this target.";
+  const char *footer2 = "TOP saves system; ROM saves ROM override.";
 
   ui_printf(ui, "plumOS controller UI - Core Settings\n");
   ui_printf(ui, "target=%s", ui->core_target_system_id[0] ? ui->core_target_system_id : "-");
@@ -6396,7 +6522,9 @@ static void render_core_select(struct ui_state *ui) {
   if (ui->core_current_source[0]) {
     ui_printf(ui, "source=%s\n", ui->core_current_source);
   }
-  ui_printf(ui, "entries=1 cursor=1\n\n");
+  core_menu_clamp_cursor(ui);
+  ui_printf(ui, "entries=%d cursor=%zu\n\n", CORE_MENU_ROW_COUNT,
+            ui->core_menu_cursor + 1);
   if (ui->core_profile_count > 0) {
     if (ui->core_profile_cursor >= ui->core_profile_count) {
       ui->core_profile_cursor = ui->core_profile_count - 1;
@@ -6405,13 +6533,36 @@ static void render_core_select(struct ui_state *ui) {
   } else if (ui->core_current_profile[0]) {
     profile = ui->core_current_profile;
   }
-  ui_printf(ui, ">   1  Cores < %s >\n", core_profile_display_name(profile));
+  if (ui->core_cpu_cores > 0) {
+    snprintf(cores_label, sizeof(cores_label), "%ld", ui->core_cpu_cores);
+  } else {
+    copy_string(cores_label, sizeof(cores_label), "launcher default");
+  }
+
+  ui_printf(ui, "%c   1  Cores < %s >\n",
+            ui->core_menu_cursor == CORE_MENU_ROW_PROFILE ? '>' : ' ',
+            core_profile_display_name(profile));
+  ui_printf(ui, "    2  ------------------------------\n");
+  ui_printf(ui, "%c   3  CPU freq < %s >\n",
+            ui->core_menu_cursor == CORE_MENU_ROW_CPU_FREQ ? '>' : ' ',
+            ui->core_cpu_label);
+  ui_printf(ui, "%c   4  CPU Cores < %s >\n",
+            ui->core_menu_cursor == CORE_MENU_ROW_CPU_CORES ? '>' : ' ',
+            cores_label);
   for (i = 0; i < ui->core_line_count; i++) {
     ui_printf(ui, "%s\n", ui->core_lines[i]);
   }
+  if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_FREQ) {
+    footer1 = "Fixed CPU frequency for this target.";
+    footer2 = ui->core_cpu_source[0] ? ui->core_cpu_source : "source unavailable";
+  } else if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_CORES) {
+    footer1 = "CPU core count for this target.";
+    footer2 = ui->core_cpu_cores_source[0] ? ui->core_cpu_cores_source
+                                           : "source unavailable";
+  }
   if (ui->renderer_mali) {
-    ui_printf(ui, "footer1=Launch core/profile used for this target.\n");
-    ui_printf(ui, "footer2=Saved as plumOS core override.\n");
+    ui_printf(ui, "footer1=%s\n", footer1);
+    ui_printf(ui, "footer2=%s\n", footer2);
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
@@ -7000,6 +7151,8 @@ static int load_core_select_lines(struct ui_state *ui, const char *system_id,
       continue;
     }
     parse_core_current_profile_line(ui, line);
+    parse_core_current_cpu_line(ui, line);
+    parse_core_current_cpu_cores_line(ui, line);
     if (in_launch_profiles && parse_core_profile_choice_line(ui, line)) {
       continue;
     }
@@ -7015,13 +7168,13 @@ static int load_core_select_lines(struct ui_state *ui, const char *system_id,
   return rc == 0;
 }
 
-static int run_core_set_profile(struct ui_state *ui, const char *profile) {
+static int run_core_text_ui_extra(struct ui_state *ui, const char *extra_args) {
   char text_ui[PATH_MAX];
   char cmd[UI_COMMAND_MAX];
   size_t pos = 0;
   int rc;
 
-  if (!ui || !valid_launch_profile_id(profile)) {
+  if (!ui) {
     return 0;
   }
   if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui")) {
@@ -7054,8 +7207,7 @@ static int run_core_set_profile(struct ui_state *ui, const char *profile) {
       return 0;
     }
   }
-  if (!append_string(cmd, sizeof(cmd), &pos, " --set ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, profile) ||
+  if (!append_string(cmd, sizeof(cmd), &pos, extra_args ? extra_args : "") ||
       (ui->core_target_relative_path[0] &&
        !append_string(cmd, sizeof(cmd), &pos, " --no-scan")) ||
       !append_string(cmd, sizeof(cmd), &pos, " >/dev/null 2>&1")) {
@@ -7069,6 +7221,22 @@ static int run_core_set_profile(struct ui_state *ui, const char *profile) {
   }
   set_status(ui, rc == -1 ? "core command failed to start" : "core command returned non-zero");
   return 0;
+}
+
+static int run_core_set_profile(struct ui_state *ui, const char *profile) {
+  char extra[192];
+  size_t pos = 0;
+
+  if (!ui || !valid_launch_profile_id(profile)) {
+    return 0;
+  }
+  extra[0] = '\0';
+  if (!append_string(extra, sizeof(extra), &pos, " --set ") ||
+      !append_shell_quoted(extra, sizeof(extra), &pos, profile)) {
+    set_status(ui, "core command too long");
+    return 0;
+  }
+  return run_core_text_ui_extra(ui, extra);
 }
 
 static void cycle_core_profile(struct ui_state *ui, int direction) {
@@ -7108,10 +7276,112 @@ static void cycle_core_profile(struct ui_state *ui, int direction) {
   snprintf(ui->status, sizeof(ui->status), "Cores saved: %.80s", label);
 }
 
+static void cycle_core_cpu_policy(struct ui_state *ui, int direction) {
+  const struct performance_cpu_preset *preset;
+  char extra[128];
+  int index;
+
+  if (!ui || direction == 0) {
+    return;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "cannot refresh CPU state");
+    return;
+  }
+  index = performance_cpu_preset_index(ui->core_cpu_policy,
+                                       ui->core_cpu_freq_khz);
+  index += direction > 0 ? 1 : -1;
+  if (index < 0) {
+    index = (int)PERFORMANCE_CPU_PRESET_COUNT - 1;
+  } else if ((size_t)index >= PERFORMANCE_CPU_PRESET_COUNT) {
+    index = 0;
+  }
+  preset = &PERFORMANCE_CPU_PRESETS[index];
+  if (strcmp(preset->policy, "fixed") == 0) {
+    snprintf(extra, sizeof(extra), " --cpu fixed --freq %ld", preset->freq_khz);
+  } else {
+    snprintf(extra, sizeof(extra), " --cpu %s", preset->policy);
+  }
+  if (!run_core_text_ui_extra(ui, extra)) {
+    return;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "CPU freq saved; reload failed");
+    return;
+  }
+  snprintf(ui->status, sizeof(ui->status), "CPU freq saved: %.80s",
+           preset->label);
+}
+
+static void cycle_core_cpu_cores(struct ui_state *ui, int direction) {
+  size_t i;
+  size_t index = 0;
+  char extra[64];
+  long cores;
+
+  if (!ui || direction == 0) {
+    return;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "cannot refresh CPU core state");
+    return;
+  }
+  for (i = 0; i < PERFORMANCE_CPU_CORE_PRESET_COUNT; i++) {
+    if (ui->core_cpu_cores == PERFORMANCE_CPU_CORE_PRESETS[i]) {
+      index = i;
+      break;
+    }
+  }
+  if (direction > 0) {
+    index = (index + 1) % PERFORMANCE_CPU_CORE_PRESET_COUNT;
+  } else if (index == 0) {
+    index = PERFORMANCE_CPU_CORE_PRESET_COUNT - 1;
+  } else {
+    index--;
+  }
+  cores = PERFORMANCE_CPU_CORE_PRESETS[index];
+  snprintf(extra, sizeof(extra), " --cores %ld", cores);
+  if (!run_core_text_ui_extra(ui, extra)) {
+    return;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "CPU Cores saved; reload failed");
+    return;
+  }
+  snprintf(ui->status, sizeof(ui->status), "CPU Cores saved: %ld", cores);
+}
+
+static void cycle_core_menu_current_row(struct ui_state *ui, int direction) {
+  if (!ui || direction == 0) {
+    return;
+  }
+  core_menu_clamp_cursor(ui);
+  if (ui->core_menu_cursor == CORE_MENU_ROW_PROFILE) {
+    cycle_core_profile(ui, direction);
+  } else if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_FREQ) {
+    cycle_core_cpu_policy(ui, direction);
+  } else if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_CORES) {
+    cycle_core_cpu_cores(ui, direction);
+  }
+}
+
 static void open_core_select_screen(struct ui_state *ui, const char *system_id,
                                     const char *relative_path) {
   ui->core_back_screen = ui->screen;
   ui->screen = SCREEN_CORE_SELECT;
+  ui->core_menu_cursor = CORE_MENU_ROW_PROFILE;
   copy_string(ui->core_target_system_id, sizeof(ui->core_target_system_id), system_id);
   copy_string(ui->core_target_relative_path, sizeof(ui->core_target_relative_path),
               relative_path ? relative_path : "");
@@ -9300,12 +9570,20 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       set_status(ui, "close CORE");
       return;
     }
+    if (action == ACTION_UP) {
+      move_core_menu_cursor(ui, -1);
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      move_core_menu_cursor(ui, 1);
+      return;
+    }
     if (action == ACTION_LEFT) {
-      cycle_core_profile(ui, -1);
+      cycle_core_menu_current_row(ui, -1);
       return;
     }
     if (action == ACTION_RIGHT) {
-      cycle_core_profile(ui, 1);
+      cycle_core_menu_current_row(ui, 1);
       return;
     }
     if (action == ACTION_SELECT) {

@@ -749,13 +749,14 @@ Rules:
 - `cpu_cores` is `2|4`. On the A30, 2 cores means CPU0+CPU1 online, while
   4 cores means CPU0-CPU3 online.
 - The SELECT core menu is the TOP/ROM shared `SCREEN_CORE_SELECT`; it shows the
-  launch candidate as `Cores < core_name >` and changes the `launch_profile`
-  with Left/Right.
-- CPU frequency and CPU core count still use the
-  `plumos-text-ui core ... --cpu --freq --cores` save path, but the controller UI
-  exposes them under `Performance Settings`. In the 2026-06-07 dummy-load
-  measurement, 4-core performance load averaged about 4x the power of 2-core
-  performance load, so core count is user-configurable.
+  launch candidate as `Cores < core_name >`, then below a separator shows
+  `CPU freq < value >` and `CPU Cores < value >`. On TOP it writes a system
+  override; on a ROM list it writes a ROM override through the same
+  `plumos-text-ui core ... --set/--cpu --freq/--cores` save path.
+- `Performance Settings` edits the same `core-overrides.json` system override.
+  In the 2026-06-07 dummy-load measurement, 4-core performance load averaged
+  about 4x the power of 2-core performance load, so core count is
+  user-configurable.
 - CPU settings use the same priority as profile selection:
   ROM override > system override > system default.
 - A per-ROM override is keyed by `system_id` plus the ROM `relative_path` from
