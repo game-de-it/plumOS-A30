@@ -9,6 +9,7 @@
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "gallery_background": null,
     "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,

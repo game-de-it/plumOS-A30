@@ -91,7 +91,7 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | Right | 106 | `KEY_RIGHT` | `right` | cursor right/open |
 | A | 57 | `KEY_SPACE` | `a` | A/open |
 | B | 29 | `KEY_LEFTCTRL` | `b` | B/back |
-| X | 42 | `KEY_LEFTSHIFT` | `x` | reserved |
+| X | 42 | `KEY_LEFTSHIFT` | `x` | Gallery list |
 | Y | 56 | `KEY_LEFTALT` | `y` | reserved |
 | L | 15 | `KEY_TAB` | `l` | reserved |
 | R | 14 | `KEY_BACKSPACE` | `r` | reserved |

@@ -188,6 +188,7 @@ struct input_event {
 #define UI_SCRAPING_FIELD_IMAGE 0
 #define UI_SCRAPING_FIELD_EXISTING 1
 #define UI_SCRAPING_FIELD_SYSTEM 2
+#define UI_GALLERY_TRANSITION_MS 240
 #define UI_SDCARD_CLEANUP_MIN_INTERVAL_MS 60000
 #define UI_ROM_SCAN_REFRESH_MIN_INTERVAL_MS 3000
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
@@ -330,6 +331,7 @@ struct theme_state {
   char font_ui[UI_PATH_MAX];
   char font_fallback[64];
   char background[UI_PATH_MAX];
+  char gallery_background[UI_PATH_MAX];
   char system_logo_root[UI_PATH_MAX];
   char placeholder_thumbnail[UI_PATH_MAX];
   char graphic_top_layout[32];
@@ -425,7 +427,8 @@ enum ui_screen {
   SCREEN_USB_DISK_STARTING = 12,
   SCREEN_THUMBNAIL_RESULTS = 13,
   SCREEN_THUMBNAIL_RUNNING = 14,
-  SCREEN_SCRAPING = 15
+  SCREEN_SCRAPING = 15,
+  SCREEN_GALLERY = 16
 };
 
 enum wifi_connect_stage {
@@ -459,6 +462,7 @@ enum ui_action {
   ACTION_B,
   ACTION_START,
   ACTION_SELECT,
+  ACTION_X,
   ACTION_FUNCTION,
   ACTION_VOLUME_DOWN,
   ACTION_VOLUME_UP,
@@ -499,6 +503,13 @@ struct ui_state {
   long top_transition_duration_ms;
   int top_transition_direction;
   int top_transition_active;
+  size_t gallery_transition_from_cursor;
+  size_t gallery_transition_to_cursor;
+  long long gallery_transition_start_ms;
+  long gallery_transition_duration_ms;
+  int gallery_transition_direction;
+  int gallery_transition_active;
+  enum ui_screen gallery_back_screen;
   size_t rom_cursor;
   size_t menu_cursor;
   size_t settings_cursor;
@@ -3009,6 +3020,9 @@ static int load_theme_state(struct ui_state *ui, const char *theme_id) {
                     sizeof(ui->theme.font_fallback));
     json_get_string(assets_start, assets_end, "background", ui->theme.background,
                     sizeof(ui->theme.background));
+    json_get_string(assets_start, assets_end, "gallery_background",
+                    ui->theme.gallery_background,
+                    sizeof(ui->theme.gallery_background));
     json_get_string(assets_start, assets_end, "system_logo_root",
                     ui->theme.system_logo_root,
                     sizeof(ui->theme.system_logo_root));
@@ -5750,6 +5764,39 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
   }
 }
 
+static void ui_start_gallery_transition(struct ui_state *ui, size_t from_cursor,
+                                        size_t to_cursor) {
+  if (!ui || from_cursor == to_cursor || ui->rom_count == 0) {
+    return;
+  }
+  ui->gallery_transition_from_cursor = from_cursor;
+  ui->gallery_transition_to_cursor = to_cursor;
+  ui->gallery_transition_start_ms = current_time_ms();
+  ui->gallery_transition_duration_ms = UI_GALLERY_TRANSITION_MS;
+  ui->gallery_transition_direction = to_cursor > from_cursor ? 1 : -1;
+  ui->gallery_transition_active = 1;
+}
+
+static double ui_gallery_transition_progress(struct ui_state *ui) {
+  long long elapsed;
+  double progress;
+
+  if (!ui || !ui->gallery_transition_active ||
+      ui->gallery_transition_duration_ms <= 0) {
+    return 1.0;
+  }
+  elapsed = current_time_ms() - ui->gallery_transition_start_ms;
+  if (elapsed >= ui->gallery_transition_duration_ms) {
+    ui->gallery_transition_active = 0;
+    return 1.0;
+  }
+  if (elapsed <= 0) {
+    return 0.0;
+  }
+  progress = (double)elapsed / (double)ui->gallery_transition_duration_ms;
+  return progress;
+}
+
 static void ui_emit_graphic_theme_color(struct ui_state *ui, const char *key,
                                         const char *value) {
   if (!ui || !key || !key[0] || !value || !value[0]) {
@@ -5779,12 +5826,42 @@ static void ui_emit_graphic_theme_asset(struct ui_state *ui, const char *key,
   ui_printf(ui, "graphic_theme_asset\t%s\t%s\n", key, resolved);
 }
 
+static void ui_emit_graphic_theme_gallery_background(struct ui_state *ui) {
+  static const char *candidates[] = {
+      "images/rom_gallery_background.png",
+      "images/rom-gallery-background.png",
+      "images/gallery_background.png",
+      "images/gallery-background.png",
+      "images/games_background.png",
+  };
+  char resolved[PATH_MAX];
+  size_t i;
+
+  if (!ui) {
+    return;
+  }
+  if (ui->theme.gallery_background[0]) {
+    ui_emit_graphic_theme_asset(ui, "gallery_background",
+                                ui->theme.gallery_background);
+    return;
+  }
+  for (i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+    if (resolve_theme_asset_path(&ui->theme, candidates[i], resolved,
+                                 sizeof(resolved))) {
+      ui_printf(ui, "graphic_theme_asset\tgallery_background\t%s\n",
+                resolved);
+      return;
+    }
+  }
+}
+
 static void ui_emit_graphic_theme(struct ui_state *ui) {
   if (!ui || !ui->theme.loaded || ui->theme.fallback) {
     return;
   }
   ui_printf(ui, "graphic_theme_id=%s\n", ui->theme.id[0] ? ui->theme.id : "default");
   ui_emit_graphic_theme_asset(ui, "background", ui->theme.background);
+  ui_emit_graphic_theme_gallery_background(ui);
   ui_emit_graphic_theme_asset(ui, "placeholder", ui->theme.placeholder_thumbnail);
   ui_emit_graphic_theme_color(ui, "background", ui->theme.color_background);
   ui_emit_graphic_theme_color(ui, "foreground", ui->theme.color_foreground);
@@ -5818,6 +5895,20 @@ static void ui_emit_graphic_top_entry(struct ui_state *ui,
   resolve_theme_system_logo_path(ui, entry->id, logo_path, sizeof(logo_path));
   ui_printf(ui, "%s\t%d\t%s\t%ld ROMS\t%s\n", prefix, selected ? 1 : 0,
             entry->display_name, entry->rom_count, logo_path);
+}
+
+static void ui_emit_graphic_rom_entry(struct ui_state *ui,
+                                      const struct rom_entry *entry,
+                                      const char *prefix,
+                                      int selected) {
+  const char *detail;
+
+  if (!ui || !entry || !prefix) {
+    return;
+  }
+  detail = entry->detail[0] ? entry->detail : entry->relative_path;
+  ui_printf(ui, "%s\t%d\t%s\t%s\t%s\n", prefix, selected ? 1 : 0,
+            entry->title, detail, entry->thumbnail);
 }
 
 static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
@@ -5955,10 +6046,61 @@ static void render_roms_graphic(struct ui_state *ui, const char *title,
             ui->rom_count ? ui->rom_cursor + 1 : 0);
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
-    const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
-    ui_printf(ui, "graphic_entry\t%d\t%s\t%s\t%s\n",
-              i == ui->rom_cursor ? 1 : 0, entry->title, detail, entry->thumbnail);
+    ui_emit_graphic_rom_entry(ui, entry, "graphic_entry",
+                              i == ui->rom_cursor);
   }
+  if (ui->rom_count == 0) {
+    ui_printf(ui, "graphic_entry\t1\tNo Entries\t-\n");
+  }
+  if (ui->status[0]) {
+    ui_printf(ui, "status: %s\n", ui->status);
+  }
+}
+
+static void ui_emit_gallery_window(struct ui_state *ui, const char *prefix,
+                                   size_t cursor) {
+  if (!ui || !prefix || ui->rom_count == 0) {
+    return;
+  }
+  if (cursor >= ui->rom_count) {
+    cursor = ui->rom_count - 1;
+  }
+  if (cursor > 0) {
+    ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor - 1], prefix, 0);
+  }
+  ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor], prefix, 1);
+  if (cursor + 1 < ui->rom_count) {
+    ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor + 1], prefix, 0);
+  }
+}
+
+static void render_gallery(struct ui_state *ui) {
+  double transition_progress = 1.0;
+  int transition_active = 0;
+
+  ui_printf(ui, "plumOS controller UI - Gallery\n");
+  ui_printf(ui, "graphic_mode=gallery\n");
+  ui_printf(ui, "graphic_system=%s\n",
+            ui->current_system_name[0] ? ui->current_system_name : "ROMS");
+  ui_emit_graphic_theme(ui);
+  ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
+            ui->rom_count ? ui->rom_cursor + 1 : 0);
+
+  if (ui->gallery_transition_active &&
+      ui->gallery_transition_to_cursor == ui->rom_cursor) {
+    transition_progress = ui_gallery_transition_progress(ui);
+    transition_active =
+        ui->gallery_transition_active && transition_progress < 1.0;
+  }
+  if (transition_active) {
+    ui_printf(ui, "graphic_transition=slide\n");
+    ui_printf(ui, "graphic_transition_direction=%d\n",
+              ui->gallery_transition_direction < 0 ? -1 : 1);
+    ui_printf(ui, "graphic_transition_progress=%.3f\n", transition_progress);
+    ui_emit_gallery_window(ui, "graphic_prev_entry",
+                           ui->gallery_transition_from_cursor);
+  }
+  ui_emit_gallery_window(ui, "graphic_entry", ui->rom_cursor);
   if (ui->rom_count == 0) {
     ui_printf(ui, "graphic_entry\t1\tNo Entries\t-\n");
   }
@@ -6855,11 +6997,16 @@ static void render_ui(struct ui_state *ui) {
   if (ui->screen != SCREEN_TOP) {
     ui->top_transition_active = 0;
   }
+  if (ui->screen != SCREEN_GALLERY) {
+    ui->gallery_transition_active = 0;
+  }
   if (ui->rescue_network) {
     render_network_rescue(ui);
   } else if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
       ui->screen == SCREEN_RECENT) {
     render_roms(ui);
+  } else if (ui->screen == SCREEN_GALLERY) {
+    render_gallery(ui);
   } else if (ui->screen == SCREEN_START_MENU) {
     render_start_menu(ui);
   } else if (ui->screen == SCREEN_SETTINGS) {
@@ -7461,6 +7608,18 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   } else {
     set_status(ui, "ROM list ready");
   }
+  reset_marquee(ui);
+}
+
+static void open_gallery_screen(struct ui_state *ui) {
+  if (!ui || ui->rom_count == 0) {
+    set_status(ui, "no ROM entries for Gallery");
+    return;
+  }
+  ui->gallery_back_screen = ui->screen;
+  ui->screen = SCREEN_GALLERY;
+  ui->gallery_transition_active = 0;
+  set_status(ui, "Gallery ready");
   reset_marquee(ui);
 }
 
@@ -9559,6 +9718,31 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
   return 1;
 }
 
+static void move_gallery_cursor(struct ui_state *ui, long delta) {
+  size_t old_cursor;
+  size_t next_cursor;
+
+  if (!ui || ui->rom_count == 0 || delta == 0) {
+    return;
+  }
+  old_cursor = ui->rom_cursor;
+  if (delta < 0) {
+    size_t step = (size_t)(-delta);
+    next_cursor = old_cursor > step ? old_cursor - step : 0;
+  } else {
+    size_t step = (size_t)delta;
+    next_cursor = old_cursor + step;
+    if (next_cursor >= ui->rom_count) {
+      next_cursor = ui->rom_count - 1;
+    }
+  }
+  if (next_cursor != old_cursor) {
+    ui_start_gallery_transition(ui, old_cursor, next_cursor);
+    ui->rom_cursor = next_cursor;
+    reset_marquee(ui);
+  }
+}
+
 static void handle_action(struct ui_state *ui, enum ui_action action) {
   if (action == ACTION_NONE) {
     return;
@@ -9809,6 +9993,52 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (ui->screen == SCREEN_USB_DISK_STARTING) {
+    return;
+  }
+
+  if (ui->screen == SCREEN_GALLERY) {
+    if (action == ACTION_LEFT) {
+      move_gallery_cursor(ui, -1);
+      return;
+    }
+    if (action == ACTION_RIGHT) {
+      move_gallery_cursor(ui, 1);
+      return;
+    }
+    if (action == ACTION_UP) {
+      move_gallery_cursor(ui, -5);
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      move_gallery_cursor(ui, 5);
+      return;
+    }
+    if (action == ACTION_B || action == ACTION_X) {
+      ui->screen = (ui->gallery_back_screen == SCREEN_FAVORITES ||
+                    ui->gallery_back_screen == SCREEN_RECENT)
+                       ? ui->gallery_back_screen
+                       : SCREEN_ROMS;
+      ui->gallery_transition_active = 0;
+      set_status(ui, "back to ROM list");
+      reset_marquee(ui);
+      return;
+    }
+    if (action == ACTION_A && ui->rom_count > 0) {
+      const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+      launch_rom_entry(ui, entry);
+      return;
+    }
+    if (action == ACTION_START) {
+      open_start_menu(ui);
+      return;
+    }
+    if (action == ACTION_SELECT && ui->rom_count > 0) {
+      const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+      open_core_select_screen(ui, entry->system_id[0] ? entry->system_id
+                                                      : ui->current_system_id,
+                              entry->relative_path);
+      return;
+    }
     return;
   }
 
@@ -10091,6 +10321,13 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
 
+  if (action == ACTION_X && ui_uses_graphic_mode(ui) &&
+      (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
+       ui->screen == SCREEN_RECENT)) {
+    open_gallery_screen(ui);
+    return;
+  }
+
   if (action == ACTION_UP) {
     size_t old_cursor = ui->rom_cursor;
     if (ui->rom_cursor > 0) {
@@ -10166,9 +10403,12 @@ static enum ui_action action_from_key_code(unsigned int code) {
     return ACTION_A;
   case KEY_LEFTCTRL:
   case BTN_EAST:
-  case KEY_X:
   case 9:
     return ACTION_B;
+  case KEY_LEFTSHIFT:
+  case BTN_NORTH:
+  case KEY_X:
+    return ACTION_X;
   case KEY_ENTER:
   case KEY_MENU:
   case BTN_START:
@@ -10224,6 +10464,9 @@ static enum ui_action action_from_stdin_char(int ch) {
   case 'f':
   case 'F':
     return ACTION_FUNCTION;
+  case 'x':
+  case 'X':
+    return ACTION_X;
   case '-':
   case '[':
     return ACTION_VOLUME_DOWN;
@@ -10263,6 +10506,9 @@ static enum ui_action action_from_script_token(const char *token) {
   }
   if (strcmp(token, "select") == 0) {
     return ACTION_SELECT;
+  }
+  if (strcmp(token, "x") == 0 || strcmp(token, "gallery") == 0) {
+    return ACTION_X;
   }
   if (strcmp(token, "function") == 0 || strcmp(token, "safe") == 0) {
     return ACTION_FUNCTION;
@@ -10314,6 +10560,10 @@ static int action_repeat_interval_ms(const struct ui_state *ui,
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
   if (ui && ui->screen == SCREEN_TOP && ui_graphic_top_uses_strip(ui) &&
+      (action == ACTION_LEFT || action == ACTION_RIGHT)) {
+    return UI_KEY_REPEAT_INTERVAL_MS;
+  }
+  if (ui && ui->screen == SCREEN_GALLERY &&
       (action == ACTION_LEFT || action == ACTION_RIGHT)) {
     return UI_KEY_REPEAT_INTERVAL_MS;
   }
@@ -10483,6 +10733,9 @@ static int ui_needs_periodic_refresh(const struct ui_state *ui) {
   if (ui->renderer_mali && ui->top_transition_active) {
     return 1;
   }
+  if (ui->renderer_mali && ui->gallery_transition_active) {
+    return 1;
+  }
   if (ui->rom_scan_refresh_pid > 0) {
     return 1;
   }
@@ -10497,6 +10750,9 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
     return 0;
   }
   if (ui->renderer_mali && ui->top_transition_active) {
+    return 16;
+  }
+  if (ui->renderer_mali && ui->gallery_transition_active) {
     return 16;
   }
   if (ui->renderer_mali) {
@@ -10754,10 +11010,10 @@ static void usage(const char *argv0) {
   printf("     [--rotation auto|none|cw|ccw] [--font PATH]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
   printf("     [--rescue-network]  # disabled compatibility screen\n");
-  printf("  %s --script up,down,a,b,select,start,function,volume_up,volume_down,q [--no-clear]\n", argv0);
+  printf("  %s --script up,down,a,b,x,select,start,function,volume_up,volume_down,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
-  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, m, c, f, +/- for volume, q.\n");
+  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, x, m, c, f, +/- for volume, q.\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");

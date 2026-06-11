@@ -40,6 +40,11 @@ importer として検討します。
 ## 素材仕様
 
 - 背景画像: PNG、推奨 `640x480`、画面全体に表示される。
+- Gallery背景画像: PNG、推奨 `640x480`。`assets.gallery_background` を最優先する。
+  未指定の場合は theme directory 直下から `images/rom_gallery_background.png`、
+  `images/rom-gallery-background.png`、`images/gallery_background.png`、
+  `images/gallery-background.png`、`images/games_background.png` の順で自動検出する。
+  `games_background.png` は RetroFE theme 互換の fallback として扱う。
 - system logo: PNG、推奨 `256x96` 以上。Graphic TOP の tile media area に表示される。
 - ROM preview placeholder: PNG、推奨 `280x156`、thumbnail が無い時に表示される。
 - system icon: 将来用。推奨 PNG、正方形 `128x128` 以上。
@@ -98,6 +103,7 @@ theme が扱えないもの:
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "gallery_background": null,
     "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,

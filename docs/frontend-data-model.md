@@ -292,6 +292,7 @@ stock theme format は plumOS の正式仕様にしません。
     "font_ui": null,
     "font_fallback": "system_cjk",
     "background": null,
+    "gallery_background": null,
     "system_logo_root": "logos/systems",
     "system_icon_root": "icons/systems",
     "placeholder_thumbnail": null,
@@ -332,6 +333,12 @@ theme が扱えるのは Graphic mode の color、font、background、system ico
 thumbnail frame、sound effect だけです。button 操作、START menu、SELECT core menu、
 favorite、ROM scan、resume、launch profile は theme から変更できません。
 Text mode は theme の影響を受けません。
+
+Gallery list の背景は `assets.gallery_background` を最優先し、未指定の場合は theme directory
+の `images/rom_gallery_background.png`、`images/rom-gallery-background.png`、
+`images/gallery_background.png`、`images/gallery-background.png`、`images/games_background.png`
+を順に探します。`games_background.png` は RetroFE theme 由来素材を取り込みやすくするための
+互換 fallback です。
 
 ### `FrontendSettings`
 
