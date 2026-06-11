@@ -11113,6 +11113,7 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_MALI_ROTATION auto, none, cw, or ccw. Default: auto\n");
   printf("  PLUMOS_MALI_FONT    Optional FreeType font for non-ASCII Mali text\n");
   printf("  PLUMOS_MALI_TTY_ENTRY_SCALE  1, 1.5, or 2. Default: 1\n");
+  printf("  PLUMOS_MALI_SWAP_INTERVAL  0 or 1. Default: 1\n");
   printf("  PLUMOS_CONTROLLER_RESCUE network opens a disabled compatibility screen\n");
   printf("  PLUMOS_SYSTEM_SETTINGS_JSON  Default: $PLUMOS_ROOT/config/system/settings.json\n");
   printf("  PLUMOS_A30_WPA_STATUS   Default: /tmp/wpa_status.txt\n");

@@ -147,6 +147,8 @@
   B/X は元の ROM list に戻る。
 - Gallery のROM画像は背景パネルや影を描かず、画像だけを表示する。ROM名 marquee と左右slide は
   60fps 相当の再描画周期を維持する。
+- Mali renderer は `PLUMOS_MALI_SWAP_INTERVAL` を `1` default にし、Gallery slide の横方向
+  tearing を抑える。比較検証時だけ `0` にして Vsync 無しの挙動を確認してよい。
 - Gallery slide は `前々/前/選択中/次/次々` の5枚slotを横stripとして扱い、画面外slotも描画する。
   slide 中はstrip全体を1slotぶん動かし、左右画像だけが別挙動に見えないようにする。
 - Gallery slide 中に追加の左右入力を受けた場合は、現在のslideを差し替えず次の移動先として

@@ -615,9 +615,11 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
                                      const char *egl_path, const char *gles_path,
                                      const char *rotation_mode, char *error,
                                      size_t error_size) {
+  const char *swap_interval_env;
   EGLConfig config = NULL;
   EGLint major = 0;
   EGLint minor = 0;
+  EGLint swap_interval = 1;
   EGLint width = 0;
   EGLint height = 0;
   EGLint surface_attribs[] = { EGL_NONE };
@@ -640,6 +642,16 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
   }
   if (!gles_path || !gles_path[0]) {
     gles_path = "/usr/lib/libGLESv2.so";
+  }
+  swap_interval_env = getenv("PLUMOS_MALI_SWAP_INTERVAL");
+  if (swap_interval_env && swap_interval_env[0]) {
+    long parsed = strtol(swap_interval_env, NULL, 10);
+    if (parsed < 0) {
+      parsed = 0;
+    } else if (parsed > 1) {
+      parsed = 1;
+    }
+    swap_interval = (EGLint)parsed;
   }
 
   if (!plumos_mali_open_fb(renderer, fb_path, error, error_size) ||
@@ -695,7 +707,7 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
     }
     return 0;
   }
-  renderer->egl.SwapInterval(renderer->display, 0);
+  renderer->egl.SwapInterval(renderer->display, swap_interval);
   if (renderer->egl.QuerySurface(renderer->display, renderer->surface, EGL_WIDTH, &width) ==
           EGL_TRUE &&
       renderer->egl.QuerySurface(renderer->display, renderer->surface, EGL_HEIGHT, &height) ==
