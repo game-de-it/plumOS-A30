@@ -509,6 +509,8 @@ struct ui_state {
   long gallery_transition_duration_ms;
   int gallery_transition_direction;
   int gallery_transition_active;
+  size_t gallery_pending_cursor;
+  int gallery_pending_active;
   enum ui_screen gallery_back_screen;
   size_t rom_cursor;
   size_t menu_cursor;
@@ -5764,6 +5766,8 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
   }
 }
 
+static void reset_marquee(struct ui_state *ui);
+
 static void ui_start_gallery_transition(struct ui_state *ui, size_t from_cursor,
                                         size_t to_cursor) {
   if (!ui || from_cursor == to_cursor || ui->rom_count == 0) {
@@ -5775,6 +5779,28 @@ static void ui_start_gallery_transition(struct ui_state *ui, size_t from_cursor,
   ui->gallery_transition_duration_ms = UI_GALLERY_TRANSITION_MS;
   ui->gallery_transition_direction = to_cursor > from_cursor ? 1 : -1;
   ui->gallery_transition_active = 1;
+}
+
+static int ui_start_pending_gallery_transition(struct ui_state *ui) {
+  size_t from_cursor;
+  size_t to_cursor;
+
+  if (!ui || !ui->gallery_pending_active || ui->rom_count == 0) {
+    return 0;
+  }
+  from_cursor = ui->rom_cursor;
+  to_cursor = ui->gallery_pending_cursor;
+  ui->gallery_pending_active = 0;
+  if (to_cursor >= ui->rom_count) {
+    to_cursor = ui->rom_count - 1;
+  }
+  if (to_cursor == from_cursor) {
+    return 0;
+  }
+  ui_start_gallery_transition(ui, from_cursor, to_cursor);
+  ui->rom_cursor = to_cursor;
+  reset_marquee(ui);
+  return 1;
 }
 
 static double ui_gallery_transition_progress(struct ui_state *ui) {
@@ -6083,15 +6109,27 @@ static void render_gallery(struct ui_state *ui) {
   ui_printf(ui, "graphic_system=%s\n",
             ui->current_system_name[0] ? ui->current_system_name : "ROMS");
   ui_emit_graphic_theme(ui);
-  ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
-            ui->rom_count ? ui->rom_cursor + 1 : 0);
 
   if (ui->gallery_transition_active &&
       ui->gallery_transition_to_cursor == ui->rom_cursor) {
     transition_progress = ui_gallery_transition_progress(ui);
-    transition_active =
-        ui->gallery_transition_active && transition_progress < 1.0;
+    if (!ui->gallery_transition_active && ui->gallery_pending_active &&
+        ui_start_pending_gallery_transition(ui)) {
+      transition_progress = ui_gallery_transition_progress(ui);
+    }
+  } else if (!ui->gallery_transition_active &&
+             ui->gallery_pending_active &&
+             ui_start_pending_gallery_transition(ui)) {
+    transition_progress = ui_gallery_transition_progress(ui);
   }
+  transition_active =
+      ui->gallery_transition_active &&
+      ui->gallery_transition_to_cursor == ui->rom_cursor &&
+      transition_progress < 1.0;
+
+  ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
+            ui->rom_count ? ui->rom_cursor + 1 : 0);
+
   if (transition_active) {
     ui_printf(ui, "graphic_transition=slide\n");
     ui_printf(ui, "graphic_transition_direction=%d\n",
@@ -6999,6 +7037,7 @@ static void render_ui(struct ui_state *ui) {
   }
   if (ui->screen != SCREEN_GALLERY) {
     ui->gallery_transition_active = 0;
+    ui->gallery_pending_active = 0;
   }
   if (ui->rescue_network) {
     render_network_rescue(ui);
@@ -7619,6 +7658,7 @@ static void open_gallery_screen(struct ui_state *ui) {
   ui->gallery_back_screen = ui->screen;
   ui->screen = SCREEN_GALLERY;
   ui->gallery_transition_active = 0;
+  ui->gallery_pending_active = 0;
   set_status(ui, "Gallery ready");
   reset_marquee(ui);
 }
@@ -9718,24 +9758,51 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
   return 1;
 }
 
+static size_t gallery_cursor_after_delta(const struct ui_state *ui,
+                                         size_t base_cursor, long delta) {
+  size_t next_cursor;
+
+  if (!ui || ui->rom_count == 0) {
+    return 0;
+  }
+  if (base_cursor >= ui->rom_count) {
+    base_cursor = ui->rom_count - 1;
+  }
+  next_cursor = base_cursor;
+  if (delta < 0) {
+    size_t step = (size_t)(-delta);
+    next_cursor = base_cursor > step ? base_cursor - step : 0;
+  } else {
+    size_t step = (size_t)delta;
+    next_cursor = base_cursor + step;
+    if (next_cursor >= ui->rom_count) {
+      next_cursor = ui->rom_count - 1;
+    }
+  }
+  return next_cursor;
+}
+
 static void move_gallery_cursor(struct ui_state *ui, long delta) {
   size_t old_cursor;
+  size_t base_cursor;
   size_t next_cursor;
 
   if (!ui || ui->rom_count == 0 || delta == 0) {
     return;
   }
-  old_cursor = ui->rom_cursor;
-  if (delta < 0) {
-    size_t step = (size_t)(-delta);
-    next_cursor = old_cursor > step ? old_cursor - step : 0;
-  } else {
-    size_t step = (size_t)delta;
-    next_cursor = old_cursor + step;
-    if (next_cursor >= ui->rom_count) {
-      next_cursor = ui->rom_count - 1;
+  if (ui->gallery_transition_active) {
+    base_cursor = ui->gallery_pending_active
+                      ? ui->gallery_pending_cursor
+                      : ui->gallery_transition_to_cursor;
+    next_cursor = gallery_cursor_after_delta(ui, base_cursor, delta);
+    if (next_cursor != base_cursor) {
+      ui->gallery_pending_cursor = next_cursor;
+      ui->gallery_pending_active = 1;
     }
+    return;
   }
+  old_cursor = ui->rom_cursor;
+  next_cursor = gallery_cursor_after_delta(ui, old_cursor, delta);
   if (next_cursor != old_cursor) {
     ui_start_gallery_transition(ui, old_cursor, next_cursor);
     ui->rom_cursor = next_cursor;
@@ -10019,6 +10086,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
                        ? ui->gallery_back_screen
                        : SCREEN_ROMS;
       ui->gallery_transition_active = 0;
+      ui->gallery_pending_active = 0;
       set_status(ui, "back to ROM list");
       reset_marquee(ui);
       return;

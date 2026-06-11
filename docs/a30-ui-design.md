@@ -149,6 +149,8 @@
   60fps 相当の再描画周期を維持する。
 - Gallery slide 中は移動先のさらに隣のROM画像も先に端へ描き、slide完了時に端の画像が
   後から出現して見えないようにする。
+- Gallery slide 中に追加の左右入力を受けた場合は、現在のslideを差し替えず次の移動先として
+  queueし、slide完了後に次のslideへつなぐ。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。
 - TOP/ROM/Favorites/Recent の左端アクセントバーは Text mode と同じオレンジを使う。
 - 背景は黒に近いneutral、カードは暗いグレー/青緑、選択枠はオレンジを基準にする。
