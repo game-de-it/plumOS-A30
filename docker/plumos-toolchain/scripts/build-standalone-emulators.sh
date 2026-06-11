@@ -1702,7 +1702,9 @@ EOF
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
 PLUMOS_A30_PSX_JOYSTICKD_DEVICE_MODE=keyboard
-PLUMOS_A30_PSX_JOYSTICKD_KEYBOARD_PROFILE=pcsx-menu-l2
+# L2-as-menu is paused; use the emulator-side Function menu binding.
+# Set this to pcsx-menu-l2 to re-enable the L2 menu shortcut.
+PLUMOS_A30_PSX_JOYSTICKD_KEYBOARD_PROFILE=passthrough
 PLUMOS_A30_PSX_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_PSX_JOYSTICKD_SHOULDER_LAYOUT=user
 EOF

@@ -79,7 +79,7 @@ near its limit and audio is more fragile.
 | PPSSPP v1.20.4 | Standalone default candidate for lightweight PSP | Whole-app rotation, scissor fallback, `854x480` logical UI, L2 menu, A30 gamepad, and fixed 1344 MHz / 4-core CPU profile are confirmed. This is for light titles, not full PSP coverage. |
 | ScummVM v2026.2.0 | Standalone default candidate for ScummVM | `rotation_mode=270`, VirtualMouse warp fix, and A30 theme `scummmodern-a30-md` give working screen, mouse, audio, and exit flow. |
 | EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
-| PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, L2 menu profile, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
+| PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
 | DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
 
 ## Class A: initial build targets
