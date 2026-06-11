@@ -757,6 +757,8 @@ Environment:
   PLUMOS_STANDALONE_JOYSTICKD=0       Disable per-launch plumOS gamepad daemon.
   PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE buttons or axes for L2/R2. Default: buttons.
   PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT standard or user.
+  PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE
+                                      passthrough, pcsx-menu-l2, dosbox, or digger.
   PLUMOS_STANDALONE_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_STANDALONE_JOYSTICKD_INVERT_X=1 Invert virtual gamepad X axis.
@@ -1028,7 +1030,7 @@ start_joystickd() {
   joystickd_opts="--device-mode ${joystickd_device_mode}"
   case "${PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE:-}" in
     '') ;;
-    passthrough|raw|dosbox|dos|digger) joystickd_opts="${joystickd_opts} --keyboard-profile ${PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE}" ;;
+    passthrough|raw|pcsx-menu-l2|pcsx_menu_l2|pcsx|dosbox|dos|digger) joystickd_opts="${joystickd_opts} --keyboard-profile ${PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE}" ;;
     *) echo "warning: invalid PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE=${PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE}" >&2 ;;
   esac
   case "${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}" in
@@ -1694,6 +1696,17 @@ PLUMOS_A30_PSP_RESET_INSTANCE_COUNTER=1
 EOF
   append_manifest
   append_manifest "config=plumos/config/standalone/ppsspp.env"
+
+  cat >"${config_dir}/pcsx_rearmed.env" <<'EOF'
+# PCSX-ReARMed launcher overrides for Miyoo A30.
+# This file is user-mutable and is preserved by scripts/deploy-a30.sh.
+
+PLUMOS_A30_PSX_JOYSTICKD_DEVICE_MODE=keyboard
+PLUMOS_A30_PSX_JOYSTICKD_KEYBOARD_PROFILE=pcsx-menu-l2
+PLUMOS_A30_PSX_JOYSTICKD_TRIGGER_MODE=buttons
+PLUMOS_A30_PSX_JOYSTICKD_SHOULDER_LAYOUT=user
+EOF
+  append_manifest "config=plumos/config/standalone/pcsx_rearmed.env"
 }
 
 build_one() {

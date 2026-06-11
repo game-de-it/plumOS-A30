@@ -205,7 +205,8 @@ enum shoulder_role {
 enum keyboard_profile {
   KEYBOARD_PROFILE_PASSTHROUGH = 0,
   KEYBOARD_PROFILE_DOSBOX = 1,
-  KEYBOARD_PROFILE_DIGGER = 2
+  KEYBOARD_PROFILE_DIGGER = 2,
+  KEYBOARD_PROFILE_PCSX_MENU_L2 = 3
 };
 
 struct calibration {
@@ -348,6 +349,8 @@ static const char *keyboard_profile_name(enum keyboard_profile profile) {
     return "dosbox";
   case KEYBOARD_PROFILE_DIGGER:
     return "digger";
+  case KEYBOARD_PROFILE_PCSX_MENU_L2:
+    return "pcsx-menu-l2";
   default:
     return "-";
   }
@@ -405,6 +408,12 @@ static int parse_keyboard_profile(const char *value, enum keyboard_profile *out)
   }
   if (strcmp(value, "digger") == 0) {
     *out = KEYBOARD_PROFILE_DIGGER;
+    return 1;
+  }
+  if (strcmp(value, "pcsx-menu-l2") == 0 ||
+      strcmp(value, "pcsx_menu_l2") == 0 ||
+      strcmp(value, "pcsx") == 0) {
+    *out = KEYBOARD_PROFILE_PCSX_MENU_L2;
     return 1;
   }
   fprintf(stderr, "error: invalid keyboard profile: %s\n", value);
@@ -1079,6 +1088,42 @@ static int map_key_to_keyboard(const struct config *cfg, int key_code) {
   switch (cfg->keyboard_profile) {
   case KEYBOARD_PROFILE_PASSTHROUGH:
     return key_code;
+  case KEYBOARD_PROFILE_PCSX_MENU_L2:
+    switch (map_key_to_shoulder_role(cfg, key_code)) {
+    case SHOULDER_ROLE_L1:
+      return KEY_TAB;
+    case SHOULDER_ROLE_R1:
+      return KEY_BACKSPACE;
+    case SHOULDER_ROLE_L2:
+      return KEY_ESC;
+    case SHOULDER_ROLE_R2:
+      return KEY_T;
+    case SHOULDER_ROLE_NONE:
+      break;
+    }
+    switch (key_code) {
+    case KEY_UP:
+    case KEY_DOWN:
+    case KEY_LEFT:
+    case KEY_RIGHT:
+      return key_code;
+    case KEY_SPACE:
+      return KEY_SPACE;
+    case KEY_LEFTCTRL:
+      return KEY_LEFTCTRL;
+    case KEY_LEFTSHIFT:
+      return KEY_LEFTSHIFT;
+    case KEY_LEFTALT:
+      return KEY_LEFTALT;
+    case KEY_ENTER:
+      return KEY_ENTER;
+    case KEY_RIGHTCTRL:
+      return KEY_RIGHTCTRL;
+    case KEY_ESC:
+      return KEY_ESC;
+    default:
+      return -1;
+    }
   case KEYBOARD_PROFILE_DIGGER:
     switch (key_code) {
     case KEY_UP:
@@ -1249,7 +1294,7 @@ static void usage(const char *argv0) {
   printf("  --device-mode MODE     analog or xbox. Default: analog.\n");
   printf("  --trigger-mode MODE    buttons or axes for L2/R2 in xbox mode. Default: buttons.\n");
   printf("  --shoulder-layout MODE standard or user. Default: standard.\n");
-  printf("  --keyboard-profile NAME passthrough, dosbox, or digger. Default: dosbox.\n");
+  printf("  --keyboard-profile NAME passthrough, pcsx-menu-l2, dosbox, or digger. Default: dosbox.\n");
   printf("  --button-event PATH    Button event source for xbox mode. Default: %s.\n",
          DEFAULT_BUTTON_EVENT_PATH);
   printf("  --no-buttons           Do not forward physical buttons in xbox mode.\n");
