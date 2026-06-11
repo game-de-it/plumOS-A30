@@ -18,7 +18,9 @@ plumOS configuration.
   after extraction when they already exist. Protected files include
   `config/*/settings.json` and the main RetroArch configs
   `retroarch/config/retroarch-minimal.cfg` /
-  `retroarch/config/retroarch-practical.cfg`.
+  `retroarch/config/retroarch-practical.cfg`, plus standalone emulator env
+  overrides in `config/standalone/` and PPSSPP runtime settings under
+  `state/standalone/ppsspp/`.
 
 ## Current Layout
 
@@ -44,6 +46,12 @@ plumOS configuration.
   - Performance Settings now connects to this existing feature.
 - `/mnt/SDCARD/plumos/config/performance/profiles.json`
   - Future global presets or named performance profiles, if needed.
+- `/mnt/SDCARD/plumos/config/standalone/<emulator>.env`
+  - Environment overrides for standalone launchers. PPSSPP display, input, CPU,
+    and similar device-tuned launch conditions belong in `ppsspp.env`, not in
+    the generated `plumos-standalone-launch` script.
+  - This directory is protected by `deploy-a30.sh`, so standalone package
+    redeploys keep local tuning.
 - `/mnt/SDCARD/plumos/config/input/mapping.json`
   - plumOS input mapping, hotkeys, and physical button integration.
 

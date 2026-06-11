@@ -58,26 +58,38 @@ preserve_mutable_config() {
 set -eu
 mkdir -p "$REMOTE_DIR" "$PRESERVE_DIR"
 : > "${PRESERVE_DIR}/manifest"
-while IFS= read -r rel; do
-  [ -n "$rel" ] || continue
+preserve_path() {
+  rel=$1
+  [ -n "$rel" ] || return 0
   src="${REMOTE_DIR}/${rel}"
   dst="${PRESERVE_DIR}/${rel}"
   if [ -e "$src" ]; then
     mkdir -p "$(dirname "$dst")"
-    cp -p "$src" "$dst" 2>/dev/null || cp "$src" "$dst"
+    if [ -d "$src" ]; then
+      cp -a "$src" "$dst" 2>/dev/null || cp -r "$src" "$dst"
+    else
+      cp -p "$src" "$dst" 2>/dev/null || cp "$src" "$dst"
+    fi
     printf '%s\n' "$rel" >> "${PRESERVE_DIR}/manifest"
   fi
+}
+while IFS= read -r rel; do
+  preserve_path "$rel"
 done <<'PATHS'
 plumos/config/frontend/settings.json
 plumos/config/system/settings.json
 plumos/config/network/settings.json
 plumos/config/performance/settings.json
+plumos/config/standalone
+plumos/state/standalone/ppsspp
 plumos/retroarch/config/retroarch-minimal.cfg
 plumos/retroarch/config/retroarch-practical.cfg
 config/frontend/settings.json
 config/system/settings.json
 config/network/settings.json
 config/performance/settings.json
+config/standalone
+state/standalone/ppsspp
 retroarch/config/retroarch-minimal.cfg
 retroarch/config/retroarch-practical.cfg
 PATHS
@@ -97,7 +109,12 @@ if [ -r "${PRESERVE_DIR}/manifest" ]; then
     dst="${REMOTE_DIR}/${rel}"
     [ -e "$src" ] || continue
     mkdir -p "$(dirname "$dst")"
-    cp -p "$src" "$dst" 2>/dev/null || cp "$src" "$dst"
+    if [ -d "$src" ]; then
+      rm -rf "$dst"
+      cp -a "$src" "$dst" 2>/dev/null || cp -r "$src" "$dst"
+    else
+      cp -p "$src" "$dst" 2>/dev/null || cp "$src" "$dst"
+    fi
     echo "preserved mutable config: ${dst}"
   done < "${PRESERVE_DIR}/manifest"
 fi

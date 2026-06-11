@@ -749,6 +749,10 @@ EMULATOR:
 
 Environment:
   PLUMOS_ROOT                         Default: /mnt/SDCARD/plumos
+  PLUMOS_ROOT/config/standalone/standalone.env
+                                      Optional global standalone launcher env overrides.
+  PLUMOS_ROOT/config/standalone/EMULATOR.env
+                                      Optional per-emulator launcher env overrides.
   PLUMOS_STANDALONE_USE_STOCK_SDL=0   Prefer plumOS SDL2 instead of stock SDL.
   PLUMOS_STANDALONE_JOYSTICKD=0       Disable per-launch plumOS gamepad daemon.
   PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE buttons or axes for L2/R2. Default: buttons.
@@ -798,6 +802,23 @@ id=$1
 shift
 
 PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
+CONFIG_DIR=${PLUMOS_ROOT}/config/standalone
+
+load_env_file() {
+  env_file=$1
+  [ -r "${env_file}" ] || return 0
+  set -a
+  . "${env_file}"
+  set +a
+}
+
+load_standalone_env() {
+  load_env_file "${CONFIG_DIR}/standalone.env"
+  load_env_file "${CONFIG_DIR}/${id}.env"
+}
+
+load_standalone_env
+
 EMU_ROOT=${PLUMOS_ROOT}/emulators
 PLUMOS_LIB=${PLUMOS_ROOT}/lib
 STOCK_LIB=${PLUMOS_STOCK_LIB:-/mnt/SDCARD/miyoo/lib}
@@ -1619,6 +1640,42 @@ EOF
   chmod 0755 "${launcher}"
 }
 
+write_standalone_config_defaults() {
+  local config_dir="${TARGET_DIR}/plumos/config/standalone"
+
+  mkdir -p "${config_dir}"
+  cat >"${config_dir}/ppsspp.env" <<'EOF'
+# PPSSPP launcher overrides for Miyoo A30.
+# This file is user-mutable and is preserved by scripts/deploy-a30.sh.
+
+PLUMOS_STANDALONE_USE_STOCK_SDL=1
+
+PLUMOS_A30_PSP_CPU_POLICY=fixed
+PLUMOS_A30_PSP_CPU_FREQ=1344000
+PLUMOS_A30_PSP_CPU_CORES=4
+
+PLUMOS_A30_DISPLAY_ROTATION=ccw
+PLUMOS_A30_DISPLAY_SWAP=0
+PLUMOS_A30_DISPLAY_LOGICAL=854x480
+PLUMOS_A30_DISPLAY_OUTPUT=
+PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1
+PLUMOS_A30_UI_ROTATION=none
+
+PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+PLUMOS_A30_PSP_JOYSTICKD_TRIGGER_MODE=buttons
+PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=standard
+PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE=axisYR
+PLUMOS_A30_PSP_JOYSTICKD_Y_SOURCE=axisXR
+PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=none
+
+PLUMOS_A30_PSP_APPEND_PROFILE=0
+PLUMOS_A30_PSP_ESCAPE_EXIT=0
+PLUMOS_A30_PSP_RESET_INSTANCE_COUNTER=1
+EOF
+  append_manifest
+  append_manifest "config=plumos/config/standalone/ppsspp.env"
+}
+
 build_one() {
   local id=$1
   local repo=$2
@@ -1699,6 +1756,7 @@ overlay_preferred_sdl_runtime() {
 prepare_dist
 mkdir -p "${SRC_ROOT}"
 write_standalone_launcher
+write_standalone_config_defaults
 
 build_one ppsspp "${PPSSPP_REPO}" "${PPSSPP_REF}" build_ppsspp
 build_one scummvm "${SCUMMVM_REPO}" "${SCUMMVM_REF}" build_scummvm

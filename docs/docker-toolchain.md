@@ -259,7 +259,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `deploy-a30.sh` は既存の plumOS mutable settings
 (`plumos/config/frontend/settings.json`, `plumos/config/system/settings.json`,
-`plumos/retroarch/config/retroarch-practical.cfg` など) を展開前に退避し、展開後に復元します。
+`plumos/retroarch/config/retroarch-practical.cfg`,
+`plumos/config/standalone/`, `plumos/state/standalone/ppsspp/` など) を
+展開前に退避し、展開後に復元します。
 初回導入でファイルが存在しない場合は package 側の default を配置します。設定を意図的に初期化したい場合だけ
 `PLUMOS_DEPLOY_PROTECT_CONFIG=0` を指定します。
 
