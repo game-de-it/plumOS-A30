@@ -80,7 +80,10 @@ skipped tool 0
 - When `invalid PNG` appears:
   the server may have returned non-image data. Retry later.
 - When `skipped zip` appears:
-  inspect the ZIP contents or place the ROM uncompressed.
+  the ZIP has no supported ROM payload, or extraction failed. Japanese outer ZIP
+  filenames are supported. If a `.gb` payload is mixed into `Roms/gbc`, the scraper
+  rescues it through the GB source, but unknown extensions or broken ZIPs are skipped.
+  Inspect the ZIP contents and move the ROM to the correct system directory when needed.
 - When `skipped tool` appears:
   check the plumOS runtime, cache/preload data, network sources, and update
   plumOS if needed.

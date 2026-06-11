@@ -640,7 +640,13 @@ first_zip_member() {
   zip_path="$1"
   allowed_list="$2"
   command -v unzip >/dev/null 2>&1 || return 1
-  unzip -lq "$zip_path" 2>/dev/null | while IFS= read -r member; do
+  unzip -lq "$zip_path" 2>/dev/null | awk '
+    $2 ~ /^[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]$/ && $3 ~ /^[0-9][0-9]:[0-9][0-9]$/ {
+      line = $0
+      sub(/^[[:space:]]*[0-9]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+/, "", line)
+      print line
+    }
+  ' | while IFS= read -r member; do
     case "$member" in
       ""|*/|*"/") continue ;;
     esac
@@ -654,6 +660,59 @@ first_zip_member() {
     printf '%s\n' "$member"
     return 0
   done
+}
+
+append_unique_word() {
+  current="$1"
+  word="$2"
+  [ -n "$word" ] || {
+    printf '%s\n' "$current"
+    return 0
+  }
+
+  case " $current " in
+    *" $word "*) printf '%s\n' "$current" ;;
+    *) printf '%s %s\n' "$current" "$word" | sed 's/^ //' ;;
+  esac
+}
+
+zip_payload_extensions() {
+  payload_system="$1"
+  configured_extensions="$2"
+  payload_extensions=""
+
+  for configured_ext in $configured_extensions; do
+    case "$configured_ext" in
+      zip|7z) continue ;;
+    esac
+    payload_extensions="$(append_unique_word "$payload_extensions" "$configured_ext")"
+  done
+
+  case "$payload_system" in
+    gb|gbc)
+      payload_extensions="$(append_unique_word "$payload_extensions" gb)"
+      payload_extensions="$(append_unique_word "$payload_extensions" gbc)"
+      ;;
+    nes|fds)
+      payload_extensions="$(append_unique_word "$payload_extensions" nes)"
+      payload_extensions="$(append_unique_word "$payload_extensions" fds)"
+      ;;
+  esac
+
+  printf '%s\n' "$payload_extensions"
+}
+
+payload_source_system_for_ext() {
+  default_system="$1"
+  payload_ext="$2"
+
+  case "$payload_ext" in
+    gb) printf '%s\n' gb ;;
+    gbc) printf '%s\n' gbc ;;
+    nes) printf '%s\n' nes ;;
+    fds) printf '%s\n' fds ;;
+    *) printf '%s\n' "$default_system" ;;
+  esac
 }
 
 print_system_policy() {
@@ -833,7 +892,8 @@ fetch_system() {
   thumb_index=
   thumb_base=
   index_ready=0
-  index_failed=0
+  index_system=
+  index_failed_systems=" "
 
   aliases="$(directory_aliases "$block")"
   for rom_root in $ROM_ROOTS; do
@@ -897,33 +957,48 @@ fetch_system() {
       continue
     fi
 
-    if [ "$index_ready" = 0 ] && [ "$index_failed" = 0 ]; then
-      dat_index="$(ensure_dat_index "$fetch_system_id" 2>/dev/null || true)"
-      thumb_index="$(ensure_thumb_index "$fetch_system_id" 2>/dev/null || true)"
-      thumb_base="$(thumb_base_url "$fetch_system_id" 2>/dev/null || true)"
-      if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
-        index_failed=1
-        skipped_tool=$((skipped_tool + 1))
-        log "fetch skipped system=${fetch_system_id} reason=missing_index_or_source"
-      else
-        index_ready=1
+    payload="$rom_path"
+    lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ext")"
+    rm -f "$payload_tmp" 2>/dev/null || true
+
+    if [ "$ext" = "zip" ]; then
+      payload_extensions="$(zip_payload_extensions "$fetch_system_id" "$extensions")"
+      member="$(first_zip_member "$rom_path" "$payload_extensions" || true)"
+      if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
+        skipped_zip=$((skipped_zip + 1))
+        missing_processed=$((missing_processed + 1))
+        emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
+        continue
       fi
+      member_ext="$(lower_ext "$member" 2>/dev/null || true)"
+      lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$member_ext")"
+      payload="$payload_tmp"
     fi
 
-    if [ "$index_ready" = 1 ]; then
-      payload="$rom_path"
-      rm -f "$payload_tmp" 2>/dev/null || true
-      if [ "$ext" = "zip" ]; then
-        member="$(first_zip_member "$rom_path" "$extensions" || true)"
-        if [ -z "$member" ] || ! unzip -p "$rom_path" "$member" > "$payload_tmp" 2>/dev/null; then
-          skipped_zip=$((skipped_zip + 1))
-          missing_processed=$((missing_processed + 1))
-          emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
-          continue
-        fi
-        payload="$payload_tmp"
-      fi
+    index_available=0
+    if [ "$index_ready" = 1 ] && [ "$index_system" = "$lookup_system" ]; then
+      index_available=1
+    else
+      case "$index_failed_systems" in
+        *" ${lookup_system} "*) index_available=0 ;;
+        *)
+          dat_index="$(ensure_dat_index "$lookup_system" 2>/dev/null || true)"
+          thumb_index="$(ensure_thumb_index "$lookup_system" 2>/dev/null || true)"
+          thumb_base="$(thumb_base_url "$lookup_system" 2>/dev/null || true)"
+          if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
+            index_failed_systems="${index_failed_systems}${lookup_system} "
+            skipped_tool=$((skipped_tool + 1))
+            log "fetch skipped system=${fetch_system_id} source=${lookup_system} reason=missing_index_or_source"
+          else
+            index_system="$lookup_system"
+            index_ready=1
+            index_available=1
+          fi
+          ;;
+      esac
+    fi
 
+    if [ "$index_available" = 1 ]; then
       crc="$(compute_crc32 "$payload" || true)"
       rm -f "$payload_tmp" 2>/dev/null || true
       if [ -z "$crc" ]; then
@@ -944,7 +1019,7 @@ fetch_system() {
             dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
             mkdir -p "$(dirname "$dest")" 2>/dev/null || true
             tmp_dest="${dest}.tmp.$$"
-            if ! fetch_thumbnail_png "$fetch_system_id" "$href" "$tmp_dest"; then
+            if ! fetch_thumbnail_png "$lookup_system" "$href" "$tmp_dest"; then
               rm -f "$tmp_dest" 2>/dev/null || true
               case "$FETCH_THUMBNAIL_ERROR" in
                 invalid_png) invalid_png=$((invalid_png + 1)) ;;

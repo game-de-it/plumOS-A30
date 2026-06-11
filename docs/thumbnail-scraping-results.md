@@ -77,8 +77,10 @@ skipped tool 0
 - `invalid PNG` が出る場合:
   サーバ応答が画像ではない可能性があります。時間を置いて再実行します。
 - `skipped zip` が出る場合:
-  ZIP 内の ROM が対応拡張子ではない、または展開できない可能性があります。
-  ROM を展開して配置するか、ZIP の中身を確認します。
+  ZIP 内に対応 ROM payload が無い、または展開できない可能性があります。
+  ZIP の外側 file 名が日本語であること自体は問題ではありません。`gbc` 配下に `.gb`
+  payload が混入している場合は GB source で救済しますが、未知の拡張子や壊れた ZIP は
+  skipped になります。ZIP の中身を確認し、必要なら ROM を正しい system directory に移します。
 - `skipped tool` が出る場合:
   plumOS runtime、cache、preload data、network source のどれかが不足しています。
   plumOS を更新し、ネットワーク接続と `/mnt/SDCARD/plumos/share/frontend/artwork-scraper/`

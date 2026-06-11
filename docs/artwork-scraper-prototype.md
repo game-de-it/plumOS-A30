@@ -259,6 +259,11 @@ PNG ではなく `.png` 名だけの参照 file が返った場合は同じ dire
 従来の `https://thumbnails.libretro.com/` からの PNG fallback は遅い server 待ちを避けるため
 default では無効で、`PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` を指定した時だけ使います。
 保存先は `/mnt/SDCARD/Images/<system_id>/<relative stem>.png` です。
+ZIP ROM は BusyBox `unzip -lq` の `Length Date Time Name` 形式から member 名だけを取り出し、
+対象拡張子の最初の ROM payload を CRC 対象にします。外側の ZIP file 名は日本語でも扱えます。
+`gbc` 配下に `.gb` payload が混入しているような場合は、その ROM だけ GB の DAT/thumbnail
+source で照合し、保存先は選択中の system に合わせて `/mnt/SDCARD/Images/gbc/<zip stem>.png`
+のままにします。これは混入 ROM の救済であり、通常は ROM を正しい system directory に整理します。
 `--fetch --all` でも、ROM 候補が無い system や既存 thumbnail だけで足りる system では
 DAT/index を取得しません。最初の missing thumbnail が見つかった時だけ、その system の DAT/index を
 用意します。

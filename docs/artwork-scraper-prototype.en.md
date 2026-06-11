@@ -292,6 +292,12 @@ reference in the same directory and fetches it again. The old
 `https://thumbnails.libretro.com/` PNG fallback is disabled by default to avoid
 slow server waits; set `PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` to enable it.
 Images are saved to `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+For ZIP ROMs, the runner parses BusyBox `unzip -lq` output in `Length Date Time Name`
+format and CRCs the first supported ROM payload member. Japanese outer ZIP filenames
+are supported. If a `.gb` payload is mixed into `Roms/gbc`, that ROM is matched against
+the GB DAT/thumbnail source while the saved image still follows the selected system,
+for example `/mnt/SDCARD/Images/gbc/<zip stem>.png`. This is a rescue path for mixed
+ROMs; the normal recommendation is to keep ROMs in the correct system directory.
 Even for `--fetch --all`, systems without ROM candidates, or systems whose
 existing thumbnails already cover all candidates, do not fetch DAT/index data.
 The runner prepares DAT/index data only after it sees the first missing
