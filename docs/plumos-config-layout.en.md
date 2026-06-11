@@ -15,7 +15,10 @@ plumOS configuration.
 - Do not use stockOS-owned `/config/system.json` as a read/write target.
 - `deploy-a30.sh` must not overwrite existing mutable settings with package
   defaults. It installs defaults on first deploy and restores existing files
-  after extraction when they already exist.
+  after extraction when they already exist. Protected files include
+  `config/*/settings.json` and the main RetroArch configs
+  `retroarch/config/retroarch-minimal.cfg` /
+  `retroarch/config/retroarch-practical.cfg`.
 
 ## Current Layout
 

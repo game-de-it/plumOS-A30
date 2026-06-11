@@ -72,10 +72,14 @@ plumos/config/frontend/settings.json
 plumos/config/system/settings.json
 plumos/config/network/settings.json
 plumos/config/performance/settings.json
+plumos/retroarch/config/retroarch-minimal.cfg
+plumos/retroarch/config/retroarch-practical.cfg
 config/frontend/settings.json
 config/system/settings.json
 config/network/settings.json
 config/performance/settings.json
+retroarch/config/retroarch-minimal.cfg
+retroarch/config/retroarch-practical.cfg
 PATHS
 REMOTE
 }
