@@ -184,6 +184,10 @@ struct input_event {
 #define UI_WIFI_COMMAND_COUNT 5
 #define UI_USB_DISK_START_DELAY_MS 2000
 #define UI_THUMBNAIL_RESULT_WINDOW 11
+#define UI_SCRAPING_FIELD_COUNT 3
+#define UI_SCRAPING_FIELD_IMAGE 0
+#define UI_SCRAPING_FIELD_EXISTING 1
+#define UI_SCRAPING_FIELD_SYSTEM 2
 #define UI_SDCARD_CLEANUP_MIN_INTERVAL_MS 60000
 #define UI_ROM_SCAN_REFRESH_MIN_INTERVAL_MS 3000
 #define UI_FE_READY_FLAG_PATH "/tmp/plumos-fe-ready"
@@ -203,6 +207,16 @@ struct scraping_choice {
   char id[64];
   char display_name[128];
   long rom_count;
+};
+
+struct scraping_kind_choice {
+  const char *display_name;
+  const char *scraper_kind;
+};
+
+static const struct scraping_kind_choice SCRAPING_KIND_CHOICES[] = {
+    {"Box Art", "Named_Boxarts"},
+    {"Title Screen", "Named_Titles"},
 };
 
 struct core_profile_choice {
@@ -515,6 +529,9 @@ struct ui_state {
   struct scraping_choice scraping_choices[UI_MAX_SCRAPING_CHOICES];
   size_t scraping_choice_count;
   size_t scraping_choice_cursor;
+  size_t scraping_menu_cursor;
+  size_t scraping_kind_cursor;
+  int scraping_replace_existing;
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
   struct wifi_network_entry wifi_networks[UI_MAX_WIFI_NETWORKS];
@@ -4670,6 +4687,49 @@ static void clamp_scraping_choice_cursor(struct ui_state *ui) {
   }
 }
 
+static void clamp_scraping_menu_cursor(struct ui_state *ui) {
+  if (!ui || ui->scraping_menu_cursor >= UI_SCRAPING_FIELD_COUNT) {
+    if (ui) {
+      ui->scraping_menu_cursor = 0;
+    }
+  }
+}
+
+static void clamp_scraping_kind_cursor(struct ui_state *ui) {
+  if (!ui ||
+      ui->scraping_kind_cursor >=
+          sizeof(SCRAPING_KIND_CHOICES) / sizeof(SCRAPING_KIND_CHOICES[0])) {
+    if (ui) {
+      ui->scraping_kind_cursor = 0;
+    }
+  }
+}
+
+static const struct scraping_kind_choice *scraping_selected_kind(struct ui_state *ui) {
+  clamp_scraping_kind_cursor(ui);
+  return &SCRAPING_KIND_CHOICES[ui ? ui->scraping_kind_cursor : 0];
+}
+
+static const char *scraping_existing_label(const struct ui_state *ui) {
+  return ui && ui->scraping_replace_existing ? "Replace" : "Skip";
+}
+
+static void cycle_scraping_kind(struct ui_state *ui, int delta) {
+  size_t count = sizeof(SCRAPING_KIND_CHOICES) / sizeof(SCRAPING_KIND_CHOICES[0]);
+
+  if (!ui || count == 0) {
+    return;
+  }
+  clamp_scraping_kind_cursor(ui);
+  if (delta < 0) {
+    ui->scraping_kind_cursor =
+        ui->scraping_kind_cursor == 0 ? count - 1 : ui->scraping_kind_cursor - 1;
+  } else {
+    ui->scraping_kind_cursor =
+        ui->scraping_kind_cursor + 1 >= count ? 0 : ui->scraping_kind_cursor + 1;
+  }
+}
+
 static int load_scraping_choices(struct ui_state *ui) {
   char *json;
   size_t json_size;
@@ -6535,25 +6595,36 @@ static void render_core_select(struct ui_state *ui) {
 
 static void render_scraping(struct ui_state *ui) {
   const char *label;
+  const struct scraping_kind_choice *kind;
   long rom_count;
 
+  clamp_scraping_menu_cursor(ui);
   clamp_scraping_choice_cursor(ui);
+  kind = scraping_selected_kind(ui);
   label = scraping_selected_label(ui);
   rom_count = scraping_selected_rom_count(ui);
 
   ui_printf(ui, "plumOS controller UI - Scraping\n");
-  ui_printf(ui, "LEFT/RIGHT: system  A: start  SELECT: results  B: Apps  Q: quit\n");
-  ui_printf(ui, "entries=5 cursor=1\n");
+  ui_printf(ui, "UP/DOWN: item  LEFT/RIGHT: change  A: start  SELECT: results  B: Apps  Q: quit\n");
+  ui_printf(ui, "entries=7 cursor=%zu\n", ui->scraping_menu_cursor + 1);
   ui_printf(ui, "\n");
-  ui_printf(ui, ">   1  System < %s >\n", label);
-  ui_printf(ui, "    2  Targets: %zu system%s\n",
+  ui_printf(ui, "%c   1  Image < %s >\n",
+            ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE ? '>' : ' ',
+            kind->display_name);
+  ui_printf(ui, "%c   2  Existing < %s >\n",
+            ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING ? '>' : ' ',
+            scraping_existing_label(ui));
+  ui_printf(ui, "%c   3  System < %s >\n",
+            ui->scraping_menu_cursor == UI_SCRAPING_FIELD_SYSTEM ? '>' : ' ',
+            label);
+  ui_printf(ui, "    4  Targets: %zu system%s\n",
             ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1,
             (ui->scraping_choice_cursor == 0 && ui->scraping_choice_count != 1) ? "s" : "");
-  ui_printf(ui, "    3  ROMs: %ld\n", rom_count);
-  ui_printf(ui, "    4  A starts plan and fetch\n");
-  ui_printf(ui, "    5  SELECT opens latest results\n");
-  ui_printf(ui, "footer1=%s\n", "Scraping downloads missing thumbnails.");
-  ui_printf(ui, "footer2=%s\n", "Only systems with ROMs and CRC support are listed.");
+  ui_printf(ui, "    5  ROMs: %ld\n", rom_count);
+  ui_printf(ui, "    6  A starts plan and fetch\n");
+  ui_printf(ui, "    7  SELECT opens latest results\n");
+  ui_printf(ui, "footer1=%s\n", "Box Art and Title Screen share the same PNG path.");
+  ui_printf(ui, "footer2=%s\n", "Replace overwrites current images after successful download.");
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -8068,6 +8139,8 @@ static int append_scraping_runner_loop(char *cmd, size_t cmd_size, size_t *pos,
                                        const char *scraper,
                                        const char *path_value,
                                        int fetch_mode,
+                                       const char *scraper_kind,
+                                       int replace_existing,
                                        const char *limit,
                                        const char *fetch_timeout,
                                        const char *fetch_retry) {
@@ -8106,6 +8179,15 @@ static int append_scraping_runner_loop(char *cmd, size_t cmd_size, size_t *pos,
     return 0;
   }
   if (fetch_mode && !append_string(cmd, cmd_size, pos, " --fetch")) {
+    return 0;
+  }
+  if (scraper_kind && scraper_kind[0] &&
+      (!append_string(cmd, cmd_size, pos, " --kind ") ||
+       !append_shell_quoted(cmd, cmd_size, pos, scraper_kind))) {
+    return 0;
+  }
+  if (replace_existing &&
+      !append_string(cmd, cmd_size, pos, " --replace-existing")) {
     return 0;
   }
   if (!append_string(cmd, cmd_size, pos, " --system \"$sys\"")) {
@@ -8178,6 +8260,7 @@ static int run_scraping_action(struct ui_state *ui) {
   const char *fetch_limit;
   const char *fetch_timeout;
   const char *fetch_retry;
+  const struct scraping_kind_choice *kind;
   size_t pos = 0;
   size_t path_pos = 0;
   size_t target_count;
@@ -8219,6 +8302,7 @@ static int run_scraping_action(struct ui_state *ui) {
   if (!fetch_retry) {
     fetch_retry = "0";
   }
+  kind = scraping_selected_kind(ui);
   target_count = ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1;
 
   cmd[0] = '\0';
@@ -8230,10 +8314,13 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_string(cmd, sizeof(cmd), &pos, "; app_rc=0; progress_i=0; progress_total=") ||
       !append_size_t(cmd, sizeof(cmd), &pos, target_count) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
-                                   path_value, 0, plan_limit, NULL, NULL) ||
+                                   path_value, 0, kind->scraper_kind,
+                                   ui->scraping_replace_existing,
+                                   plan_limit, NULL, NULL) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
-                                   path_value, 1, fetch_limit,
-                                   fetch_timeout, fetch_retry) ||
+                                   path_value, 1, kind->scraper_kind,
+                                   ui->scraping_replace_existing,
+                                   fetch_limit, fetch_timeout, fetch_retry) ||
       !append_string(cmd, sizeof(cmd),
                      &pos, "; printf 'app_finish\\t%s\\trc=%s\\n' ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
@@ -8247,7 +8334,8 @@ static int run_scraping_action(struct ui_state *ui) {
               "Scraping");
   reset_thumbnail_running_progress(ui);
   ui->screen = SCREEN_THUMBNAIL_RUNNING;
-  snprintf(ui->status, sizeof(ui->status), "running Scraping");
+  snprintf(ui->status, sizeof(ui->status), "running Scraping %s",
+           kind->display_name);
   render_ui(ui);
   mkdir(log_dir, 0755);
   rc = run_command_with_live_log(ui, cmd, latest_path, log_path);
@@ -9565,22 +9653,56 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
 
   if (ui->screen == SCREEN_SCRAPING) {
+    clamp_scraping_menu_cursor(ui);
+    if (action == ACTION_UP) {
+      ui->scraping_menu_cursor =
+          ui->scraping_menu_cursor == 0 ? UI_SCRAPING_FIELD_COUNT - 1
+                                        : ui->scraping_menu_cursor - 1;
+      set_status(ui, "selected scraping item");
+      return;
+    }
+    if (action == ACTION_DOWN) {
+      ui->scraping_menu_cursor =
+          ui->scraping_menu_cursor + 1 >= UI_SCRAPING_FIELD_COUNT
+              ? 0
+              : ui->scraping_menu_cursor + 1;
+      set_status(ui, "selected scraping item");
+      return;
+    }
     if (action == ACTION_LEFT) {
-      if (ui->scraping_choice_cursor == 0) {
-        ui->scraping_choice_cursor = ui->scraping_choice_count;
+      if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
+        cycle_scraping_kind(ui, -1);
+        ui->scraping_replace_existing = 1;
+        set_status(ui, "selected image type; replace enabled");
+      } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
+        ui->scraping_replace_existing = !ui->scraping_replace_existing;
+        set_status(ui, "selected existing image mode");
       } else {
-        ui->scraping_choice_cursor--;
+        if (ui->scraping_choice_cursor == 0) {
+          ui->scraping_choice_cursor = ui->scraping_choice_count;
+        } else {
+          ui->scraping_choice_cursor--;
+        }
+        set_status(ui, "selected scraping system");
       }
-      set_status(ui, "selected scraping system");
       return;
     }
     if (action == ACTION_RIGHT) {
-      if (ui->scraping_choice_cursor >= ui->scraping_choice_count) {
-        ui->scraping_choice_cursor = 0;
+      if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
+        cycle_scraping_kind(ui, 1);
+        ui->scraping_replace_existing = 1;
+        set_status(ui, "selected image type; replace enabled");
+      } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
+        ui->scraping_replace_existing = !ui->scraping_replace_existing;
+        set_status(ui, "selected existing image mode");
       } else {
-        ui->scraping_choice_cursor++;
+        if (ui->scraping_choice_cursor >= ui->scraping_choice_count) {
+          ui->scraping_choice_cursor = 0;
+        } else {
+          ui->scraping_choice_cursor++;
+        }
+        set_status(ui, "selected scraping system");
       }
-      set_status(ui, "selected scraping system");
       return;
     }
     if (action == ACTION_A) {

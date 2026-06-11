@@ -226,8 +226,10 @@ used to validate scraper policy and existing-thumbnail skip counts on the
 device, and it can also be launched from FE Apps. `--plan` / `--dry-run` does
 not compute CRCs or access the network. `--fetch` processes only ROMs without an
 existing thumbnail and runs CRC -> DAT lookup -> thumbnail index lookup -> PNG
-download. The runner does not print ROM filenames to stdout or logs; output is
-system-level aggregates.
+download. With `--replace-existing`, ROMs that already have an image are queued
+too, and the current PNG path is replaced after a successful download. The
+runner does not print ROM filenames to stdout or logs; output is system-level
+aggregates.
 
 Common commands:
 
@@ -237,6 +239,7 @@ Common commands:
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --all --limit 50
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --limit 20
 /mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --all --limit 20
+/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper --fetch --system gb --kind Named_Titles --replace-existing
 ```
 
 Environment:
@@ -311,17 +314,21 @@ directory index, while PNG bytes use GitHub raw by default.
 stall the UI path indefinitely.
 
 FE START -> Apps exposes a `Scraping` entry. The `Scraping` screen lets users
-choose `System < ALL >` or a concrete system such as `System < NES >`, then
-start scraping with A. Targets are limited to systems with `scraper.enabled=true`
-and at least one current ROM. Opening the screen runs a library scan so TOP and
+choose `Image < Box Art | Title Screen >`, `Existing < Replace | Skip >`, and
+`System < ALL >` or a concrete system such as `System < NES >`, then start
+scraping with A. Targets are limited to systems with `scraper.enabled=true` and
+at least one current ROM. Opening the screen runs a library scan so TOP and
 Graphic ROM counts, and the scraping target list, update without restarting the
 frontend. While running, the UI shows `Scraping Running`; internally it runs
-`plumos-thumbnail-scraper --system <id>` and
-`plumos-thumbnail-scraper --fetch --system <id>` for each target system. The
-RUNNING screen shows `Progress: current / total`, `Phase: Plan|Fetch <system>`,
-and `Saved / NoMatch / Failed`. Planning reports system/phase progress; fetching
-sets `PLUMOS_THUMBNAIL_PROGRESS=1` so scraper `progress` rows can update
-ROM-level progress. Fetches started from the FE use
+`plumos-thumbnail-scraper --kind <kind> --system <id>` and
+`plumos-thumbnail-scraper --fetch --kind <kind> --system <id>` for each target
+system. When `Existing < Replace >` is selected, both commands also receive
+`--replace-existing`, replacing the shared
+`/mnt/SDCARD/Images/<system>/<rom>.png` path used by box art and title screens.
+The RUNNING screen shows `Progress: current / total`,
+`Phase: Plan|Fetch <system>`, and `Saved / NoMatch / Failed`. Planning reports
+system/phase progress; fetching sets `PLUMOS_THUMBNAIL_PROGRESS=1` so scraper
+`progress` rows can update ROM-level progress. Fetches started from the FE use
 `PLUMOS_THUMBNAIL_FETCH_TIMEOUT=12` and `PLUMOS_THUMBNAIL_FETCH_RETRY=0` by
 default so one slow image URL cannot stall the UI for a long time. It then
 automatically opens `Scraping Results`.
@@ -385,8 +392,8 @@ use the first `.nes`, `.fds`, or `.gb` member for CRC calculation.
 | `fds` | `Nintendo - Family Computer Disk System` | `metadat/no-intro/Nintendo - Family Computer Disk System.dat` |
 | `gb` | `Nintendo - Game Boy` | `metadat/no-intro/Nintendo - Game Boy.dat` |
 
-The default thumbnail kind is `Named_Boxarts`. The prototype also accepts
-`--kind Named_Snaps` and `--kind Named_Titles`.
+The FE can select `--kind Named_Boxarts` or `--kind Named_Titles`. The runner
+also accepts `--kind Named_Snaps`, but that option is not exposed in the FE.
 
 ## Matching Order
 

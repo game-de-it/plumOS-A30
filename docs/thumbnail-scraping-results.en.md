@@ -28,13 +28,17 @@ DL workers 2/3/4
 - `ROMs`: ROM candidates found for scraping.
 - `existing`: ROMs that already have an image under `/mnt/SDCARD/Images/<system>/`.
 - `missing`: ROMs that do not have an image yet. Fetch normally works on these.
+  With `Existing < Replace >` or `--replace-existing`, existing images are also
+  replacement targets, so `missing` is shown as the current fetch queue size.
 - `CRC workers`: CRC worker counts in `default/bulk/max` order.
 - `DL workers`: download worker counts in `default/bulk/max` order.
 
 ## Fetch Result
 
 `Fetch Thumbnails` runs CRC lookup and image download for ROMs that do not
-already have thumbnails.
+already have thumbnails. With `Existing < Replace >`, ROMs that already have an
+image are processed too and overwrite the same output filename after a
+successful download.
 
 ```text
 nes

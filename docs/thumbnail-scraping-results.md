@@ -27,12 +27,15 @@ DL workers 2/3/4
 - `ROMs`: スクレイピング対象として見つかった ROM 数です。
 - `existing`: すでに `/mnt/SDCARD/Images/<system>/` に画像がある ROM 数です。
 - `missing`: まだ画像がない ROM 数です。Fetch では基本的にこの数が処理対象です。
+  `Existing < Replace >` または `--replace-existing` の場合は、既存画像も置き換え対象になるため、
+  `missing` は「今回の処理キュー数」として表示されます。
 - `CRC workers`: CRC チェックの並列数です。`default/bulk/max` の順です。
 - `DL workers`: 画像ダウンロードの並列数です。`default/bulk/max` の順です。
 
 ## Fetch Result
 
 `Fetch Thumbnails` は、画像がない ROM に対して CRC lookup と画像取得を行います。
+`Existing < Replace >` の場合は、画像がある ROM も同じファイル名へ上書きする候補として処理します。
 
 ```text
 nes

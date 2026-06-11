@@ -32,6 +32,7 @@ SYSTEM_FILTER=
 PLAN_ALL=0
 LIMIT=0
 KIND=Named_Boxarts
+REPLACE_EXISTING=0
 FETCH_TIMEOUT="${PLUMOS_THUMBNAIL_FETCH_TIMEOUT:-45}"
 FETCH_RETRY="${PLUMOS_THUMBNAIL_FETCH_RETRY:-2}"
 
@@ -47,6 +48,8 @@ Options:
   --fetch            Download missing thumbnails for scraper-enabled systems.
   --kind KIND        Named_Boxarts, Named_Snaps, or Named_Titles.
                      Default: Named_Boxarts.
+  --replace-existing Queue ROMs even when an image already exists and replace
+                     the current PNG after a successful download.
   --limit N          Stop after N candidate ROMs per system.
   -h, --help         Show this help.
 
@@ -75,6 +78,7 @@ Output:
   --fetch:
     status system enabled reason aliases_seen rom_candidates existing_thumbnails missing_thumbnails crc_checked crc_matched downloaded no_match crc_miss thumbnail_miss download_failed invalid_png skipped_zip skipped_tool
 
+When --replace-existing is set, missing_thumbnails is the fetch queue size.
 The runner does not print ROM file names.
 USAGE
 }
@@ -804,6 +808,9 @@ plan_system() {
 
         if thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
           existing_thumbnails=$((existing_thumbnails + 1))
+          if [ "$REPLACE_EXISTING" = 1 ]; then
+            missing_thumbnails=$((missing_thumbnails + 1))
+          fi
         else
           missing_thumbnails=$((missing_thumbnails + 1))
         fi
@@ -836,7 +843,7 @@ plan_system() {
     "$crc_default" "$crc_bulk" "$crc_max" \
     "$dl_default" "$dl_bulk" "$dl_max"
 
-  log "plan system=${plan_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} limit=${LIMIT}"
+  log "plan system=${plan_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
   return 0
 }
 
@@ -922,6 +929,10 @@ fetch_system() {
 
         if thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
           existing_thumbnails=$((existing_thumbnails + 1))
+          if [ "$REPLACE_EXISTING" = 1 ]; then
+            missing_thumbnails=$((missing_thumbnails + 1))
+            printf '%s\t%s\n' "$alias_dir" "$rom_path" >> "$missing_list"
+          fi
         else
           missing_thumbnails=$((missing_thumbnails + 1))
           printf '%s\t%s\n' "$alias_dir" "$rom_path" >> "$missing_list"
@@ -951,7 +962,8 @@ fetch_system() {
     rel_stem="${rel_path%.*}"
     flat_stem="${rel_stem##*/}"
 
-    if thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
+    if [ "$REPLACE_EXISTING" != 1 ] &&
+       thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
       missing_processed=$((missing_processed + 1))
       emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
       continue
@@ -1047,7 +1059,7 @@ fetch_system() {
     "$downloaded" "$no_match" "$crc_miss" "$thumbnail_miss" \
     "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
 
-  log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} crc_miss=${crc_miss} thumbnail_miss=${thumbnail_miss} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} limit=${LIMIT}"
+  log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} crc_miss=${crc_miss} thumbnail_miss=${thumbnail_miss} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
   return 0
 }
 
@@ -1077,6 +1089,9 @@ while [ "$#" -gt 0 ]; do
       shift
       [ "$#" -gt 0 ] || die "--kind requires a value"
       KIND="$1"
+      ;;
+    --replace-existing|--force)
+      REPLACE_EXISTING=1
       ;;
     --limit)
       shift
