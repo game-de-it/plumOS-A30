@@ -147,8 +147,8 @@
   B/X は元の ROM list に戻る。
 - Gallery のROM画像は背景パネルや影を描かず、画像だけを表示する。ROM名 marquee と左右slide は
   60fps 相当の再描画周期を維持する。
-- Gallery slide 中は移動先のさらに隣のROM画像も先に端へ描き、slide完了時に端の画像が
-  後から出現して見えないようにする。
+- Gallery slide は `前々/前/選択中/次/次々` の5枚slotを横stripとして扱い、画面外slotも描画する。
+  slide 中はstrip全体を1slotぶん動かし、左右画像だけが別挙動に見えないようにする。
 - Gallery slide 中に追加の左右入力を受けた場合は、現在のslideを差し替えず次の移動先として
   queueし、slide完了後に次のslideへつなぐ。
 - JPEG/WEBP は scanner のlookup対象だが、Graphic rendererの実描画はまずPNGを優先する。

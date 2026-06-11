@@ -3329,39 +3329,49 @@ static size_t plumos_mali_graphic_selected_index(
   return 0;
 }
 
-static const struct plumos_mali_graphic_entry *plumos_mali_graphic_selected_entry(
-    const struct plumos_mali_graphic_entry *entries, size_t entry_count) {
-  if (!entries || entry_count == 0) {
-    return NULL;
-  }
-  return &entries[plumos_mali_graphic_selected_index(entries, entry_count)];
-}
-
-static const struct plumos_mali_graphic_entry *
-plumos_mali_graphic_selected_neighbor(
-    const struct plumos_mali_graphic_entry *entries, size_t entry_count,
-    int delta) {
-  size_t selected_index;
-
-  if (!entries || entry_count == 0 || delta == 0) {
-    return NULL;
-  }
-  selected_index = plumos_mali_graphic_selected_index(entries, entry_count);
-  if (delta < 0) {
-    size_t step = (size_t)(-delta);
-    if (selected_index < step) {
-      return NULL;
-    }
-    return &entries[selected_index - step];
-  }
-  if (selected_index + (size_t)delta >= entry_count) {
-    return NULL;
-  }
-  return &entries[selected_index + (size_t)delta];
-}
-
 static float plumos_mali_lerp_float(float from, float to, float progress) {
   return from + (to - from) * progress;
+}
+
+struct plumos_mali_gallery_slot {
+  float x;
+  float y;
+  float w;
+  float h;
+};
+
+static void plumos_mali_graphic_gallery_slot(
+    const struct plumos_mali_renderer *renderer, long rel,
+    struct plumos_mali_gallery_slot *slot) {
+  const float center_w = 360.0f;
+  const float center_h = 270.0f;
+  const float side_w = 240.0f;
+  const float side_h = 180.0f;
+  const float center_x = ((float)renderer->width - center_w) * 0.5f;
+  const float center_y = 84.0f;
+  const float side_y = 128.0f;
+  const float visible_side = 76.0f;
+  const float offscreen_gap = 18.0f;
+  const float side_step = side_w + offscreen_gap;
+
+  if (!slot) {
+    return;
+  }
+  slot->w = rel == 0 ? center_w : side_w;
+  slot->h = rel == 0 ? center_h : side_h;
+  slot->y = rel == 0 ? center_y : side_y;
+  if (rel == 0) {
+    slot->x = center_x;
+  } else if (rel == -1) {
+    slot->x = -side_w + visible_side;
+  } else if (rel == 1) {
+    slot->x = (float)renderer->width - visible_side;
+  } else if (rel <= -2) {
+    slot->x = -side_w - offscreen_gap + (float)(rel + 2) * side_step;
+  } else {
+    slot->x = (float)renderer->width + offscreen_gap +
+              (float)(rel - 2) * side_step;
+  }
 }
 
 static void plumos_mali_graphic_draw_gallery_background(
@@ -3447,14 +3457,6 @@ static void plumos_mali_graphic_draw_gallery_entries(
     float x_offset) {
   size_t selected_index;
   size_t i;
-  const float center_w = 360.0f;
-  const float center_h = 270.0f;
-  const float side_w = 240.0f;
-  const float side_h = 180.0f;
-  const float center_x = ((float)renderer->width - center_w) * 0.5f;
-  const float center_y = 84.0f;
-  const float side_y = 128.0f;
-  const float visible_side = 76.0f;
 
   if (!entries || entry_count == 0) {
     return;
@@ -3462,23 +3464,16 @@ static void plumos_mali_graphic_draw_gallery_entries(
   selected_index = plumos_mali_graphic_selected_index(entries, entry_count);
   for (i = 0; i < entry_count; i++) {
     long rel = (long)i - (long)selected_index;
+    struct plumos_mali_gallery_slot slot;
     if (rel < -1 || rel > 1) {
-      continue;
+      if (rel < -2 || rel > 2) {
+        continue;
+      }
     }
-    if (rel == 0) {
-      plumos_mali_graphic_draw_gallery_card(renderer, theme, &entries[i],
-                                            center_x + x_offset, center_y,
-                                            center_w, center_h, 1);
-    } else if (rel < 0) {
-      plumos_mali_graphic_draw_gallery_card(renderer, theme, &entries[i],
-                                            -side_w + visible_side + x_offset,
-                                            side_y, side_w, side_h, 0);
-    } else {
-      plumos_mali_graphic_draw_gallery_card(renderer, theme, &entries[i],
-                                            (float)renderer->width -
-                                                visible_side + x_offset,
-                                            side_y, side_w, side_h, 0);
-    }
+    plumos_mali_graphic_gallery_slot(renderer, rel, &slot);
+    plumos_mali_graphic_draw_gallery_card(renderer, theme, &entries[i],
+                                          slot.x + x_offset, slot.y,
+                                          slot.w, slot.h, rel == 0);
   }
 }
 
@@ -3488,26 +3483,12 @@ static void plumos_mali_graphic_draw_gallery_transition_entries(
     const struct plumos_mali_graphic_entry *entries, size_t entry_count,
     const struct plumos_mali_graphic_entry *prev_entries,
     size_t prev_entry_count, int transition_direction,
-    float transition_progress) {
-  const struct plumos_mali_graphic_entry *old_entry =
-      plumos_mali_graphic_selected_entry(prev_entries, prev_entry_count);
-  const struct plumos_mali_graphic_entry *new_entry =
-      plumos_mali_graphic_selected_entry(entries, entry_count);
-  const struct plumos_mali_graphic_entry *edge_entry = NULL;
-  const float center_w = 360.0f;
-  const float center_h = 270.0f;
-  const float side_w = 240.0f;
-  const float side_h = 180.0f;
-  const float center_x = ((float)renderer->width - center_w) * 0.5f;
-  const float center_y = 84.0f;
-  const float side_y = 128.0f;
-  const float visible_side = 76.0f;
-  const float left_x = -side_w + visible_side;
-  const float right_x = (float)renderer->width - visible_side;
-  float old_target_x;
-  float new_start_x;
+  float transition_progress) {
+  size_t selected_index;
+  size_t i;
+  int pass;
 
-  if (!old_entry || !new_entry) {
+  if (!prev_entries || prev_entry_count == 0) {
     plumos_mali_graphic_draw_gallery_entries(renderer, theme, entries,
                                              entry_count, 0.0f);
     return;
@@ -3517,36 +3498,34 @@ static void plumos_mali_graphic_draw_gallery_transition_entries(
   } else if (transition_progress > 1.0f) {
     transition_progress = 1.0f;
   }
-  if (transition_direction < 0) {
-    old_target_x = right_x;
-    new_start_x = left_x;
-    edge_entry =
-        plumos_mali_graphic_selected_neighbor(entries, entry_count, -1);
-  } else {
-    old_target_x = left_x;
-    new_start_x = right_x;
-    edge_entry =
-        plumos_mali_graphic_selected_neighbor(entries, entry_count, 1);
-  }
+  selected_index =
+      plumos_mali_graphic_selected_index(prev_entries, prev_entry_count);
+  for (pass = 0; pass < 2; pass++) {
+    for (i = 0; i < prev_entry_count; i++) {
+      long rel = (long)i - (long)selected_index;
+      long target_rel = rel - (transition_direction < 0 ? -1 : 1);
+      int target_selected = target_rel == 0;
+      struct plumos_mali_gallery_slot from_slot;
+      struct plumos_mali_gallery_slot to_slot;
 
-  if (edge_entry) {
-    plumos_mali_graphic_draw_gallery_card(
-        renderer, theme, edge_entry,
-        transition_direction < 0 ? left_x : right_x,
-        side_y, side_w, side_h, 0);
+      if (rel < -2 || rel > 2) {
+        continue;
+      }
+      if ((pass == 0 && target_selected) ||
+          (pass == 1 && !target_selected)) {
+        continue;
+      }
+      plumos_mali_graphic_gallery_slot(renderer, rel, &from_slot);
+      plumos_mali_graphic_gallery_slot(renderer, target_rel, &to_slot);
+      plumos_mali_graphic_draw_gallery_card(
+          renderer, theme, &prev_entries[i],
+          plumos_mali_lerp_float(from_slot.x, to_slot.x, transition_progress),
+          plumos_mali_lerp_float(from_slot.y, to_slot.y, transition_progress),
+          plumos_mali_lerp_float(from_slot.w, to_slot.w, transition_progress),
+          plumos_mali_lerp_float(from_slot.h, to_slot.h, transition_progress),
+          target_selected);
+    }
   }
-  plumos_mali_graphic_draw_gallery_card(
-      renderer, theme, old_entry,
-      plumos_mali_lerp_float(center_x, old_target_x, transition_progress),
-      plumos_mali_lerp_float(center_y, side_y, transition_progress),
-      plumos_mali_lerp_float(center_w, side_w, transition_progress),
-      plumos_mali_lerp_float(center_h, side_h, transition_progress), 0);
-  plumos_mali_graphic_draw_gallery_card(
-      renderer, theme, new_entry,
-      plumos_mali_lerp_float(new_start_x, center_x, transition_progress),
-      plumos_mali_lerp_float(side_y, center_y, transition_progress),
-      plumos_mali_lerp_float(side_w, center_w, transition_progress),
-      plumos_mali_lerp_float(side_h, center_h, transition_progress), 1);
 }
 
 static void plumos_mali_graphic_draw_gallery_footer(

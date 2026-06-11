@@ -6085,18 +6085,24 @@ static void render_roms_graphic(struct ui_state *ui, const char *title,
 
 static void ui_emit_gallery_window(struct ui_state *ui, const char *prefix,
                                    size_t cursor) {
+  size_t start;
+  size_t end;
+  size_t i;
+
   if (!ui || !prefix || ui->rom_count == 0) {
     return;
   }
   if (cursor >= ui->rom_count) {
     cursor = ui->rom_count - 1;
   }
-  if (cursor > 0) {
-    ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor - 1], prefix, 0);
+  start = cursor > 2 ? cursor - 2 : 0;
+  end = cursor + 2;
+  if (end >= ui->rom_count) {
+    end = ui->rom_count - 1;
   }
-  ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor], prefix, 1);
-  if (cursor + 1 < ui->rom_count) {
-    ui_emit_graphic_rom_entry(ui, &ui->rom_entries[cursor + 1], prefix, 0);
+  for (i = start; i <= end; i++) {
+    ui_emit_graphic_rom_entry(ui, &ui->rom_entries[i], prefix,
+                              i == cursor);
   }
 }
 
@@ -9790,10 +9796,18 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
   if (!ui || ui->rom_count == 0 || delta == 0) {
     return;
   }
+  if (delta < -1 || delta > 1) {
+    next_cursor = gallery_cursor_after_delta(ui, ui->rom_cursor, delta);
+    if (next_cursor != ui->rom_cursor) {
+      ui->gallery_transition_active = 0;
+      ui->gallery_pending_active = 0;
+      ui->rom_cursor = next_cursor;
+      reset_marquee(ui);
+    }
+    return;
+  }
   if (ui->gallery_transition_active) {
-    base_cursor = ui->gallery_pending_active
-                      ? ui->gallery_pending_cursor
-                      : ui->gallery_transition_to_cursor;
+    base_cursor = ui->gallery_transition_to_cursor;
     next_cursor = gallery_cursor_after_delta(ui, base_cursor, delta);
     if (next_cursor != base_cursor) {
       ui->gallery_pending_cursor = next_cursor;
