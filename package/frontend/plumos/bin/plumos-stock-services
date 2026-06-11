@@ -41,7 +41,9 @@ uptime_now() {
 log() {
   line="$(printf '%s uptime=%s %s' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$(uptime_now)" "$*")"
   printf '%s\n' "$line" >> "$TMP_LOG_FILE" 2>/dev/null || true
-  printf '%s\n' "$line" >> "$LOG_FILE" 2>/dev/null || true
+  if [ -d "$LOG_DIR" ]; then
+    printf '%s\n' "$line" >> "$LOG_FILE" 2>/dev/null || true
+  fi
 }
 
 cmdline_for_pid() {
@@ -189,6 +191,7 @@ mount_sdcard_utf8() {
     "rw,utf8,shortname=mixed,fmask=0022,dmask=0022"; do
     if mount -t vfat -o "$opts" "$SD_DEVICE" "$SDCARD_ROOT" 2>"$err"; then
       rm -f "$err" 2>/dev/null || true
+      mkdir -p "$LOG_DIR" 2>/dev/null || true
       log "mounted ${SD_DEVICE} on ${SDCARD_ROOT} options=${opts}"
       return 0
     fi
