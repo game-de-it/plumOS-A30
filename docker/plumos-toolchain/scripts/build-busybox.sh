@@ -9,6 +9,7 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
 DOWNLOAD_DIR="${ROOT_DIR}/build/downloads"
 BUILD_DIR="${ROOT_DIR}/build/busybox-${BUSYBOX_VERSION}"
 SRC_DIR="${BUILD_DIR}/src"
+PATCH_DIR="${ROOT_DIR}/docker/plumos-toolchain/patches"
 DIST_DIR="${ROOT_DIR}/dist/plumos-userland"
 BIN_DIR="${DIST_DIR}/plumos/bin"
 GNU_BIN_DIR="${DIST_DIR}/plumos/gnu/bin"
@@ -72,6 +73,7 @@ prepare_source() {
   rm -rf "$BUILD_DIR"
   mkdir -p "$SRC_DIR"
   tar -C "$SRC_DIR" --strip-components=1 -xf "$TARBALL"
+  patch -d "$SRC_DIR" -p1 < "${PATCH_DIR}/busybox-1.38.0-ftpd-utf8-feat.patch"
 
   (
     cd "$SRC_DIR"
@@ -334,6 +336,9 @@ Use:
 Source:
   ${BUSYBOX_URL}
 
+Patches:
+  busybox-1.38.0-ftpd-utf8-feat.patch
+
 SHA-256:
   ${BUSYBOX_SHA256}
 EOF
@@ -346,6 +351,7 @@ EOF
     echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "busybox_version: ${BUSYBOX_VERSION}"
     echo "busybox_source_sha256: ${BUSYBOX_SHA256}"
+    echo "patch: busybox-1.38.0-ftpd-utf8-feat.patch"
     echo
     file "${BIN_DIR}/busybox"
     echo

@@ -36,6 +36,20 @@ Because SFTP depends on SSH, turning SSH OFF also turns SFTP OFF. Turning SFTP O
 
 FTP is the lightweight candidate if multi-file transfer tests are stable.
 
+The FTP server advertises `UTF8` in `FEAT` and accepts `OPTS UTF8 ON`. If a Windows
+client such as FileZilla sends Japanese ROM filenames as Shift-JIS/CP932, the A30 vfat
+`utf8` mount cannot create those names and the upload fails with `553 Error`; some
+clients present this as 533 or as a "cannot create file" error. For Japanese ROM filenames,
+set FileZilla Site Manager's Charset to `Force UTF-8`. This is especially important when
+transferring files directly from a NAS, where FileZilla's automatic charset mode may not
+select UTF-8.
+
+The SD card is mounted as vfat, so ROM filenames must avoid characters that FAT cannot store.
+In particular, names containing `:`, `*`, `?`, `"`, `<`, `>`, `|`, or `\` cannot be saved even
+as UTF-8, even with forced UTF-8 enabled. Rename files before transfer, for example by replacing `:` with ` - `. Case variants
+such as `Roms/gbc` and `Roms/GBC` point at the same directory on the A30 vfat mount, so they are
+not the main cause of this upload failure.
+
 ### SFTP
 
 - Implementation: Dropbear SSH + OpenSSH `sftp-server`

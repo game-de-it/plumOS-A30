@@ -92,6 +92,30 @@ ftp_pid_file() {
   printf '%s\n' "${RUN_DIR}/plumos-ftp.pid"
 }
 
+kill_ftp_children() {
+  [ -x "$BUSYBOX" ] || return 0
+  pids="$("$BUSYBOX" ps w 2>/dev/null | "$BUSYBOX" awk -v bb="$BUSYBOX" -v ftpd="$FTPD" '
+    $1 ~ /^[0-9]+$/ {
+      line = $0
+      if (index(line, bb " ftpd ") || index(line, ftpd " ")) {
+        print $1
+      }
+    }
+  ')"
+  [ -n "$pids" ] || return 0
+
+  for pid in $pids; do
+    [ "$pid" = "$$" ] && continue
+    kill "$pid" 2>/dev/null || true
+  done
+  sleep 1
+  for pid in $pids; do
+    [ "$pid" = "$$" ] && continue
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  done
+  log "stopped sessions pids=$(printf '%s' "$pids" | tr '\n' ' ')" ftp
+}
+
 smbd_pid_file() {
   printf '%s\n' "${RUN_DIR}/smbd.pid"
 }
@@ -209,6 +233,7 @@ start_ftp() {
 stop_ftp() {
   set_service_enabled ftp 0
   kill_pid_file "$(ftp_pid_file)" ftp
+  kill_ftp_children
   status_ftp || true
   return 0
 }

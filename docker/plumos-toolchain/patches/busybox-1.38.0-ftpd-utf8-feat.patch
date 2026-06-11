@@ -1,0 +1,15 @@
+diff --git a/networking/ftpd.c b/networking/ftpd.c
+--- a/networking/ftpd.c
++++ b/networking/ftpd.c
+@@ -379,0 +380 @@ handle_feat(unsigned status)
++			" UTF8\r\n"
+@@ -1124,0 +1126 @@ enum {
++	const_OPTS = mk_const4('O', 'P', 'T', 'S'),
+@@ -1366,0 +1369,7 @@ int ftpd_main(int argc UNUSED_PARAM, char **argv)
++		else if (cmdval == const_OPTS) {
++			if (G.ftp_arg != NULL
++			 && strncasecmp(G.ftp_arg, "UTF8", sizeof("UTF8") - 1) == 0)
++				WRITE_OK(FTP_NOOPOK);
++			else
++				WRITE_ERR(FTP_COMMANDNOTIMPL);
++		}

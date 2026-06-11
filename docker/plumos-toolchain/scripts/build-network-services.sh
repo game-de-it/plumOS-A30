@@ -304,6 +304,11 @@ Default share/home directory:
 Services:
   FTP:
     BusyBox tcpsvd + ftpd, port 21, max 20 concurrent connections.
+    The SD card is vfat. Use FileZilla's Force UTF-8 charset setting for
+    Japanese ROM filenames, especially when transferring directly from a NAS.
+    Rename files before upload if they contain FAT-invalid characters such as
+    :, *, ?, ", <, >, |, or backslash; BusyBox ftpd reports those create
+    failures as 553 Error.
   SFTP:
     Dropbear SFTP subsystem. Requires a Dropbear build with SFTP enabled and
     /mnt/SDCARD/plumos/ssh/libexec/sftp-server. Uses existing SSH

@@ -35,6 +35,18 @@ SFTP を ON にすると SSH も再度有効化されます。
 
 軽量で依存が少ないため、複数ファイル転送の実測で問題がなければ最も手軽な転送手段候補にします。
 
+FTP server は `FEAT` で `UTF8` を宣言し、`OPTS UTF8 ON` に成功応答します。Windows の FileZilla などが
+日本語 ROM 名を Shift-JIS/CP932 として送ると、A30 の vfat `utf8` mount では作成できず upload が
+`553 Error` になります。client 側の表示では 533 や「ファイルを作成できない」になることがあります。
+FileZilla で日本語 ROM 名を転送する場合は、Site Manager の Charset を `Force UTF-8` にします。
+特に NAS 上のファイルを直接転送する場合、FileZilla の自動判定だけでは UTF-8 にならないことがあります。
+
+SD カードは vfat として mount されるため、ROM ファイル名には FAT で使えない文字を含めないでください。
+特に `:`、`*`、`?`、`"`、`<`、`>`、`|`、`\` を含む名前は、UTF-8 でも保存できません。
+この場合は UTF-8 強制でも失敗するため、転送前に `:` を ` - ` に置き換えるなど、FAT-safe な名前へ変更します。
+`Roms/gbc` と `Roms/GBC` のような大文字小文字違いは、A30 の vfat mount 上では同じ directory を指すため、
+この種の upload failure の主因ではありません。
+
 ### SFTP
 
 - 実装: Dropbear SSH + OpenSSH `sftp-server`
