@@ -116,18 +116,78 @@ case "$RA_QUIT_SEC" in
   ""|*[!0-9]*) [ -z "$RA_QUIT_SEC" ] || { echo "error: --retroarch-quit-sec must be an integer: $RA_QUIT_SEC" >&2; exit 2; } ;;
 esac
 
-case "$SYSTEM" in
-  nes) TOP_DOWN=0 ;;
-  psx) TOP_DOWN=3 ;;
-  psp) TOP_DOWN=4 ;;
-  dos) TOP_DOWN=5 ;;
-  easyrpg) TOP_DOWN=6 ;;
-  scummvm) TOP_DOWN=7 ;;
-  *) echo "error: unsupported SYSTEM for scripted FE probe: $SYSTEM" >&2; exit 2 ;;
-esac
+system_display_name() {
+  case "$1" in
+    nes) echo "NES" ;;
+    psx) echo "PlayStation" ;;
+    psp) echo "PSP" ;;
+    dos) echo "DOS" ;;
+    easyrpg) echo "EasyRPG" ;;
+    scummvm) echo "ScummVM" ;;
+    *) return 1 ;;
+  esac
+}
+
+fallback_top_down() {
+  case "$1" in
+    nes) echo 0 ;;
+    psx) echo 10 ;;
+    psp) echo 11 ;;
+    dos) echo 14 ;;
+    easyrpg) echo 15 ;;
+    scummvm) echo 16 ;;
+    *) return 1 ;;
+  esac
+}
+
+resolve_top_down() {
+  local display_name top_text top_down
+  display_name="$(system_display_name "$SYSTEM")" || return 1
+  top_text="$(
+    ssh "${SSH_OPTS[@]}" "$TARGET" \
+      "/mnt/SDCARD/plumos/bin/plumos-text-ui top --limit 200" 2>/dev/null || true
+  )"
+  top_down="$(
+    printf '%s\n' "$top_text" |
+      awk -v display="$display_name" '
+        /^[[:space:]]*[0-9]+\./ {
+          no = $1
+          gsub(/\./, "", no)
+          if (index($0, " " display " ") > 0) {
+            print no - 1
+            exit
+          }
+        }
+      '
+  )"
+  case "$top_down" in
+    ""|*[!0-9]*) fallback_top_down "$SYSTEM" ;;
+    *) echo "$top_down" ;;
+  esac
+}
+
+resolve_top_nav_token() {
+  local settings
+  settings="$(
+    ssh "${SSH_OPTS[@]}" "$TARGET" \
+      "cat /mnt/SDCARD/plumos/config/frontend/settings.json 2>/dev/null" 2>/dev/null || true
+  )"
+  if printf '%s\n' "$settings" |
+    grep -Eq '"ui_mode"[[:space:]]*:[[:space:]]*"graphic"'; then
+    echo right
+  else
+    echo down
+  fi
+}
+
+TOP_DOWN="$(resolve_top_down)" || {
+  echo "error: unsupported SYSTEM for scripted FE probe: $SYSTEM" >&2
+  exit 2
+}
+TOP_NAV_TOKEN="$(resolve_top_nav_token)"
 
 tokens=()
-for ((i = 0; i < TOP_DOWN; i++)); do tokens+=(down); done
+for ((i = 0; i < TOP_DOWN; i++)); do tokens+=("$TOP_NAV_TOKEN"); done
 tokens+=(a)
 for ((i = 1; i < ROM_INDEX; i++)); do tokens+=(down); done
 tokens+=(a q)
@@ -137,7 +197,8 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 OUT_DIR="${OUT_ROOT}/${stamp}-${SYSTEM}"
 mkdir -p "$OUT_DIR"
 
-"${ROOT_DIR}/scripts/stop-a30-display-processes.sh" >"${OUT_DIR}/pre-stop.txt" 2>&1 || true
+"${ROOT_DIR}/scripts/a30-fe-control.sh" stop >"${OUT_DIR}/pre-stop.txt" 2>&1 || true
+"${ROOT_DIR}/scripts/stop-a30-display-processes.sh" >>"${OUT_DIR}/pre-stop.txt" 2>&1 || true
 
 ssh "${SSH_OPTS[@]}" "$TARGET" \
   "SYSTEM='$SYSTEM' RUN_SEC='$RUN_SEC' SETTLE_SEC='$SETTLE_SEC' RA_MAX_FRAMES='$RA_MAX_FRAMES' RA_QUIT_SEC='$RA_QUIT_SEC' EXPECT_EXECUTE_OK='$EXPECT_EXECUTE_OK' RESTART_FE='$RESTART_FE' SCRIPT='$SCRIPT' sh -s" <<'REMOTE' \
@@ -246,11 +307,8 @@ wait_for_fe_exit() {
 
 restart_fe() {
   [ "$RESTART_FE" = 1 ] || return 0
-  if [ -x "$PLUMOS_ROOT/bin/plumos-controller-ui-mali" ] &&
-     [ -z "$(ps w | grep -F "$PLUMOS_ROOT/bin/plumos-controller-ui-mali" | grep -v grep || true)" ]; then
-    trap '' HUP
-    PLUMOS_FRONTEND_MODE=manual "$PLUMOS_ROOT/bin/plumos-controller-ui-mali" \
-      --rescue-network --rotation auto >/tmp/plumos-frontend-resume.log 2>&1 </dev/null &
+  if [ -x "$PLUMOS_ROOT/bin/plumos-fe-control" ]; then
+    "$PLUMOS_ROOT/bin/plumos-fe-control" start
     echo "frontend_restarted=1"
   fi
 }

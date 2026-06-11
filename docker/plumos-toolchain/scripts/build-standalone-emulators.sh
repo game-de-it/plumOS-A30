@@ -1570,6 +1570,17 @@ case "${id}" in
     run_with_fb_restore "${EMU_ROOT}/scummvm/bin/scummvm" ${scummvm_config_arg:+"${scummvm_config_arg}"} --themepath="${DATA_DIR}" --extrapath="${DATA_DIR}" "$@"
     ;;
   easyrpg)
+    easyrpg_project_path=
+    if [ "$#" -eq 1 ]; then
+      case "$1" in
+        -*)
+          ;;
+        *)
+          easyrpg_project_path=$1
+          shift
+          ;;
+      esac
+    fi
     cd "${STATE_DIR}" || exit 1
     export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-mali}
     export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-alsa}
@@ -1585,7 +1596,11 @@ case "${id}" in
     cpu_cores=${PLUMOS_A30_EASYRPG_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
     start_joystickd
-    run_with_fb_restore "${EMU_ROOT}/easyrpg/bin/easyrpg-player" --fullscreen "$@"
+    if [ -n "${easyrpg_project_path}" ]; then
+      run_with_fb_restore "${EMU_ROOT}/easyrpg/bin/easyrpg-player" --fullscreen --project-path "${easyrpg_project_path}" "$@"
+    else
+      run_with_fb_restore "${EMU_ROOT}/easyrpg/bin/easyrpg-player" --fullscreen "$@"
+    fi
     ;;
   dosbox-staging|dosbox)
     cd "${EMU_ROOT}/dosbox-staging" || exit 1
