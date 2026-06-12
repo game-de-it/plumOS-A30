@@ -1457,10 +1457,20 @@ static void poll_input(int input_fd, uint16_t *state, menu_ctx_t *menu,
 }
 
 static void sleep_until_next_frame(struct timespec *next_frame) {
+  struct timespec now;
+
   next_frame->tv_nsec += 1000000000L / TARGET_FPS;
   while (next_frame->tv_nsec >= 1000000000L) {
     next_frame->tv_nsec -= 1000000000L;
     next_frame->tv_sec++;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  if (next_frame->tv_sec < now.tv_sec ||
+      (next_frame->tv_sec == now.tv_sec &&
+       next_frame->tv_nsec <= now.tv_nsec)) {
+    *next_frame = now;
+    return;
   }
 
   for (;;) {

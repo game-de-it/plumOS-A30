@@ -18,7 +18,7 @@ Up/down moves, left/right or A changes a value, and B or Function returns.
 | Rotation | `PLUMOS_A30_RED_VIPER_ROTATION` | Immediate | `ccw`, `cw`, `none`. |
 | Wait Vsync | `PLUMOS_A30_RED_VIPER_WAIT_VSYNC` | Immediate | Framebuffer pan vsync wait. Useful when checking flicker. |
 | Color | `PLUMOS_A30_RED_VIPER_COLOR` | Immediate | `red`, `white`, `green`, `amber`, `blue`, or `R,G,B`. |
-| Frame Skip | `PLUMOS_A30_RED_VIPER_FRAME_SKIP` | Immediate | Skips A30 framebuffer presentation `0..3`; Red Viper's internal software render still runs every frame. |
+| Frame Skip | `PLUMOS_A30_RED_VIPER_FRAME_SKIP` | Immediate | Skips A30 framebuffer presentation `0..3`; Red Viper's internal software render still runs every frame, and this does not enable fast-forward. |
 | Fast Fwd | `PLUMOS_A30_RED_VIPER_FAST_FORWARD` | Immediate | Removes frame pacing. |
 | FF Mode | `PLUMOS_A30_RED_VIPER_FF_TOGGLE` | Stored | Upstream hold/toggle setting, reserved for A30 fast-forward hotkey expansion. |
 | VIP OC | `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK` | Immediate | Upstream VIP timing shortcut. |
