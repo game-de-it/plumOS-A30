@@ -126,6 +126,15 @@ in-game for both audio and video. 7z extraction remains follow-up work. Before
 distribution, check the Red Viper/Reality Boy license terms and third-party
 notice requirements.
 
+On 2026-06-13, an experimental `red-viper-sdlgl-a30` binary was built from Red
+Viper upstream's `source/linux-test` GLES2 frontend and run directly through
+stock SDL2's `mali` video driver plus the rootfs `libGLESv2`/`libMali` stack.
+With `badapple_mednafen.vb`, it reported `SDL_VIDEODRIVER=mali`,
+`gl_renderer=Mali-400 MP`, and roughly 49.7-50fps present rate. This is much
+faster than the fbdev software presentation path's roughly 28fps. This path is
+not the default profile yet because A30 menu, A30 input mapping, FE launcher
+cleanup, and screen rotation/fit are not integrated.
+
 ## Class A: initial build targets
 
 These are expected to be satisfying on the A30 and should be included in the

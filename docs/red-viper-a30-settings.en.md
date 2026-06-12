@@ -67,7 +67,7 @@ connects the settings that have a meaningful A30 backend first.
 | --- | --- | --- |
 | Video/stereo | `DSPMODE`, `DSPSWAP`, `DSP2X`, `SLIDERMODE`, `DEFAULT_EYE`, `ANAGLYPH`, `ANAGLYPH_LEFT`, `ANAGLYPH_RIGHT`, `ANAGLYPH_DEPTH` | The A30 has one framebuffer, so `Eye` and `Color` are connected first. Anaglyph/depth need extra A30 renderer work. |
 | Color/palette | `MULTICOL`, `TINT`, `MULTIID`, `MTINT`, `STINT`, `PALMODE`, `FIXPAL`, `BFACTOR` | The menu currently exposes mono tint and arbitrary RGB. A multicolor palette editor is future work. |
-| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | A30 has no 3DS Citro3D/GPU backend, so it runs `RM_CPUONLY`. Framebuffer vsync is exposed as `Wait Vsync`. |
+| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | The current standard A30 backend runs `RM_CPUONLY`. A 2026-06-13 stock SDL2 `mali` + GLES2 experiment presented Bad Apple at roughly 50fps, so it remains an A30 HW backend candidate. Framebuffer vsync is exposed as `Wait Vsync`. |
 | Performance | `MAXCYCLES`, `FRMSKIP`, `FASTFORWARD`, `FF_TOGGLE`, `N3DS_SPEEDUP`, `VIP_OVERCLOCK`, `VIP_OVER_SOFT`, `ANTIFLICKER`, `PERF_INFO` | `FRMSKIP`, fast-forward, and `VIP_OVERCLOCK` are connected. `N3DS_SPEEDUP` and `ANTIFLICKER` need A30 effect checks. |
 | Audio | `SOUND` | The A30 ALSA backend exposes sound, latency, prebuffer, queue, and gap-fill settings. |
 | Input | `ABXY_MODE`, `ZLZR_MODE`, `DPAD_MODE`, `CUSTOM_CONTROLS`, `CUSTOM_MAPPING_*`, `CUSTOM_MOD`, `INPUTS` | A30 physical mapping is currently implemented in the wrapper. User remap UI is future work. |
@@ -80,7 +80,7 @@ connects the settings that have a meaningful A30 backend first.
 - Settings that affect the A30 backend are exposed through menu/env.
 - Settings that are only safe at launch are saved and applied on the next run.
 - 3DS-only settings are not silently hidden; they remain inventoried as backend gaps.
-- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` require the Citro3D/GPU backend and are not runnable on the current A30 backend.
+- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed an A30 performance benefit, but menu/input/FE cleanup/screen rotation are not integrated yet, so it is not exposed as a user setting.
 
 ## Reading Perf Info
 
