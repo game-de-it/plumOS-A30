@@ -153,6 +153,16 @@ use `-Ofast`. Probe logs are under
 `20260613-081750-mednafen_wswan`, `20260613-081818-mednafen_lynx`, and
 `20260613-081907-handy`.
 
+The fourth probe compared `stella2014`, `prosystem`, `potator`, `o2em`, `gw`,
+and `pokemini`. All six use `platform=classic_armv7_a7`. `prosystem`,
+`potator`, `gw`, and `pokemini` enter `-Ofast`/LTO, while `stella2014` and
+`o2em` do not enable LTO but do use `-Ofast`. There is no host compiler use or
+residual `-O2`. Probe logs are under
+`artifacts/libretro-core-option-probes/20260613-082357-stella2014`,
+`20260613-082522-prosystem`, `20260613-082606-potator`,
+`20260613-082629-o2em`, `20260613-082704-gw`, and
+`20260613-082811-pokemini`.
+
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
 contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,

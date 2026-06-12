@@ -40,13 +40,13 @@ mednafen_ngp|A|https://github.com/libretro/beetle-ngp-libretro.git|master||Makef
 mednafen_wswan|A|https://github.com/libretro/beetle-wswan-libretro.git|master||Makefile|platform=classic_armv7_a7
 mednafen_lynx|A|https://github.com/libretro/beetle-lynx-libretro.git|master||Makefile|platform=classic_armv7_a7
 handy|A|https://github.com/libretro/libretro-handy.git|master||Makefile|platform=classic_armv7_a7
-stella2014|A|https://github.com/libretro/stella2014-libretro.git|master||Makefile|platform=armv
-prosystem|A|https://github.com/libretro/prosystem-libretro.git|master||Makefile|platform=armv
+stella2014|A|https://github.com/libretro/stella2014-libretro.git|master||Makefile|platform=classic_armv7_a7
+prosystem|A|https://github.com/libretro/prosystem-libretro.git|master||Makefile|platform=classic_armv7_a7
 vecx|A|https://github.com/libretro/libretro-vecx.git|master||Makefile.libretro|platform=armv HAS_GPU=0
-potator|A|https://github.com/libretro/potator.git|master|platform/libretro|Makefile|platform=armv
-o2em|A|https://github.com/libretro/libretro-o2em.git|master||Makefile|platform=armv
-gw|A|https://github.com/libretro/gw-libretro.git|master||Makefile|platform=armv
-pokemini|A|https://github.com/libretro/PokeMini.git|master||Makefile|platform=armv
+potator|A|https://github.com/libretro/potator.git|master|platform/libretro|Makefile|platform=classic_armv7_a7
+o2em|A|https://github.com/libretro/libretro-o2em.git|master||Makefile|platform=classic_armv7_a7
+gw|A|https://github.com/libretro/gw-libretro.git|master||Makefile|platform=classic_armv7_a7
+pokemini|A|https://github.com/libretro/PokeMini.git|master||Makefile|platform=classic_armv7_a7
 prboom|A|https://github.com/libretro/libretro-prboom.git|master||Makefile|platform=armv
 retro8|A|https://github.com/libretro/retro8.git|master||Makefile|platform=unix
 fake08|A|https://github.com/jtothebell/fake-08.git|master|platform/libretro|Makefile|platform=unix

@@ -135,6 +135,16 @@ classic で `-Ofast`/LTO へ入り、`mednafen_wswan` は LTO なしですが `-
 `20260613-081750-mednafen_wswan`、`20260613-081818-mednafen_lynx`、
 `20260613-081907-handy` にあります。
 
+fourth probe では `stella2014`、`prosystem`、`potator`、`o2em`、`gw`、
+`pokemini` を比較しました。6 core とも `platform=classic_armv7_a7` を採用します。
+`prosystem`、`potator`、`gw`、`pokemini` は `-Ofast`/LTO へ入り、`stella2014` と
+`o2em` は LTO なしですが `-Ofast` へ入ります。host compiler 混入と残留 `-O2` は
+ありません。probe log は
+`artifacts/libretro-core-option-probes/20260613-082357-stella2014`、
+`20260613-082522-prosystem`、`20260613-082606-potator`、
+`20260613-082629-o2em`、`20260613-082704-gw`、
+`20260613-082811-pokemini` にあります。
+
 standalone emulator は `./scripts/docker-build.sh standalone-emulators` で
 `dist/plumos-standalone-emulators` に stage します。2026-06-07 時点の試作 build は
 `PPSSPP v1.20.4`、`ScummVM v2026.2.0`、`EasyRPG Player 0.8.1.1`、
