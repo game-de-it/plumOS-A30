@@ -114,6 +114,20 @@ For each successful candidate, inspect the build log for the compiler, final
 only the best A30-measured option in `libretro-core-recipes.tsv`. Unverified
 generic fallback artifacts are left as failures to investigate.
 
+The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
+`nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and
+`mednafen_supergrafx`. `nestopia`, `quicknes`, `mednafen_pce_fast`, and
+`mednafen_supergrafx` really enter `platform=classic_armv7_a7` with
+`-Ofast`/LTO and build through the same-condition `BUILD_JOB_FALLBACKS=1` /
+`-j1` retry. `snes9x2005` does not reach its true classic branch because of
+Makefile branch ordering, so it uses
+`platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon` instead.
+The probe logs are under
+`artifacts/libretro-core-option-probes/20260613-071812-nestopia`,
+`20260613-072334-quicknes`, `20260613-072436-snes9x2005`,
+`20260613-072521-mednafen_pce_fast`, and
+`20260613-072713-mednafen_supergrafx`.
+
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
 contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,

@@ -98,6 +98,19 @@ dynarec/GPU 系 define を確認し、A30 実測で最も良い条件だけを
 `libretro-core-recipes.tsv` に反映します。未検証 core を generic fallback で生成するより、
 失敗として残して個別に潰すことを優先します。
 
+2026-06-13 の first probe では、`scripts/probe-libretro-core-options.sh` で
+`nestopia`、`quicknes`、`snes9x2005`、`mednafen_pce_fast`、
+`mednafen_supergrafx` を比較しました。`nestopia`、`quicknes`、
+`mednafen_pce_fast`、`mednafen_supergrafx` は `platform=classic_armv7_a7` が
+実際に `-Ofast`/LTO へ入り、`BUILD_JOB_FALLBACKS=1` の `-j1` retry で生成できました。
+`snes9x2005` は Makefile の分岐順により `classic_armv7_a7` が本来の classic 分岐へ
+到達しないため、`platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon`
+を採用します。probe log は
+`artifacts/libretro-core-option-probes/20260613-071812-nestopia`、
+`20260613-072334-quicknes`、`20260613-072436-snes9x2005`、
+`20260613-072521-mednafen_pce_fast`、
+`20260613-072713-mednafen_supergrafx` にあります。
+
 standalone emulator は `./scripts/docker-build.sh standalone-emulators` で
 `dist/plumos-standalone-emulators` に stage します。2026-06-07 時点の試作 build は
 `PPSSPP v1.20.4`、`ScummVM v2026.2.0`、`EasyRPG Player 0.8.1.1`、
