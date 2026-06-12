@@ -136,9 +136,12 @@ RetroArch 1.22.2 practical:
   そのため practical config の `video_rotation` と `screen_orientation` はどちらも `0` にする。
 - A30 の `mali_fbdev` context は threaded video 切替時に RetroArch restart を要求する。
   plumOS wrapper は `PLUMOS_RA_EXEC_PATH` / `PLUMOS_RA_LD_PATH` /
-  `PLUMOS_RA_LIBRARY_PATH` / `PLUMOS_RA_CONFIG_PATH` を渡し、Unix frontend の restart 経路は
-  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --menu` で
-  RGUI へ戻す。これは動的 loader を libretro core と誤認して落ちることを避けるため。
+  `PLUMOS_RA_LIBRARY_PATH` / `PLUMOS_RA_CONFIG_PATH` /
+  `PLUMOS_RA_RESTART_APPEND_PATH` を渡し、Unix frontend の restart 経路は restart 直前の
+  `video_threaded` 実値を `/tmp/plumos-retroarch-restart.cfg` へ書き、
+  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --appendconfig ... --menu`
+  で RGUI へ戻す。これは動的 loader を libretro core と誤認して落ちることと、
+  `config_save_on_exit = false` により Threaded Video の ON/OFF が restart 直後に失われることを避けるため。
 - 実機では `input_driver = "null"` + `input_joypad_driver = "sdl2"` +
   `plumos-joystickd --device-mode xbox` で `plumOS A30 Gamepad` が認識された。
 - `udev`/`linuxraw` を primary input driver にした probe は初期化に失敗したため、

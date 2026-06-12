@@ -141,10 +141,14 @@ RetroArch 1.22.2 practical:
   `0` in the practical config.
 - The A30 `mali_fbdev` context requires a RetroArch restart when threaded video
   is toggled. The plumOS wrapper passes `PLUMOS_RA_EXEC_PATH`,
-  `PLUMOS_RA_LD_PATH`, `PLUMOS_RA_LIBRARY_PATH`, and `PLUMOS_RA_CONFIG_PATH`;
-  the Unix frontend restart path then runs
-  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --menu`
-  to return to RGUI. This avoids treating the dynamic loader as a libretro core.
+  `PLUMOS_RA_LD_PATH`, `PLUMOS_RA_LIBRARY_PATH`, `PLUMOS_RA_CONFIG_PATH`, and
+  `PLUMOS_RA_RESTART_APPEND_PATH`; the Unix frontend restart path writes the
+  current `video_threaded` value to `/tmp/plumos-retroarch-restart.cfg`, then
+  runs
+  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --appendconfig ... --menu`
+  to return to RGUI. This avoids treating the dynamic loader as a libretro core,
+  and prevents the Threaded Video ON/OFF state from being lost immediately after
+  restart while `config_save_on_exit = false`.
 - On the A30, `input_driver = "null"` plus `input_joypad_driver = "sdl2"` and
   `plumos-joystickd --device-mode xbox` detected `plumOS A30 Gamepad`.
 - Probes using `udev`/`linuxraw` as the primary input driver failed to

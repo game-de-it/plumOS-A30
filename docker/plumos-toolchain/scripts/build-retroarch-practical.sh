@@ -511,6 +511,7 @@ export PLUMOS_RA_EXEC_PATH="${PLUMOS_RA_EXEC_PATH:-${RETROARCH_BIN}}"
 export PLUMOS_RA_LD_PATH="${PLUMOS_RA_LD_PATH:-${PLUMOS_LIB}/ld-linux-armhf.so.3}"
 export PLUMOS_RA_LIBRARY_PATH="${PLUMOS_RA_LIBRARY_PATH:-${PLUMOS_LIB}:/usr/lib:/lib}"
 export PLUMOS_RA_CONFIG_PATH="${PLUMOS_RA_CONFIG_PATH:-${PLUMOS_ROOT}/retroarch/config/retroarch-practical.cfg}"
+export PLUMOS_RA_RESTART_APPEND_PATH="${PLUMOS_RA_RESTART_APPEND_PATH:-/tmp/plumos-retroarch-restart.cfg}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}"
 mkdir -p "${HOME}"
 

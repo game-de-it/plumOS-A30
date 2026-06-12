@@ -8,7 +8,15 @@
 
  #include <unistd.h>
  #include <fcntl.h>
-@@ -148,6 +149,7 @@
+@@ -86,6 +87,7 @@
+ #include "../../msg_hash.h"
+ #include "../../paths.h"
+ #include "../../retroarch.h"
++#include "../../gfx/video_driver.h"
+ #include "../../verbosity.h"
+
+ #ifdef HAVE_MENU
+@@ -148,6 +150,7 @@
 
  #ifndef ANDROID
  static enum frontend_fork unix_fork_mode = FRONTEND_FORK_NONE;
@@ -16,7 +24,7 @@
  #endif
 
  #ifdef HAS_INOTIFY
-@@ -2537,12 +2539,27 @@
+@@ -2537,41 +2540,144 @@
           break;
        case FRONTEND_FORK_RESTART:
           unix_fork_mode  = FRONTEND_FORK_CORE;
@@ -48,7 +56,55 @@
           }
           command_event(CMD_EVENT_QUIT, NULL);
           break;
-@@ -2557,21 +2574,60 @@
+       case FRONTEND_FORK_NONE:
+       default:
+          return false;
++   }
++
++   return true;
++}
++
++static bool frontend_unix_plumos_write_restart_append(const char *path)
++{
++   FILE *file;
++   bool threaded;
++   bool *threaded_ptr;
++
++   if (string_is_empty(path))
++      return false;
++
++   threaded_ptr = video_driver_get_threaded();
++   threaded     = threaded_ptr ? *threaded_ptr : false;
++
++   file = fopen(path, "w");
++   if (!file)
++   {
++      RARCH_ERR("[plumOS] Failed to open restart append config \"%s\": %s.\n",
++            path, strerror(errno));
++      return false;
++   }
++
++   if (fprintf(file, "video_threaded = \"%s\"\n",
++         threaded ? "true" : "false") < 0)
++   {
++      RARCH_ERR("[plumOS] Failed to write restart append config \"%s\": %s.\n",
++            path, strerror(errno));
++      fclose(file);
++      return false;
++   }
++
++   if (fclose(file) != 0)
++   {
++      RARCH_ERR("[plumOS] Failed to close restart append config \"%s\": %s.\n",
++            path, strerror(errno));
++      return false;
+    }
+
++   RARCH_LOG("[plumOS] Restart append config: \"%s\" video_threaded=%s.\n",
++         path, threaded ? "true" : "false");
+    return true;
+ }
+
  static void frontend_unix_exec(const char *path, bool should_load_content)
  {
     char *newargv[]    = { NULL, NULL };
@@ -58,6 +114,8 @@
 +   const char *plumos_executable_path   = getenv("PLUMOS_RA_EXEC_PATH");
 +   const char *plumos_library_path      = getenv("PLUMOS_RA_LIBRARY_PATH");
 +   const char *plumos_config_path       = getenv("PLUMOS_RA_CONFIG_PATH");
++   const char *plumos_restart_append_path =
++         getenv("PLUMOS_RA_RESTART_APPEND_PATH");
 
     newargv[0] = (char*)malloc(_len);
 
@@ -68,9 +126,9 @@
 +         && !string_is_empty(plumos_library_path)
 +         && string_is_equal(path, plumos_executable_path))
 +   {
-+      char *plumos_argv[12];
++      char *plumos_argv[16];
 +      unsigned argc = 0;
-
++
 +      plumos_argv[argc++] = (char*)plumos_loader_path;
 +      plumos_argv[argc++] = "--argv0";
 +      plumos_argv[argc++] = (char*)plumos_executable_path;
@@ -83,6 +141,12 @@
 +         plumos_argv[argc++] = "--verbose";
 +         plumos_argv[argc++] = "--config";
 +         plumos_argv[argc++] = (char*)plumos_config_path;
++         if (frontend_unix_plumos_write_restart_append(
++               plumos_restart_append_path))
++         {
++            plumos_argv[argc++] = "--appendconfig";
++            plumos_argv[argc++] = (char*)plumos_restart_append_path;
++         }
 +         plumos_argv[argc++] = "--menu";
 +      }
 +
@@ -91,7 +155,7 @@
 +      RARCH_ERR("[plumOS] Failed to exec restart loader \"%s\": %s.\n",
 +            plumos_loader_path, strerror(errno));
 +   }
-+
+
     execv(path, newargv);
 +   RARCH_ERR("[plumOS] Failed to exec restart path \"%s\": %s.\n",
 +         path, strerror(errno));
@@ -110,7 +174,7 @@
 
     switch (unix_fork_mode)
     {
-@@ -2583,7 +2639,7 @@
+@@ -2583,7 +2689,7 @@
           break;
     }
 
