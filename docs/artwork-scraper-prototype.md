@@ -290,6 +290,9 @@ rescue overlay は `package/frontend/plumos/config/frontend/scraper-rescue-seeds
 seed から kind 別に生成され、`/mnt/SDCARD/plumos/share/frontend/artwork-scraper/rescue/<system>/<kind>.tsv`
 へ入ります。runtime は外部DATを取得せず、この縮小済み TSV だけを読みます。rescue overlay の
 出典と扱いは `docs/third-party-data.md` にまとめます。
+NES では、NesterJ_AoEX_R3 `famicom.dat` 由来の CRC も、libretro base DB と重複せず、
+release date + publisher で libretro thumbnail label に一意解決できたものだけ seed 化します。
+曖昧な一致は誤画像を避けるため収録しません。
 build/prefetch 時に事前取得済みの外部DATを使う場合は、
 `PLUMOS_RESCUE_DAT_ROOTS` または `scripts/prefetch-thumbnail-scraper-cache.sh --rescue-dat-root`
 で local root を渡します。

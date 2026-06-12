@@ -1,10 +1,137 @@
 # system	crc	thumbnail_label	source
-# Minimal, verified rescue seeds used to generate kind-specific
-# crc -> thumbnail href overlays during prefetch/build.
-nes	ed0aa77b	Klax (1990-12-14)(Hudson)(JP)	no-intro/datomatic-derived
-nes	d60e10aa	Gegege no Kitarou - Youkai Dai Makyou (1986-04-17)(Bandai)(JP)	no-intro/datomatic-derived
-nes	589b2ec8	Spelunker (1985-12-06)(Irem)(JP)	no-intro/datomatic-derived
-nes	5e98ba4a	Spelunker 2 - Yuusha heno Chousen (1987-09-18)(Irem)(JP)	no-intro/datomatic-derived
-nes	0caf2f15	Seicross (1986-05-15)(Nihon Bussan)(JP)	no-intro/datomatic-derived
-nes	b807446e	Tetris (1988-12-22)(BPS)(JP)	no-intro/datomatic-derived
-nes	f865ec8d	Door Door (1985-07-18)(Enix)(JP)	no-intro/datomatic-derived
+# Verified rescue seeds used to generate kind-specific crc -> thumbnail href
+# overlays during prefetch/build. Rows must not duplicate the base libretro
+# CRC index, and each thumbnail_label must exist in the libretro thumbnail
+# index for the generated kind.
+#
+# nesterj-famicom-dat/date-publisher rows are derived from NesterJ_AoEX_R3
+# famicom.dat records whose release date and publisher resolve to one
+# unambiguous libretro NES thumbnail label. Ambiguous rows are intentionally
+# omitted to avoid downloading the wrong image.
+nes	3674ffdb	'89 Dennou Kyuusei Uranai (1988-12-10)(Induction Produce)(JP)	nesterj-famicom-dat/date-publisher
+nes	376138d8	Akira (1988-12-24)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	d858033d	ASO - Armored Scrum Object (1986-09-03)(SNK)(JP)	nesterj-famicom-dat/date-publisher
+nes	3f9970f9	Athena (1987-06-05)(SNK)(JP)	nesterj-famicom-dat/date-publisher
+nes	9622fbd9	Ballblazer (1988-03-04)(Pony Canyon)(JP)	nesterj-famicom-dat/date-publisher
+nes	02a7ad0f	Banana (1986-09-08)(Victor Ongaku Sangyou)(JP)	nesterj-famicom-dat/date-publisher
+nes	530f8b13	Baseball Star - Mezase Sankanou!! (1989-05-19)(SNK)(JP)	nesterj-famicom-dat/date-publisher
+nes	c2df0a00	Bio Senshi Dan - Increaser Tono Tatakai (1987-09-22)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	b42a57c7	Booby Kids (1987-07-10)(Nihon Bussan)(JP)	nesterj-famicom-dat/date-publisher
+nes	f751f337	Buggy Popper (1986-10-08)(Data East)(JP)	nesterj-famicom-dat/date-publisher
+nes	5efbded8	Burger Time (1985-11-27)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	dc33aed8	Castle Excellent (1986-11-28)(ASCII)(JP)	nesterj-famicom-dat/date-publisher
+nes	4cccd878	Cat Ninden Teyandee (1991-07-19)(Tecmo)(JP)	nesterj-famicom-dat/date-publisher
+nes	34a516fd	Challenger (1985-10-15)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	e583ec5e	Circus Charlie (1986-03-04)(Soft Pro)(JP)	nesterj-famicom-dat/date-publisher
+nes	266ce198	City Adventure Touch - Mystery of Triangle (1987-03-14)(Toho)(JP)	nesterj-famicom-dat/date-publisher
+nes	c8160857	City Connection (1985-09-27)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	99004b45	Columbus - Ougon no Yoake (1992-11-20)(Tomy)(JP)	nesterj-famicom-dat/date-publisher
+nes	df3eb610	Cosmic Wars (1989-08-04)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	bdad5548	Digital Devil Story - Megami Tensei (1987-09-01)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	3d9fddd5	Doki! Doki! Yuuenchi (1991-08-09)(Vap)(JP)	nesterj-famicom-dat/date-publisher
+nes	a9f0b6f3	Donald Land (1988-01-29)(Data East)(JP)	nesterj-famicom-dat/date-publisher
+nes	f865ec8d	Door Door (1985-07-18)(Enix)(JP)	nesterj-famicom-dat/date-publisher
+nes	e7a3867b	Dragon Quest II (1987-01-26)(Enix)(JP)	nesterj-famicom-dat/date-publisher
+nes	605f5d51	Erunaaku no Zaihou (1987-08-10)(Towa Chiki)(JP)	nesterj-famicom-dat/date-publisher
+nes	02b0b405	Esper Bouken Tai (1987-10-13)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	40b8ee9a	F-1 Sensation (1993-01-29)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	c66fb098	Famicom Jump - Eiyuu Retsuden (1989-02-25)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	a3e37134	Famicom Wars (1988-08-12)(Nintendo)(JP)	nesterj-famicom-dat/date-publisher
+nes	73921674	Family Computer Othello (1986-11-13)(Kawada)(JP)	nesterj-famicom-dat/date-publisher
+nes	79fba5a2	Family Quiz (1988-11-16)(Athena)(JP)	nesterj-famicom-dat/date-publisher
+nes	69ffb014	Family Trainer - Fuuun! Takeshi Jou 2 (1988-12-20)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	73272e0a	Faxanadu (1987-11-16)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	cbb545c1	Flipull - An Exciting Cube Game (1989-12-15)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	b8f3781d	Foton - The Ultimate Game on Planet Earth (1987-08-28)(Takara)(JP)	nesterj-famicom-dat/date-publisher
+nes	e5d11921	Galaxian (1984-09-01)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	572ca03a	Galaxian (1984-09-01)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	76705b5f	Ganbare Goemon Gaiden 2 - Tenka no Zaihou (1992-01-03)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	7c393da4	Ganbare Pennant Race! (1989-02-28)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	d60e10aa	Gegege no Kitarou - Youkai Dai Makyou (1986-04-17)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	36c5ee93	Gekitou Pro Wrestling!! - Toukon Densetsu (1989-09-01)(Tecmo)(JP)	nesterj-famicom-dat/date-publisher
+nes	705ef660	Gimmick! (1992-01-31)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	639d74e4	Godzilla (1988-12-09)(Toho)(JP)	nesterj-famicom-dat/date-publisher
+nes	b25735f3	Golgo 13 - Dai 1 Shou - Kamigami no Tasogare (1988-03-01)(Vic Tokai)(JP)	nesterj-famicom-dat/date-publisher
+nes	b59a7a29	Guardic Gaiden (1988-02-05)(Irem)(JP)	nesterj-famicom-dat/date-publisher
+nes	93146bb0	Hayauchi Super Igo (1989-03-03)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	15662081	Hector 87 (1987-07-16)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	48c8de53	Herakles no Eikou - Toujin Makyou Den (1987-06-12)(Data East)(JP)	nesterj-famicom-dat/date-publisher
+nes	b301b0dc	Higemaru Makaijima - Nanatsu no Shima Daibouken (1987-04-14)(Capcom)(JP)	nesterj-famicom-dat/date-publisher
+nes	644dfe2b	Hokuto no Ken (1986-08-10)(Touei Douga)(JP)	nesterj-famicom-dat/date-publisher
+nes	4471d531	Hoshi wo Miru Hito (1987-10-27)(Hot B)(JP)	nesterj-famicom-dat/date-publisher
+nes	8c3d54e8	Ikari (1986-11-26)(K Amusement Lease)(JP)	nesterj-famicom-dat/date-publisher
+nes	d6cc1f78	Jajamaru no Daibouken (1986-08-22)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	6bbe2be5	Jajamaru no Daibouken (1986-08-22)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	63af202f	JJ - Tobidase Daisakusen Part 2 (1987-12-07)(Square)(JP)	nesterj-famicom-dat/date-publisher
+nes	da122635	Jongbou (1987-07-18)(K Amusement Lease)(JP)	nesterj-famicom-dat/date-publisher
+nes	86291f44	Kage no Densetsu (1986-04-18)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	5c629297	Kakefu Kun no Jump Tengoku - Speed Jigoku (1988-07-22)(Vic Tokai)(JP)	nesterj-famicom-dat/date-publisher
+nes	2795e4f6	Kanshakudama Nage Kantarou no Toukaidou Gojuusan Tsugi (1986-07-03)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	f02035b1	Karaoke Studio (1987-07-30)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	ac4f4e9f	Kinnikuman - Muscle Tag Match (1985-11-08)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	ed0aa77b	Klax (1990-12-14)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	db5169dc	Kyuukyoku Harikiri Koushien (1992-03-19)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	0bbf80cb	Kyuukyoku Harikiri Stadium - Heisei Gannen Ban (1989-07-21)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	2bb3dabe	Kyuukyoku Harikiri Stadium 3 (1991-03-01)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	33ce3ff0	Lagrange Point (1991-04-26)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	131a18cb	Layla (1986-12-20)(DB Soft)(JP)	nesterj-famicom-dat/date-publisher
+nes	8f726dbc	Lipple Island (1988-01-23)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	2d782595	Lunar Ball (1985-12-05)(Pony Canyon)(JP)	nesterj-famicom-dat/date-publisher
+nes	3348e3bd	Maison Ikkoku (1988-07-21)(Bothtec)(JP)	nesterj-famicom-dat/date-publisher
+nes	6cd204b5	Majin Eiyuu Den Wataru Gaiden (1990-03-23)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	78b09986	Majou Densetsu 2 - Daimashikyou Galious (1987-08-11)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	e91f17c2	Mappy Kids (1989-12-22)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	ddad5880	Matsumoto Tooru no Kabushiki Hisshou Gaku (1988-02-18)(Imagineer)(JP)	nesterj-famicom-dat/date-publisher
+nes	060f6e75	Meikyuu Kumikyoku - Milon no Daibouken (1986-11-13)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	322c9b09	Metal Gear (1987-12-22)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	33716316	Mickey Mouse (1987-03-06)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	c237ccb0	Mickey Mouse (1987-03-06)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	2ebf2e0d	Mini Putt (1991-02-15)(A-Wave)(JP)	nesterj-famicom-dat/date-publisher
+nes	e84274c5	Mississippi Satsujin Jiken (1986-10-31)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	bb7c5f7a	Mito Koumon (1987-08-11)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	e18ab050	Mobile Suit Z Gundam - Hot Scramble (1986-08-28)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	2305b528	Momotarou Densetsu (1987-10-26)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	5816ccc5	Nagagutsu wo Haita Neko - Sekai Isshuu 80 Nichi Daibouken (1986-11-21)(Touei Douga)(JP)	nesterj-famicom-dat/date-publisher
+nes	fc201c46	Nangoku Shirei!! - Spy Vs Spy (1987-03-27)(Kemco)(JP)	nesterj-famicom-dat/date-publisher
+nes	19cc71d2	Napoleon Senki (1988-03-18)(Irem)(JP)	nesterj-famicom-dat/date-publisher
+nes	3a1694f9	Nekketsu Kakutou Densetsu (1992-12-23)(Technos Japan)(JP)	nesterj-famicom-dat/date-publisher
+nes	0d6cf078	Nekketsu Kouha - Kunio Kun (1987-04-17)(Technos Japan)(JP)	nesterj-famicom-dat/date-publisher
+nes	29449ba9	Nobunaga no Yabou - Zenkoku Ban (1988-03-18)(Koei)(JP)	nesterj-famicom-dat/date-publisher
+nes	57783e71	Osomatsu Kun (1989-12-08)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	838bf76f	Outlanders (1987-12-04)(Victor Ongaku Sangyou)(JP)	nesterj-famicom-dat/date-publisher
+nes	e28f2596	Pac-Land (1985-11-21)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	99b73746	Pooyan (1985-09-20)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	6b5ca5ae	RoboCop (1989-08-25)(Data East)(JP)	nesterj-famicom-dat/date-publisher
+nes	2565786d	Rolling Thunder (1989-03-17)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	203d32ab	Saiyuuki World (1988-11-11)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	a9a4ea4c	Satomi Hakkenden (1989-01-20)(SNK)(JP)	nesterj-famicom-dat/date-publisher
+nes	05f04eac	SD Keiji - Blader (1991-08-02)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	0caf2f15	Seicross (1986-05-15)(Nihon Bussan)(JP)	nesterj-famicom-dat/date-publisher
+nes	e61e89ee	Shanghai (1987-12-01)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	e62a531b	Shanghai II (1990-08-24)(Sunsoft)(JP)	nesterj-famicom-dat/date-publisher
+nes	bc1fbd7b	Shikinjou (1991-04-26)(Touei Douga)(JP)	nesterj-famicom-dat/date-publisher
+nes	03fc2b59	Shin Jinrui - The New Type (1987-02-10)(Ricoh Elemex)(JP)	nesterj-famicom-dat/date-publisher
+nes	589b2ec8	Spelunker (1985-12-06)(Irem)(JP)	nesterj-famicom-dat/date-publisher
+nes	5e98ba4a	Spelunker 2 - Yuusha heno Chousen (1987-09-18)(Irem)(JP)	nesterj-famicom-dat/date-publisher
+nes	6823cbc8	Star Force (1985-06-25)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	28c11d24	Sukeban Deka 3 (1988-01-22)(Touei Douga)(JP)	nesterj-famicom-dat/date-publisher
+nes	b1494b9e	Super Dyna'mix Badminton (1988-08-26)(Vap)(JP)	nesterj-famicom-dat/date-publisher
+nes	9f8f200a	Super Mogura Tataki!! - Pokkun Mogurar (1989-12-08)(IGS)(JP)	nesterj-famicom-dat/date-publisher
+nes	ee60b5d6	Super Xevious - Gump no Nazo (1986-09-19)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	45917511	Sweet Home (1989-12-15)(Capcom)(JP)	nesterj-famicom-dat/date-publisher
+nes	603c8abe	Takahashi Meijin no Bouken Jima (1986-09-12)(Hudson)(JP)	nesterj-famicom-dat/date-publisher
+nes	bb4ee993	Takeshi no Chousenjou (1986-12-10)(Taito)(JP)	nesterj-famicom-dat/date-publisher
+nes	2f27cdef	Tatakae!! Rahmen Man - Sakuretsu Choujin 102 Gei (1988-08-10)(Bandai)(JP)	nesterj-famicom-dat/date-publisher
+nes	b807446e	Tetris (1988-12-22)(BPS)(JP)	nesterj-famicom-dat/date-publisher
+nes	942f6bb0	Tetsudou Ou - Famicom Boardgame (1987-12-01)(DB Soft)(JP)	nesterj-famicom-dat/date-publisher
+nes	e940d56f	Thexder (1985-12-19)(Square)(JP)	nesterj-famicom-dat/date-publisher
+nes	e46c156d	Tiger-Heli (1986-12-05)(Pony Canyon)(JP)	nesterj-famicom-dat/date-publisher
+nes	c3ba98ee	Tiny Toon Adventures (1991-12-20)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	957f3d28	Top Gun (1987-12-11)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	493680c8	Top Gun (1987-12-11)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+nes	9f85fa70	Transformers - Comvoy no Nazo (1986-12-05)(Takara)(JP)	nesterj-famicom-dat/date-publisher
+nes	6e4697bf	Untouchables, The (1991-12-20)(Altron)(JP)	nesterj-famicom-dat/date-publisher
+nes	8442b86c	Urusei Yatsura - Lum no Wedding Bell (1986-10-23)(Jaleco)(JP)	nesterj-famicom-dat/date-publisher
+nes	504c6455	Warpman (1985-07-12)(Namco)(JP)	nesterj-famicom-dat/date-publisher
+nes	fcfa4c1e	Woody Poko (1987-06-20)(DB Soft)(JP)	nesterj-famicom-dat/date-publisher
+nes	abef6b83	Yume Penguin Monogatari (1991-01-25)(Konami)(JP)	nesterj-famicom-dat/date-publisher

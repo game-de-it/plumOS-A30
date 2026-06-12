@@ -329,6 +329,10 @@ verified seeds in `package/frontend/plumos/config/frontend/scraper-rescue-seeds.
 and installed under
 `/mnt/SDCARD/plumos/share/frontend/artwork-scraper/rescue/<system>/<kind>.tsv`.
 The runtime never fetches external DAT files; it reads only these reduced TSVs.
+For NES, CRCs derived from the NesterJ_AoEX_R3 `famicom.dat` are seeded only
+when they do not duplicate the libretro base DB and their release date plus
+publisher resolves to exactly one libretro thumbnail label. Ambiguous matches
+are omitted to avoid downloading a wrong image.
 When pre-downloaded external DATs should be used at build/prefetch time, pass a
 local root with `PLUMOS_RESCUE_DAT_ROOTS` or
 `scripts/prefetch-thumbnail-scraper-cache.sh --rescue-dat-root`.
