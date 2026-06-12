@@ -330,9 +330,11 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 ## Current Limits
 
 - This Dockerfile is the starting point for the build/deploy loop.
-- For libraries, RetroArch, libretro cores, and standalone emulators, check the
-  upstream latest stable release at build time and record the selected
-  version/tag/commit/build options in manifests.
+- For libraries, RetroArch, and standalone emulators, check the upstream latest
+  stable release at build time and record the selected version/tag/commit/build
+  options in manifests. For libretro cores, prefer Onion-proven commits/build
+  recipes when Onion carries that core; treat plumOS-only cores absent from
+  Onion as upstream latest/HEAD candidates.
 - The RetroArch minimal display probe is for A30 real-screen validation. The
   final RetroArch/libretro core runtime still needs the A30 sysroot and library
   policy.

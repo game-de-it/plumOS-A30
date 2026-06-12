@@ -326,9 +326,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plu
 ## 現時点の制約
 
 - この Dockerfile は最初の build/deploy loop を作るための土台です。
-- ライブラリ、RetroArch、libretro core、standalone emulator は build 時点の
-  upstream latest stable を確認し、選んだ version/tag/commit/build option を manifest
-  に残します。
+- ライブラリ、RetroArch、standalone emulator は build 時点の upstream latest stable を確認し、
+  選んだ version/tag/commit/build option を manifest に残します。libretro core は Onion
+  採用 core の実績 commit/build recipe を優先し、Onion に無い plumOS 独自 core は
+  upstream latest/HEAD 候補として扱います。
 - RetroArch minimal display probe は A30 実画面表示確認用です。libretro core を含む
   最終 runtime build には、A30 向け sysroot と library 方針を追加していきます。
 - 動的 link する binary は A30 の glibc `2.23` より新しい glibc へ依存しないよう、

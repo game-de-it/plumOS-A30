@@ -7,8 +7,9 @@ it into a practical plumOS RetroArch build-option plan. It is not a table of
 stockOS versions/options to copy. For RetroArch itself, plumOS should prefer the
 upstream latest stable available at build time, and only compare against stockOS
 when A30 testing shows a regression, incompatibility, or hardware-specific
-problem. libretro cores are split out from this rule and should follow Onion's
-adopted core catalog plus proven commits/build recipes.
+problem. libretro cores are split out from this rule: prefer Onion-proven
+commits/build recipes when Onion carries that core, and treat plumOS-only cores
+absent from Onion as upstream latest/HEAD candidates.
 
 ## Source
 

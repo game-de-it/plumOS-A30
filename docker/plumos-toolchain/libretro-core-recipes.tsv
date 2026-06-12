@@ -5,13 +5,14 @@
 #
 # Classes:
 #   A/B: plumOS default build set. `PLUMOS_CORE_FILTER=plumos` builds these.
+#        This set can include Onion-proven cores and plumOS-only cores.
 #   O:   Onion-compatible catalog entry that is not in the plumOS default set yet.
 #
 # Policy:
-#   libretro cores follow Onion-proven versions/recipes where available. Exact
-#   source commits are pinned when proven from Onion history or A30 regression
-#   testing. Branch refs are provisional Onion-builder recipe refs and should be
-#   promoted to exact commits when provenance is established.
+#   libretro cores follow Onion-proven versions/recipes when Onion carries that
+#   core. plumOS-only cores can follow upstream HEAD/latest until a regression
+#   or A30 measurement gives a reason to pin. Exact source commits are pinned
+#   when proven from Onion history or A30 regression testing.
 #
 # Sources:
 #   - Onion prebuilt core set:
@@ -21,6 +22,7 @@
 
 fceumm|A|https://github.com/libretro/libretro-fceumm.git|master||Makefile.libretro|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
 nestopia|A|https://github.com/libretro/nestopia.git|master|libretro|Makefile|platform=armv
+quicknes|A|https://github.com/libretro/QuickNES_Core.git|HEAD||Makefile|platform=armv
 gambatte|A|https://github.com/libretro/gambatte-libretro.git|master||Makefile|platform=armv7-hardfloat-neon
 mgba|A|https://github.com/libretro/mgba.git|master||Makefile.libretro|platform=unix
 gpsp|A|https://github.com/libretro/gpsp.git|master||Makefile|platform=armv7-hardfloat-neon

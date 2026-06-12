@@ -155,10 +155,11 @@ dist/plumos-retroarch-minimal/docs/manifest.txt
 
 libretro core package を build します。core recipe は
 `docker/plumos-toolchain/libretro-core-recipes.tsv` を正本にし、Onion が採用している
-core 名、source 由来、実績 commit/build recipe へ寄せます。既定の
-`PLUMOS_CORE_FILTER=plumos` は plumOS default の Class A/B 40 core を対象にし、
+core は Onion 側の source 由来、実績 commit/build recipe を優先します。Onion に無い
+plumOS 独自採用 core は upstream latest/HEAD 候補として残します。既定の
+`PLUMOS_CORE_FILTER=plumos` は plumOS default の Class A/B 41 core を対象にし、
 `PLUMOS_CORE_FILTER=onion` または `all` は Onion catalog 補完用 Class O も対象にします。
-`PLUMOS_CORE_FILTER=mednafen_vb` や `PLUMOS_CORE_FILTER=class-a` のように指定すると、
+`PLUMOS_CORE_FILTER=quicknes` や `PLUMOS_CORE_FILTER=mednafen_vb` のように指定すると、
 個別/クラス別 build もできます。選んだ commit、build flags、NEEDED は manifest に
 残します。
 
@@ -229,13 +230,13 @@ host 側では `scripts/audit-launch-profiles.py` で、`systems.json` と stagi
 個別 core/emulator を追加するときは、対象 profile だけに絞ると判断しやすくなります。
 
 ```sh
-PLUMOS_CORE_FILTER=mednafen_vb \
-TARGET_DIR=/workspace/dist/plumos-libretro-cores-vb \
+PLUMOS_CORE_FILTER=quicknes \
+TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
 ./scripts/docker-build.sh libretro-cores
 
 ./scripts/audit-launch-profiles.py \
-  --root dist/plumos-libretro-cores-vb \
-  --profile retroarch:mednafen_vb \
+  --root dist/plumos-libretro-cores-quicknes \
+  --profile retroarch:quicknes \
   --strict --fail-on-extra
 ```
 
@@ -384,8 +385,9 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 - Dockerfile、build script、patch、hash、recipe は git で管理する
 - ライブラリ、RetroArch、standalone emulator は build 時点の upstream latest stable を確認し、
   選んだ version/tag/commit/build option を manifest に残す
-- libretro core は Onion 採用 core catalog と実績 commit/build recipe を基準にし、
-  recipe file、選んだ commit、build option を manifest に残す
+- libretro core は Onion 採用 core catalog と実績 commit/build recipe を優先し、
+  Onion に無い plumOS 独自 core は upstream latest/HEAD 候補として扱う。recipe file、
+  選んだ commit、build option を manifest に残す
 - `build/`, `dist/`, `artifacts/` は生成物として git に入れない
 - 動的 link が必要なものは、A30 向け sysroot または plumOS 同梱 runtime で扱う
 - RetroArch と libretro core は、この build/deploy loop に載せて段階的に増やす

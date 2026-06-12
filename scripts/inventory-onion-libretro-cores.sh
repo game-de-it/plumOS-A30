@@ -88,11 +88,11 @@ echo "builder_recipe_count=$(count_lines "${builder_ids}")"
 echo "launch_ref_count=$(count_lines "${launch_refs}")"
 echo
 
-echo "[missing_from_plumos_recipe]"
+echo "[onion_prebuilt_missing_from_plumos_recipe]"
 comm -23 "${onion_cores}" "${recipe_ids}" || true
 echo
 
-echo "[recipe_not_in_onion_prebuilt]"
+echo "[plumos_recipe_only_not_in_onion_prebuilt]"
 comm -13 "${onion_cores}" "${recipe_ids}" || true
 echo
 

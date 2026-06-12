@@ -19,9 +19,9 @@ This document records the design direction for plumOS on the Miyoo A30.
   alternatives, then ask the user for confirmation before implementation.
 - For plumOS libraries, standalone emulators, and RetroArch, check the upstream
   latest stable release at build time and treat that as the default candidate.
-- For libretro cores, do not default to latest upstream. Use Onion's adopted
-  core names, source provenance, and proven commits/build recipes as the baseline
-  so plumOS can rebuild the same practical core set.
+- For libretro cores, import the cores Onion carries and prefer Onion's proven
+  version/commit/build recipe when one exists. plumOS-only cores that Onion does
+  not carry may still use upstream latest/HEAD as candidates.
 - Treat stockOS library/emulator versions as compatibility reference points, not
   normal pinning targets. Only consider matching stockOS versions or patch
   levels when hardware validation shows breakage, performance regressions, or
@@ -113,14 +113,18 @@ Release assets when needed.
 ## Upstream Version Policy
 
 The goal is not to reproduce the stockOS runtime stack. plumOS should use newer
-upstream components wherever they remain stable on the A30. libretro cores are
-the exception: prefer the Onion-proven core catalog and version/commit choices.
+upstream components wherever they remain stable on the A30. For libretro cores,
+prefer the Onion-proven core catalog and version/commit choices when Onion
+carries that core; plumOS-only cores can still start from upstream latest/HEAD.
 
 - Before building SDL2, RetroArch, standalone emulators, or helper libraries,
   check the latest stable upstream release available at that time.
-- For libretro cores, align with Onion's adopted core names, source provenance,
-  and proven commit or builder recipe. Treat recipes without exact provenance as
-  provisional until an A30 build and hardware validation prove them.
+- For libretro cores, import Onion-adopted cores and align them with Onion's
+  core names, source provenance, and proven commit or builder recipe. Treat
+  recipes without exact provenance as provisional until an A30 build and
+  hardware validation prove them.
+- For plumOS-only cores that Onion does not carry, use upstream latest/HEAD as
+  the normal candidate and pin only when hardware testing shows a regression.
 - If a known regression exists, use a fixed commit or the nearest stable release
   instead of blindly taking the latest tag.
 - If the A30 kernel, GPU/framebuffer, audio, input, or runtime stack exposes an
@@ -194,8 +198,9 @@ without changing the rootfs.
 - Put cores under `/mnt/SDCARD/plumos/retroarch/cores`.
 - Check the upstream latest stable RetroArch release at build time; do not match
   stockOS RetroArch unless A30 hardware validation gives a reason.
-- For libretro cores, follow Onion's adopted catalog and proven
-  version/commit/build recipes instead of bulk-following latest upstream.
+- For libretro cores, prefer Onion's adopted catalog and proven
+  version/commit/build recipes. Cores that Onion does not carry may remain
+  plumOS-only latest-upstream candidates.
 - Do not depend on the stock `HOME=/mnt/SDCARD/RetroArch` layout.
 - Use `--config` to point RetroArch at a plumOS-managed config.
 - Manage per-system differences through launch profiles or override configs.

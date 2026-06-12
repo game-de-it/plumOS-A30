@@ -20,7 +20,7 @@
           { "root": "sdcard", "path": "Images/nes" }
         ]
       },
-      "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
+      "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia", "retroarch:quicknes"],
       "default_launch_profile": "retroarch:fceumm",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
