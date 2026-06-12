@@ -588,8 +588,9 @@ Rules:
   runtime files keep the launch plan non-executable.
 - For `standalone:<emulator>` launch profiles, resolve to
   `/mnt/SDCARD/plumos/bin/plumos-standalone-launch <emulator> <ROM>`.
-  `standalone:ppsspp`, `standalone:pcsx_rearmed`, `standalone:scummvm`, and
-  `standalone:easyrpg` are A30 first-pass validated candidates.
+  `standalone:ppsspp`, `standalone:pcsx_rearmed`, `standalone:scummvm`,
+  `standalone:easyrpg`, and `standalone:red_viper` are A30 first-pass validated
+  candidates.
 - Pressing A in the ROM list calls `plumos-text-ui launch ... --execute`; it saves
   pending resume state before launch and clears it after the emulator returns.
 - RetroArch Auto Save State / Auto Load State integration belongs to the later

@@ -758,8 +758,8 @@
           { "root": "sdcard", "path": "Images/virtualboy" }
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_vb"],
-      "default_launch_profile": "retroarch:mednafen_vb",
+      "launch_profiles": ["standalone:red_viper", "retroarch:mednafen_vb"],
+      "default_launch_profile": "standalone:red_viper",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": { "enabled": false, "reason": "scraper_source_pending" }

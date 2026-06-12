@@ -289,7 +289,8 @@ find_standalone_emulator_pids() {
     "${PLUMOS_ROOT}/emulators/easyrpg/bin/easyrpg-player" \
     "${PLUMOS_ROOT}/emulators/dosbox-staging/bin/dosbox" \
     "${PLUMOS_ROOT}/emulators/pcsx_rearmed/bin/pcsx" \
-    "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx"
+    "${PLUMOS_ROOT}/emulators/red_viper/bin/red-viper-a30" \
+    "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx" "red-viper-a30"
 }
 
 resume_session_pending() {

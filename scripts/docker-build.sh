@@ -28,7 +28,7 @@ Commands:
                  Build the practical RetroArch runtime into dist/plumos-retroarch-practical.
   libretro-cores Build Class A/B libretro cores into dist/plumos-libretro-cores.
   standalone-emulators
-                 Build standalone PPSSPP/ScummVM/EasyRPG/DOSBox/PCSX-ReARMed into dist/plumos-standalone-emulators.
+                 Build standalone PPSSPP/ScummVM/EasyRPG/DOSBox/PCSX-ReARMed/Red Viper into dist/plumos-standalone-emulators.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
 

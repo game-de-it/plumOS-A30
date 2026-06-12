@@ -62,7 +62,7 @@ cmd_is_display_target() {
     *'/mnt/SDCARD/plumos/bin/plumos-controller-ui'*|\
     *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-standalone-launch'*|\
-    *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*)
+    *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*|*red-viper-a30*)
       return 0
       ;;
   esac

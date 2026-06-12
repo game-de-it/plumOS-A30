@@ -173,7 +173,7 @@ dist/plumos-libretro-cores/docs/manifest.txt
 ```
 
 Build the standalone emulator package. The current target builds PPSSPP,
-ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed for the A30 armv7
+ScummVM, EasyRPG Player, DOSBox Staging, PCSX-ReARMed, and Red Viper for the A30 armv7
 hard-float environment and records selected tags/commits, NEEDED entries, and
 build logs in the manifest. You can filter the build with values such as
 `PLUMOS_STANDALONE_FILTER=ppsspp`. Set `FAIL_ON_STANDALONE_ERROR=1` to make the

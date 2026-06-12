@@ -172,7 +172,7 @@ dist/plumos-libretro-cores/docs/manifest.txt
 ```
 
 standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
-DOSBox Staging、PCSX-ReARMed を A30 armv7 hard-float 向けに build し、選んだ
+DOSBox Staging、PCSX-ReARMed、Red Viper を A30 armv7 hard-float 向けに build し、選んだ
 tag/commit、NEEDED、build log を manifest に残します。`PLUMOS_STANDALONE_FILTER=ppsspp`
 のように指定すると個別 build もできます。`FAIL_ON_STANDALONE_ERROR=1` を指定すると、
 いずれかの emulator build 失敗時に command 全体を失敗扱いにします。

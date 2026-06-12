@@ -39,6 +39,9 @@ DOSBOX_REPO=${DOSBOX_REPO:-https://github.com/dosbox-staging/dosbox-staging.git}
 DOSBOX_REF=${DOSBOX_REF:-v0.82.2}
 PCSX_REARMED_REPO=${PCSX_REARMED_REPO:-https://github.com/notaz/pcsx_rearmed.git}
 PCSX_REARMED_REF=${PCSX_REARMED_REF:-r26l}
+RED_VIPER_REPO=${RED_VIPER_REPO:-https://github.com/skyfloogle/red-viper.git}
+RED_VIPER_REF=${RED_VIPER_REF:-afb8080ef38f63e067099505d2b8c608b1766b30}
+RED_VIPER_A30_FRONTEND_DIR=${RED_VIPER_A30_FRONTEND_DIR:-"${ROOT_DIR}/docker/plumos-toolchain/red-viper-a30"}
 
 SCUMMVM_ENGINES=${SCUMMVM_ENGINES:-"scumm,agi,agos,sky,sword1,sword2,queen,gob,lure,kyra,sci,cine,drascula,touche,teenagent,tinsel,cruise,parallaction"}
 
@@ -178,22 +181,48 @@ clone_repo() {
   local dst="${SRC_ROOT}/${id}"
   local log=$4
   local ref_opt=()
+  local recurse_opt=(--recursive --shallow-submodules)
 
   rm -rf "${dst}"
   mkdir -p "$(dirname "${dst}")"
-  if [ "${ref}" != "HEAD" ]; then
+
+  case "${id}" in
+    red_viper)
+      recurse_opt=(--no-recurse-submodules)
+      ;;
+  esac
+
+  case "${ref}" in
+    HEAD)
+      ;;
+    [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
+      ;;
+    *)
+      ref_opt=(--branch "${ref}")
+      ;;
+  esac
+
+  if [ "${ref}" != "HEAD" ] && [ "${#ref}" -lt 12 ]; then
     ref_opt=(--branch "${ref}")
   fi
 
   msg "cloning ${id} (${ref})"
   git clone \
     --depth 1 \
-    --recursive \
-    --shallow-submodules \
     --reference-if-able "${REF_ROOT}/${id}" \
+    "${recurse_opt[@]}" \
     "${ref_opt[@]}" \
     "${repo}" \
-    "${dst}" >>"${log}" 2>&1
+    "${dst}" >>"${log}" 2>&1 || return 1
+
+  case "${ref}" in
+    HEAD)
+      ;;
+    [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
+      git -C "${dst}" fetch --depth 1 origin "${ref}" >>"${log}" 2>&1 || return 1
+      git -C "${dst}" checkout --detach FETCH_HEAD >>"${log}" 2>&1 || return 1
+      ;;
+  esac
 }
 
 create_cmake_toolchain() {
@@ -706,6 +735,81 @@ build_pcsx_rearmed() {
   stage_binary pcsx_rearmed "${src}/pcsx" pcsx || return 1
 }
 
+build_red_viper() {
+  local src=$1
+  local build_dir="${src}/build-plumos-a30"
+  local wrapper_dir="${RED_VIPER_A30_FRONTEND_DIR}"
+  local out="${build_dir}/red-viper-a30"
+  local red_cflags red_cxxflags red_asflags
+  local objects=()
+
+  [ -d "${wrapper_dir}" ] || {
+    msg "missing Red Viper A30 frontend sources: ${wrapper_dir}"
+    return 1
+  }
+
+  rm -rf "${build_dir}"
+  mkdir -p "${build_dir}"
+
+  red_cflags="${COMMON_CFLAGS} -O3 -std=gnu11 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough"
+  red_cxxflags="${COMMON_CXXFLAGS} -O3 -std=gnu++17 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough -fno-exceptions -fno-rtti"
+  red_asflags="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
+
+  compile_c() {
+    local rel=$1
+    local obj="${build_dir}/${rel//\//_}.o"
+    "${CC}" ${red_cflags} -c "${src}/${rel}" -o "${obj}" || return 1
+    objects+=("${obj}")
+  }
+
+  compile_cxx() {
+    local rel=$1
+    local obj="${build_dir}/${rel//\//_}.o"
+    "${CXX}" ${red_cxxflags} -c "${src}/${rel}" -o "${obj}" || return 1
+    objects+=("${obj}")
+  }
+
+  compile_asm() {
+    local rel=$1
+    local obj="${build_dir}/${rel//\//_}.o"
+    "${CC}" ${red_asflags} -c "${src}/${rel}" -o "${obj}" || return 1
+    objects+=("${obj}")
+  }
+
+  compile_wrapper_c() {
+    local rel=$1
+    local obj="${build_dir}/wrapper_${rel//\//_}.o"
+    "${CC}" ${red_cflags} -c "${wrapper_dir}/${rel}" -o "${obj}" || return 1
+    objects+=("${obj}")
+  }
+
+  compile_wrapper_c main.c || return 1
+  compile_wrapper_c replay_stubs.c || return 1
+  compile_wrapper_c sound_stubs.c || return 1
+  compile_wrapper_c video_stubs.c || return 1
+
+  compile_c source/common/interpreter.c || return 1
+  compile_c source/common/patches.c || return 1
+  compile_c source/common/rom_db.c || return 1
+  compile_c source/common/v810_cpu.c || return 1
+  compile_c source/common/v810_ins.c || return 1
+  compile_c source/common/v810_mem.c || return 1
+  compile_c source/common/vb_set.c || return 1
+  compile_c source/common/video_common.c || return 1
+  compile_c source/arm/drc_alloc.c || return 1
+  compile_c source/arm/drc_core.c || return 1
+  compile_c source/linux-test/arm_utils.c || return 1
+  compile_cxx source/common/video_soft.cpp || return 1
+  compile_asm source/arm/drc_exec.s || return 1
+  compile_asm source/arm/drc_static.s || return 1
+
+  "${CXX}" ${COMMON_LDFLAGS} -o "${out}" "${objects[@]}" -lm || return 1
+  stage_binary red_viper "${out}" red-viper-a30 || return 1
+
+  append_manifest "  frontend=red-viper-a30 fbdev/input wrapper"
+  append_manifest "  audio=disabled"
+}
+
 prepare_dist() {
   rm -rf "${TARGET_DIR}"
   mkdir -p "${TARGET_DIR}/docs/build-logs" "${TARGET_DIR}/plumos/bin"
@@ -723,6 +827,7 @@ prepare_dist() {
     echo "ppsspp_stage_id=${PPSSPP_STAGE_ID}"
     echo "ppsspp_binary_name=${PPSSPP_BINARY_NAME}"
     echo "scummvm_engines=${SCUMMVM_ENGINES}"
+    echo "red_viper_ref=${RED_VIPER_REF}"
     echo
   } >"${MANIFEST}"
 }
@@ -746,6 +851,7 @@ EMULATOR:
   easyrpg
   dosbox-staging | dosbox
   pcsx_rearmed | pcsx
+  red_viper | red-viper
 
 Environment:
   PLUMOS_ROOT                         Default: /mnt/SDCARD/plumos
@@ -793,6 +899,13 @@ Environment:
   PLUMOS_A30_SCUMMVM_TARGET           Override ScummVM target id for directory ROMs.
   PLUMOS_A30_EASYRPG_ROTATION         EasyRPG final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_DOSBOX_ROTATION          DOSBox final display rotation: ccw, cw, 180, none. Default: ccw.
+  PLUMOS_A30_RED_VIPER_CPU_POLICY     Red Viper CPU policy. Default: fixed.
+  PLUMOS_A30_RED_VIPER_CPU_FREQ       Red Viper fixed CPU frequency. Default: 648000.
+  PLUMOS_A30_RED_VIPER_CPU_CORES      Red Viper CPU core policy. Default: 2.
+  PLUMOS_A30_RED_VIPER_FB             Red Viper framebuffer path. Default: /dev/fb0.
+  PLUMOS_A30_RED_VIPER_INPUT          Red Viper input event path. Default: /dev/input/event3.
+  PLUMOS_A30_RED_VIPER_ROTATION       Red Viper final display rotation: ccw, cw, none. Default: ccw.
+  PLUMOS_A30_RED_VIPER_SCALE          Red Viper scaling: fit, stretch, integer. Default: fit.
   SDL_VIDEODRIVER / SDL_AUDIODRIVER   Override per-emulator defaults.
 USAGE
 }
@@ -846,6 +959,7 @@ state_id=${id}
 case "${id}" in
   dosbox) state_id=dosbox-staging ;;
   pcsx) state_id=pcsx_rearmed ;;
+  red-viper) state_id=red_viper ;;
 esac
 
 STATE_DIR=${PLUMOS_ROOT}/state/standalone/${state_id}
@@ -861,6 +975,7 @@ export XDG_DATA_HOME=${STATE_DIR}/data
 joystickd_pid=
 cpu_policy_applied=0
 ppsspp_instance_counter_cleanup=0
+standalone_tmp_paths=
 
 cpu_freq_dir() {
   printf '%s\n' /sys/devices/system/cpu/cpu0/cpufreq
@@ -1139,6 +1254,12 @@ reset_ppsspp_instance_counter_if_idle() {
   rm -f /dev/shm/PPSSPP_ID /tmp/shm/PPSSPP_ID /run/shm/PPSSPP_ID 2>/dev/null || true
 }
 
+cleanup_standalone_temp_paths() {
+  [ -n "${standalone_tmp_paths:-}" ] || return 0
+  rm -f ${standalone_tmp_paths} 2>/dev/null || true
+  standalone_tmp_paths=
+}
+
 run_with_fb_restore() {
   child_pid=
 
@@ -1150,6 +1271,7 @@ run_with_fb_restore() {
     stop_owned_joystickd
     restore_fb
     reset_ppsspp_instance_counter_if_idle
+    cleanup_standalone_temp_paths
     exit "$rc"
   }
 
@@ -1166,6 +1288,7 @@ run_with_fb_restore() {
     fi
     restore_fb
     reset_ppsspp_instance_counter_if_idle
+    cleanup_standalone_temp_paths
     exit 143
   }
 
@@ -1455,6 +1578,74 @@ ppsspp_escape_exit_arg() {
   esac
 }
 
+find_unzip_command() {
+  if [ -x "${PLUMOS_ROOT}/bin/unzip" ]; then
+    printf '%s\n' "${PLUMOS_ROOT}/bin/unzip"
+    return 0
+  fi
+  command -v unzip 2>/dev/null || return 1
+}
+
+red_viper_zip_member() {
+  unzip_cmd=$1
+  zip_path=$2
+  "${unzip_cmd}" -l -q "${zip_path}" 2>/dev/null |
+    awk '
+      {
+        name = $0
+        sub(/\r$/, "", name)
+        sub(/^[[:space:]]*[0-9]+[[:space:]]+[0-9-]+[[:space:]]+[0-9:]+[[:space:]]+/, "", name)
+        lower = tolower(name)
+        if (lower ~ /\.(vb|vboy|bin)$/) {
+          print name
+          exit
+        }
+      }
+    '
+}
+
+prepare_red_viper_rom() {
+  red_viper_original_rom=$1
+  red_viper_prepared_rom=${red_viper_original_rom}
+  red_viper_save_base=${red_viper_original_rom##*/}
+  red_viper_ext=${red_viper_original_rom##*.}
+  red_viper_ext=$(printf '%s' "${red_viper_ext}" | tr 'A-Z' 'a-z')
+
+  case "${red_viper_ext}" in
+    vb|vboy|bin)
+      return 0
+      ;;
+    zip)
+      unzip_cmd=$(find_unzip_command) || {
+        echo "error: unzip is required for Red Viper zip ROMs" >&2
+        exit 127
+      }
+      red_viper_member=$(red_viper_zip_member "${unzip_cmd}" "${red_viper_original_rom}")
+      if [ -z "${red_viper_member}" ]; then
+        echo "error: Red Viper zip has no .vb/.vboy/.bin member: ${red_viper_original_rom}" >&2
+        exit 2
+      fi
+      mkdir -p "${STATE_DIR}/tmp"
+      red_viper_tmp="${STATE_DIR}/tmp/red-viper-rom-$$.vb"
+      if ! "${unzip_cmd}" -p "${red_viper_original_rom}" "${red_viper_member}" >"${red_viper_tmp}"; then
+        rm -f "${red_viper_tmp}"
+        echo "error: failed to extract Red Viper ROM member: ${red_viper_member}" >&2
+        exit 1
+      fi
+      red_viper_prepared_rom=${red_viper_tmp}
+      standalone_tmp_paths="${standalone_tmp_paths} ${red_viper_tmp}"
+      ;;
+    7z)
+      echo "error: Red Viper 7z ROMs are not supported on this A30 image; use .vb/.vboy/.bin or .zip" >&2
+      exit 2
+      ;;
+    *)
+      echo "error: unsupported Red Viper ROM extension: ${red_viper_original_rom}" >&2
+      exit 2
+      ;;
+  esac
+}
+
 apply_system_volume
 
 case "${id}" in
@@ -1604,6 +1795,27 @@ case "${id}" in
       run_with_fb_restore "${EMU_ROOT}/easyrpg/bin/easyrpg-player" --fullscreen "$@"
     fi
     ;;
+  red_viper|red-viper)
+    if [ "$#" -lt 1 ]; then
+      echo "error: Red Viper requires a ROM path" >&2
+      exit 2
+    fi
+    cd "${EMU_ROOT}/red_viper" || exit 1
+    red_viper_rom_arg=$1
+    shift
+    prepare_red_viper_rom "${red_viper_rom_arg}"
+    cpu_policy=${PLUMOS_A30_RED_VIPER_CPU_POLICY:-${PLUMOS_STANDALONE_CPU_POLICY:-fixed}}
+    cpu_freq=${PLUMOS_A30_RED_VIPER_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-648000}}
+    cpu_cores=${PLUMOS_A30_RED_VIPER_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
+    apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
+    run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
+      --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
+      --input "${PLUMOS_A30_RED_VIPER_INPUT:-/dev/input/event3}" \
+      --rotation "${PLUMOS_A30_RED_VIPER_ROTATION:-ccw}" \
+      --scale "${PLUMOS_A30_RED_VIPER_SCALE:-fit}" \
+      --save-base "${red_viper_save_base}" \
+      "${red_viper_prepared_rom}" "$@"
+    ;;
   dosbox-staging|dosbox)
     cd "${EMU_ROOT}/dosbox-staging" || exit 1
     export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-mali}
@@ -1709,6 +1921,21 @@ PLUMOS_A30_PSX_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_PSX_JOYSTICKD_SHOULDER_LAYOUT=user
 EOF
   append_manifest "config=plumos/config/standalone/pcsx_rearmed.env"
+
+  cat >"${config_dir}/red_viper.env" <<'EOF'
+# Red Viper launcher overrides for Miyoo A30.
+# This file is user-mutable and is preserved by scripts/deploy-a30.sh.
+
+PLUMOS_A30_RED_VIPER_CPU_POLICY=fixed
+PLUMOS_A30_RED_VIPER_CPU_FREQ=648000
+PLUMOS_A30_RED_VIPER_CPU_CORES=2
+
+PLUMOS_A30_RED_VIPER_FB=/dev/fb0
+PLUMOS_A30_RED_VIPER_INPUT=/dev/input/event3
+PLUMOS_A30_RED_VIPER_ROTATION=ccw
+PLUMOS_A30_RED_VIPER_SCALE=fit
+EOF
+  append_manifest "config=plumos/config/standalone/red_viper.env"
 }
 
 build_one() {
@@ -1798,6 +2025,7 @@ build_one scummvm "${SCUMMVM_REPO}" "${SCUMMVM_REF}" build_scummvm
 build_one easyrpg "${EASYRPG_REPO}" "${EASYRPG_REF}" build_easyrpg
 build_one dosbox-staging "${DOSBOX_REPO}" "${DOSBOX_REF}" build_dosbox
 build_one pcsx_rearmed "${PCSX_REARMED_REPO}" "${PCSX_REARMED_REF}" build_pcsx_rearmed
+build_one red_viper "${RED_VIPER_REPO}" "${RED_VIPER_REF}" build_red_viper
 
 overlay_preferred_sdl_runtime
 finish_manifest
