@@ -74,6 +74,16 @@ and EasyRPG is currently a minimal-ish first libretro build with ICU/XML and
 some auxiliary audio features disabled. These are build successes; practical
 usefulness still depends on A30 title/profile testing.
 
+The 2026-06-13 full recipe run with
+`PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 ./scripts/docker-build.sh libretro-cores`
+attempted every recipe and initially reported `built=79`, `failed=18`, and
+`skipped=0`. Some long-running special cores were still forced to `-j1` during
+that pass, so `build-libretro-cores.sh` now tries the configured `JOBS` value
+first and retries the same build condition with `BUILD_JOB_FALLBACKS`, default
+`1`, only after a failure. Some older libretro Makefiles emit ARM ELF shared
+objects as `*_libretro.dll`; staging now verifies those files with `readelf` and
+normalizes them to `*_libretro.so`.
+
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
 contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,

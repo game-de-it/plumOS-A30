@@ -40,8 +40,12 @@ Environment:
   PLUMOS_CORE_FILTER      libretro-cores filter: plumos, onion, all, class-a,
                            class-b, class-ab, class-o, or comma-separated core ids.
                            Default: plumos.
-  FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
-  PLUMOS_STANDALONE_FILTER
+	  FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
+	  JOBS                    Parallel build job count passed into the container.
+	                           Default: container CPU count.
+	  BUILD_JOB_FALLBACKS     libretro-cores retry job counts after a failed build attempt.
+	                           Default: 1.
+	  PLUMOS_STANDALONE_FILTER
                            standalone-emulators filter: all or comma-separated emulator ids.
   FAIL_ON_STANDALONE_ERROR
                            Set to 1 to make standalone-emulators exit non-zero on any emulator build failure.
@@ -86,6 +90,8 @@ docker_run_base=(
   -e CORE_RECIPES="${CORE_RECIPES:-/workspace/docker/plumos-toolchain/libretro-core-recipes.tsv}"
   -e PLUMOS_CORE_FILTER="${PLUMOS_CORE_FILTER:-plumos}"
   -e FAIL_ON_CORE_ERROR="${FAIL_ON_CORE_ERROR:-0}"
+  -e JOBS="${JOBS:-}"
+  -e BUILD_JOB_FALLBACKS="${BUILD_JOB_FALLBACKS:-1}"
   -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"
   -e FAIL_ON_STANDALONE_ERROR="${FAIL_ON_STANDALONE_ERROR:-0}"
   -e TARGET_DIR="${TARGET_DIR:-}"

@@ -65,6 +65,14 @@ ScummVM は libretro Makefile の lite 構成、EasyRPG は最初の libretro bu
 ICU/XML/一部音声補助を外した最小寄り構成です。これらは「build 済み」であり、実用性は
 A30 実機の title/profile 別検証で判断します。
 
+2026-06-13 の `PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 ./scripts/docker-build.sh libretro-cores`
+では全 recipe を試行し、初回結果は `built=79`, `failed=18`, `skipped=0` でした。
+この時点の長時間 build では一部 special core が `-j1` 固定だったため、以後の
+`build-libretro-cores.sh` はまず `JOBS` の並列数で build し、失敗した同一条件だけ
+`BUILD_JOB_FALLBACKS`、既定 `1`、で再試行します。古い libretro Makefile の一部は
+ARM ELF 共有ライブラリを `*_libretro.dll` 名で出すため、staging では ELF と確認できる
+`.dll` も `*_libretro.so` に正規化して配置します。
+
 standalone emulator は `./scripts/docker-build.sh standalone-emulators` で
 `dist/plumos-standalone-emulators` に stage します。2026-06-07 時点の試作 build は
 `PPSSPP v1.20.4`、`ScummVM v2026.2.0`、`EasyRPG Player 0.8.1.1`、

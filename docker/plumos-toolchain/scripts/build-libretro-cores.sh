@@ -13,6 +13,7 @@ CORE_INFO_REF=${CORE_INFO_REF:-HEAD}
 CORE_RECIPES=${CORE_RECIPES:-"${ROOT_DIR}/docker/plumos-toolchain/libretro-core-recipes.tsv"}
 PLUMOS_CORE_FILTER=${PLUMOS_CORE_FILTER:-plumos}
 FAIL_ON_CORE_ERROR=${FAIL_ON_CORE_ERROR:-0}
+BUILD_JOB_FALLBACKS=${BUILD_JOB_FALLBACKS:-1}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -32,6 +33,7 @@ BUILT_COUNT=0
 FAILED_COUNT=0
 SKIPPED_COUNT=0
 ACTIVE_JOBS=${JOBS}
+LAST_SUCCESSFUL_JOBS=""
 
 msg() {
   printf '[libretro-cores] %s\n' "$*" >&2
@@ -225,6 +227,36 @@ run_make_attempt() {
   ) >>"${log}" 2>&1
 }
 
+run_make_attempt_with_job_retry() {
+  local work=$1
+  local makefile=$2
+  local log=$3
+  local saved_jobs="${ACTIVE_JOBS}"
+  local job seen=" "
+  shift 3
+
+  for job in ${saved_jobs} ${BUILD_JOB_FALLBACKS}; do
+    [ -n "${job}" ] || continue
+    case "${seen}" in
+      *" ${job} "*) continue ;;
+    esac
+    seen="${seen}${job} "
+    ACTIVE_JOBS="${job}"
+    printf '\n[plumOS] make jobs=%s args=%s\n' "${ACTIVE_JOBS}" "$*" >>"${log}"
+    if run_make_attempt "${work}" "${makefile}" "${log}" "$@"; then
+      LAST_SUCCESSFUL_JOBS="${ACTIVE_JOBS}"
+      ACTIVE_JOBS="${saved_jobs}"
+      return 0
+    fi
+    if [ "${ACTIVE_JOBS}" != "1" ]; then
+      msg "make $(basename "${work}") failed with jobs=${ACTIVE_JOBS}; retrying lower parallelism"
+    fi
+  done
+
+  ACTIVE_JOBS="${saved_jobs}"
+  return 1
+}
+
 build_with_fallbacks() {
   local work=$1
   local makefile=$2
@@ -235,7 +267,7 @@ build_with_fallbacks() {
   if [ -n "${configured_args}" ]; then
     read -r -a args <<<"${configured_args}"
     msg "make $(basename "${work}") with configured args: ${configured_args}"
-    if run_make_attempt "${work}" "${makefile}" "${log}" "${args[@]}"; then
+    if run_make_attempt_with_job_retry "${work}" "${makefile}" "${log}" "${args[@]}"; then
       printf '%s\n' "${configured_args}"
       return 0
     fi
@@ -248,7 +280,7 @@ build_with_fallbacks() {
     ""; do
     read -r -a args <<<"${fallback}"
     msg "make $(basename "${work}") with fallback args: ${fallback:-<none>}"
-    if run_make_attempt "${work}" "${makefile}" "${log}" "${args[@]}"; then
+    if run_make_attempt_with_job_retry "${work}" "${makefile}" "${log}" "${args[@]}"; then
       printf '%s\n' "${fallback}"
       return 0
     fi
@@ -290,6 +322,39 @@ run_cmake_build() {
   ) >>"${log}" 2>&1
 }
 
+run_cmake_build_with_job_retry() {
+  local src=$1
+  local build_dir=$2
+  local target=$3
+  local build_type=$4
+  local log=$5
+  local saved_jobs="${ACTIVE_JOBS}"
+  local job seen=" "
+  shift 5
+
+  for job in ${saved_jobs} ${BUILD_JOB_FALLBACKS}; do
+    [ -n "${job}" ] || continue
+    case "${seen}" in
+      *" ${job} "*) continue ;;
+    esac
+    seen="${seen}${job} "
+    ACTIVE_JOBS="${job}"
+    msg "cmake $(basename "${src}"): build ${target} with jobs=${ACTIVE_JOBS}"
+    printf '\n[plumOS] cmake jobs=%s target=%s\n' "${ACTIVE_JOBS}" "${target}" >>"${log}"
+    if run_cmake_build "${src}" "${build_dir}" "${target}" "${build_type}" "${log}" "$@"; then
+      LAST_SUCCESSFUL_JOBS="${ACTIVE_JOBS}"
+      ACTIVE_JOBS="${saved_jobs}"
+      return 0
+    fi
+    if [ "${ACTIVE_JOBS}" != "1" ]; then
+      msg "cmake $(basename "${src}") failed with jobs=${ACTIVE_JOBS}; retrying lower parallelism"
+    fi
+  done
+
+  ACTIVE_JOBS="${saved_jobs}"
+  return 1
+}
+
 run_scummvm_build() {
   local src=$1
   local log=$2
@@ -329,6 +394,35 @@ run_scummvm_build() {
   ) >>"${log}" 2>&1
 }
 
+run_scummvm_build_with_job_retry() {
+  local src=$1
+  local log=$2
+  local saved_jobs="${ACTIVE_JOBS}"
+  local job seen=" "
+
+  for job in ${saved_jobs} ${BUILD_JOB_FALLBACKS}; do
+    [ -n "${job}" ] || continue
+    case "${seen}" in
+      *" ${job} "*) continue ;;
+    esac
+    seen="${seen}${job} "
+    ACTIVE_JOBS="${job}"
+    msg "make scummvm: libretro build with jobs=${ACTIVE_JOBS}"
+    printf '\n[plumOS] scummvm jobs=%s\n' "${ACTIVE_JOBS}" >>"${log}"
+    if run_scummvm_build "${src}" "${log}"; then
+      LAST_SUCCESSFUL_JOBS="${ACTIVE_JOBS}"
+      ACTIVE_JOBS="${saved_jobs}"
+      return 0
+    fi
+    if [ "${ACTIVE_JOBS}" != "1" ]; then
+      msg "make scummvm failed with jobs=${ACTIVE_JOBS}; retrying lower parallelism"
+    fi
+  done
+
+  ACTIVE_JOBS="${saved_jobs}"
+  return 1
+}
+
 build_inih_for_easyrpg() {
   local src=$1
   local log=$2
@@ -352,9 +446,8 @@ build_special_core() {
 
   case "${id}" in
     mgba)
-      ACTIVE_JOBS=1
       msg "cmake ${id}: minimal libretro build"
-      run_cmake_build "${src}" "${src}/build-libretro" mgba_libretro Release "${log}" \
+      run_cmake_build_with_job_retry "${src}" "${src}/build-libretro" mgba_libretro Release "${log}" \
         -DBUILD_LIBRETRO=ON \
         -DBUILD_SDL=OFF \
         -DBUILD_QT=OFF \
@@ -368,9 +461,8 @@ build_special_core() {
         -DUSE_EDITLINE=OFF
       ;;
     tic80)
-      ACTIVE_JOBS=1
       msg "cmake ${id}: libretro build"
-      run_cmake_build "${src}" "${src}/build-libretro" tic80_libretro MinSizeRel "${log}" \
+      run_cmake_build_with_job_retry "${src}" "${src}/build-libretro" tic80_libretro MinSizeRel "${log}" \
         -DBUILD_PLAYER=OFF \
         -DBUILD_SDL=OFF \
         -DBUILD_SDLGPU=OFF \
@@ -378,10 +470,9 @@ build_special_core() {
         -DBUILD_LIBRETRO=ON
       ;;
     easyrpg)
-      ACTIVE_JOBS=1
       msg "cmake ${id}: libretro build"
       build_inih_for_easyrpg "${src}" "${log}" || return 1
-      run_cmake_build "${src}" "${src}/build-libretro" easyrpg_libretro Release "${log}" \
+      run_cmake_build_with_job_retry "${src}" "${src}/build-libretro" easyrpg_libretro Release "${log}" \
         -DPLAYER_TARGET_PLATFORM=libretro \
         -DPLAYER_BUILD_LIBLCF=ON \
         -DINIH_INCLUDE_DIR="${src}/lib/inih" \
@@ -407,9 +498,8 @@ build_special_core() {
         -DPLAYER_WITH_SAMPLERATE=OFF
       ;;
     scummvm)
-      ACTIVE_JOBS=1
       msg "make ${id}: libretro build"
-      run_scummvm_build "${src}" "${log}"
+      run_scummvm_build_with_job_retry "${src}" "${log}"
       ;;
     *)
       return 99
@@ -421,27 +511,46 @@ stage_core_outputs() {
   local id=$1
   local src=$2
   local outputs
-  local so base info
+  local so source_base base info
 
-  outputs=$(find "${src}" -type f -name '*_libretro.so' | sort)
+  outputs=$(
+    find "${src}" -type f -name '*_libretro.so' | sort
+    find "${src}" -type f -name '*_libretro.dll' | sort
+  )
   if [ -z "${outputs}" ]; then
     return 1
   fi
 
   while IFS= read -r so; do
     [ -n "${so}" ] || continue
-    base=$(basename "${so}")
+    if ! "${READELF}" -h "${so}" >/dev/null 2>&1; then
+      continue
+    fi
+    source_base=$(basename "${so}")
+    base="${source_base}"
+    case "${base}" in
+      *_libretro.dll) base="${base%.dll}.so" ;;
+    esac
+    if [ -f "${TARGET_DIR}/plumos/retroarch/cores/${base}" ]; then
+      continue
+    fi
     cp "${so}" "${TARGET_DIR}/plumos/retroarch/cores/${base}"
     "${STRIP}" "${TARGET_DIR}/plumos/retroarch/cores/${base}" >/dev/null 2>&1 || true
     copy_runtime_deps "${TARGET_DIR}/plumos/retroarch/cores/${base}" "${TARGET_DIR}/plumos/lib"
 
     info="${SRC_ROOT}/core-info/${base%.so}.info"
+    if [ ! -f "${info}" ]; then
+      info=$(find "${src}" -type f -name "${base%.so}.info" | sort | head -n 1)
+    fi
     if [ -f "${info}" ]; then
       cp "${info}" "${TARGET_DIR}/plumos/retroarch/info/"
       cp "${info}" "${TARGET_DIR}/plumos/retroarch/cores/"
     fi
 
     printf '  output=%s\n' "plumos/retroarch/cores/${base}" >>"${MANIFEST}"
+    if [ "${source_base}" != "${base}" ]; then
+      printf '  source_output=%s\n' "${source_base}" >>"${MANIFEST}"
+    fi
     printf '  needed=\n' >>"${MANIFEST}"
     "${READELF}" -d "${TARGET_DIR}/plumos/retroarch/cores/${base}" 2>/dev/null |
       awk '/NEEDED/ {print "    " $0}' >>"${MANIFEST}" || true
@@ -476,11 +585,7 @@ build_one_core() {
   local work makefile commit actual_args
 
   ACTIVE_JOBS=${JOBS}
-  case "${id}" in
-    neocd|np2kai|picodrive|snes9x)
-      ACTIVE_JOBS=1
-      ;;
-  esac
+  LAST_SUCCESSFUL_JOBS=""
 
   if ! core_selected "${id}" "${class}"; then
     SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
@@ -512,6 +617,7 @@ build_one_core() {
   if [ "${special_status}" -eq 0 ]; then
     append_manifest "builder=special"
     append_manifest "make_args=cmake/configure"
+    append_manifest "make_jobs=${LAST_SUCCESSFUL_JOBS:-${ACTIVE_JOBS}}"
     append_manifest "status=built"
     if stage_core_outputs "${id}" "${src}"; then
       stage_license_files "${id}" "${src}"
@@ -556,6 +662,7 @@ build_one_core() {
   append_manifest "makefile=${subdir:+${subdir}/}${makefile}"
   if actual_args=$(build_with_fallbacks "${work}" "${makefile}" "${make_args}" "${log}"); then
     append_manifest "make_args=${actual_args}"
+    append_manifest "make_jobs=${LAST_SUCCESSFUL_JOBS:-${ACTIVE_JOBS}}"
   else
     msg "FAILED build ${id}"
     append_manifest "status=failed"
@@ -599,6 +706,8 @@ prepare_dist() {
     printf 'core_recipes=%s\n' "${CORE_RECIPES}"
     printf 'common_cflags=%s\n' "${COMMON_CFLAGS}"
     printf 'core_filter=%s\n' "${PLUMOS_CORE_FILTER}"
+    printf 'jobs=%s\n' "${JOBS}"
+    printf 'job_fallbacks=%s\n' "${BUILD_JOB_FALLBACKS}"
   } >"${MANIFEST}"
 }
 
