@@ -85,11 +85,38 @@ near its limit and audio is more fragile.
 
 ## Virtual Boy Note
 
-Virtual Boy via `mednafen_vb`/Beetle VB is CPU-bound on the A30. In the
-2026-06-12 hardware measurements, it reached about 23fps at 1344 MHz / 4 cores
-with FBO video, and only about 25fps with null video/audio. The
-`vb_cpu_emulation=fast` core option is already enabled, and changing 3D display
-modes or disabling audio does not get it close to 50fps.
+Virtual Boy via `mednafen_vb`/Beetle VB is very slow with the core currently
+built by plumOS. In the 2026-06-12 hardware measurements, it reached about
+23fps at 1344 MHz / 4 cores with FBO video, and only about 25fps with null
+video/audio. The `vb_cpu_emulation=fast` core option is already enabled, and
+changing 3D display modes or disabling audio did not get it close to 50fps.
+
+However, on 2026-06-13, the `mednafen_vb_libretro.so` binary from a Miyoo Mini
+Plus running Onion 4.3.1 was copied to the A30 as a temporary probe and run
+under the same null video/audio benchmark. Bad Apple completed 600 frames in
+6.24 seconds, about 96fps. For comparison, the plumOS-built Beetle VB core took
+19.60 seconds, about 30.6fps, and the same Onion core on the Miyoo Mini Plus
+hardware took 9.14 seconds, about 65.6fps. This means the Beetle VB problem is
+probably not simple A30 SoC insufficiency; it is more likely caused by the
+plumOS Beetle VB core build, toolchain, or upstream commit. Onion's Virtual Boy
+package uses `lr-mednafen-vb`, and its default core option is also
+`vb_cpu_emulation=fast`. Onion's RetroArch is a Miyoo Mini/Mini+ Dingux build
+with `cpuclock.txt` support for per-core or global CPU clock overrides. Onion's
+published guidance recommends 1800 MHz for Mini Plus overclocking, with 1900 MHz
+as the stated maximum guideline, but the A30 probe above ran the Onion core at
+1344 MHz and was already fast enough. Logs are saved in
+`artifacts/a30-logs/mednafen-vb-core-compare-20260613.log` and
+`artifacts/miyoo-mini-plus/ra-vb-null-600-scale1.*`.
+
+The Onion repository itself contains this prebuilt core at
+`static/build/RetroArch/.retroarch/cores/mednafen_vb_libretro.so`, and its
+md5 `cc34723254f0dfc17bce1f2f51a7bbfe` / BuildID
+`e510367247958d87064b9def3649b30d50ac80c5` matches the core copied from the
+Miyoo Mini Plus. Package Manager
+copies selected package directories from `/mnt/SDCARD/App/PackageManager/data`
+to `/mnt/SDCARD`; the Virtual Boy package adds the `Emu/VB` launcher/config and
+the `Roms/VB` directory, while the launcher references the prebuilt core from
+the common RetroArch build area.
 
 Red Viper is a standalone emulator derived from the 3DS project line, not a
 libretro core, but its ARM dynarec runs on the A30 armv7 hard-float target. The
@@ -130,10 +157,13 @@ On 2026-06-13, an experimental `red-viper-sdlgl-a30` binary was built from Red
 Viper upstream's `source/linux-test` GLES2 frontend and run directly through
 stock SDL2's `mali` video driver plus the rootfs `libGLESv2`/`libMali` stack.
 With `badapple_mednafen.vb`, it reported `SDL_VIDEODRIVER=mali`,
-`gl_renderer=Mali-400 MP`, and roughly 49.7-50fps present rate. This is much
-faster than the fbdev software presentation path's roughly 28fps. This path is
-not the default profile yet because A30 menu, A30 input mapping, FE launcher
-cleanup, and screen rotation/fit are not integrated.
+`gl_renderer=Mali-400 MP`. Short 15 second runs can look close to 50fps in
+light scenes, but the 120 second run averaged 35.18fps, bottomed at 14.49fps,
+and only spent 9.4% of samples at or above 49fps. It can improve some cases
+relative to the fbdev software presentation path, but it does not handle Bad
+Apple's peak load. This path is not the default profile yet because A30 menu,
+A30 input mapping, FE launcher cleanup, and screen rotation/fit are not
+integrated.
 
 ## Class A: initial build targets
 
@@ -181,7 +211,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
 | PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
-| Virtual Boy | `standalone:red_viper`, fallback `retroarch:mednafen_vb` | Beetle VB stays around 25fps on A30. Red Viper dynarec is confirmed above 135fps even with software rendering. The A30 standalone wrapper provides display/input/ALSA audio/exit cleanup. |
+| Virtual Boy | `standalone:red_viper`, fallback `retroarch:mednafen_vb` | The plumOS-built Beetle VB core stays around 30fps, but the Onion 4.3.1 Beetle VB core reached about 96fps on the A30 with null video/audio. Reproducing that core build is now a candidate fix. The Red Viper A30 standalone wrapper provides display/input/ALSA audio/exit cleanup. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 
