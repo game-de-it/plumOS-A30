@@ -68,23 +68,17 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-As of 2026-06-12, the default theme has 49 target systems and 40 existing logos.
-`dreamcast`, `n64`, and `saturn` are excluded from required logos because they
-are `enabled:false`. The missing logos are:
+As of 2026-06-12, the default theme family has 49 target systems and all
+required logos are present. `dreamcast`, `n64`, and `saturn` are excluded from
+required logos because they are `enabled:false`, but their older seed logos may
+remain as optional assets.
 
-```text
-atari2600
-atari7800
-doom
-gameandwatch
-lynx
-neogeocd
-odyssey2
-pokemini
-supergrafx
-supervision
-vectrex
-virtualboy
+Use this script to regenerate the filled-in logos. It writes to each
+`logos/systems/` directory under `default`, `default-horizontal`, and
+`default-vertical`.
+
+```sh
+scripts/generate-missing-system-logos.py
 ```
 
 ## `themes.json`

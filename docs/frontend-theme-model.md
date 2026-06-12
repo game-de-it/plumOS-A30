@@ -65,23 +65,15 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-2026-06-12 時点の default theme では、対象 system は49件、既存 logo は40件です。
-`dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外します。
-不足している logo は以下です。
+2026-06-12 時点の default theme 系では、対象 system は49件で、必須 logo は充足済みです。
+`dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外しますが、
+旧 seed 由来の logo は任意 asset として残せます。
 
-```text
-atari2600
-atari7800
-doom
-gameandwatch
-lynx
-neogeocd
-odyssey2
-pokemini
-supergrafx
-supervision
-vectrex
-virtualboy
+不足分を再生成する場合は以下を使います。生成結果は `default`、`default-horizontal`、
+`default-vertical` の各 `logos/systems/` に出力されます。
+
+```sh
+scripts/generate-missing-system-logos.py
 ```
 
 ## `themes.json`
