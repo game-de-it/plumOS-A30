@@ -83,6 +83,20 @@ typedef struct {
   int top;
 } menu_ctx_t;
 
+typedef struct {
+  int initialized;
+  struct timespec window_start;
+  unsigned emu_frames;
+  unsigned render_frames;
+  unsigned present_frames;
+  unsigned late_frames;
+  double emu_fps;
+  double render_fps;
+  double present_fps;
+  double speed_pct;
+  double late_pct;
+} perf_stats_t;
+
 typedef enum {
   MENU_RESUME,
   MENU_EYE,
@@ -94,6 +108,7 @@ typedef enum {
   MENU_FAST_FORWARD,
   MENU_FAST_FORWARD_MODE,
   MENU_VIP_OVERCLOCK,
+  MENU_PERF_INFO,
   MENU_SOUND,
   MENU_AUDIO_LATENCY,
   MENU_AUDIO_PREBUFFER,
@@ -135,6 +150,8 @@ typedef struct {
 static void draw_menu(fb_ctx_t *fb, uint32_t page_yoffset,
                       const menu_ctx_t *menu,
                       const red_viper_settings_t *settings);
+static void draw_perf_overlay(fb_ctx_t *fb, uint32_t page_yoffset,
+                              const perf_stats_t *stats);
 
 static volatile sig_atomic_t g_stop_requested;
 
@@ -506,7 +523,8 @@ static uint32_t vb_framebuffer_color(const fb_ctx_t *fb, const uint16_t *left_fb
 }
 
 static void fb_blit_vb(fb_ctx_t *fb, int fb_index, const menu_ctx_t *menu,
-                       const red_viper_settings_t *settings) {
+                       const red_viper_settings_t *settings,
+                       const perf_stats_t *stats) {
   const uint16_t *left_fb =
       (const uint16_t *)(vb_players[0].V810_DISPLAY_RAM.off +
                          0x8000 * (fb_index & 1));
@@ -563,6 +581,8 @@ retry:
   }
   if (menu && menu->open) {
     draw_menu(fb, target_yoffset, menu, settings);
+  } else if (tVBOpt.PERF_INFO && stats) {
+    draw_perf_overlay(fb, target_yoffset, stats);
   }
   if (fb->can_pan && fb_present_page(fb, target_yoffset) < 0) {
     target_yoffset = fb->front_yoffset;
@@ -875,6 +895,12 @@ static void cycle_vip_overclock(void) {
                        tVBOpt.VIP_OVERCLOCK ? 1u : 0u);
 }
 
+static void cycle_perf_info(void) {
+  tVBOpt.PERF_INFO = !tVBOpt.PERF_INFO;
+  persist_uint_setting("PLUMOS_A30_RED_VIPER_PERF_INFO",
+                       tVBOpt.PERF_INFO ? 1u : 0u);
+}
+
 static void cycle_sound(red_viper_settings_t *settings) {
   settings->audio_enabled = !settings->audio_enabled;
   tVBOpt.SOUND = settings->audio_enabled ? 1 : 0;
@@ -943,6 +969,59 @@ static void cycle_cpu_cores(red_viper_settings_t *settings, int delta) {
                             sizeof(values) / sizeof(values[0]), delta);
   persist_uint_setting("PLUMOS_A30_RED_VIPER_CPU_CORES", settings->cpu_cores);
   mark_restart_setting(settings);
+}
+
+static double timespec_elapsed_seconds(const struct timespec *start,
+                                       const struct timespec *end) {
+  return (double)(end->tv_sec - start->tv_sec) +
+         (double)(end->tv_nsec - start->tv_nsec) / 1000000000.0;
+}
+
+static void perf_stats_reset(perf_stats_t *stats) {
+  memset(stats, 0, sizeof(*stats));
+  clock_gettime(CLOCK_MONOTONIC, &stats->window_start);
+  stats->initialized = 1;
+}
+
+static void perf_stats_update(perf_stats_t *stats, int rendered, int presented,
+                              int late) {
+  struct timespec now;
+  double elapsed;
+
+  if (!stats->initialized) {
+    perf_stats_reset(stats);
+  }
+
+  stats->emu_frames++;
+  if (rendered) {
+    stats->render_frames++;
+  }
+  if (presented) {
+    stats->present_frames++;
+  }
+  if (late) {
+    stats->late_frames++;
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  elapsed = timespec_elapsed_seconds(&stats->window_start, &now);
+  if (elapsed < 1.0) {
+    return;
+  }
+
+  stats->emu_fps = (double)stats->emu_frames / elapsed;
+  stats->render_fps = (double)stats->render_frames / elapsed;
+  stats->present_fps = (double)stats->present_frames / elapsed;
+  stats->speed_pct = stats->emu_fps * 100.0 / (double)TARGET_FPS;
+  stats->late_pct = stats->emu_frames
+                        ? (double)stats->late_frames * 100.0 /
+                              (double)stats->emu_frames
+                        : 0.0;
+  stats->emu_frames = 0;
+  stats->render_frames = 0;
+  stats->present_frames = 0;
+  stats->late_frames = 0;
+  stats->window_start = now;
 }
 
 static uint8_t font5x7_row(char c, int row) {
@@ -1028,6 +1107,47 @@ static void draw_text(fb_ctx_t *fb, uint32_t page_yoffset, int x, int y,
   }
 }
 
+static void draw_perf_overlay(fb_ctx_t *fb, uint32_t page_yoffset,
+                              const perf_stats_t *stats) {
+  uint32_t panel = pack_color(fb, 0, 0, 0);
+  uint32_t border = pack_color(fb, 120, 120, 120);
+  uint32_t text = pack_color(fb, 255, 255, 255);
+  uint32_t warn = pack_color(fb, 255, 176, 0);
+  uint32_t alert = pack_color(fb, 255, 64, 64);
+  uint32_t speed_color = text;
+  char line[80];
+  int x = 8;
+  int y = 8;
+  int w = 292;
+  int h = 86;
+
+  if (!stats) {
+    return;
+  }
+  if (stats->speed_pct < 95.0) {
+    speed_color = warn;
+  } else if (stats->speed_pct > 105.0) {
+    speed_color = alert;
+  }
+
+  draw_rect(fb, page_yoffset, x, y, w, h, panel);
+  draw_rect(fb, page_yoffset, x, y, w, 2, border);
+  draw_rect(fb, page_yoffset, x, y + h - 2, w, 2, border);
+  draw_rect(fb, page_yoffset, x, y, 2, h, border);
+  draw_rect(fb, page_yoffset, x + w - 2, y, 2, h, border);
+
+  snprintf(line, sizeof(line), "EMU %4.1f  SPD %3.0f%%", stats->emu_fps,
+           stats->speed_pct);
+  draw_text(fb, page_yoffset, x + 10, y + 10, line, 2, speed_color);
+  snprintf(line, sizeof(line), "PRES %4.1f  REND %4.1f", stats->present_fps,
+           stats->render_fps);
+  draw_text(fb, page_yoffset, x + 10, y + 34, line, 2, text);
+  snprintf(line, sizeof(line), "SKIP %d  LATE %3.0f%%", tVBOpt.FRMSKIP,
+           stats->late_pct);
+  draw_text(fb, page_yoffset, x + 10, y + 58, line, 2,
+            stats->late_pct > 0.0 ? warn : text);
+}
+
 static const char *on_off(int enabled) {
   return enabled ? "on" : "off";
 }
@@ -1074,6 +1194,9 @@ static void menu_item_text(const fb_ctx_t *fb,
   case MENU_VIP_OVERCLOCK:
     snprintf(out, out_size, "VIP OC     < %s >",
              on_off(tVBOpt.VIP_OVERCLOCK));
+    break;
+  case MENU_PERF_INFO:
+    snprintf(out, out_size, "PERF INFO  < %s >", on_off(tVBOpt.PERF_INFO));
     break;
   case MENU_SOUND:
     snprintf(out, out_size, "SOUND      < %s >",
@@ -1339,6 +1462,9 @@ static void menu_adjust(menu_ctx_t *menu, fb_ctx_t *fb,
   case MENU_VIP_OVERCLOCK:
     cycle_vip_overclock();
     break;
+  case MENU_PERF_INFO:
+    cycle_perf_info();
+    break;
   case MENU_SOUND:
     cycle_sound(settings);
     break;
@@ -1456,7 +1582,7 @@ static void poll_input(int input_fd, uint16_t *state, menu_ctx_t *menu,
   apply_input_state(*state);
 }
 
-static void sleep_until_next_frame(struct timespec *next_frame) {
+static int sleep_until_next_frame(struct timespec *next_frame) {
   struct timespec now;
 
   next_frame->tv_nsec += 1000000000L / TARGET_FPS;
@@ -1470,16 +1596,16 @@ static void sleep_until_next_frame(struct timespec *next_frame) {
       (next_frame->tv_sec == now.tv_sec &&
        next_frame->tv_nsec <= now.tv_nsec)) {
     *next_frame = now;
-    return;
+    return 0;
   }
 
   for (;;) {
     int rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, next_frame, NULL);
     if (rc == 0) {
-      return;
+      return 1;
     }
     if (rc != EINTR || g_stop_requested) {
-      return;
+      return 0;
     }
   }
 }
@@ -1791,6 +1917,8 @@ int main(int argc, char **argv) {
       parse_bool_value(getenv("PLUMOS_A30_RED_VIPER_FF_TOGGLE"), 0);
   tVBOpt.VIP_OVERCLOCK =
       parse_bool_value(getenv("PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK"), 0);
+  tVBOpt.PERF_INFO =
+      parse_bool_value(getenv("PLUMOS_A30_RED_VIPER_PERF_INFO"), 0);
   tVBOpt.TINT = color_to_tint(&fb.color);
   tVBOpt.RENDERMODE = RM_CPUONLY;
   tVBOpt.VSYNC = true;
@@ -1818,8 +1946,14 @@ int main(int argc, char **argv) {
   struct timespec next_frame;
   clock_gettime(CLOCK_MONOTONIC, &next_frame);
   unsigned frame_skip_phase = 0;
+  perf_stats_t perf_stats;
+  perf_stats_reset(&perf_stats);
 
   while (!g_stop_requested) {
+    int rendered_this_frame = 0;
+    int presented_this_frame = 0;
+    int late_this_frame = 0;
+
     poll_input(input_fd, &input_state, &menu, &fb, &settings);
     if (settings.reset_requested) {
       save_sram_if_needed();
@@ -1831,6 +1965,7 @@ int main(int argc, char **argv) {
       frame_skip_phase = 0;
       settings.reset_requested = 0;
       clock_gettime(CLOCK_MONOTONIC, &next_frame);
+      perf_stats_reset(&perf_stats);
     }
     int displayed_fb = vb_state->tVIPREG.tDisplayedFB & 1;
     if (vb_state->tVIPREG.tFrame == 0 && !vb_state->tVIPREG.drawing &&
@@ -1839,9 +1974,11 @@ int main(int argc, char **argv) {
       int should_present = menu.open || frame_skip_phase == 0;
       if (vb_state->tVIPREG.XPCTRL & XPEN) {
         render_vip_frame(!displayed_fb);
+        rendered_this_frame = 1;
       }
       if (should_present) {
-        fb_blit_vb(&fb, displayed_fb, &menu, &settings);
+        fb_blit_vb(&fb, displayed_fb, &menu, &settings, &perf_stats);
+        presented_this_frame = 1;
       }
       frame_skip_phase = (frame_skip_phase + 1u) % frame_skip_divisor;
     }
@@ -1855,8 +1992,10 @@ int main(int argc, char **argv) {
     if (tVBOpt.FASTFORWARD && !menu.open) {
       clock_gettime(CLOCK_MONOTONIC, &next_frame);
     } else {
-      sleep_until_next_frame(&next_frame);
+      late_this_frame = !sleep_until_next_frame(&next_frame);
     }
+    perf_stats_update(&perf_stats, rendered_this_frame, presented_this_frame,
+                      late_this_frame);
   }
 
   save_sram_if_needed();

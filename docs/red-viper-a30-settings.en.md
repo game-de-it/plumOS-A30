@@ -22,6 +22,7 @@ Up/down moves, left/right or A changes a value, and B or Function returns.
 | Fast Fwd | `PLUMOS_A30_RED_VIPER_FAST_FORWARD` | Immediate | Removes frame pacing. |
 | FF Mode | `PLUMOS_A30_RED_VIPER_FF_TOGGLE` | Stored | Upstream hold/toggle setting, reserved for A30 fast-forward hotkey expansion. |
 | VIP OC | `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK` | Immediate | Upstream VIP timing shortcut. |
+| Perf Info | `PLUMOS_A30_RED_VIPER_PERF_INFO` | Immediate | Shows `EMU`, `SPD`, `PRES`, `REND`, and `LATE` in a top-left overlay. |
 | Sound | `PLUMOS_A30_RED_VIPER_AUDIO` | Immediate | `alsa` / `off`. Re-enabling from an audio-off launch depends on backend state. |
 | Audio Lat | `PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US` | Next launch | ALSA latency. |
 | Prebuffer | `PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS` | Next launch | Startup audio prebuffer chunks. |
@@ -50,7 +51,8 @@ A30-specific settings are:
   `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS`
 - Emulation/performance: `PLUMOS_A30_RED_VIPER_FRAME_SKIP`,
   `PLUMOS_A30_RED_VIPER_FAST_FORWARD`, `PLUMOS_A30_RED_VIPER_FF_TOGGLE`,
-  `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK`
+  `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK`,
+  `PLUMOS_A30_RED_VIPER_PERF_INFO`
 - CPU launcher policy: `PLUMOS_A30_RED_VIPER_CPU_POLICY`,
   `PLUMOS_A30_RED_VIPER_CPU_FREQ`, `PLUMOS_A30_RED_VIPER_CPU_CORES`
 
@@ -77,3 +79,10 @@ connects the settings that have a meaningful A30 backend first.
 - Settings that are only safe at launch are saved and applied on the next run.
 - 3DS-only settings are not silently hidden; they remain inventoried as backend gaps.
 - `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` require the Citro3D/GPU backend and are not runnable on the current A30 backend.
+
+## Reading Perf Info
+
+- `EMU` / `SPD`: emulation frame rate and speed ratio. Around 50.0fps / `100%` means full Virtual Boy speed. Below 50 means slowdown; above 50 means fast-forward.
+- `PRES`: fps actually presented to the A30 framebuffer. This should drop when Frame Skip is raised.
+- `REND`: Red Viper software-render fps. It should usually stay near `EMU`.
+- `LATE`: percentage of frames where the 50Hz pacing deadline was missed and no sleep occurred.
