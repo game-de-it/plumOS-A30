@@ -1,6 +1,6 @@
 --- a/gfx/drivers/gl2.c
 +++ b/gfx/drivers/gl2.c
-@@ -400,6 +400,144 @@
+@@ -400,6 +400,146 @@
     if (gl2_plumos_a30_display_rotation_enabled(gl))
        return &gl->mvp;
     return &gl->mvp_no_rot;
@@ -90,7 +90,7 @@
 +   return true;
 +}
 +
-+static bool gl2_plumos_a30_landscape_begin(gl2_t *gl)
++static bool gl2_plumos_a30_landscape_begin(gl2_t *gl, bool video_scale_integer)
 +{
 +   if (!gl2_plumos_a30_landscape_ensure(gl))
 +      return false;
@@ -99,6 +99,8 @@
 +   glViewport(0, 0, gl->video_width, gl->video_height);
 +   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 +   glClear(GL_COLOR_BUFFER_BIT);
++   gl2_set_viewport(gl, gl->video_width, gl->video_height, false, true,
++         video_scale_integer);
 +
 +   return true;
 +}
@@ -145,7 +147,7 @@
  }
 
  static void *gfx_display_gl2_get_default_mvp(void *data)
-@@ -3430,6 +3568,7 @@
+@@ -3430,6 +3570,7 @@
  #endif
     bool overlay_behind_menu            = video_info->overlay_behind_menu;
     bool video_scale_integer            = config_get_ptr()->bools.video_scale_integer;
@@ -153,16 +155,17 @@
 
     if (!gl)
        return false;
-@@ -3444,6 +3583,8 @@
+@@ -3444,6 +3585,9 @@
 
     gl->shader->use(gl, gl->shader_data, 1, true);
 
-+   plumos_a30_landscape_frame = gl2_plumos_a30_landscape_begin(gl);
++   plumos_a30_landscape_frame = gl2_plumos_a30_landscape_begin(gl,
++         video_scale_integer);
 +
  #ifdef IOS
     /* Apparently the viewport is lost each frame, thanks Apple. */
     gl2_set_viewport(gl, width, height, false, true, video_scale_integer);
-@@ -3674,6 +3815,9 @@
+@@ -3674,6 +3818,9 @@
        gl->shader->use(gl, gl->shader_data, 0, true);
        glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -172,7 +175,7 @@
 
     /* Screenshots. */
     if (gl->readback_buffer_screenshot)
-@@ -3820,6 +3964,8 @@
+@@ -3820,6 +3967,8 @@
     gl2_free_overlay(gl);
  #endif
 

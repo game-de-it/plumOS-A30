@@ -133,6 +133,8 @@ RetroArch 1.22.2 practical:
   RetroArch 側には `mali_fbdev` context の logical screen を 640x480 として報告し、
   Mali fbdev の native surface は物理 480x640 のまま保持する。GL2 frame/menu/OSD は
   640x480 の offscreen FBO に描画し、swap 前の present で 480x640 backbuffer へ90度回転して出す。
+  FBO を毎フレーム clear した後は通常の `gl2_set_viewport()` を再適用し、RetroArch menu からの
+  aspect ratio / integer scale 変更が game viewport に反映されるようにする。
   そのため practical config の `video_rotation` と `screen_orientation` はどちらも `0` にする。
 - A30 の `mali_fbdev` context は threaded video 切替時に RetroArch restart を要求する。
   plumOS wrapper は `PLUMOS_RA_EXEC_PATH` / `PLUMOS_RA_LD_PATH` /

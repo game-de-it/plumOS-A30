@@ -137,8 +137,10 @@ RetroArch 1.22.2 practical:
   640x480 screen to RetroArch while keeping the Mali fbdev native surface at the
   physical 480x640 size. GL2 frame/menu/OSD drawing goes to a 640x480 offscreen
   FBO, then the final present rotates it 90 degrees into the 480x640 backbuffer
-  before swap. Therefore both `video_rotation` and `screen_orientation` stay at
-  `0` in the practical config.
+  before swap. After clearing the FBO each frame, the patch reapplies the normal
+  `gl2_set_viewport()` path so aspect ratio and integer scale changes from the
+  RetroArch menu affect the game viewport. Therefore both `video_rotation` and
+  `screen_orientation` stay at `0` in the practical config.
 - The A30 `mali_fbdev` context requires a RetroArch restart when threaded video
   is toggled. The plumOS wrapper passes `PLUMOS_RA_EXEC_PATH`,
   `PLUMOS_RA_LD_PATH`, `PLUMOS_RA_LIBRARY_PATH`, `PLUMOS_RA_CONFIG_PATH`, and
