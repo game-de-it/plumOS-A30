@@ -14,6 +14,15 @@ CORE_RECIPES=${CORE_RECIPES:-"${ROOT_DIR}/docker/plumos-toolchain/libretro-core-
 PLUMOS_CORE_FILTER=${PLUMOS_CORE_FILTER:-plumos}
 FAIL_ON_CORE_ERROR=${FAIL_ON_CORE_ERROR:-0}
 BUILD_JOB_FALLBACKS=${BUILD_JOB_FALLBACKS:-1}
+LIBRETRO_OPTIMIZATION_PROFILE=${LIBRETRO_OPTIMIZATION_PROFILE:-speed}
+LIBRETRO_ENABLE_LTO=${LIBRETRO_ENABLE_LTO:-0}
+LIBRETRO_EXTRA_CFLAGS=${LIBRETRO_EXTRA_CFLAGS:-}
+LIBRETRO_EXTRA_CXXFLAGS=${LIBRETRO_EXTRA_CXXFLAGS:-}
+LIBRETRO_EXTRA_LDFLAGS=${LIBRETRO_EXTRA_LDFLAGS:-}
+LIBRETRO_FORCE_MAKE_TOOLCHAIN=${LIBRETRO_FORCE_MAKE_TOOLCHAIN:-1}
+LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS=${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS:-1}
+LIBRETRO_MAKE_OPT_FLAGS=${LIBRETRO_MAKE_OPT_FLAGS:-}
+LIBRETRO_MAKE_ARGS_OVERRIDE=${LIBRETRO_MAKE_ARGS_OVERRIDE:-}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -23,10 +32,6 @@ RANLIB=${RANLIB:-${CROSS_PREFIX}ranlib}
 STRIP=${STRIP:-${CROSS_PREFIX}strip}
 READELF=${READELF:-${CROSS_PREFIX}readelf}
 
-COMMON_CFLAGS=${COMMON_CFLAGS:-"-O2 -pipe -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fomit-frame-pointer -ffast-math"}
-COMMON_CXXFLAGS=${COMMON_CXXFLAGS:-"${COMMON_CFLAGS}"}
-COMMON_LDFLAGS=${COMMON_LDFLAGS:-""}
-
 MANIFEST=""
 LOG_DIR=""
 BUILT_COUNT=0
@@ -34,6 +39,7 @@ FAILED_COUNT=0
 SKIPPED_COUNT=0
 ACTIVE_JOBS=${JOBS}
 LAST_SUCCESSFUL_JOBS=""
+LAST_SUCCESSFUL_ARGS=""
 
 msg() {
   printf '[libretro-cores] %s\n' "$*" >&2
@@ -42,6 +48,91 @@ msg() {
 append_manifest() {
   printf '%s\n' "$*" >>"${MANIFEST}"
 }
+
+profile_cflags() {
+  local cpu_flags="-pipe -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard"
+  local flags
+
+  case "${LIBRETRO_OPTIMIZATION_PROFILE}" in
+    compat)
+      flags="-O2 ${cpu_flags} -DNDEBUG -fomit-frame-pointer"
+      ;;
+    speed)
+      flags="-O3 ${cpu_flags} -DNDEBUG -fomit-frame-pointer -fno-semantic-interposition -fno-math-errno -fno-trapping-math"
+      ;;
+    aggressive|ofast)
+      flags="-Ofast ${cpu_flags} -DNDEBUG -fomit-frame-pointer -fno-semantic-interposition -funroll-loops"
+      ;;
+    size)
+      flags="-Os ${cpu_flags} -DNDEBUG -fomit-frame-pointer"
+      ;;
+    debug)
+      flags="-Og -g ${cpu_flags}"
+      ;;
+    custom)
+      flags="-O3 ${cpu_flags} -DNDEBUG -fomit-frame-pointer"
+      ;;
+    *)
+      msg "error: unknown LIBRETRO_OPTIMIZATION_PROFILE=${LIBRETRO_OPTIMIZATION_PROFILE}"
+      return 1
+      ;;
+  esac
+
+  if [ "${LIBRETRO_ENABLE_LTO}" = "1" ]; then
+    flags="${flags} -flto=auto"
+  fi
+  if [ -n "${LIBRETRO_EXTRA_CFLAGS}" ]; then
+    flags="${flags} ${LIBRETRO_EXTRA_CFLAGS}"
+  fi
+  printf '%s\n' "${flags}"
+}
+
+profile_ldflags() {
+  local flags=""
+  if [ "${LIBRETRO_ENABLE_LTO}" = "1" ]; then
+    flags="${flags} -flto=auto"
+  fi
+  if [ -n "${LIBRETRO_EXTRA_LDFLAGS}" ]; then
+    flags="${flags} ${LIBRETRO_EXTRA_LDFLAGS}"
+  fi
+  printf '%s\n' "${flags# }"
+}
+
+profile_make_opt_flags() {
+  local make_args=${1:-}
+
+  case "${LIBRETRO_OPTIMIZATION_PROFILE}" in
+    compat)
+      printf '%s\n' "-O2"
+      ;;
+    speed)
+      case " ${make_args} " in
+        *" platform=classic_"*) printf '%s\n' "-Ofast" ;;
+        *) printf '%s\n' "-O3" ;;
+      esac
+      ;;
+    aggressive|ofast)
+      printf '%s\n' "-Ofast"
+      ;;
+    size)
+      printf '%s\n' "-Os"
+      ;;
+    debug)
+      printf '%s\n' "-Og -g"
+      ;;
+    custom)
+      printf '%s\n' "-O3"
+      ;;
+    *)
+      msg "error: unknown LIBRETRO_OPTIMIZATION_PROFILE=${LIBRETRO_OPTIMIZATION_PROFILE}"
+      return 1
+      ;;
+  esac
+}
+
+COMMON_CFLAGS=${COMMON_CFLAGS:-$(profile_cflags)}
+COMMON_CXXFLAGS=${COMMON_CXXFLAGS:-"${COMMON_CFLAGS}${LIBRETRO_EXTRA_CXXFLAGS:+ ${LIBRETRO_EXTRA_CXXFLAGS}}"}
+COMMON_LDFLAGS=${COMMON_LDFLAGS:-$(profile_ldflags)}
 
 copy_if_present() {
   local src=$1
@@ -199,10 +290,16 @@ find_makefile() {
 make_clean() {
   local work=$1
   local makefile=$2
+  local -a toolchain_args=()
+
+  if [ "${LIBRETRO_FORCE_MAKE_TOOLCHAIN}" = "1" ]; then
+    toolchain_args=(CC="${CC}" CXX="${CXX}" AR="${AR}" RANLIB="${RANLIB}")
+  fi
+
   (
     cd "${work}" &&
       env CC="${CC}" CXX="${CXX}" AR="${AR}" RANLIB="${RANLIB}" \
-        make -f "${makefile}" clean >/dev/null 2>&1
+        make -f "${makefile}" clean "${toolchain_args[@]}" >/dev/null 2>&1
   ) || true
 }
 
@@ -210,7 +307,12 @@ run_make_attempt() {
   local work=$1
   local makefile=$2
   local log=$3
+  local -a toolchain_args=()
   shift 3
+
+  if [ "${LIBRETRO_FORCE_MAKE_TOOLCHAIN}" = "1" ]; then
+    toolchain_args=(CC="${CC}" CXX="${CXX}" AR="${AR}" RANLIB="${RANLIB}")
+  fi
 
   make_clean "${work}" "${makefile}"
   (
@@ -223,8 +325,46 @@ run_make_attempt() {
         CFLAGS="${COMMON_CFLAGS}" \
         CXXFLAGS="${COMMON_CXXFLAGS}" \
         LDFLAGS="${COMMON_LDFLAGS}" \
-        make -f "${makefile}" -j"${ACTIVE_JOBS}" "$@"
+        make -f "${makefile}" -j"${ACTIVE_JOBS}" "$@" "${toolchain_args[@]}"
   ) >>"${log}" 2>&1
+}
+
+patch_makefile_optimization() {
+  local work=$1
+  local makefile=$2
+  local log=$3
+  local make_args=${4:-}
+  local file="${work}/${makefile}"
+  local opt_flags escaped_flags
+
+  if [ "${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS}" != "1" ]; then
+    printf '%s\n' "makefile_opt_patch=disabled"
+    return 0
+  fi
+  if [ ! -f "${file}" ]; then
+    printf '%s\n' "makefile_opt_patch=not_needed"
+    return 0
+  fi
+  opt_flags=${LIBRETRO_MAKE_OPT_FLAGS:-$(profile_make_opt_flags "${make_args}")}
+  if [ -z "${opt_flags}" ]; then
+    printf '%s\n' "makefile_opt_patch=not_needed"
+    return 0
+  fi
+  if ! grep -Eq -- '-O(0|1|2|3|s|fast)[[:space:]]+-DNDEBUG' "${file}"; then
+    printf '%s\n' "makefile_opt_patch=not_needed"
+    return 0
+  fi
+
+  escaped_flags=$(printf '%s' "${opt_flags}" | sed 's/[&@\\]/\\&/g')
+  cp "${file}" "${file}.plumos-opt.bak"
+  if ! sed -i -E "s@-O(0|1|2|3|s|fast)[[:space:]]+-DNDEBUG@${escaped_flags} -DNDEBUG@g" "${file}"; then
+    mv "${file}.plumos-opt.bak" "${file}"
+    printf '%s\n' "makefile_opt_patch=failed"
+    return 1
+  fi
+  printf '\n[plumOS] patched makefile optimization flags: %s\n' "${opt_flags}" >>"${log}"
+  printf '%s\n' "makefile_opt_patch=applied"
+  printf '%s\n' "makefile_opt_flags=${opt_flags}"
 }
 
 run_make_attempt_with_job_retry() {
@@ -257,7 +397,7 @@ run_make_attempt_with_job_retry() {
   return 1
 }
 
-build_with_fallbacks() {
+build_configured_recipe() {
   local work=$1
   local makefile=$2
   local configured_args=$3
@@ -268,23 +408,17 @@ build_with_fallbacks() {
     read -r -a args <<<"${configured_args}"
     msg "make $(basename "${work}") with configured args: ${configured_args}"
     if run_make_attempt_with_job_retry "${work}" "${makefile}" "${log}" "${args[@]}"; then
-      printf '%s\n' "${configured_args}"
+      LAST_SUCCESSFUL_ARGS="${configured_args}"
       return 0
     fi
+    return 1
   fi
 
-  for fallback in \
-    "platform=armv7-hardfloat-neon" \
-    "platform=armv HAVE_NEON=1" \
-    "platform=unix" \
-    ""; do
-    read -r -a args <<<"${fallback}"
-    msg "make $(basename "${work}") with fallback args: ${fallback:-<none>}"
-    if run_make_attempt_with_job_retry "${work}" "${makefile}" "${log}" "${args[@]}"; then
-      printf '%s\n' "${fallback}"
-      return 0
-    fi
-  done
+  msg "make $(basename "${work}") with recipe default args"
+  if run_make_attempt_with_job_retry "${work}" "${makefile}" "${log}"; then
+    LAST_SUCCESSFUL_ARGS=""
+    return 0
+  fi
   return 1
 }
 
@@ -582,10 +716,13 @@ build_one_core() {
   local make_args=$7
   local log="${LOG_DIR}/${id}.log"
   local src="${SRC_ROOT}/${id}"
-  local work makefile commit actual_args
+  local work makefile commit effective_make_args
+  local opt_patch_status
 
   ACTIVE_JOBS=${JOBS}
   LAST_SUCCESSFUL_JOBS=""
+  LAST_SUCCESSFUL_ARGS=""
+  effective_make_args="${make_args}"
 
   if ! core_selected "${id}" "${class}"; then
     SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
@@ -599,6 +736,11 @@ build_one_core() {
   append_manifest "repo=${repo}"
   append_manifest "ref=${ref}"
   append_manifest "log=docs/build-logs/${id}.log"
+  if [ -n "${LIBRETRO_MAKE_ARGS_OVERRIDE}" ]; then
+    append_manifest "recipe_make_args=${make_args}"
+    append_manifest "make_args_override=${LIBRETRO_MAKE_ARGS_OVERRIDE}"
+    effective_make_args="${LIBRETRO_MAKE_ARGS_OVERRIDE}"
+  fi
 
   if ! clone_repo "${id}" "${repo}" "${ref}" "${log}"; then
     msg "FAILED clone ${id}"
@@ -660,8 +802,17 @@ build_one_core() {
   fi
 
   append_manifest "makefile=${subdir:+${subdir}/}${makefile}"
-  if actual_args=$(build_with_fallbacks "${work}" "${makefile}" "${make_args}" "${log}"); then
-    append_manifest "make_args=${actual_args}"
+  if ! opt_patch_status=$(patch_makefile_optimization "${work}" "${makefile}" "${log}" "${effective_make_args}"); then
+    append_manifest "${opt_patch_status}"
+    msg "FAILED ${id}: makefile optimization patch failed"
+    append_manifest "status=failed"
+    append_manifest "reason=makefile_opt_patch_failed"
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    return 0
+  fi
+  append_manifest "${opt_patch_status}"
+  if build_configured_recipe "${work}" "${makefile}" "${effective_make_args}" "${log}"; then
+    append_manifest "make_args=${LAST_SUCCESSFUL_ARGS}"
     append_manifest "make_jobs=${LAST_SUCCESSFUL_JOBS:-${ACTIVE_JOBS}}"
   else
     msg "FAILED build ${id}"
@@ -704,7 +855,16 @@ prepare_dist() {
     printf 'plumOS libretro core build\n'
     printf 'target=armv7-a cortex-a7 hard-float neon-vfpv4\n'
     printf 'core_recipes=%s\n' "${CORE_RECIPES}"
+    printf 'optimization_profile=%s\n' "${LIBRETRO_OPTIMIZATION_PROFILE}"
+    printf 'enable_lto=%s\n' "${LIBRETRO_ENABLE_LTO}"
     printf 'common_cflags=%s\n' "${COMMON_CFLAGS}"
+    printf 'common_cxxflags=%s\n' "${COMMON_CXXFLAGS}"
+    printf 'common_ldflags=%s\n' "${COMMON_LDFLAGS}"
+    printf 'make_opt_flags=%s\n' "${LIBRETRO_MAKE_OPT_FLAGS:-auto}"
+    printf 'patch_makefile_opt_flags=%s\n' "${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS}"
+    printf 'force_make_toolchain=%s\n' "${LIBRETRO_FORCE_MAKE_TOOLCHAIN}"
+    printf 'make_platform_fallbacks=disabled\n'
+    printf 'make_args_override=%s\n' "${LIBRETRO_MAKE_ARGS_OVERRIDE}"
     printf 'core_filter=%s\n' "${PLUMOS_CORE_FILTER}"
     printf 'jobs=%s\n' "${JOBS}"
     printf 'job_fallbacks=%s\n' "${BUILD_JOB_FALLBACKS}"

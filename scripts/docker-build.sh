@@ -40,12 +40,29 @@ Environment:
   PLUMOS_CORE_FILTER      libretro-cores filter: plumos, onion, all, class-a,
                            class-b, class-ab, class-o, or comma-separated core ids.
                            Default: plumos.
-	  FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
-	  JOBS                    Parallel build job count passed into the container.
-	                           Default: container CPU count.
-	  BUILD_JOB_FALLBACKS     libretro-cores retry job counts after a failed build attempt.
-	                           Default: 1.
-	  PLUMOS_STANDALONE_FILTER
+  FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
+  LIBRETRO_OPTIMIZATION_PROFILE
+                           libretro core optimization profile: speed, compat,
+                           aggressive, size, debug, or custom. Default: speed.
+  LIBRETRO_ENABLE_LTO     Set to 1 to add LTO to common libretro core flags.
+  LIBRETRO_EXTRA_CFLAGS   Extra libretro C flags appended to the selected profile.
+  LIBRETRO_EXTRA_CXXFLAGS Extra libretro C++ flags appended to the selected profile.
+  LIBRETRO_EXTRA_LDFLAGS  Extra libretro linker flags appended to the selected profile.
+  LIBRETRO_FORCE_MAKE_TOOLCHAIN
+                           Set to 1 to pass CC/CXX/AR/RANLIB as make command-line
+                           variables for libretro cores. Default: 1.
+  LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS
+                           Set to 1 to replace Makefile debug/release -O flags
+                           with the selected libretro optimization profile.
+                           Default: 1.
+  LIBRETRO_MAKE_OPT_FLAGS  Override the -O flags used by that Makefile patch.
+  LIBRETRO_MAKE_ARGS_OVERRIDE
+                           Override recipe make_args for single-core option probes.
+  JOBS                    Parallel build job count passed into the container.
+                           Default: container CPU count.
+  BUILD_JOB_FALLBACKS     libretro-cores retry job counts after a failed build attempt.
+                           Default: 1.
+  PLUMOS_STANDALONE_FILTER
                            standalone-emulators filter: all or comma-separated emulator ids.
   FAIL_ON_STANDALONE_ERROR
                            Set to 1 to make standalone-emulators exit non-zero on any emulator build failure.
@@ -90,6 +107,15 @@ docker_run_base=(
   -e CORE_RECIPES="${CORE_RECIPES:-/workspace/docker/plumos-toolchain/libretro-core-recipes.tsv}"
   -e PLUMOS_CORE_FILTER="${PLUMOS_CORE_FILTER:-plumos}"
   -e FAIL_ON_CORE_ERROR="${FAIL_ON_CORE_ERROR:-0}"
+  -e LIBRETRO_OPTIMIZATION_PROFILE="${LIBRETRO_OPTIMIZATION_PROFILE:-speed}"
+  -e LIBRETRO_ENABLE_LTO="${LIBRETRO_ENABLE_LTO:-0}"
+  -e LIBRETRO_EXTRA_CFLAGS="${LIBRETRO_EXTRA_CFLAGS:-}"
+  -e LIBRETRO_EXTRA_CXXFLAGS="${LIBRETRO_EXTRA_CXXFLAGS:-}"
+  -e LIBRETRO_EXTRA_LDFLAGS="${LIBRETRO_EXTRA_LDFLAGS:-}"
+  -e LIBRETRO_FORCE_MAKE_TOOLCHAIN="${LIBRETRO_FORCE_MAKE_TOOLCHAIN:-1}"
+  -e LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS="${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS:-1}"
+  -e LIBRETRO_MAKE_OPT_FLAGS="${LIBRETRO_MAKE_OPT_FLAGS:-}"
+  -e LIBRETRO_MAKE_ARGS_OVERRIDE="${LIBRETRO_MAKE_ARGS_OVERRIDE:-}"
   -e JOBS="${JOBS:-}"
   -e BUILD_JOB_FALLBACKS="${BUILD_JOB_FALLBACKS:-1}"
   -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"

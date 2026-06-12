@@ -84,6 +84,36 @@ first and retries the same build condition with `BUILD_JOB_FALLBACKS`, default
 objects as `*_libretro.dll`; staging now verifies those files with `readelf` and
 normalizes them to `*_libretro.so`.
 
+Cores produced through platform fallback cannot be treated as optimized A30
+artifacts. `build-libretro-cores.sh` therefore treats the recipe `make_args` as
+the only valid build condition and no longer relaxes failed builds to generic
+targets such as `platform=unix`. It still retries the same condition with a
+lower `JOBS` value because that does not change the optimization contract of the
+output.
+
+In the inspected Makefiles, some `platform=armv` branches reset the compiler to
+host `gcc`, defeating the Docker cross-compiler environment. The script now
+defaults `LIBRETRO_FORCE_MAKE_TOOLCHAIN=1` and passes `CC/CXX/AR/RANLIB` as make
+command-line variables. Common flags default to
+`LIBRETRO_OPTIMIZATION_PROFILE=speed`, using `-O3` and Cortex-A7/NEON hard-float
+flags. More aggressive builds can opt into
+`LIBRETRO_OPTIMIZATION_PROFILE=aggressive` or `LIBRETRO_ENABLE_LTO=1`. Cores
+whose Makefiles append later `-O2` flags over the common flags need targeted
+recipe or minimal Makefile fixes. By default
+`LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS=1` aligns Makefile release `-O* -DNDEBUG`
+flags with the selected optimization profile. With
+`LIBRETRO_OPTIMIZATION_PROFILE=speed`, normal builds use `-O3`, while
+speed-first `platform=classic_*` branches use `-Ofast`; set
+`LIBRETRO_MAKE_OPT_FLAGS` to override that explicitly.
+
+Libretro core optimization is validated one core at a time, not by the success
+count of `PLUMOS_CORE_FILTER=all`. Use `PLUMOS_CORE_FILTER=<core>` and, when
+testing candidate build options, `LIBRETRO_MAKE_ARGS_OVERRIDE='platform=...'`.
+For each successful candidate, inspect the build log for the compiler, final
+`-O` flag, Cortex-A7/NEON/hard-float flags, and dynarec/GPU defines, then keep
+only the best A30-measured option in `libretro-core-recipes.tsv`. Unverified
+generic fallback artifacts are left as failures to investigate.
+
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
 contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,
@@ -189,8 +219,10 @@ benchmark, the current plumOS `1275bd7` core took 18.84 seconds, about
 but GCC 12 LTO requires `-j1`, so it carries build-stability trade-offs. Current
 `1275bd7` still took 18.46 seconds, about 32.50fps, even with
 `classic_armv7_a7`, so the slowdown is caused primarily by the upstream commit
-change, not by build options. The normal plumOS recipe now pins only Beetle VB
-to `162918f` and keeps the existing `platform=armv` / common A30 flags.
+change, not by build options. The normal plumOS recipe now pins Beetle VB to
+`162918f` and uses `platform=classic_armv7_a7` for the speed-first build. With
+GCC 12 LTO this condition can fail during the link step at `JOBS=4`, so the
+same build condition is retried with `BUILD_JOB_FALLBACKS=1` / `-j1`.
 
 Red Viper is a standalone emulator derived from the 3DS project line, not a
 libretro core, but its ARM dynarec runs on the A30 armv7 hard-float target. The
