@@ -81,6 +81,34 @@ near its limit and audio is more fragile.
 | EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
 | PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
 | DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
+| Red Viper | Standalone candidate for Virtual Boy | The ARM dynarec works on the A30. In the 2026-06-12 hardware probe, headless reached 322.86fps, and software VIP rendering still reached 289.00fps at 1344 MHz / 4 cores and 135.13fps at 648 MHz / 2 cores. It is not a RetroArch core, so adoption means a standalone profile with fbdev, input, and audio. |
+
+## Virtual Boy Note
+
+Virtual Boy via `mednafen_vb`/Beetle VB is CPU-bound on the A30. In the
+2026-06-12 hardware measurements, it reached about 23fps at 1344 MHz / 4 cores
+with FBO video, and only about 25fps with null video/audio. The
+`vb_cpu_emulation=fast` core option is already enabled, and changing 3D display
+modes or disabling audio does not get it close to 50fps.
+
+Red Viper is a standalone emulator derived from the 3DS project line, not a
+libretro core, but its ARM dynarec runs on the A30 armv7 hard-float target. The
+experimental static probe used a raw `.vb` ROM extracted temporarily from zip
+and produced these results:
+
+| condition | result |
+| --- | --- |
+| headless, no audio, no display, 1344 MHz / 4 cores, 1200 frames + 120 warmup | 322.86fps |
+| software VIP render, no audio, 1344 MHz / 4 cores, 600 frames + 60 warmup | 289.00fps |
+| software VIP render, no audio, 648 MHz / 2 cores, 600 frames + 60 warmup | 135.13fps |
+
+So Red Viper is a credible fix for the Virtual Boy performance problem. The
+remaining work is a standalone A30 port that copies Red Viper's software
+framebuffer to `/dev/fb0` in landscape orientation, reads input from
+`plumos-joystickd` or `/dev/input/event3`, adds audio, save paths, zip/7z
+handling, and exit cleanup for framebuffer, CPU policy, and joystickd. Before
+distribution, check the Red Viper/Reality Boy license terms and third-party
+notice requirements.
 
 ## Class A: initial build targets
 
@@ -128,7 +156,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
 | PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
-| Virtual Boy | `mednafen_vb` | Likely runnable, but screen/UX is special. |
+| Virtual Boy | `standalone:red_viper`, fallback `retroarch:mednafen_vb` | Beetle VB stays around 25fps on A30. Red Viper dynarec is confirmed above 135fps even with software rendering, but standalone display/input/audio integration is not done yet. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 
