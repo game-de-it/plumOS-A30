@@ -1826,11 +1826,11 @@ int main(int argc, char **argv) {
     if (vb_state->tVIPREG.tFrame == 0 && !vb_state->tVIPREG.drawing &&
         (vb_state->tVIPREG.DPCTRL & DISP)) {
       unsigned frame_skip_divisor = (unsigned)tVBOpt.FRMSKIP + 1u;
-      int should_draw = menu.open || frame_skip_phase == 0;
-      if (should_draw && (vb_state->tVIPREG.XPCTRL & XPEN)) {
+      int should_present = menu.open || frame_skip_phase == 0;
+      if (vb_state->tVIPREG.XPCTRL & XPEN) {
         render_vip_frame(!displayed_fb);
       }
-      if (should_draw) {
+      if (should_present) {
         fb_blit_vb(&fb, displayed_fb, &menu, &settings);
       }
       frame_skip_phase = (frame_skip_phase + 1u) % frame_skip_divisor;
