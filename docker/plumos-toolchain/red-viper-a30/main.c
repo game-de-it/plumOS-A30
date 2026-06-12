@@ -23,6 +23,7 @@
 #include "v810_mem.h"
 #include "vb_dsp.h"
 #include "vb_set.h"
+#include "vb_sound.h"
 
 #define VB_SRC_W 384
 #define VB_SRC_H 224
@@ -40,6 +41,12 @@ typedef enum {
   SCALE_INTEGER,
 } scale_mode_t;
 
+typedef enum {
+  EYE_LEFT,
+  EYE_RIGHT,
+  EYE_BOTH,
+} eye_mode_t;
+
 typedef struct {
   int fd;
   uint8_t *pixels;
@@ -48,6 +55,7 @@ typedef struct {
   struct fb_fix_screeninfo fix;
   rotate_mode_t rotation;
   scale_mode_t scale;
+  eye_mode_t eye_mode;
   int logical_w;
   int logical_h;
   int out_x;
@@ -56,6 +64,10 @@ typedef struct {
   int out_h;
   int *src_x;
   int *src_y;
+  uint32_t front_yoffset;
+  uint32_t back_yoffset;
+  int can_pan;
+  int wait_vsync;
   uint32_t black;
 } fb_ctx_t;
 
@@ -69,7 +81,8 @@ static void on_signal(int sig) {
 static void usage(FILE *out) {
   fprintf(out,
           "Usage: red-viper-a30 [--fb PATH] [--input PATH] [--save-base NAME] "
-          "[--rotation ccw|cw|none] [--scale fit|stretch|integer] ROM\n");
+          "[--rotation ccw|cw|none] [--scale fit|stretch|integer] "
+          "[--eye left|right|both] [--audio alsa|off] ROM\n");
 }
 
 static uint32_t pack_component(uint32_t value, struct fb_bitfield field) {
@@ -90,7 +103,8 @@ static uint32_t pack_color(const fb_ctx_t *fb, uint8_t r, uint8_t g, uint8_t b) 
   return v;
 }
 
-static void put_logical_pixel(const fb_ctx_t *fb, int x, int y, uint32_t color) {
+static bool logical_to_raw(const fb_ctx_t *fb, int x, int y, int *fx_out,
+                           int *fy_out) {
   int fx = x;
   int fy = y;
 
@@ -108,11 +122,18 @@ static void put_logical_pixel(const fb_ctx_t *fb, int x, int y, uint32_t color) 
   }
 
   if (fx < 0 || fy < 0 || fx >= (int)fb->var.xres || fy >= (int)fb->var.yres) {
-    return;
+    return false;
   }
 
+  *fx_out = fx;
+  *fy_out = fy;
+  return true;
+}
+
+static void put_raw_pixel(const fb_ctx_t *fb, int fx, int fy,
+                          uint32_t page_yoffset, uint32_t color) {
   uint32_t px = (uint32_t)fx + fb->var.xoffset;
-  uint32_t py = (uint32_t)fy + fb->var.yoffset;
+  uint32_t py = (uint32_t)fy + page_yoffset;
   if (px >= fb->var.xres_virtual || py >= fb->var.yres_virtual) {
     return;
   }
@@ -128,6 +149,16 @@ static void put_logical_pixel(const fb_ctx_t *fb, int x, int y, uint32_t color) 
   } else if (fb->var.bits_per_pixel == 16) {
     *(uint16_t *)(fb->pixels + offset) = (uint16_t)color;
   }
+}
+
+static void put_logical_pixel_page(const fb_ctx_t *fb, int x, int y,
+                                   uint32_t page_yoffset, uint32_t color) {
+  int fx;
+  int fy;
+  if (!logical_to_raw(fb, x, y, &fx, &fy)) {
+    return;
+  }
+  put_raw_pixel(fb, fx, fy, page_yoffset, color);
 }
 
 static int fb_configure_layout(fb_ctx_t *fb) {
@@ -187,11 +218,12 @@ static int fb_configure_layout(fb_ctx_t *fb) {
 }
 
 static int fb_open(fb_ctx_t *fb, const char *path, rotate_mode_t rotation,
-                   scale_mode_t scale) {
+                   scale_mode_t scale, eye_mode_t eye_mode) {
   memset(fb, 0, sizeof(*fb));
   fb->fd = -1;
   fb->rotation = rotation;
   fb->scale = scale;
+  fb->eye_mode = eye_mode;
 
   fb->fd = open(path, O_RDWR);
   if (fb->fd < 0) {
@@ -226,6 +258,20 @@ static int fb_open(fb_ctx_t *fb, const char *path, rotate_mode_t rotation,
     fprintf(stderr, "red-viper-a30: failed to configure fb layout\n");
     return -1;
   }
+  fb->front_yoffset = fb->var.yoffset;
+  fb->back_yoffset = fb->front_yoffset;
+  if (fb->var.yres > 0 &&
+      fb->var.yres_virtual >= fb->var.yres * 2) {
+    fb->can_pan = 1;
+    fb->wait_vsync = 1;
+    if (fb->front_yoffset >= fb->var.yres) {
+      fb->front_yoffset = fb->var.yres;
+      fb->back_yoffset = 0;
+    } else {
+      fb->front_yoffset = 0;
+      fb->back_yoffset = fb->var.yres;
+    }
+  }
   return 0;
 }
 
@@ -244,16 +290,79 @@ static void fb_close(fb_ctx_t *fb) {
   fb->src_y = NULL;
 }
 
-static void fb_clear(fb_ctx_t *fb) {
-  if (fb->black == 0) {
-    memset(fb->pixels, 0, fb->map_size);
+static void fb_clear_page(fb_ctx_t *fb, uint32_t page_yoffset) {
+  uint32_t bytes_per_pixel = fb->var.bits_per_pixel / 8u;
+  if (!fb->pixels || page_yoffset >= fb->var.yres_virtual ||
+      bytes_per_pixel == 0) {
     return;
   }
-  for (int y = 0; y < fb->logical_h; y++) {
-    for (int x = 0; x < fb->logical_w; x++) {
-      put_logical_pixel(fb, x, y, fb->black);
+
+  if (fb->black == 0) {
+    for (uint32_t y = 0; y < fb->var.yres &&
+                         page_yoffset + y < fb->var.yres_virtual; y++) {
+      size_t offset = (size_t)(page_yoffset + y) * fb->fix.line_length +
+                      (size_t)fb->var.xoffset * bytes_per_pixel;
+      size_t bytes = (size_t)fb->var.xres * bytes_per_pixel;
+      if (offset + bytes > fb->map_size) {
+        break;
+      }
+      memset(fb->pixels + offset, 0, bytes);
+    }
+    return;
+  }
+
+  for (uint32_t y = 0; y < fb->var.yres; y++) {
+    for (uint32_t x = 0; x < fb->var.xres; x++) {
+      put_raw_pixel(fb, (int)x, (int)y, page_yoffset, fb->black);
     }
   }
+}
+
+static void fb_clear(fb_ctx_t *fb) {
+  fb_clear_page(fb, fb->front_yoffset);
+  if (fb->can_pan && fb->back_yoffset != fb->front_yoffset) {
+    fb_clear_page(fb, fb->back_yoffset);
+  }
+}
+
+static void fb_wait_for_vsync(fb_ctx_t *fb) {
+#ifdef FBIO_WAITFORVSYNC
+  if (!fb->wait_vsync) {
+    return;
+  }
+  uint32_t arg = 0;
+  if (ioctl(fb->fd, FBIO_WAITFORVSYNC, &arg) < 0) {
+    fb->wait_vsync = 0;
+  }
+#else
+  (void)fb;
+#endif
+}
+
+static int fb_present_page(fb_ctx_t *fb, uint32_t page_yoffset) {
+  if (!fb->can_pan || page_yoffset == fb->front_yoffset) {
+    return 0;
+  }
+
+  fb_wait_for_vsync(fb);
+  struct fb_var_screeninfo var = fb->var;
+  var.yoffset = page_yoffset;
+  if (ioctl(fb->fd, FBIOPAN_DISPLAY, &var) < 0) {
+    fprintf(stderr, "red-viper-a30: FBIOPAN_DISPLAY failed, disabling pan: %s\n",
+            strerror(errno));
+    fb->can_pan = 0;
+    fb->back_yoffset = fb->front_yoffset;
+    return -1;
+  }
+
+  fb->var = var;
+  fb->front_yoffset = page_yoffset;
+  fb->back_yoffset = page_yoffset == 0 ? fb->var.yres : 0;
+  if (fb->back_yoffset + fb->var.yres > fb->var.yres_virtual) {
+    fb->back_yoffset = fb->front_yoffset;
+    fb->can_pan = 0;
+  }
+  return 0;
 }
 
 static void build_palette(const fb_ctx_t *fb, uint32_t palette[4]) {
@@ -272,34 +381,66 @@ static void build_palette(const fb_ctx_t *fb, uint32_t palette[4]) {
   }
 }
 
+static int vb_framebuffer_pixel(const uint16_t *vb_fb, int sx, int sy) {
+  int word_y = sy >> 3;
+  int shift = (sy & 7) * 2;
+  uint16_t word = vb_fb[sx * 32 + word_y];
+  return (word >> shift) & 3;
+}
+
 static void fb_blit_vb(fb_ctx_t *fb, int fb_index) {
-  const uint16_t *vb_fb =
+  const uint16_t *left_fb =
       (const uint16_t *)(vb_players[0].V810_DISPLAY_RAM.off +
                          0x8000 * (fb_index & 1));
+  const uint16_t *right_fb =
+      (const uint16_t *)(vb_players[0].V810_DISPLAY_RAM.off + 0x10000 +
+                         0x8000 * (fb_index & 1));
   uint32_t palette[4];
+  uint32_t target_yoffset = fb->can_pan ? fb->back_yoffset : fb->front_yoffset;
   build_palette(fb, palette);
 
-  fb_clear(fb);
+retry:
+  fb_clear_page(fb, target_yoffset);
   for (int y = 0; y < fb->out_h; y++) {
     int sy = fb->src_y[y];
-    int word_y = sy >> 3;
-    int shift = (sy & 7) * 2;
     for (int x = 0; x < fb->out_w; x++) {
       int sx = fb->src_x[x];
-      uint16_t word = vb_fb[sx * 32 + word_y];
-      int colour = (word >> shift) & 3;
+      int colour = 0;
+      switch (fb->eye_mode) {
+      case EYE_RIGHT:
+        colour = vb_framebuffer_pixel(right_fb, sx, sy);
+        break;
+      case EYE_BOTH:
+        colour = vb_framebuffer_pixel(left_fb, sx, sy);
+        {
+          int right_colour = vb_framebuffer_pixel(right_fb, sx, sy);
+          if (right_colour > colour) {
+            colour = right_colour;
+          }
+        }
+        break;
+      case EYE_LEFT:
+      default:
+        colour = vb_framebuffer_pixel(left_fb, sx, sy);
+        break;
+      }
       if (colour != 0) {
-        put_logical_pixel(fb, fb->out_x + x, fb->out_y + y, palette[colour]);
+        put_logical_pixel_page(fb, fb->out_x + x, fb->out_y + y,
+                               target_yoffset, palette[colour]);
       }
     }
   }
+  if (fb->can_pan && fb_present_page(fb, target_yoffset) < 0) {
+    target_yoffset = fb->front_yoffset;
+    goto retry;
+  }
 }
 
-static void render_vip_frame(void) {
+static void render_vip_frame(int draw_fb) {
   if (tDSPCACHE.CharCacheInvalid) {
     update_texture_cache_soft();
   }
-  video_soft_render(vb_state->tVIPREG.tDisplayedFB & 1);
+  video_soft_render(draw_fb & 1);
   tDSPCACHE.CharCacheInvalid = false;
   tDSPCACHE.CharCacheForceInvalid = false;
   tDSPCACHE.ColumnTableInvalid = false;
@@ -531,12 +672,36 @@ static scale_mode_t parse_scale(const char *value) {
   return SCALE_FIT;
 }
 
+static eye_mode_t parse_eye_mode(const char *value) {
+  if (value && strcasecmp(value, "left") == 0) {
+    return EYE_LEFT;
+  }
+  if (value && strcasecmp(value, "right") == 0) {
+    return EYE_RIGHT;
+  }
+  return EYE_BOTH;
+}
+
+static bool audio_enabled_mode(const char *value) {
+  if (!value || !*value) {
+    return true;
+  }
+  if (strcasecmp(value, "0") == 0 || strcasecmp(value, "off") == 0 ||
+      strcasecmp(value, "false") == 0 || strcasecmp(value, "no") == 0 ||
+      strcasecmp(value, "none") == 0 || strcasecmp(value, "disabled") == 0) {
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char **argv) {
   const char *fb_path = getenv("PLUMOS_A30_RED_VIPER_FB");
   const char *input_path = getenv("PLUMOS_A30_RED_VIPER_INPUT");
   const char *save_base = getenv("PLUMOS_A30_RED_VIPER_SAVE_BASE");
+  const char *audio_mode = getenv("PLUMOS_A30_RED_VIPER_AUDIO");
   rotate_mode_t rotation = parse_rotation(getenv("PLUMOS_A30_RED_VIPER_ROTATION"));
   scale_mode_t scale = parse_scale(getenv("PLUMOS_A30_RED_VIPER_SCALE"));
+  eye_mode_t eye_mode = parse_eye_mode(getenv("PLUMOS_A30_RED_VIPER_EYE"));
   const char *rom_path = NULL;
 
   if (!fb_path || !*fb_path) {
@@ -544,6 +709,9 @@ int main(int argc, char **argv) {
   }
   if (!input_path || !*input_path) {
     input_path = "/dev/input/event3";
+  }
+  if (!audio_mode || !*audio_mode) {
+    audio_mode = "alsa";
   }
 
   for (int i = 1; i < argc; i++) {
@@ -557,6 +725,10 @@ int main(int argc, char **argv) {
       rotation = parse_rotation(argv[++i]);
     } else if (strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
       scale = parse_scale(argv[++i]);
+    } else if (strcmp(argv[i], "--eye") == 0 && i + 1 < argc) {
+      eye_mode = parse_eye_mode(argv[++i]);
+    } else if (strcmp(argv[i], "--audio") == 0 && i + 1 < argc) {
+      audio_mode = argv[++i];
     } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
       usage(stdout);
       return 0;
@@ -572,13 +744,15 @@ int main(int argc, char **argv) {
     usage(stderr);
     return 2;
   }
+  bool audio_enabled = audio_enabled_mode(audio_mode);
+  setenv("PLUMOS_A30_RED_VIPER_AUDIO", audio_enabled ? audio_mode : "off", 1);
 
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
   signal(SIGHUP, on_signal);
 
   fb_ctx_t fb;
-  if (fb_open(&fb, fb_path, rotation, scale) < 0) {
+  if (fb_open(&fb, fb_path, rotation, scale, eye_mode) < 0) {
     fb_close(&fb);
     return 1;
   }
@@ -588,7 +762,7 @@ int main(int argc, char **argv) {
   uint16_t input_state = 0;
 
   setDefaults();
-  tVBOpt.SOUND = 0;
+  tVBOpt.SOUND = audio_enabled ? 1 : 0;
   tVBOpt.RENDERMODE = RM_CPUONLY;
   tVBOpt.VSYNC = true;
   configure_paths(rom_path, save_base);
@@ -610,26 +784,33 @@ int main(int argc, char **argv) {
     return 1;
   }
   tVBOpt.RENDERMODE = RM_CPUONLY;
+  sound_init();
 
   struct timespec next_frame;
   clock_gettime(CLOCK_MONOTONIC, &next_frame);
 
   while (!g_stop_requested) {
     poll_input(input_fd, &input_state);
+    int displayed_fb = vb_state->tVIPREG.tDisplayedFB & 1;
+    if (vb_state->tVIPREG.tFrame == 0 && !vb_state->tVIPREG.drawing &&
+        (vb_state->tVIPREG.DPCTRL & DISP)) {
+      if (vb_state->tVIPREG.XPCTRL & XPEN) {
+        render_vip_frame(!displayed_fb);
+      }
+      fb_blit_vb(&fb, displayed_fb);
+    }
+
     ret = v810_run();
     if (ret != 0) {
       fprintf(stderr, "red-viper-a30: emulation error: %d\n", ret);
       break;
     }
     poll_input(input_fd, &input_state);
-    if ((vb_state->tVIPREG.DPCTRL & DISP) && (vb_state->tVIPREG.XPCTRL & XPEN)) {
-      render_vip_frame();
-      fb_blit_vb(&fb, vb_state->tVIPREG.tDisplayedFB);
-    }
     sleep_until_next_frame(&next_frame);
   }
 
   save_sram_if_needed();
+  sound_close();
 #if DRC_AVAILABLE
   drc_exit();
 #endif

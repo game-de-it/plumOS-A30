@@ -81,7 +81,7 @@ near its limit and audio is more fragile.
 | EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
 | PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
 | DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
-| Red Viper | Standalone candidate for Virtual Boy | The ARM dynarec works on the A30. In the 2026-06-12 hardware probe, headless reached 322.86fps, and software VIP rendering still reached 289.00fps at 1344 MHz / 4 cores and 135.13fps at 648 MHz / 2 cores. The `red-viper-a30` wrapper provides fbdev video, A30 input, and exit cleanup. The first pass has no audio. |
+| Red Viper | Standalone candidate for Virtual Boy | The ARM dynarec works on the A30. In the 2026-06-12 hardware probe, headless reached 322.86fps, and software VIP rendering still reached 289.00fps at 1344 MHz / 4 cores and 135.13fps at 648 MHz / 2 cores. The `red-viper-a30` wrapper provides fbdev video, A30 input, ALSA audio, and exit cleanup. |
 
 ## Virtual Boy Note
 
@@ -106,8 +106,12 @@ So Red Viper is a credible fix for the Virtual Boy performance problem. The
 `red-viper-a30` wrapper copies Red Viper's software framebuffer to `/dev/fb0`
 in landscape orientation and handles A30 physical input plus Function or
 START+SELECT exit. The frontend now uses `standalone:red_viper` as the Virtual
-Boy default profile and keeps `retroarch:mednafen_vb` as fallback. The first
-pass has no audio; ALSA `default` output and 7z extraction remain follow-up
+Boy default profile and keeps `retroarch:mednafen_vb` as fallback. The A30
+wrapper does not include the Red Viper 3DS menu UI; settings are handled through
+`plumos/config/standalone/red_viper.env` and frontend launch profiles. For the
+A30's single display, `PLUMOS_A30_RED_VIPER_EYE=both` is the default and blends
+the two eye buffers by taking the strongest red value. Audio is enabled through
+upstream `vb_sound.c` and ALSA `default` output. 7z extraction remains follow-up
 work. Before distribution, check the Red Viper/Reality Boy license terms and
 third-party notice requirements.
 
@@ -157,7 +161,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
 | PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
-| Virtual Boy | `standalone:red_viper`, fallback `retroarch:mednafen_vb` | Beetle VB stays around 25fps on A30. Red Viper dynarec is confirmed above 135fps even with software rendering. The A30 standalone wrapper provides display/input/exit cleanup, with audio disabled in the first pass. |
+| Virtual Boy | `standalone:red_viper`, fallback `retroarch:mednafen_vb` | Beetle VB stays around 25fps on A30. Red Viper dynarec is confirmed above 135fps even with software rendering. The A30 standalone wrapper provides display/input/ALSA audio/exit cleanup. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 

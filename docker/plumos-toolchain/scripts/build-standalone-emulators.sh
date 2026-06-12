@@ -795,6 +795,7 @@ build_red_viper() {
   compile_c source/common/v810_ins.c || return 1
   compile_c source/common/v810_mem.c || return 1
   compile_c source/common/vb_set.c || return 1
+  compile_c source/common/vb_sound.c || return 1
   compile_c source/common/video_common.c || return 1
   compile_c source/arm/drc_alloc.c || return 1
   compile_c source/arm/drc_core.c || return 1
@@ -803,11 +804,11 @@ build_red_viper() {
   compile_asm source/arm/drc_exec.s || return 1
   compile_asm source/arm/drc_static.s || return 1
 
-  "${CXX}" ${COMMON_LDFLAGS} -o "${out}" "${objects[@]}" -lm || return 1
+  "${CXX}" ${COMMON_LDFLAGS} -o "${out}" "${objects[@]}" -lasound -lm || return 1
   stage_binary red_viper "${out}" red-viper-a30 || return 1
 
   append_manifest "  frontend=red-viper-a30 fbdev/input wrapper"
-  append_manifest "  audio=disabled"
+  append_manifest "  audio=alsa-default"
 }
 
 prepare_dist() {
@@ -906,6 +907,10 @@ Environment:
   PLUMOS_A30_RED_VIPER_INPUT          Red Viper input event path. Default: /dev/input/event3.
   PLUMOS_A30_RED_VIPER_ROTATION       Red Viper final display rotation: ccw, cw, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_SCALE          Red Viper scaling: fit, stretch, integer. Default: fit.
+  PLUMOS_A30_RED_VIPER_EYE            Red Viper eye mode: left, right, both. Default: both.
+  PLUMOS_A30_RED_VIPER_AUDIO          Red Viper audio mode: alsa, off. Default: alsa.
+  PLUMOS_A30_RED_VIPER_ALSA_DEVICE    Red Viper ALSA PCM device. Default: default.
+  PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US Red Viper ALSA latency in microseconds. Default: 80000.
   SDL_VIDEODRIVER / SDL_AUDIODRIVER   Override per-emulator defaults.
 USAGE
 }
@@ -1807,12 +1812,18 @@ case "${id}" in
     cpu_policy=${PLUMOS_A30_RED_VIPER_CPU_POLICY:-${PLUMOS_STANDALONE_CPU_POLICY:-fixed}}
     cpu_freq=${PLUMOS_A30_RED_VIPER_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-648000}}
     cpu_cores=${PLUMOS_A30_RED_VIPER_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
+    export PLUMOS_A30_RED_VIPER_EYE=${PLUMOS_A30_RED_VIPER_EYE:-both}
+    export PLUMOS_A30_RED_VIPER_AUDIO=${PLUMOS_A30_RED_VIPER_AUDIO:-alsa}
+    export PLUMOS_A30_RED_VIPER_ALSA_DEVICE=${PLUMOS_A30_RED_VIPER_ALSA_DEVICE:-default}
+    export PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=${PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US:-80000}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
     run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
       --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
       --input "${PLUMOS_A30_RED_VIPER_INPUT:-/dev/input/event3}" \
       --rotation "${PLUMOS_A30_RED_VIPER_ROTATION:-ccw}" \
       --scale "${PLUMOS_A30_RED_VIPER_SCALE:-fit}" \
+      --eye "${PLUMOS_A30_RED_VIPER_EYE}" \
+      --audio "${PLUMOS_A30_RED_VIPER_AUDIO}" \
       --save-base "${red_viper_save_base}" \
       "${red_viper_prepared_rom}" "$@"
     ;;
@@ -1934,6 +1945,10 @@ PLUMOS_A30_RED_VIPER_FB=/dev/fb0
 PLUMOS_A30_RED_VIPER_INPUT=/dev/input/event3
 PLUMOS_A30_RED_VIPER_ROTATION=ccw
 PLUMOS_A30_RED_VIPER_SCALE=fit
+PLUMOS_A30_RED_VIPER_EYE=both
+PLUMOS_A30_RED_VIPER_AUDIO=alsa
+PLUMOS_A30_RED_VIPER_ALSA_DEVICE=default
+PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=80000
 EOF
   append_manifest "config=plumos/config/standalone/red_viper.env"
 }
