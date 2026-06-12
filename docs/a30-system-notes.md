@@ -19,7 +19,8 @@
 - A30 は古い 32-bit ARM/glibc 環境なので、現在の一般的な Linux armhf バイナリが
   そのまま動くとは限りません。
 - RetroArch やライブラリを最新版へ更新する場合、A30 向けの sysroot/ランタイムを
-  こちらで管理する前提にします。
+  こちらで管理する前提にします。libretro core は最新版追従ではなく、Onion 採用 core と
+  実績 commit/build recipe を基準にします。
 
 ## ストレージとマウント
 
@@ -316,10 +317,12 @@ stock UI は SD カード上の以下を読みます。
 - `savefile_directory = "./.retroarch/saves"`
 - `savestate_directory = "./.retroarch/states"`
 
-RetroArch は build 時点で公式 upstream の latest stable release を再確認してから
+RetroArch 本体は build 時点で公式 upstream の latest stable release を再確認してから
 採用候補を決めます。A30 は glibc `2.23` のため、汎用 buildbot binary に頼らず、
-A30 向け armv7 hard-float build を作る前提にします。stockOS 側の RetroArch/core
-version は互換調査の参考に留め、最新版で実機異常が出た場合だけ比較対象にします。
+A30 向け armv7 hard-float build を作る前提にします。libretro core は latest upstream を
+既定にせず、Onion 採用 core catalog と実績 commit/build recipe を基準にします。
+stockOS 側の RetroArch/core version は互換調査の参考に留め、実機異常が出た場合だけ
+比較対象にします。
 
 2026-06-07 時点では、plumOS 側で RetroArch 1.22.2 minimal display probe を
 `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置し、A30 実機で
@@ -375,7 +378,9 @@ plumOS では、まず既存挙動を再現できる互換 layer を作り、そ
 - `/mnt/SDCARD/miyoo/app/MainUI` は復旧可能な wrapper として扱う
 - plumOS 本体は `/mnt/SDCARD/plumos` 配下へ置く
 - stock の `/mnt/SDCARD/miyoo/lib` には依存しない
-- build 時点で最新 stable の RetroArch と必要 core を確認し、A30 向けに build する。
+- build 時点で最新 stable の RetroArch を確認し、A30 向けに build する。
   RetroArch 本体の minimal RGUI 表示は 1.22.2 で確認済み
+- libretro core は Onion 採用 catalog と実績 commit/build recipe に寄せて A30 向けに
+  再 build する
 - core は一括更新せず、system ごとに起動、performance、save/state、input を検証する
 - CPU policy、Wi-Fi、input、audio/video driver は「既存仕様を疑う」対象として扱う

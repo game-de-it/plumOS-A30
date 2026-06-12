@@ -10,7 +10,8 @@ JOBS=${JOBS:-$(nproc 2>/dev/null || echo 2)}
 
 CORE_INFO_REPO=${CORE_INFO_REPO:-https://github.com/libretro/libretro-core-info.git}
 CORE_INFO_REF=${CORE_INFO_REF:-HEAD}
-PLUMOS_CORE_FILTER=${PLUMOS_CORE_FILTER:-all}
+CORE_RECIPES=${CORE_RECIPES:-"${ROOT_DIR}/docker/plumos-toolchain/libretro-core-recipes.tsv"}
+PLUMOS_CORE_FILTER=${PLUMOS_CORE_FILTER:-plumos}
 FAIL_ON_CORE_ERROR=${FAIL_ON_CORE_ERROR:-0}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
@@ -98,8 +99,13 @@ core_selected() {
   local id=$1
   local class=$2
   local filter=",$PLUMOS_CORE_FILTER,"
+  local alias
   case "$PLUMOS_CORE_FILTER" in
-    all|ALL) return 0 ;;
+    all|ALL|onion|ONION) return 0 ;;
+    plumos|PLUMOS|class-plumos|Class-plumOS)
+      [ "$class" = "A" ] || [ "$class" = "B" ]
+      return
+      ;;
     class-a|Class-A|a|A)
       [ "$class" = "A" ]
       return
@@ -112,10 +118,30 @@ core_selected() {
       [ "$class" = "A" ] || [ "$class" = "B" ]
       return
       ;;
+    class-o|Class-O|o|O|onion-extra|Onion-extra)
+      [ "$class" = "O" ]
+      return
+      ;;
   esac
   case "$filter" in
     *,"$id",*) return 0 ;;
-    *) return 1 ;;
+  esac
+  for alias in $(core_aliases "${id}"); do
+    case "$filter" in
+      *,"$alias",*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+core_aliases() {
+  case "$1" in
+    mednafen_lynx) printf '%s\n' beetle_lynx ;;
+    mednafen_ngp) printf '%s\n' beetle_ngp ;;
+    mednafen_pce_fast) printf '%s\n' beetle_pce_fast ;;
+    mednafen_supergrafx) printf '%s\n' beetle_supergrafx ;;
+    mednafen_vb) printf '%s\n' beetle_vb ;;
+    mednafen_wswan) printf '%s\n' beetle_wswan ;;
   esac
 }
 
@@ -552,49 +578,10 @@ build_one_core() {
 }
 
 core_table() {
-  cat <<'EOF'
-fceumm|A|https://github.com/libretro/libretro-fceumm.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
-nestopia|A|https://github.com/libretro/nestopia.git|HEAD|libretro|Makefile|platform=armv
-quicknes|A|https://github.com/libretro/QuickNES_Core.git|HEAD||Makefile|platform=armv
-gambatte|A|https://github.com/libretro/gambatte-libretro.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon
-mgba|A|https://github.com/mgba-emu/mgba.git|HEAD||Makefile.libretro|platform=unix
-gpsp|A|https://github.com/libretro/gpsp.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon
-genesis_plus_gx|A|https://github.com/libretro/Genesis-Plus-GX.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon
-picodrive|A|https://github.com/libretro/picodrive.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon
-snes9x|A|https://github.com/libretro/snes9x.git|HEAD|libretro|Makefile|platform=armv LTO=
-snes9x2005|A|https://github.com/libretro/snes9x2005.git|HEAD||Makefile|platform=armv
-beetle_pce_fast|A|https://github.com/libretro/beetle-pce-fast-libretro.git|HEAD||Makefile|platform=armv
-beetle_supergrafx|A|https://github.com/libretro/beetle-supergrafx-libretro.git|HEAD||Makefile|platform=armv
-pcsx_rearmed|A|https://github.com/libretro/pcsx_rearmed.git|HEAD||Makefile.libretro|platform=armv7-hardfloat-neon BUILTIN_GPU=neon
-fbneo|A|https://github.com/libretro/FBNeo.git|HEAD|src/burner/libretro|Makefile|platform=armv
-mame2003_plus|A|https://github.com/libretro/mame2003-plus-libretro.git|HEAD||Makefile|platform=armv
-fbalpha2012|A|https://github.com/libretro/fbalpha2012.git|HEAD|svn-current/trunk|makefile.libretro|platform=armv
-beetle_ngp|A|https://github.com/libretro/beetle-ngp-libretro.git|HEAD||Makefile|platform=armv
-beetle_wswan|A|https://github.com/libretro/beetle-wswan-libretro.git|HEAD||Makefile|platform=armv
-beetle_lynx|A|https://github.com/libretro/beetle-lynx-libretro.git|HEAD||Makefile|platform=armv
-handy|A|https://github.com/libretro/libretro-handy.git|HEAD||Makefile|platform=armv
-stella2014|A|https://github.com/libretro/stella2014-libretro.git|HEAD||Makefile|platform=armv
-prosystem|A|https://github.com/libretro/prosystem-libretro.git|HEAD||Makefile|platform=armv
-vecx|A|https://github.com/libretro/libretro-vecx.git|HEAD||Makefile|platform=armv HAS_GPU=0
-potator|A|https://github.com/libretro/potator.git|HEAD|platform/libretro|Makefile|platform=armv
-o2em|A|https://github.com/libretro/libretro-o2em.git|HEAD||Makefile|platform=armv
-gw|A|https://github.com/libretro/gw-libretro.git|HEAD||Makefile|platform=armv
-pokemini|A|https://github.com/libretro/PokeMini.git|HEAD||Makefile|platform=armv
-prboom|A|https://github.com/libretro/libretro-prboom.git|HEAD||Makefile|platform=armv
-retro8|A|https://github.com/libretro/retro8.git|HEAD||Makefile|platform=unix
-fake08|A|https://github.com/jtothebell/fake-08.git|HEAD|platform/libretro|Makefile|platform=unix
-tic80|A|https://github.com/nesbox/TIC-80.git|HEAD|build/libretro|Makefile|platform=unix
-scummvm|A|https://github.com/libretro/scummvm.git|HEAD||Makefile|platform=armv
-easyrpg|A|https://github.com/EasyRPG/Player.git|HEAD||Makefile.libretro|platform=unix
-dosbox_pure|A|https://github.com/libretro/dosbox-pure.git|HEAD||Makefile|platform=armv
-bluemsx|A|https://github.com/libretro/blueMSX-libretro.git|HEAD||Makefile|platform=armv
-fmsx|A|https://github.com/libretro/fmsx-libretro.git|HEAD||Makefile|platform=armv
-neocd|A|https://github.com/libretro/neocd_libretro.git|HEAD||Makefile|platform=unix USE_LTO=0
-beetle_vb|B|https://github.com/libretro/beetle-vb-libretro.git|162918f06d9a705330b2ba128e0d3b65fd1a1bcc||Makefile|platform=armv
-quasi88|B|https://github.com/libretro/quasi88-libretro.git|HEAD||Makefile|platform=armv
-np2kai|B|https://github.com/AZO234/NP2kai.git|HEAD|sdl|Makefile.libretro|platform=rpi2 NP2KAI_VERSION=latest
-px68k|B|https://github.com/libretro/px68k-libretro.git|HEAD||Makefile|platform=armv
-EOF
+  awk '
+    /^[[:space:]]*($|#)/ { next }
+    { print }
+  ' "${CORE_RECIPES}"
 }
 
 prepare_dist() {
@@ -609,6 +596,7 @@ prepare_dist() {
   {
     printf 'plumOS libretro core build\n'
     printf 'target=armv7-a cortex-a7 hard-float neon-vfpv4\n'
+    printf 'core_recipes=%s\n' "${CORE_RECIPES}"
     printf 'common_cflags=%s\n' "${COMMON_CFLAGS}"
     printf 'core_filter=%s\n' "${PLUMOS_CORE_FILTER}"
   } >"${MANIFEST}"
@@ -640,6 +628,11 @@ clone_core_info() {
 
 main() {
   local line id class repo ref subdir makefile make_args
+
+  if [ ! -f "${CORE_RECIPES}" ]; then
+    msg "error: core recipe file not found: ${CORE_RECIPES}"
+    exit 1
+  fi
 
   mkdir -p "${SRC_ROOT}"
   prepare_dist

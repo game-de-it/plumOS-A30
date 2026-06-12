@@ -153,10 +153,14 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-libretro core package を build します。現在は Class A/B の 41 core を A30 armv7
-hard-float 向けに build し、選んだ commit、build flags、NEEDED を manifest に残します。
-`PLUMOS_CORE_FILTER=vecx` や `PLUMOS_CORE_FILTER=class-a` のように指定すると、個別/クラス別
-build もできます。
+libretro core package を build します。core recipe は
+`docker/plumos-toolchain/libretro-core-recipes.tsv` を正本にし、Onion が採用している
+core 名、source 由来、実績 commit/build recipe へ寄せます。既定の
+`PLUMOS_CORE_FILTER=plumos` は plumOS default の Class A/B 40 core を対象にし、
+`PLUMOS_CORE_FILTER=onion` または `all` は Onion catalog 補完用 Class O も対象にします。
+`PLUMOS_CORE_FILTER=mednafen_vb` や `PLUMOS_CORE_FILTER=class-a` のように指定すると、
+個別/クラス別 build もできます。選んだ commit、build flags、NEEDED は manifest に
+残します。
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
@@ -169,6 +173,20 @@ dist/plumos-libretro-cores/plumos/retroarch/cores/*_libretro.so
 dist/plumos-libretro-cores/plumos/retroarch/info/*_libretro.info
 dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+Onion catalog と plumOS recipe の差分は host 側で監査できます。
+
+```sh
+./scripts/inventory-onion-libretro-cores.sh
+```
+
+別の recipe file を試す場合は、container 内 path として `CORE_RECIPES` を指定します。
+
+```sh
+CORE_RECIPES=/workspace/docker/plumos-toolchain/libretro-core-recipes.tsv \
+PLUMOS_CORE_FILTER=onion \
+./scripts/docker-build.sh libretro-cores
 ```
 
 standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
@@ -211,13 +229,13 @@ host 側では `scripts/audit-launch-profiles.py` で、`systems.json` と stagi
 個別 core/emulator を追加するときは、対象 profile だけに絞ると判断しやすくなります。
 
 ```sh
-PLUMOS_CORE_FILTER=quicknes \
-TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
+PLUMOS_CORE_FILTER=mednafen_vb \
+TARGET_DIR=/workspace/dist/plumos-libretro-cores-vb \
 ./scripts/docker-build.sh libretro-cores
 
 ./scripts/audit-launch-profiles.py \
-  --root dist/plumos-libretro-cores-quicknes \
-  --profile retroarch:quicknes \
+  --root dist/plumos-libretro-cores-vb \
+  --profile retroarch:mednafen_vb \
   --strict --fail-on-extra
 ```
 
@@ -364,8 +382,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 ## 方針
 
 - Dockerfile、build script、patch、hash、recipe は git で管理する
-- ライブラリ、RetroArch、core、emulator は build 時点の upstream latest stable を確認し、
+- ライブラリ、RetroArch、standalone emulator は build 時点の upstream latest stable を確認し、
   選んだ version/tag/commit/build option を manifest に残す
+- libretro core は Onion 採用 core catalog と実績 commit/build recipe を基準にし、
+  recipe file、選んだ commit、build option を manifest に残す
 - `build/`, `dist/`, `artifacts/` は生成物として git に入れない
 - 動的 link が必要なものは、A30 向け sysroot または plumOS 同梱 runtime で扱う
 - RetroArch と libretro core は、この build/deploy loop に載せて段階的に増やす

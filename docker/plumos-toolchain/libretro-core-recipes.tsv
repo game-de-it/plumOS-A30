@@ -1,0 +1,118 @@
+# plumOS libretro core build recipes.
+#
+# Format:
+#   id|class|repo|ref|subdir|makefile|make_args
+#
+# Classes:
+#   A/B: plumOS default build set. `PLUMOS_CORE_FILTER=plumos` builds these.
+#   O:   Onion-compatible catalog entry that is not in the plumOS default set yet.
+#
+# Policy:
+#   libretro cores follow Onion-proven versions/recipes where available. Exact
+#   source commits are pinned when proven from Onion history or A30 regression
+#   testing. Branch refs are provisional Onion-builder recipe refs and should be
+#   promoted to exact commits when provenance is established.
+#
+# Sources:
+#   - Onion prebuilt core set:
+#     artifacts/onion/Onion/static/build/RetroArch/.retroarch/cores
+#   - Onion builder recipes:
+#     artifacts/onion/Miyoo-Mini-Retroarch-builder/cores-onionos*
+
+fceumm|A|https://github.com/libretro/libretro-fceumm.git|master||Makefile.libretro|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
+nestopia|A|https://github.com/libretro/nestopia.git|master|libretro|Makefile|platform=armv
+gambatte|A|https://github.com/libretro/gambatte-libretro.git|master||Makefile|platform=armv7-hardfloat-neon
+mgba|A|https://github.com/libretro/mgba.git|master||Makefile.libretro|platform=unix
+gpsp|A|https://github.com/libretro/gpsp.git|master||Makefile|platform=armv7-hardfloat-neon
+genesis_plus_gx|A|https://github.com/libretro/Genesis-Plus-GX.git|master||Makefile.libretro|platform=armv7-hardfloat-neon
+picodrive|A|https://github.com/libretro/picodrive.git|master||Makefile.libretro|platform=armv7-hardfloat-neon
+snes9x|A|https://github.com/libretro/snes9x.git|master|libretro|Makefile|platform=armv LTO=
+snes9x2005|A|https://github.com/libretro/snes9x2005.git|master||Makefile|platform=armv
+mednafen_pce_fast|A|https://github.com/libretro/beetle-pce-fast-libretro.git|master||Makefile|platform=armv
+mednafen_supergrafx|A|https://github.com/libretro/beetle-supergrafx-libretro.git|master||Makefile|platform=armv
+pcsx_rearmed|A|https://github.com/libretro/pcsx_rearmed.git|master||Makefile.libretro|platform=armv7-hardfloat-neon DYNAREC=ari64 HAVE_NEON=1 BUILTIN_GPU=neon
+fbneo|A|https://github.com/libretro/FBNeo.git|master|src/burner/libretro|Makefile|platform=armv
+mame2003_plus|A|https://github.com/libretro/mame2003-plus-libretro.git|master||Makefile|platform=armv
+fbalpha2012|A|https://github.com/libretro/fbalpha2012.git|master|svn-current/trunk|makefile.libretro|platform=armv
+mednafen_ngp|A|https://github.com/libretro/beetle-ngp-libretro.git|master||Makefile|platform=armv
+mednafen_wswan|A|https://github.com/libretro/beetle-wswan-libretro.git|master||Makefile|platform=armv
+mednafen_lynx|A|https://github.com/libretro/beetle-lynx-libretro.git|master||Makefile|platform=armv
+handy|A|https://github.com/libretro/libretro-handy.git|master||Makefile|platform=armv
+stella2014|A|https://github.com/libretro/stella2014-libretro.git|master||Makefile|platform=armv
+prosystem|A|https://github.com/libretro/prosystem-libretro.git|master||Makefile|platform=armv
+vecx|A|https://github.com/libretro/libretro-vecx.git|master||Makefile.libretro|platform=armv HAS_GPU=0
+potator|A|https://github.com/libretro/potator.git|master|platform/libretro|Makefile|platform=armv
+o2em|A|https://github.com/libretro/libretro-o2em.git|master||Makefile|platform=armv
+gw|A|https://github.com/libretro/gw-libretro.git|master||Makefile|platform=armv
+pokemini|A|https://github.com/libretro/PokeMini.git|master||Makefile|platform=armv
+prboom|A|https://github.com/libretro/libretro-prboom.git|master||Makefile|platform=armv
+retro8|A|https://github.com/libretro/retro8.git|master||Makefile|platform=unix
+fake08|A|https://github.com/jtothebell/fake-08.git|master|platform/libretro|Makefile|platform=unix
+tic80|A|https://github.com/nesbox/TIC-80.git|master|build/libretro|Makefile|platform=unix
+scummvm|A|https://github.com/libretro/scummvm.git|master||Makefile|platform=armv
+easyrpg|A|https://github.com/EasyRPG/Player.git|master||Makefile.libretro|platform=unix
+dosbox_pure|A|https://github.com/libretro/dosbox-pure.git|master||Makefile|platform=armv
+bluemsx|A|https://github.com/libretro/blueMSX-libretro.git|master||Makefile.libretro|platform=armv
+fmsx|A|https://github.com/libretro/fmsx-libretro.git|master||Makefile|platform=armv
+neocd|A|https://github.com/libretro/neocd_libretro.git|master||Makefile|platform=unix USE_LTO=0
+mednafen_vb|B|https://github.com/libretro/beetle-vb-libretro.git|162918f06d9a705330b2ba128e0d3b65fd1a1bcc||Makefile|platform=armv
+quasi88|B|https://github.com/libretro/quasi88-libretro.git|master||Makefile|platform=armv
+np2kai|B|https://github.com/libretro/NP2kai.git|master|sdl|Makefile.libretro|platform=rpi2 NP2KAI_VERSION=latest
+px68k|B|https://github.com/libretro/px68k-libretro.git|master||Makefile.libretro|platform=armv
+
+2048|O|https://github.com/libretro/libretro-2048.git|master||Makefile.libretro|platform=unix
+81|O|https://github.com/libretro/81-libretro.git|master||Makefile|platform=armv
+atari800|O|https://github.com/libretro/libretro-atari800.git|master||Makefile|platform=armv
+bk|O|https://github.com/libretro/bk-emulator.git|master||Makefile.libretro|platform=armv
+opera|O|https://github.com/libretro/opera-libretro.git|master||Makefile|platform=armv
+cannonball|O|https://github.com/libretro/cannonball.git|master||Makefile|platform=armv
+cap32|O|https://github.com/libretro/libretro-cap32.git|master||Makefile|platform=armv
+chailove|O|https://github.com/libretro/libretro-chailove.git|master||Makefile|platform=armv
+crocods|O|https://github.com/libretro/libretro-crocods.git|master||Makefile|platform=armv
+daphne|O|https://github.com/libretro/daphne.git|master||Makefile|platform=armv
+dinothawr|O|https://github.com/libretro/Dinothawr.git|master||Makefile|platform=armv
+ecwolf|O|https://github.com/libretro/ecwolf.git|master|src/libretro|Makefile|platform=armv
+fbalpha2012_cps1|O|https://github.com/libretro/fbalpha2012_cps1.git|master||makefile.libretro|platform=armv
+fbalpha2012_cps2|O|https://github.com/libretro/fbalpha2012_cps2.git|master||makefile.libretro|platform=armv
+fbalpha2012_neogeo|O|https://github.com/libretro/fbalpha2012_neogeo.git|master||Makefile|platform=armv
+freechaf|O|https://github.com/libretro/FreeChaF.git|master||Makefile|platform=armv
+freeintv|O|https://github.com/libretro/FreeIntv.git|master||Makefile|platform=armv
+frodo|O|https://github.com/libretro/frodo-libretro.git|master||Makefile|platform=armv
+fuse|O|https://github.com/libretro/fuse-libretro.git|master||Makefile|platform=armv
+gearboy|O|https://github.com/drhelius/Gearboy.git|master|platforms/libretro|Makefile|platform=armv
+gearsystem|O|https://github.com/drhelius/Gearsystem.git|master|platforms/libretro|Makefile|platform=armv
+gme|O|https://github.com/libretro/libretro-gme.git|master||Makefile|platform=armv
+hatari|O|https://github.com/libretro/hatari.git|master||Makefile.libretro|platform=armv
+lutro|O|https://github.com/libretro/libretro-lutro.git|master||Makefile|platform=armv
+lowresnx|O|https://github.com/timoinutilis/lowres-nx.git|retroarch|platform/LibRetro|Makefile|platform=armv
+mame2000|O|https://github.com/libretro/mame2000-libretro.git|master||Makefile|platform=armv
+mednafen_gba|O|https://github.com/libretro/beetle-gba-libretro.git|master||Makefile|platform=armv
+mednafen_pce|O|https://github.com/libretro/beetle-pce-libretro.git|master||Makefile|platform=armv
+mednafen_pcfx|O|https://github.com/libretro/beetle-pcfx-libretro.git|master||Makefile|platform=armv
+mednafen_supafaust|O|https://github.com/libretro/supafaust.git|master||Makefile|platform=armv
+meteor|O|https://github.com/libretro/meteor-libretro.git|master|libretro|Makefile|platform=armv
+mrboom|O|https://github.com/libretro/mrboom-libretro.git|master||Makefile|platform=armv
+mu|O|https://github.com/libretro/Mu.git|master|libretroBuildSystem|Makefile|platform=armv
+nekop2|O|https://github.com/libretro/libretro-meowPC98.git|master|libretro|Makefile.libretro|platform=armv
+numero|O|https://github.com/nbarkhina/numero.git|master||Makefile|platform=armv
+nxengine|O|https://github.com/libretro/nxengine-libretro.git|master||Makefile|platform=armv
+puae|O|https://github.com/libretro/libretro-uae.git|master||Makefile|platform=armv
+reminiscence|O|https://github.com/libretro/REminiscence.git|master||Makefile|platform=armv
+snes9x2002|O|https://github.com/libretro/snes9x2002.git|master||Makefile|platform=armv
+snes9x2005_plus|O|https://github.com/libretro/snes9x2005.git|master||Makefile|platform=armv USE_BLARGG_APU=1
+chimerasnes|O|https://github.com/jamsilva/chimerasnes.git|master||Makefile|platform=armv
+snes9x2010|O|https://github.com/libretro/snes9x2010.git|master||Makefile.libretro|platform=armv
+squirreljme|O|https://github.com/XerTheSquirrel/SquirrelJME.git|trunk|ratufacoat|makefilelibretro|platform=armv
+tgbdual|O|https://github.com/libretro/tgbdual-libretro.git|master||Makefile|platform=armv
+theodore|O|https://github.com/Zlika/theodore.git|master||Makefile|platform=armv
+tyrquake|O|https://github.com/libretro/tyrquake.git|master||Makefile|platform=armv
+uw8|O|https://github.com/libretro/uw8-libretro.git|main||Makefile|platform=unix
+uzem|O|https://github.com/libretro/libretro-uzem.git|master||Makefile|platform=armv
+vba_next|O|https://github.com/libretro/vba-next.git|master||Makefile.libretro|platform=armv
+vbam|O|https://github.com/libretro/vbam-libretro.git|master|src/libretro|Makefile|platform=armv
+vemulator|O|https://github.com/libretro/vemulator-libretro.git|master||Makefile|platform=armv
+vice_x64|O|https://github.com/libretro/vice-libretro.git|master||Makefile|platform=armv
+vice_xvic|O|https://github.com/libretro/vice-libretro.git|master||Makefile|platform=armv EMUTYPE=xvic
+virtualjaguar|O|https://github.com/libretro/virtualjaguar-libretro.git|master||Makefile|platform=armv
+x1|O|https://github.com/libretro/xmil-libretro.git|master|libretro|Makefile.libretro|platform=armv
+xrick|O|https://github.com/libretro/xrick-libretro.git|master||Makefile|platform=armv

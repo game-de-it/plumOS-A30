@@ -35,7 +35,11 @@ Commands:
 Environment:
   PLUMOS_DOCKER_IMAGE     Docker image tag. Default: ${IMAGE}
   PLUMOS_DOCKER_PLATFORM  Docker platform. Default: ${PLATFORM}
-  PLUMOS_CORE_FILTER      libretro-cores filter: all, class-a, class-b, class-ab, or comma-separated core ids.
+  CORE_RECIPES            libretro core recipe file inside the container.
+                           Default: /workspace/docker/plumos-toolchain/libretro-core-recipes.tsv.
+  PLUMOS_CORE_FILTER      libretro-cores filter: plumos, onion, all, class-a,
+                           class-b, class-ab, class-o, or comma-separated core ids.
+                           Default: plumos.
   FAIL_ON_CORE_ERROR      Set to 1 to make libretro-cores exit non-zero on any core build failure.
   PLUMOS_STANDALONE_FILTER
                            standalone-emulators filter: all or comma-separated emulator ids.
@@ -79,7 +83,8 @@ docker_run_base=(
   -e PLUMOS_MARCH=armv7-a
   -e PLUMOS_MFPU=neon-vfpv4
   -e PLUMOS_MFLOAT_ABI=hard
-  -e PLUMOS_CORE_FILTER="${PLUMOS_CORE_FILTER:-all}"
+  -e CORE_RECIPES="${CORE_RECIPES:-/workspace/docker/plumos-toolchain/libretro-core-recipes.tsv}"
+  -e PLUMOS_CORE_FILTER="${PLUMOS_CORE_FILTER:-plumos}"
   -e FAIL_ON_CORE_ERROR="${FAIL_ON_CORE_ERROR:-0}"
   -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"
   -e FAIL_ON_STANDALONE_ERROR="${FAIL_ON_STANDALONE_ERROR:-0}"

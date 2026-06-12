@@ -154,10 +154,14 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-Build the libretro core package. The current target builds 41 Class A/B cores
-for the A30 armv7 hard-float environment and records selected commits, flags,
-and NEEDED entries in the manifest. You can also filter the build with values
-such as `PLUMOS_CORE_FILTER=vecx` or `PLUMOS_CORE_FILTER=class-a`.
+Build the libretro core package. The core recipe source of truth is
+`docker/plumos-toolchain/libretro-core-recipes.tsv`, aligned with Onion's
+adopted core names, source provenance, and proven commits/build recipes. The
+default `PLUMOS_CORE_FILTER=plumos` targets the 40 plumOS-default Class A/B
+cores. `PLUMOS_CORE_FILTER=onion` or `all` also includes Onion-catalog Class O
+entries. You can also filter the build with values such as
+`PLUMOS_CORE_FILTER=mednafen_vb` or `PLUMOS_CORE_FILTER=class-a`. The manifest
+records selected commits, flags, and NEEDED entries.
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
@@ -170,6 +174,20 @@ dist/plumos-libretro-cores/plumos/retroarch/cores/*_libretro.so
 dist/plumos-libretro-cores/plumos/retroarch/info/*_libretro.info
 dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
+```
+
+Audit Onion catalog coverage against the plumOS recipe file from the host:
+
+```sh
+./scripts/inventory-onion-libretro-cores.sh
+```
+
+To test another recipe file, pass `CORE_RECIPES` as a container path.
+
+```sh
+CORE_RECIPES=/workspace/docker/plumos-toolchain/libretro-core-recipes.tsv \
+PLUMOS_CORE_FILTER=onion \
+./scripts/docker-build.sh libretro-cores
 ```
 
 Build the standalone emulator package. The current target builds PPSSPP,
@@ -214,13 +232,13 @@ with staged runtime artifacts.
 When adding a single core or emulator, filter the audit to the target profile.
 
 ```sh
-PLUMOS_CORE_FILTER=quicknes \
-TARGET_DIR=/workspace/dist/plumos-libretro-cores-quicknes \
+PLUMOS_CORE_FILTER=mednafen_vb \
+TARGET_DIR=/workspace/dist/plumos-libretro-cores-vb \
 ./scripts/docker-build.sh libretro-cores
 
 ./scripts/audit-launch-profiles.py \
-  --root dist/plumos-libretro-cores-quicknes \
-  --profile retroarch:quicknes \
+  --root dist/plumos-libretro-cores-vb \
+  --profile retroarch:mednafen_vb \
   --strict --fail-on-extra
 ```
 
@@ -347,9 +365,10 @@ screens were visually confirmed on the A30. The current
 `retroarch-minimal.cfg` disables audio, so sound remains part of the full
 runtime validation.
 
-As of 2026-06-07, the bulk core build stages 41 cores. Real-device screen,
-audio, and input validation is still only done for `fceumm`/`gambatte`; the rest
-must be checked per system after deployment.
+The current Onion-aligned recipe builds the 40 Class A/B plumOS-default cores.
+Real-device screen, audio, and input validation is still only done for
+`fceumm`/`gambatte` plus focused Virtual Boy performance probes; the rest must be
+checked per system after deployment.
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
@@ -373,9 +392,12 @@ A30_TARGET=root@192.168.10.165 ./scripts/collect-a30-logs.sh
 ## Policy
 
 - Keep Dockerfiles, build scripts, patches, hashes, and recipes in git.
-- Check the upstream latest stable release for libraries, RetroArch, cores, and
-  emulators at build time, and record the selected version/tag/commit/build
-  options in manifests.
+- Check the upstream latest stable release for libraries, RetroArch, and
+  standalone emulators at build time, and record the selected
+  version/tag/commit/build options in manifests.
+- For libretro cores, use Onion's adopted core catalog and proven
+  commits/build recipes as the baseline, and record the recipe file, selected
+  commit, and build options in manifests.
 - Keep `build/`, `dist/`, and `artifacts/` out of git as generated output.
 - Handle dynamically linked binaries through an A30 sysroot or a bundled plumOS
   runtime.

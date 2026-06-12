@@ -4,9 +4,11 @@ Investigation date: 2026-06-07
 
 This note records the observed Miyoo A30 stockOS RetroArch feature set and maps
 it into a practical plumOS RetroArch build-option plan. It is not a table of
-stockOS versions/options to copy. plumOS should prefer the upstream latest stable
-available at build time, and only compare against stockOS when A30 testing shows
-a regression, incompatibility, or hardware-specific problem.
+stockOS versions/options to copy. For RetroArch itself, plumOS should prefer the
+upstream latest stable available at build time, and only compare against stockOS
+when A30 testing shows a regression, incompatibility, or hardware-specific
+problem. libretro cores are split out from this rule and should follow Onion's
+adopted core catalog plus proven commits/build recipes.
 
 ## Source
 

@@ -9,9 +9,12 @@ This is not a table of stockOS categories or versions to adopt. The plumOS FE
 should not use stock MainUI "categories" as its design axis. Instead, it should
 model systems/ROM sets and let SELECT choose a core/emulator launch profile.
 
-plumOS should start from the upstream latest stable release available at build
-time. Only compare against stockOS versions, patches, or build options when
-hardware testing shows a regression, incompatibility, or A30-specific problem.
+For RetroArch itself, standalone emulators, and helper libraries, plumOS should
+start from the upstream latest stable release available at build time. For
+libretro cores, do not default to latest upstream; align with Onion's adopted
+core names, source provenance, and proven commits/build recipes. Only compare
+against stockOS versions, patches, or build options when hardware testing shows
+a regression, incompatibility, or A30-specific problem.
 
 Inventory date: 2026-06-07
 
@@ -33,7 +36,7 @@ Inventory date: 2026-06-07
 | package | plumOS target | note |
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
-| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The 41 Class A/B cores are now built for the A30 armv7 hard-float target, mostly from upstream HEAD. The staged output is `dist/plumos-libretro-cores`. On real A30 hardware, only `fceumm` and `gambatte` have screen-smoke confirmation so far; the rest still need per-system boot, performance, input, and audio/video validation. |
+| libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The current recipes align names with Onion and keep the plumOS-default 40 Class A/B cores plus Onion-catalog Class O entries in `docker/plumos-toolchain/libretro-core-recipes.tsv`. On real A30 hardware, `fceumm` and `gambatte` have screen-smoke confirmation and Onion-proven `mednafen_vb` commits have confirmed performance recovery; the rest still need per-system boot, performance, input, and audio/video validation. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -47,9 +50,17 @@ need the next validation step.
 
 ## Build status
 
-As of 2026-06-07, `./scripts/docker-build.sh libretro-cores` stages 41 Class A/B
-cores under `dist/plumos-libretro-cores/plumos/retroarch/cores`. The clean
-manifest reports `built=41`, `failed=0`, and `skipped=0`.
+Starting 2026-06-13, `docker/plumos-toolchain/libretro-core-recipes.tsv` is the
+source of truth for libretro core recipes. The default
+`PLUMOS_CORE_FILTER=plumos` targets the 40 Class A/B cores; `PLUMOS_CORE_FILTER=onion`
+or `all` also includes Onion-catalog Class O entries. Use
+`scripts/inventory-onion-libretro-cores.sh` to confirm that plumOS recipes do not
+contain cores absent from Onion's prebuilt catalog.
+
+The older 2026-06-07 bulk build staged 41 Class A/B cores under
+`dist/plumos-libretro-cores/plumos/retroarch/cores`, and its manifest reported
+`built=41`, `failed=0`, and `skipped=0`. Keep that as a historical baseline; new
+rebuilds should use the Onion-aligned recipes.
 
 `vecx` needed `platform=armv HAS_GPU=0` because upstream HEAD's default build
 expects OpenGL headers. This keeps it on a software path for the A30
@@ -220,7 +231,7 @@ initial plumOS emulator/core build plan.
 
 | system / ROM family | launch profile candidates | stock discovery | note |
 | --- | --- | --- | --- |
-| FC / NES / FDS | `fceumm`, `nestopia`, optional `quicknes` | `Emu/FC`, `RApp/fceumm`, `RApp/nestopia`, backup `quicknes` | Good first smoke test. |
+| FC / NES / FDS | `fceumm`, `nestopia` | `Emu/FC`, `RApp/fceumm`, `RApp/nestopia` | Keep the candidate cores aligned with Onion. |
 | GB / GBC | `gambatte`, optional `mgba` | `Emu/GB`, `RApp/gambatte`, backup `gambatte_color` | Low load. |
 | GBA | `gpsp`, `mgba`, optional `vba_next` | `Emu/GBA`, `RApp/gpsp`, `RApp/mgba`, backup `vba_next` | `gpsp` for performance, `mgba` for accuracy fallback. |
 | Master System / Game Gear / SG-1000 | `genesis_plus_gx` | `Emu/MS`, `RApp/genesis_plus_gx_gg`, backup `genesis_plus_gx_ms/sg` | Can share Sega profiles. |

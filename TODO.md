@@ -115,6 +115,8 @@
 - [x] standalone DOSBox Staging を通常配布対象から外し、DOSBox-Pure を DOS 標準候補にする。
 - [x] FE-owned launcher の CPU restore、joystickd 停止、fb restore、FE 復帰を実装する。
 - [ ] build 済み Class A/B core を system ごとに deploy/validate する。
+- [ ] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
+      `libretro-core-recipes.tsv` に追加する。
 - [ ] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
 - [ ] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用に Red Viper standalone の fbdev 表示、A30 input mapping、終了 cleanup、FE profile を実装/検証する。

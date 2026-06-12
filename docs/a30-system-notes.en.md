@@ -312,12 +312,13 @@ Compatibility requirements:
   - `savefile_directory = "./.retroarch/saves"`
   - `savestate_directory = "./.retroarch/states"`
 
-Before building RetroArch, re-check the official upstream latest stable release
-and select the candidate at build time. Because A30 uses old glibc `2.23`, we
-should assume we need our own armv7 hard-float build rather than relying on
-current generic buildbot binaries. Treat stockOS RetroArch/core versions as
-compatibility references only, and compare against them only when newer builds
-show hardware problems.
+Before building RetroArch itself, re-check the official upstream latest stable
+release and select the candidate at build time. Because A30 uses old glibc
+`2.23`, we should assume we need our own armv7 hard-float build rather than
+relying on current generic buildbot binaries. For libretro cores, do not default
+to latest upstream; use Onion's adopted core catalog plus proven commits/build
+recipes as the baseline. Treat stockOS RetroArch/core versions as compatibility
+references only, and compare against them only when hardware problems appear.
 
 As of 2026-06-07, plumOS has a RetroArch 1.22.2 minimal display probe installed
 at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`, and the A30 device confirms
@@ -386,9 +387,10 @@ direction.
   working directory, `LD_LIBRARY_PATH`, `EMU_DIR`, ROM argument passing, and
   recent-list updates.
 - Keep stock `keymon` initially unless input behavior requires replacement.
-- Check the latest stable RetroArch and required core releases at build time,
-  then build them for `armv7-a hard-float`, targeting glibc 2.23 or a
-  compatible static/dynamic strategy. RetroArch minimal RGUI display is already
-  confirmed with 1.22.2.
+- Check the latest stable RetroArch release at build time, then build it for
+  `armv7-a hard-float`, targeting glibc 2.23 or a compatible static/dynamic
+  strategy. RetroArch minimal RGUI display is already confirmed with 1.22.2.
+- Rebuild libretro cores for the A30 from Onion-aligned core catalog entries and
+  proven commits/build recipes.
 - Update cores in groups, validating ABI and performance per core rather than
   replacing all 908 MB at once.

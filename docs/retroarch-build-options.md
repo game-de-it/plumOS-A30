@@ -4,8 +4,9 @@
 
 この文書は、A30 stockOS の RetroArch build feature を観測し、それを plumOS の
 RetroArch 実用 build option に落とすためのメモです。stockOS の version/options を
-そのまま採用する表ではありません。plumOS では build 時点の upstream latest stable を
-優先し、A30 実機で異常が出た場合だけ stockOS 側へ寄せるか比較します。
+そのまま採用する表ではありません。RetroArch 本体は build 時点の upstream latest stable を
+優先し、A30 実機で異常が出た場合だけ stockOS 側へ寄せるか比較します。libretro core は
+この方針から分離し、Onion 採用 core catalog と実績 commit/build recipe に追従します。
 
 ## Source
 
