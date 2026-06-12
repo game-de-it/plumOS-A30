@@ -113,12 +113,15 @@ A30's single display, `PLUMOS_A30_RED_VIPER_EYE=both` is the default and blends
 the two eye buffers by taking the strongest red value. Audio is enabled through
 upstream `vb_sound.c` and ALSA `default` output. The A30 PCM opens at 48 kHz, so
 the Red Viper A30 build defaults to `RED_VIPER_A30_AUDIO_RATE=48000`, ALSA
-latency of 160 ms, and startup prebuffering. Leaving the upstream 50 kHz audio
-rate caused audio dropouts and visible stutter. `plug:default` is not used
-because it asserts inside the A30 libasound. In the 2026-06-13 hardware check,
-the 48 kHz build appeared normal in-game for both audio and video. 7z extraction
-remains follow-up work. Before distribution, check the Red Viper/Reality Boy
-license terms and third-party notice requirements.
+latency of 160 ms, startup prebuffering, and a producer queue for 10 ms audio
+chunks. If the producer queue runs dry, the A30 backend repeats the previous
+audio chunk so a temporary ROM-side audio generation delay does not empty the
+ALSA buffer. Leaving the upstream 50 kHz audio rate caused audio dropouts and
+visible stutter. `plug:default` is not used because it asserts inside the A30
+libasound. In the 2026-06-13 hardware check, the 48 kHz build appeared normal
+in-game for both audio and video. 7z extraction remains follow-up work. Before
+distribution, check the Red Viper/Reality Boy license terms and third-party
+notice requirements.
 
 ## Class A: initial build targets
 

@@ -582,9 +582,10 @@ rules:
   `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視する。電源ボタンから
   `plumos-safe-shutdown --shutdown --no-poweroff` を起動し、`KEY_VOLUMEUP` /
   `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱う。
-  `plumos-text-ui launch --execute` は RetroArch launch 中だけ
-  `plumos-safe-hotkeyd --oneshot` を自動起動する。`SIGUSR1` trigger は引き続き物理
-  ボタンなしの実機試験に使える。standalone emulator では safe-hotkeyd を自動起動しない。
+  `plumos-text-ui launch --execute` は RetroArch launch 中に
+  `plumos-safe-hotkeyd --oneshot` を自動起動する。standalone emulator では
+  `plumos-safe-hotkeyd --volume-only` を自動起動し、音量キーだけを扱う。`SIGUSR1`
+  trigger は引き続き RetroArch safe hotkey path の物理ボタンなし実機試験に使える。
 
 ## SAFE menu model
 

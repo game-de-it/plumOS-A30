@@ -766,8 +766,8 @@ build_red_viper() {
       "${src}/include/vb_sound.h" "${src}/source/common/vb_sound.c"
   fi
 
-  red_cflags="${COMMON_CFLAGS} -O3 -std=gnu11 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough"
-  red_cxxflags="${COMMON_CXXFLAGS} -O3 -std=gnu++17 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough -fno-exceptions -fno-rtti"
+  red_cflags="${COMMON_CFLAGS} -O3 -std=gnu11 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough -pthread"
+  red_cxxflags="${COMMON_CXXFLAGS} -O3 -std=gnu++17 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough -fno-exceptions -fno-rtti -pthread"
   red_asflags="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"
 
   compile_c() {
@@ -819,12 +819,13 @@ build_red_viper() {
   compile_asm source/arm/drc_exec.s || return 1
   compile_asm source/arm/drc_static.s || return 1
 
-  "${CXX}" ${COMMON_LDFLAGS} -o "${out}" "${objects[@]}" -lasound -lm || return 1
+  "${CXX}" ${COMMON_LDFLAGS} -pthread -o "${out}" "${objects[@]}" -lasound -lm || return 1
   stage_binary red_viper "${out}" red-viper-a30 || return 1
 
   append_manifest "  frontend=red-viper-a30 fbdev/input wrapper"
   append_manifest "  audio=alsa-default"
   append_manifest "  audio_rate=${red_audio_rate}"
+  append_manifest "  audio_queue=threaded-repeat-last"
 }
 
 prepare_dist() {
@@ -929,6 +930,7 @@ Environment:
   PLUMOS_A30_RED_VIPER_ALSA_DEVICE    Red Viper ALSA PCM device. Default: default.
   PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US Red Viper ALSA latency in microseconds. Default: 160000.
   PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS Red Viper ALSA startup prebuffer chunks. Default: 6.
+  PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS Red Viper ALSA producer queue chunks. Default: 8.
   SDL_VIDEODRIVER / SDL_AUDIODRIVER   Override per-emulator defaults.
 USAGE
 }
@@ -1835,6 +1837,7 @@ case "${id}" in
     export PLUMOS_A30_RED_VIPER_ALSA_DEVICE=${PLUMOS_A30_RED_VIPER_ALSA_DEVICE:-default}
     export PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=${PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US:-160000}
     export PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS=${PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS:-6}
+    export PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS=${PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS:-8}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
     run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
       --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
@@ -1969,6 +1972,7 @@ PLUMOS_A30_RED_VIPER_AUDIO=alsa
 PLUMOS_A30_RED_VIPER_ALSA_DEVICE=default
 PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=160000
 PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS=6
+PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS=8
 EOF
   append_manifest "config=plumos/config/standalone/red_viper.env"
 }

@@ -1,5 +1,6 @@
 #include <alsa/asoundlib.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -12,6 +13,19 @@
 static snd_pcm_t *g_pcm;
 static bool g_audio_ready;
 static unsigned g_prebuffer_chunks = 6;
+static unsigned g_queue_chunks = 8;
+static int16_t *g_audio_queue;
+static unsigned g_queue_read;
+static unsigned g_queue_write;
+static unsigned g_queue_count;
+static int16_t g_last_chunk[SAMPLE_COUNT * 2];
+static pthread_t g_audio_thread;
+static pthread_mutex_t g_audio_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool g_audio_thread_started;
+static bool g_audio_thread_stop;
+static unsigned long g_audio_repeat_count;
+static unsigned long g_audio_drop_count;
+static unsigned long g_audio_xrun_count;
 
 static bool audio_disabled_env(void) {
   const char *value = getenv("PLUMOS_A30_RED_VIPER_AUDIO");
@@ -45,6 +59,19 @@ static unsigned parse_prebuffer_chunks(void) {
   unsigned long parsed = strtoul(value, &end, 10);
   if (end == value || parsed > BUF_COUNT - 1) {
     return 6;
+  }
+  return (unsigned)parsed;
+}
+
+static unsigned parse_queue_chunks(void) {
+  const char *value = getenv("PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS");
+  if (!value || !*value) {
+    return 8;
+  }
+  char *end = NULL;
+  unsigned long parsed = strtoul(value, &end, 10);
+  if (end == value || parsed < 2 || parsed > 32) {
+    return 8;
   }
   return (unsigned)parsed;
 }
@@ -88,6 +115,82 @@ static int write_frames_blocking(const int16_t *buf, int frames) {
   return 0;
 }
 
+static int16_t *queue_slot(unsigned index) {
+  return g_audio_queue + (size_t)index * SAMPLE_COUNT * 2;
+}
+
+static void queue_reset(bool clear_last_chunk) {
+  pthread_mutex_lock(&g_audio_mutex);
+  g_queue_read = 0;
+  g_queue_write = 0;
+  g_queue_count = 0;
+  if (clear_last_chunk) {
+    memset(g_last_chunk, 0, sizeof(g_last_chunk));
+  }
+  pthread_mutex_unlock(&g_audio_mutex);
+}
+
+static void *audio_thread_main(void *arg) {
+  (void)arg;
+  int16_t chunk[SAMPLE_COUNT * 2];
+
+  for (;;) {
+    pthread_mutex_lock(&g_audio_mutex);
+    if (g_audio_thread_stop) {
+      pthread_mutex_unlock(&g_audio_mutex);
+      break;
+    }
+
+    if (g_queue_count > 0) {
+      memcpy(chunk, queue_slot(g_queue_read), sizeof(chunk));
+      g_queue_read = (g_queue_read + 1) % g_queue_chunks;
+      g_queue_count--;
+      memcpy(g_last_chunk, chunk, sizeof(g_last_chunk));
+    } else {
+      memcpy(chunk, g_last_chunk, sizeof(chunk));
+      g_audio_repeat_count++;
+    }
+    pthread_mutex_unlock(&g_audio_mutex);
+
+    if (write_frames_blocking(chunk, SAMPLE_COUNT) < 0) {
+      pthread_mutex_lock(&g_audio_mutex);
+      g_audio_xrun_count++;
+      memset(g_last_chunk, 0, sizeof(g_last_chunk));
+      pthread_mutex_unlock(&g_audio_mutex);
+    }
+  }
+
+  return NULL;
+}
+
+static bool start_audio_thread(void) {
+  if (g_audio_thread_started) {
+    return true;
+  }
+
+  g_audio_thread_stop = false;
+  int rc = pthread_create(&g_audio_thread, NULL, audio_thread_main, NULL);
+  if (rc != 0) {
+    fprintf(stderr, "red-viper-a30: audio thread start failed: %s\n",
+            strerror(rc));
+    return false;
+  }
+  g_audio_thread_started = true;
+  return true;
+}
+
+static void stop_audio_thread(void) {
+  if (!g_audio_thread_started) {
+    return;
+  }
+
+  pthread_mutex_lock(&g_audio_mutex);
+  g_audio_thread_stop = true;
+  pthread_mutex_unlock(&g_audio_mutex);
+  pthread_join(g_audio_thread, NULL);
+  g_audio_thread_started = false;
+}
+
 static void prebuffer_silence(void) {
   if (!g_pcm || !g_audio_ready || g_prebuffer_chunks == 0) {
     return;
@@ -123,6 +226,16 @@ bool sound_init_backend(int16_t *wavebufs[]) {
   }
 
   g_prebuffer_chunks = parse_prebuffer_chunks();
+  g_queue_chunks = parse_queue_chunks();
+  g_audio_queue =
+      calloc((size_t)g_queue_chunks * SAMPLE_COUNT * 2, sizeof(*g_audio_queue));
+  if (!g_audio_queue) {
+    fprintf(stderr, "red-viper-a30: audio queue allocation failed\n");
+    snd_pcm_close(g_pcm);
+    g_pcm = NULL;
+    return true;
+  }
+  queue_reset(true);
 
   rc = snd_pcm_set_params(g_pcm, SND_PCM_FORMAT_S16_LE,
                           SND_PCM_ACCESS_RW_INTERLEAVED, 2, SAMPLE_RATE, 1,
@@ -132,6 +245,8 @@ bool sound_init_backend(int16_t *wavebufs[]) {
             snd_strerror(rc));
     snd_pcm_close(g_pcm);
     g_pcm = NULL;
+    free(g_audio_queue);
+    g_audio_queue = NULL;
     return true;
   }
 
@@ -139,6 +254,10 @@ bool sound_init_backend(int16_t *wavebufs[]) {
   snd_pcm_prepare(g_pcm);
   g_audio_ready = true;
   prebuffer_silence();
+  if (!start_audio_thread()) {
+    free(g_audio_queue);
+    g_audio_queue = NULL;
+  }
   return true;
 }
 
@@ -146,22 +265,32 @@ void sound_close_backend(void) {
   if (!g_pcm) {
     return;
   }
+  stop_audio_thread();
   snd_pcm_drop(g_pcm);
   snd_pcm_close(g_pcm);
   g_pcm = NULL;
   g_audio_ready = false;
+  free(g_audio_queue);
+  g_audio_queue = NULL;
+  fprintf(stderr,
+          "red-viper-a30: audio stats repeats=%lu drops=%lu xruns=%lu\n",
+          g_audio_repeat_count, g_audio_drop_count, g_audio_xrun_count);
 }
 
 void sound_pause_backend(void) {
   if (g_pcm && g_audio_ready) {
+    stop_audio_thread();
     snd_pcm_drop(g_pcm);
+    queue_reset(true);
   }
 }
 
 void sound_resume_backend(void) {
   if (g_pcm && g_audio_ready) {
     snd_pcm_prepare(g_pcm);
+    queue_reset(true);
     prebuffer_silence();
+    start_audio_thread();
   }
 }
 
@@ -170,8 +299,22 @@ bool sound_push_backend(int16_t *buf) {
     return true;
   }
 
-  if (write_frames_blocking(buf, SAMPLE_COUNT) < 0) {
-    prebuffer_silence();
+  if (!g_audio_thread_started || !g_audio_queue) {
+    if (write_frames_blocking(buf, SAMPLE_COUNT) < 0) {
+      prebuffer_silence();
+    }
+    return true;
   }
+
+  pthread_mutex_lock(&g_audio_mutex);
+  if (g_queue_count == g_queue_chunks) {
+    g_queue_read = (g_queue_read + 1) % g_queue_chunks;
+    g_queue_count--;
+    g_audio_drop_count++;
+  }
+  memcpy(queue_slot(g_queue_write), buf, (size_t)SAMPLE_COUNT * 2 * sizeof(*buf));
+  g_queue_write = (g_queue_write + 1) % g_queue_chunks;
+  g_queue_count++;
+  pthread_mutex_unlock(&g_audio_mutex);
   return true;
 }

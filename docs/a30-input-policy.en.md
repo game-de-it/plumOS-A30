@@ -116,7 +116,9 @@ Notes:
   power button rather than Function as the safe shutdown trigger.
 - The volume buttons update plumOS `volume 0..20` one step at a time and apply
   it immediately to ALSA `Soft Volume Master`. While RetroArch is running,
-  `plumos-safe-hotkeyd` handles the same path.
+  `plumos-safe-hotkeyd --oneshot` handles the same path. While standalone
+  emulators are running, `plumos-safe-hotkeyd --volume-only` handles only the
+  volume keys.
 - X/Y/L/R/L2/R2 are identified by the probe but are not assigned to normal
   controller UI actions yet.
 - Long-press power behavior and stock-side power policy remain separate checks,

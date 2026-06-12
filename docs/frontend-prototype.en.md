@@ -316,8 +316,9 @@ completed safe shutdown, resume hold, CPU restore, and frontend restart. The
 artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
 `plumos-text-ui launch --execute` automatically starts
-`plumos-safe-hotkeyd --oneshot` only while a RetroArch launch is running. Set
-`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable it. The auto-started
+`plumos-safe-hotkeyd --oneshot` while a RetroArch launch is running, and starts
+`plumos-safe-hotkeyd --volume-only` while a standalone emulator is running. Set
+`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable this. The auto-started RetroArch
 hotkeyd `SIGUSR1` trigger is verified in
 `artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
 `scripts/probe-a30-safe-hotkeyd.sh` can rerun this path. `--trigger signal`

@@ -75,6 +75,7 @@ struct config {
   int dry_run;
   int trigger_now;
   int verbose;
+  int safe_key_enabled;
   int volume_keys_enabled;
   int event_path_explicit;
   int volume_event_path_explicit;
@@ -393,6 +394,7 @@ static int init_config(struct config *cfg) {
   }
   cfg->key_code = KEY_POWER;
   cfg->debounce_ms = DEFAULT_DEBOUNCE_MS;
+  cfg->safe_key_enabled = 1;
   cfg->volume_keys_enabled = 1;
 
   env = getenv("PLUMOS_ROOT");
@@ -408,13 +410,22 @@ static int init_config(struct config *cfg) {
                                       &cfg->key_code)) {
     return 0;
   }
+  env = getenv("PLUMOS_SAFE_HOTKEYD_SAFE_KEY");
+  if (env && env[0]) {
+    cfg->safe_key_enabled =
+        !(strcmp(env, "0") == 0 || strcmp(env, "false") == 0 ||
+          strcmp(env, "False") == 0 || strcmp(env, "no") == 0 ||
+          strcmp(env, "No") == 0 || strcmp(env, "off") == 0 ||
+          strcmp(env, "Off") == 0);
+  }
   env = getenv("PLUMOS_SAFE_HOTKEY_EVENT");
   if (env && env[0]) {
     if (!copy_string(cfg->event_path, sizeof(cfg->event_path), env)) {
       return 0;
     }
     cfg->event_path_explicit = 1;
-  } else if (!discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
+  } else if (cfg->safe_key_enabled &&
+             !discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
     return 0;
   }
   env = getenv("PLUMOS_SAFE_HOTKEY_VOLUME_EVENT");
@@ -482,6 +493,7 @@ static void usage(const char *argv0) {
   printf("  --timeout-ms MS        Exit after MS without a trigger. Default: 0, run forever.\n");
   printf("  --debounce-ms MS       Ignore repeated triggers for MS. Default: %d.\n",
          DEFAULT_DEBOUNCE_MS);
+  printf("  --volume-only          Handle volume keys without monitoring the safe key.\n");
   printf("  --no-volume-keys       Do not handle KEY_VOLUMEUP/KEY_VOLUMEDOWN.\n");
   printf("  --oneshot              Exit after the first trigger command completes.\n");
   printf("  --dry-run              Log triggers without running the command.\n");
@@ -567,6 +579,9 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       if (!parse_int_arg("--debounce-ms", argv[++i], 0, 60000, &cfg->debounce_ms)) {
         return 0;
       }
+    } else if (strcmp(argv[i], "--volume-only") == 0) {
+      cfg->safe_key_enabled = 0;
+      cfg->volume_keys_enabled = 1;
     } else if (strcmp(argv[i], "--no-volume-keys") == 0) {
       cfg->volume_keys_enabled = 0;
     } else if (strcmp(argv[i], "--oneshot") == 0) {
@@ -590,15 +605,19 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       !join_path(cfg->log_path, sizeof(cfg->log_path), cfg->root, "logs/safe-hotkeyd.log")) {
     return 0;
   }
-  if (!cfg->event_path[0] &&
+  if (cfg->safe_key_enabled && !cfg->event_path[0] &&
       !discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
     return 0;
   }
-  if (!cfg->volume_event_path[0] &&
+  if (cfg->volume_keys_enabled && !cfg->volume_event_path[0] &&
       !discover_volume_input_event(cfg->volume_event_path, sizeof(cfg->volume_event_path))) {
     return 0;
   }
-  if (!cfg->command_set && !build_default_command(cfg)) {
+  if (cfg->safe_key_enabled && !cfg->command_set && !build_default_command(cfg)) {
+    return 0;
+  }
+  if (!cfg->safe_key_enabled && !cfg->volume_keys_enabled) {
+    fprintf(stderr, "error: both safe key and volume keys are disabled\n");
     return 0;
   }
   return 1;
@@ -737,7 +756,8 @@ static int drain_event_fd(struct config *cfg, int fd, const char *source, long l
       run_volume_key_command(cfg, ev.code == KEY_VOLUMEUP ? 1 : -1);
       continue;
     }
-    if (ev.type == EV_KEY && ev.code == cfg->key_code && ev.value == 1) {
+    if (cfg->safe_key_enabled && ev.type == EV_KEY && ev.code == cfg->key_code &&
+        ev.value == 1) {
       *exit_rc = handle_trigger(cfg, "key", last_trigger_ms);
       if (cfg->oneshot) {
         g_stop = 1;
@@ -749,26 +769,33 @@ static int drain_event_fd(struct config *cfg, int fd, const char *source, long l
 }
 
 static int event_loop(struct config *cfg) {
-  int fd;
+  int fd = -1;
   int volume_fd = -1;
   long long start;
   long long deadline = 0;
   long long last_trigger_ms = 0;
   int exit_rc = 0;
 
-  fd = open(cfg->event_path, O_RDONLY | O_NONBLOCK);
-  if (fd < 0) {
-    fprintf(stderr, "error: cannot open input event device: %s: %s\n", cfg->event_path,
-            strerror(errno));
-    log_msg(cfg, "error open_event path=%s errno=%d", cfg->event_path, errno);
-    return 1;
+  if (cfg->safe_key_enabled) {
+    fd = open(cfg->event_path, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+      fprintf(stderr, "error: cannot open input event device: %s: %s\n", cfg->event_path,
+              strerror(errno));
+      log_msg(cfg, "error open_event path=%s errno=%d", cfg->event_path, errno);
+      return 1;
+    }
   }
-  if (cfg->volume_keys_enabled && cfg->volume_event_path[0] &&
-      !same_path(cfg->event_path, cfg->volume_event_path)) {
+  if (cfg->volume_keys_enabled && cfg->volume_event_path[0] && !same_path(cfg->event_path, cfg->volume_event_path)) {
     volume_fd = open(cfg->volume_event_path, O_RDONLY | O_NONBLOCK);
     if (volume_fd < 0) {
       log_msg(cfg, "warning open_volume_event path=%s errno=%d", cfg->volume_event_path, errno);
     }
+  }
+  if (fd < 0 && volume_fd < 0) {
+    fprintf(stderr, "error: no input event device is available\n");
+    log_msg(cfg, "error no_input_event safe_key=%d volume_keys=%d", cfg->safe_key_enabled,
+            cfg->volume_keys_enabled);
+    return 1;
   }
 
   start = now_ms();
@@ -777,22 +804,28 @@ static int event_loop(struct config *cfg) {
   }
   emit_msg(cfg,
            "plumos-safe-hotkeyd event=%s key_code=%d volume_event=%s action=%s timeout_ms=%d "
-           "oneshot=%d volume_keys=%d",
-           cfg->event_path, cfg->key_code,
+           "oneshot=%d safe_key=%d volume_keys=%d",
+           cfg->safe_key_enabled ? cfg->event_path : "off", cfg->key_code,
            volume_fd >= 0 ? cfg->volume_event_path : cfg->event_path, cfg->action,
-           cfg->timeout_ms, cfg->oneshot, cfg->volume_keys_enabled);
+           cfg->timeout_ms, cfg->oneshot, cfg->safe_key_enabled, cfg->volume_keys_enabled);
 
   while (!g_stop) {
     struct pollfd pfds[2];
-    nfds_t nfds = 1;
+    int trigger_index = -1;
+    int volume_index = -1;
+    nfds_t nfds = 0;
     int poll_ms = DEFAULT_POLL_MS;
     int prc;
 
     if (g_trigger_signal) {
       g_trigger_signal = 0;
-      exit_rc = handle_trigger(cfg, "signal", &last_trigger_ms);
-      if (cfg->oneshot) {
-        break;
+      if (cfg->safe_key_enabled) {
+        exit_rc = handle_trigger(cfg, "signal", &last_trigger_ms);
+        if (cfg->oneshot) {
+          break;
+        }
+      } else {
+        log_msg(cfg, "ignored trigger source=signal reason=volume_only");
       }
     }
 
@@ -807,14 +840,19 @@ static int event_loop(struct config *cfg) {
       }
     }
 
-    pfds[0].fd = fd;
-    pfds[0].events = POLLIN;
-    pfds[0].revents = 0;
+    if (fd >= 0) {
+      trigger_index = (int)nfds;
+      pfds[nfds].fd = fd;
+      pfds[nfds].events = POLLIN;
+      pfds[nfds].revents = 0;
+      nfds++;
+    }
     if (volume_fd >= 0) {
-      pfds[1].fd = volume_fd;
-      pfds[1].events = POLLIN;
-      pfds[1].revents = 0;
-      nfds = 2;
+      volume_index = (int)nfds;
+      pfds[nfds].fd = volume_fd;
+      pfds[nfds].events = POLLIN;
+      pfds[nfds].revents = 0;
+      nfds++;
     }
 
     prc = poll(pfds, nfds, poll_ms);
@@ -830,11 +868,11 @@ static int event_loop(struct config *cfg) {
       continue;
     }
 
-    if ((pfds[0].revents & POLLIN) &&
+    if (trigger_index >= 0 && (pfds[trigger_index].revents & POLLIN) &&
         !drain_event_fd(cfg, fd, "trigger", &last_trigger_ms, &exit_rc)) {
       break;
     }
-    if (volume_fd >= 0 && (pfds[1].revents & POLLIN) &&
+    if (volume_index >= 0 && (pfds[volume_index].revents & POLLIN) &&
         !drain_event_fd(cfg, volume_fd, "volume", &last_trigger_ms, &exit_rc)) {
       break;
     }
@@ -843,7 +881,9 @@ static int event_loop(struct config *cfg) {
     }
   }
 
-  close(fd);
+  if (fd >= 0) {
+    close(fd);
+  }
   if (volume_fd >= 0) {
     close(volume_fd);
   }
@@ -869,6 +909,10 @@ int main(int argc, char **argv) {
   sigaction(SIGUSR1, &sa, NULL);
 
   if (cfg.trigger_now) {
+    if (!cfg.safe_key_enabled) {
+      fprintf(stderr, "error: --trigger-now cannot be used with --volume-only\n");
+      return 2;
+    }
     return handle_trigger(&cfg, "manual", &last_trigger_ms);
   }
   return event_loop(&cfg);

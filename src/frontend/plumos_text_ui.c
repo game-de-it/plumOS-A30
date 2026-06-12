@@ -976,7 +976,7 @@ static void redirect_stdio_to_devnull(void) {
 }
 
 static int launch_plan_uses_safe_hotkeyd(const struct launch_plan *plan) {
-  return plan && strcmp(plan->kind, "retroarch") == 0;
+  return plan && (strcmp(plan->kind, "retroarch") == 0 || strcmp(plan->kind, "standalone") == 0);
 }
 
 static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_plan *plan) {
@@ -1003,7 +1003,11 @@ static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_pla
   }
   if (pid == 0) {
     redirect_stdio_to_devnull();
-    execl(hotkeyd_path, hotkeyd_path, "--oneshot", (char *)NULL);
+    if (strcmp(plan->kind, "standalone") == 0) {
+      execl(hotkeyd_path, hotkeyd_path, "--volume-only", (char *)NULL);
+    } else {
+      execl(hotkeyd_path, hotkeyd_path, "--oneshot", (char *)NULL);
+    }
     _exit(127);
   }
 
