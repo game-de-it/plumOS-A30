@@ -104,14 +104,17 @@ and produced these results:
 
 So Red Viper is a credible fix for the Virtual Boy performance problem. The
 `red-viper-a30` wrapper copies Red Viper's software framebuffer to `/dev/fb0`
-in landscape orientation and handles A30 physical input plus Function or
-START+SELECT exit. The frontend now uses `standalone:red_viper` as the Virtual
-Boy default profile and keeps `retroarch:mednafen_vb` as fallback. The A30
+in landscape orientation, handles A30 physical input, opens an in-game menu with
+Function, and exits with START+SELECT. The frontend now uses
+`standalone:red_viper` as the Virtual Boy default profile and keeps
+`retroarch:mednafen_vb` as fallback. The A30
 wrapper does not include the Red Viper 3DS menu UI; settings are handled through
-`plumos/config/standalone/red_viper.env` and frontend launch profiles. For the
+a small A30 menu and `plumos/config/standalone/red_viper.env`. For the
 A30's single display, `PLUMOS_A30_RED_VIPER_EYE=both` is the default and blends
-the two eye buffers by taking the strongest red value. Audio is enabled through
-upstream `vb_sound.c` and ALSA `default` output. The A30 PCM opens at 48 kHz, so
+the two eye buffers by taking the strongest red value. The settings inventory
+lives in [Red Viper A30 Settings](red-viper-a30-settings.en.md). Audio is
+enabled through upstream `vb_sound.c` and ALSA `default` output. The A30 PCM
+opens at 48 kHz, so
 the Red Viper A30 build defaults to `RED_VIPER_A30_AUDIO_RATE=48000`, ALSA
 latency of 160 ms, startup prebuffering, and a producer queue for 10 ms audio
 chunks. If the producer queue runs dry, the A30 backend repeats the previous

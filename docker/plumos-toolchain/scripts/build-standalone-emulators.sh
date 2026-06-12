@@ -926,6 +926,12 @@ Environment:
   PLUMOS_A30_RED_VIPER_ROTATION       Red Viper final display rotation: ccw, cw, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_SCALE          Red Viper scaling: fit, stretch, integer. Default: fit.
   PLUMOS_A30_RED_VIPER_EYE            Red Viper eye mode: left, right, both. Default: both.
+  PLUMOS_A30_RED_VIPER_COLOR          Red Viper tint: red, white, green, amber, blue, or R,G,B. Default: red.
+  PLUMOS_A30_RED_VIPER_WAIT_VSYNC     Red Viper framebuffer pan vsync wait: 0 or 1. Default: 1.
+  PLUMOS_A30_RED_VIPER_FRAME_SKIP     Red Viper display frame skip: 0..3. Default: 0.
+  PLUMOS_A30_RED_VIPER_FAST_FORWARD   Red Viper fast-forward at launch: 0 or 1. Default: 0.
+  PLUMOS_A30_RED_VIPER_FF_TOGGLE      Red Viper fast-forward mode: 0 hold, 1 toggle. Default: 0.
+  PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK  Red Viper VIP overclock timing shortcut: 0 or 1. Default: 0.
   PLUMOS_A30_RED_VIPER_AUDIO          Red Viper audio mode: alsa, off. Default: alsa.
   PLUMOS_A30_RED_VIPER_ALSA_DEVICE    Red Viper ALSA PCM device. Default: default.
   PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US Red Viper ALSA latency in microseconds. Default: 160000.
@@ -1833,6 +1839,12 @@ case "${id}" in
     cpu_freq=${PLUMOS_A30_RED_VIPER_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-648000}}
     cpu_cores=${PLUMOS_A30_RED_VIPER_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
     export PLUMOS_A30_RED_VIPER_EYE=${PLUMOS_A30_RED_VIPER_EYE:-both}
+    export PLUMOS_A30_RED_VIPER_COLOR=${PLUMOS_A30_RED_VIPER_COLOR:-red}
+    export PLUMOS_A30_RED_VIPER_WAIT_VSYNC=${PLUMOS_A30_RED_VIPER_WAIT_VSYNC:-1}
+    export PLUMOS_A30_RED_VIPER_FRAME_SKIP=${PLUMOS_A30_RED_VIPER_FRAME_SKIP:-0}
+    export PLUMOS_A30_RED_VIPER_FAST_FORWARD=${PLUMOS_A30_RED_VIPER_FAST_FORWARD:-0}
+    export PLUMOS_A30_RED_VIPER_FF_TOGGLE=${PLUMOS_A30_RED_VIPER_FF_TOGGLE:-0}
+    export PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK=${PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK:-0}
     export PLUMOS_A30_RED_VIPER_AUDIO=${PLUMOS_A30_RED_VIPER_AUDIO:-alsa}
     export PLUMOS_A30_RED_VIPER_ALSA_DEVICE=${PLUMOS_A30_RED_VIPER_ALSA_DEVICE:-default}
     export PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=${PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US:-160000}
@@ -1845,6 +1857,7 @@ case "${id}" in
       --rotation "${PLUMOS_A30_RED_VIPER_ROTATION:-ccw}" \
       --scale "${PLUMOS_A30_RED_VIPER_SCALE:-fit}" \
       --eye "${PLUMOS_A30_RED_VIPER_EYE}" \
+      --color "${PLUMOS_A30_RED_VIPER_COLOR}" \
       --audio "${PLUMOS_A30_RED_VIPER_AUDIO}" \
       --save-base "${red_viper_save_base}" \
       "${red_viper_prepared_rom}" "$@"
@@ -1968,6 +1981,12 @@ PLUMOS_A30_RED_VIPER_INPUT=/dev/input/event3
 PLUMOS_A30_RED_VIPER_ROTATION=ccw
 PLUMOS_A30_RED_VIPER_SCALE=fit
 PLUMOS_A30_RED_VIPER_EYE=both
+PLUMOS_A30_RED_VIPER_COLOR=red
+PLUMOS_A30_RED_VIPER_WAIT_VSYNC=1
+PLUMOS_A30_RED_VIPER_FRAME_SKIP=0
+PLUMOS_A30_RED_VIPER_FAST_FORWARD=0
+PLUMOS_A30_RED_VIPER_FF_TOGGLE=0
+PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK=0
 PLUMOS_A30_RED_VIPER_AUDIO=alsa
 PLUMOS_A30_RED_VIPER_ALSA_DEVICE=default
 PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=160000

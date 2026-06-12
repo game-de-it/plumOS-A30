@@ -93,11 +93,12 @@ hard-float で ARM dynarec が動きます。zip から一時展開した raw `.
 
 したがって、Virtual Boy の性能問題は Red Viper で解消できる見込みがあります。
 `red-viper-a30` wrapper は Red Viper の software framebuffer を A30 の `/dev/fb0` へ
-横向き表示し、A30 物理 input と Function/START+SELECT 終了を扱います。FE は
+横向き表示し、A30 物理 input、Function in-game menu、START+SELECT 終了を扱います。FE は
 `standalone:red_viper` を Virtual Boy の default profile にし、`retroarch:mednafen_vb` を
-fallback として残します。A30 wrapper は 3DS 版 Red Viper の menu UI は持たず、
-設定は `plumos/config/standalone/red_viper.env` と FE launch profile で扱います。
+fallback として残します。A30 wrapper は 3DS 版 Red Viper の menu UI ではなく、
+A30 用の軽量 menu と `plumos/config/standalone/red_viper.env` で設定を扱います。
 単眼画面向けに `PLUMOS_A30_RED_VIPER_EYE=both` を既定にし、左右目を赤成分の最大値で合成します。
+設定 inventory は [Red Viper A30 設定](red-viper-a30-settings.md) を正とします。
 音声は上流 `vb_sound.c` と ALSA `default` 出力で有効化しています。A30 の実 PCM は
 48kHz で開かれるため、Red Viper A30 build では `RED_VIPER_A30_AUDIO_RATE=48000`
 を既定にし、ALSA latency 160ms、起動時 prebuffer、10ms chunk の producer queue を使います。
