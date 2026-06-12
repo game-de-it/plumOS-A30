@@ -51,6 +51,39 @@ importer として検討します。
 - font asset: 将来用。現時点では Graphic mode の TTF/CJK fallback を優先する。
 - Text mode 用 bitmap font は theme package では扱わない。
 
+## system logo 対象
+
+system logo の作成対象は `systems.json` の `enabled != false` な system です。
+`enabled:false` の system は将来候補や調査用定義として残せますが、通常の TOP scan、
+launch profile audit、theme logo 必須数からは除外します。
+
+過去の `all-logo.png` sheet は 40 system seed を元に生成したため、現在の対応範囲の
+正本にはしません。現在の対象数と不足 logo は script で確認します。
+
+```sh
+scripts/audit-system-logos.py
+scripts/audit-system-logos.py --list-targets
+```
+
+2026-06-12 時点の default theme では、対象 system は49件、既存 logo は40件です。
+`dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外します。
+不足している logo は以下です。
+
+```text
+atari2600
+atari7800
+doom
+gameandwatch
+lynx
+neogeocd
+odyssey2
+pokemini
+supergrafx
+supervision
+vectrex
+virtualboy
+```
+
 ## `themes.json`
 
 ```json

@@ -52,6 +52,41 @@ Graphic mode remains usable through built-in color/font fallback.
 - Font asset: future use. For now, Graphic mode prefers the TTF/CJK fallback.
 - Text mode bitmap fonts are not part of theme packages.
 
+## System Logo Targets
+
+System logos are required for systems where `systems.json` has `enabled != false`.
+Systems with `enabled:false` may remain as future or investigation definitions,
+but they are excluded from normal TOP scans, launch profile audits, and required
+theme logo counts.
+
+The older `all-logo.png` sheet was generated from the 40-system seed, so it is
+not the current source of truth for supported systems. Use the audit script to
+check the current target count and missing logos.
+
+```sh
+scripts/audit-system-logos.py
+scripts/audit-system-logos.py --list-targets
+```
+
+As of 2026-06-12, the default theme has 49 target systems and 40 existing logos.
+`dreamcast`, `n64`, and `saturn` are excluded from required logos because they
+are `enabled:false`. The missing logos are:
+
+```text
+atari2600
+atari7800
+doom
+gameandwatch
+lynx
+neogeocd
+odyssey2
+pokemini
+supergrafx
+supervision
+vectrex
+virtualboy
+```
+
 ## `themes.json`
 
 ```json
