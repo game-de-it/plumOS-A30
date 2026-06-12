@@ -373,6 +373,8 @@ artifacts/reference/gb
 
 thumbnail 種別は `--kind Named_Boxarts` / `--kind Named_Titles` を FE から選べます。
 runner は `--kind Named_Snaps` も受け付けますが、FE の選択肢には出していません。
+FE からの実行では Results の先頭に `image`, `kind`, `existing` を出し、表示上の選択と
+実行 option の乖離を確認できるようにします。image 種別を変更しても existing mode は変えません。
 
 ## 照合順
 

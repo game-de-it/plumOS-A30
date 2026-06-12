@@ -26,6 +26,7 @@
 
 struct alias_def {
   char name[64];
+  int shared;
 };
 
 struct artwork_lookup {
@@ -706,6 +707,8 @@ static void parse_aliases(const char *json, const char *end, struct system_def *
     if (json_get_string(obj, obj + strlen(obj), "name", name, sizeof(name))) {
       copy_string(system->aliases[system->alias_count].name,
                   sizeof(system->aliases[system->alias_count].name), name);
+      system->aliases[system->alias_count].shared =
+          json_get_bool(obj, obj + strlen(obj), "shared", 0);
       system->alias_count++;
     }
     free(obj);
@@ -859,6 +862,18 @@ static int system_ext_matches(const struct system_def *system, const char *ext) 
     }
   }
   return 0;
+}
+
+static int archive_extension_is_ambiguous(const char *ext) {
+  return ext && (strcasecmp(ext, "zip") == 0 || strcasecmp(ext, "7z") == 0);
+}
+
+static int scan_ext_matches(const struct system_def *system, const char *ext,
+                            int filter_shared_archives) {
+  if (filter_shared_archives && archive_extension_is_ambiguous(ext)) {
+    return 0;
+  }
+  return system_ext_matches(system, ext);
 }
 
 static int append_rom(struct rom_vector *roms, const struct rom_entry *entry) {
@@ -1087,7 +1102,8 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
 }
 
 static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const char *alias_name,
-                               const char *dir_path, const char *rel_dir) {
+                               int filter_shared_archives, const char *dir_path,
+                               const char *rel_dir) {
   const struct system_def *system = &ctx->systems[system_index];
   DIR *dir = opendir(dir_path);
   struct dirent *ent;
@@ -1122,7 +1138,8 @@ static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const 
         add_rom_entry(ctx, system_index, alias_name, child_path, child_rel);
         continue;
       }
-      scan_dir_recursive(ctx, system_index, alias_name, child_path, child_rel);
+      scan_dir_recursive(ctx, system_index, alias_name, filter_shared_archives, child_path,
+                         child_rel);
       continue;
     }
     if (!is_regular_file(child_path)) {
@@ -1130,7 +1147,7 @@ static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const 
     }
 
     ctx->files_seen++;
-    if (!system_ext_matches(system, file_extension(name))) {
+    if (!scan_ext_matches(system, file_extension(name), filter_shared_archives)) {
       continue;
     }
     ctx->files_matched++;
@@ -1141,14 +1158,17 @@ static void scan_dir_recursive(struct scan_ctx *ctx, size_t system_index, const 
 }
 
 static void scan_alias_dir(struct scan_ctx *ctx, size_t system_index, const char *rom_root,
-                           const char *alias_name) {
+                           const struct alias_def *alias, int filter_shared_archives) {
   char alias_path[PATH_MAX];
   char canonical_alias_path[PATH_MAX];
   struct stat st;
   int has_identity;
 
+  if (!alias || !alias->name[0]) {
+    return;
+  }
   memset(&st, 0, sizeof(st));
-  if (!join_path(alias_path, sizeof(alias_path), rom_root, alias_name)) {
+  if (!join_path(alias_path, sizeof(alias_path), rom_root, alias->name)) {
     return;
   }
   if (!is_directory(alias_path)) {
@@ -1163,7 +1183,8 @@ static void scan_alias_dir(struct scan_ctx *ctx, size_t system_index, const char
   remember_scanned_dir(ctx, system_index, canonical_alias_path, has_identity, st.st_dev, st.st_ino);
   ctx->alias_dirs_found++;
   ctx->alias_dirs_scanned++;
-  scan_dir_recursive(ctx, system_index, alias_name, canonical_alias_path, "");
+  scan_dir_recursive(ctx, system_index, alias->name, filter_shared_archives,
+                     canonical_alias_path, "");
 }
 
 static void scan_systems(struct scan_ctx *ctx) {
@@ -1191,7 +1212,8 @@ static void scan_systems(struct scan_ctx *ctx) {
     for (a = 0; a < system->alias_count; a++) {
       size_t r;
       for (r = 0; r < sizeof(rom_roots) / sizeof(rom_roots[0]); r++) {
-        scan_alias_dir(ctx, s, rom_roots[r], system->aliases[a].name);
+        scan_alias_dir(ctx, s, rom_roots[r], &system->aliases[a],
+                       a > 0 && system->aliases[a].shared);
       }
     }
   }

@@ -423,6 +423,9 @@ use the first `.nes`, `.fds`, or `.gb` member for CRC calculation.
 
 The FE can select `--kind Named_Boxarts` or `--kind Named_Titles`. The runner
 also accepts `--kind Named_Snaps`, but that option is not exposed in the FE.
+Runs started from the FE show `image`, `kind`, and `existing` at the top of
+Scraping Results so the visible selection can be compared with the actual runner
+options. Changing the image kind does not change the existing-image mode.
 
 ## Matching Order
 

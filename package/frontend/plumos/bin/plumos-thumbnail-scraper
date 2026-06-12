@@ -243,7 +243,9 @@ directory_aliases() {
       line = $0
       sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "", line)
       sub(/".*$/, "", line)
-      print line
+      name = line
+      shared = ($0 ~ /"shared"[[:space:]]*:[[:space:]]*true/) ? 1 : 0
+      print name ":" shared
     }
   '
 }
@@ -275,6 +277,19 @@ extension_allowed() {
     [ "$wanted" = "$allowed" ] && return 0
   done
   return 1
+}
+
+candidate_extension_allowed() {
+  wanted="$1"
+  allowed_list="$2"
+  shared_alias="${3:-0}"
+
+  if [ "$shared_alias" = 1 ]; then
+    case "$wanted" in
+      zip|7z) return 1 ;;
+    esac
+  fi
+  extension_allowed "$wanted" "$allowed_list"
 }
 
 thumbnail_lookup_key() {
@@ -976,7 +991,15 @@ plan_system() {
 
   aliases="$(directory_aliases "$block")"
   for rom_root in $ROM_ROOTS; do
-    for alias in $aliases; do
+    alias_index=0
+    for alias_spec in $aliases; do
+      alias="${alias_spec%:*}"
+      alias_shared="${alias_spec##*:}"
+      shared_alias=0
+      if [ "$alias_shared" = 1 ] && [ "$alias_index" -gt 0 ]; then
+        shared_alias=1
+      fi
+      alias_index=$((alias_index + 1))
       alias_dir="${rom_root%/}/${alias}"
       [ -d "$alias_dir" ] || continue
 
@@ -992,7 +1015,7 @@ plan_system() {
         ignored_sidecar_file "$rom_path" && continue
         ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
         [ -n "$ext" ] || continue
-        extension_allowed "$ext" "$extensions" || continue
+        candidate_extension_allowed "$ext" "$extensions" "$shared_alias" || continue
 
         rom_candidates=$((rom_candidates + 1))
         rel_path="${rom_path#"$alias_dir"/}"
@@ -1101,7 +1124,15 @@ fetch_system() {
 
   aliases="$(directory_aliases "$block")"
   for rom_root in $ROM_ROOTS; do
-    for alias in $aliases; do
+    alias_index=0
+    for alias_spec in $aliases; do
+      alias="${alias_spec%:*}"
+      alias_shared="${alias_spec##*:}"
+      shared_alias=0
+      if [ "$alias_shared" = 1 ] && [ "$alias_index" -gt 0 ]; then
+        shared_alias=1
+      fi
+      alias_index=$((alias_index + 1))
       alias_dir="${rom_root%/}/${alias}"
       [ -d "$alias_dir" ] || continue
 
@@ -1117,7 +1148,7 @@ fetch_system() {
         ignored_sidecar_file "$rom_path" && continue
         ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
         [ -n "$ext" ] || continue
-        extension_allowed "$ext" "$extensions" || continue
+        candidate_extension_allowed "$ext" "$extensions" "$shared_alias" || continue
 
         rom_candidates=$((rom_candidates + 1))
         rel_path="${rom_path#"$alias_dir"/}"

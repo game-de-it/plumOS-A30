@@ -84,10 +84,11 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 
 `--on-enter` では text mode の初回表示を優先し、thumbnail lookup は default で遅延します。
 thumbnail も同時に解決したい場合は `--with-thumbnails` を使います。
-controller UI は ROM list cache が既にある場合、まず cache を読んで画面遷移を完了し、
+controller UI は Text mode では ROM list cache が既にある場合、まず cache を読んで画面遷移を完了し、
 scan refresh は background で実行します。cache が無い初回だけ、thumbnail lookup なしの
-`--on-enter` を同期実行して最小のROM listを作ります。Graphic mode ではその後に
-background の `--with-thumbnails` refresh を開始し、
+`--on-enter` を同期実行して最小のROM listを作ります。
+Graphic mode では `media.thumbnail` が初回入場時から必要なため、cache の有無に関わらず
+`--with-thumbnails` scan を同期実行してから
 `state/frontend/systems/<system>.json` の `media.thumbnail` をプレビュー表示に使います。
 
 環境変数:

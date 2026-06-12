@@ -87,11 +87,12 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `--on-enter` prioritizes the first text-mode display and defers thumbnail lookup
 by default. Use `--with-thumbnails` when thumbnails should be resolved during the
 scan.
-When a ROM-list cache already exists, the controller UI reads that cache first so
-the screen transition can finish immediately, then refreshes the scan in the
-background. When no cache exists, it runs one synchronous `--on-enter` scan
-without thumbnail lookup to create the minimal ROM list. In Graphic mode it then
-starts a background `--with-thumbnails` refresh and uses `media.thumbnail` from
+In Text mode, when a ROM-list cache already exists, the controller UI reads that
+cache first so the screen transition can finish immediately, then refreshes the
+scan in the background. When no cache exists, it runs one synchronous
+`--on-enter` scan without thumbnail lookup to create the minimal ROM list.
+In Graphic mode, `media.thumbnail` is needed for the first entry display, so the
+controller UI runs a synchronous `--with-thumbnails` scan before reading
 `state/frontend/systems/<system>.json` for the preview panel.
 
 Environment:

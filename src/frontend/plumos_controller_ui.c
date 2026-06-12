@@ -4949,7 +4949,17 @@ static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *
   if (count == 0) {
     return;
   }
-  if (strcmp(fields[0], "plan") == 0 && count >= 8) {
+  if (strcmp(fields[0], "scraping_options") == 0 && count >= 4) {
+    snprintf(out, sizeof(out), "%s", "options");
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "%s", fields[1]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "%s", fields[2]);
+    add_thumbnail_result_line(ui, out);
+    snprintf(out, sizeof(out), "%s", fields[3]);
+    add_thumbnail_result_line(ui, out);
+    add_thumbnail_result_line(ui, "----------------");
+  } else if (strcmp(fields[0], "plan") == 0 && count >= 8) {
     snprintf(out, sizeof(out), "%s", fields[1]);
     add_thumbnail_result_line(ui, out);
     snprintf(out, sizeof(out), "reason %s", fields[3]);
@@ -5230,18 +5240,22 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   cache_exists = file_exists(path);
   scan_on_enter = rom_scan_policy_is_on_enter(settings.rom_scan_policy);
   if (!cache_exists) {
-    if (!run_scanner(ui->plumos_root, ui->sdcard_root, system_id, 0)) {
+    if (!run_scanner(ui->plumos_root, ui->sdcard_root, system_id, with_thumbnails)) {
       return 0;
     }
     cache_exists = file_exists(path);
     if (!cache_exists) {
       return 0;
     }
-    if (with_thumbnails && !ui->rom_scan_refresh_suppressed) {
-      trigger_rom_scan_refresh(ui, system_id, 1);
-    }
   } else if ((scan_on_enter || ui->refresh) && !ui->rom_scan_refresh_suppressed) {
-    trigger_rom_scan_refresh(ui, system_id, with_thumbnails);
+    if (with_thumbnails) {
+      if (!run_scanner(ui->plumos_root, ui->sdcard_root, system_id, 1)) {
+        copy_string(ui->status, sizeof(ui->status),
+                    "thumbnail scan failed; using cached ROM list");
+      }
+    } else {
+      trigger_rom_scan_refresh(ui, system_id, 0);
+    }
   }
   json = read_file(path, &json_size);
   if (!json) {
@@ -8525,6 +8539,13 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_string(cmd, sizeof(cmd),
                      &pos, "; { printf 'app_start\\t%s\\n' ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
+      !append_string(cmd, sizeof(cmd),
+                     &pos, "; printf 'scraping_options\\timage=%s\\tkind=%s\\texisting=%s\\n' ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, kind->display_name) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, kind->scraper_kind) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, scraping_existing_label(ui)) ||
       !append_string(cmd, sizeof(cmd), &pos, "; app_rc=0; progress_i=0; progress_total=") ||
       !append_size_t(cmd, sizeof(cmd), &pos, target_count) ||
       !append_scraping_runner_loop(cmd, sizeof(cmd), &pos, ui, scraper,
@@ -9946,8 +9967,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_LEFT) {
       if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
         cycle_scraping_kind(ui, -1);
-        ui->scraping_replace_existing = 1;
-        set_status(ui, "selected image type; replace enabled");
+        set_status(ui, "selected image type");
       } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
         ui->scraping_replace_existing = !ui->scraping_replace_existing;
         set_status(ui, "selected existing image mode");
@@ -9964,8 +9984,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_RIGHT) {
       if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
         cycle_scraping_kind(ui, 1);
-        ui->scraping_replace_existing = 1;
-        set_status(ui, "selected image type; replace enabled");
+        set_status(ui, "selected image type");
       } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
         ui->scraping_replace_existing = !ui->scraping_replace_existing;
         set_status(ui, "selected existing image mode");
