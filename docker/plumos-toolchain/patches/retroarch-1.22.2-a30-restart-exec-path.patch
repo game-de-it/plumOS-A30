@@ -1,0 +1,120 @@
+--- a/frontend/drivers/platform_unix.c
++++ b/frontend/drivers/platform_unix.c
+@@ -21,6 +21,7 @@
+ #include <stddef.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+
+ #include <unistd.h>
+ #include <fcntl.h>
+@@ -148,6 +149,7 @@
+
+ #ifndef ANDROID
+ static enum frontend_fork unix_fork_mode = FRONTEND_FORK_NONE;
++static char unix_plumos_restart_path[PATH_MAX_LENGTH];
+ #endif
+
+ #ifdef HAS_INOTIFY
+@@ -2537,12 +2539,27 @@
+          break;
+       case FRONTEND_FORK_RESTART:
+          unix_fork_mode  = FRONTEND_FORK_CORE;
+-
+          {
+-            char executable_path[PATH_MAX_LENGTH] = {0};
+-            fill_pathname_application_path(executable_path,
+-                  sizeof(executable_path));
++            char executable_path[PATH_MAX_LENGTH]       = {0};
++            const char *plumos_restart_executable_path  =
++                  getenv("PLUMOS_RA_EXEC_PATH");
++
++            unix_plumos_restart_path[0] = '\0';
++
++            if (!string_is_empty(plumos_restart_executable_path))
++            {
++               RARCH_LOG("[plumOS] Using restart executable: \"%s\".\n",
++                     plumos_restart_executable_path);
++               strlcpy(executable_path, plumos_restart_executable_path,
++                     sizeof(executable_path));
++            }
++            else
++               fill_pathname_application_path(executable_path,
++                     sizeof(executable_path));
++
+             path_set(RARCH_PATH_CORE, executable_path);
++            strlcpy(unix_plumos_restart_path, executable_path,
++                  sizeof(unix_plumos_restart_path));
+          }
+          command_event(CMD_EVENT_QUIT, NULL);
+          break;
+@@ -2557,21 +2574,60 @@
+ static void frontend_unix_exec(const char *path, bool should_load_content)
+ {
+    char *newargv[]    = { NULL, NULL };
+-   size_t _len        = strlen(path);
++   size_t _len        = strlen(path) + 1;
++   const char *plumos_loader_path       = getenv("PLUMOS_RA_LD_PATH");
++   const char *plumos_executable_path   = getenv("PLUMOS_RA_EXEC_PATH");
++   const char *plumos_library_path      = getenv("PLUMOS_RA_LIBRARY_PATH");
++   const char *plumos_config_path       = getenv("PLUMOS_RA_CONFIG_PATH");
+
+    newargv[0] = (char*)malloc(_len);
+
+    strlcpy(newargv[0], path, _len);
++
++   if (     !string_is_empty(plumos_loader_path)
++         && !string_is_empty(plumos_executable_path)
++         && !string_is_empty(plumos_library_path)
++         && string_is_equal(path, plumos_executable_path))
++   {
++      char *plumos_argv[12];
++      unsigned argc = 0;
+
++      plumos_argv[argc++] = (char*)plumos_loader_path;
++      plumos_argv[argc++] = "--argv0";
++      plumos_argv[argc++] = (char*)plumos_executable_path;
++      plumos_argv[argc++] = "--library-path";
++      plumos_argv[argc++] = (char*)plumos_library_path;
++      plumos_argv[argc++] = (char*)plumos_executable_path;
++
++      if (!string_is_empty(plumos_config_path))
++      {
++         plumos_argv[argc++] = "--verbose";
++         plumos_argv[argc++] = "--config";
++         plumos_argv[argc++] = (char*)plumos_config_path;
++         plumos_argv[argc++] = "--menu";
++      }
++
++      plumos_argv[argc] = NULL;
++      execv(plumos_loader_path, plumos_argv);
++      RARCH_ERR("[plumOS] Failed to exec restart loader \"%s\": %s.\n",
++            plumos_loader_path, strerror(errno));
++   }
++
+    execv(path, newargv);
++   RARCH_ERR("[plumOS] Failed to exec restart path \"%s\": %s.\n",
++         path, strerror(errno));
+ }
+
+ static void frontend_unix_exitspawn(char *s, size_t len, char *args)
+ {
+    bool should_load_content = false;
++   const char *exec_path    = s;
+
+    if (unix_fork_mode == FRONTEND_FORK_NONE)
+       return;
++
++   if (!string_is_empty(unix_plumos_restart_path))
++      exec_path = unix_plumos_restart_path;
+
+    switch (unix_fork_mode)
+    {
+@@ -2583,7 +2639,7 @@
+          break;
+    }
+
+-   frontend_unix_exec(s, should_load_content);
++   frontend_unix_exec(exec_path, should_load_content);
+ }
+ #endif

@@ -59,6 +59,7 @@ apply_patches() {
   msg "applying A30 display patches"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-gl2-display-rotation.patch"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-landscape-fbo.patch"
+  patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-restart-exec-path.patch"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-nci-save-state-slot.patch"
 }
 
@@ -506,12 +507,16 @@ RETROARCH_BIN="${PLUMOS_ROOT}/retroarch/bin/retroarch.bin"
 export HOME="${PLUMOS_ROOT}/retroarch/home"
 export PLUMOS_RA_DISPLAY_ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-none}"
 export PLUMOS_RA_LANDSCAPE_MODE="${PLUMOS_RA_LANDSCAPE_MODE:-fbo}"
+export PLUMOS_RA_EXEC_PATH="${PLUMOS_RA_EXEC_PATH:-${RETROARCH_BIN}}"
+export PLUMOS_RA_LD_PATH="${PLUMOS_RA_LD_PATH:-${PLUMOS_LIB}/ld-linux-armhf.so.3}"
+export PLUMOS_RA_LIBRARY_PATH="${PLUMOS_RA_LIBRARY_PATH:-${PLUMOS_LIB}:/usr/lib:/lib}"
+export PLUMOS_RA_CONFIG_PATH="${PLUMOS_RA_CONFIG_PATH:-${PLUMOS_ROOT}/retroarch/config/retroarch-practical.cfg}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}"
 mkdir -p "${HOME}"
 
-exec "${PLUMOS_LIB}/ld-linux-armhf.so.3" \
+exec "${PLUMOS_RA_LD_PATH}" \
   --argv0 "${RETROARCH_BIN}" \
-  --library-path "${PLUMOS_LIB}:/usr/lib:/lib" \
+  --library-path "${PLUMOS_RA_LIBRARY_PATH}" \
   "${RETROARCH_BIN}" "$@"
 EOF
   chmod +x "${TARGET_DIR}/plumos/retroarch/bin/retroarch"
@@ -1131,7 +1136,7 @@ EOF
     printf 'source=%s\n' "${RETROARCH_URL}"
     printf 'sha256=%s\n' "${RETROARCH_SHA256}"
     printf 'configure=GLESv2/EGL Mali fbdev RGUI; OSS/ALSA audio; SDL2/udev/linuxraw input; screenshots/images; zlib/7zip/network command\n'
-    printf 'patches=A30 GL2 display rotation; A30 landscape FBO present; NCI SAVE_STATE_SLOT command\n'
+    printf 'patches=A30 GL2 display rotation; A30 landscape FBO present; A30 restart exec path; NCI SAVE_STATE_SLOT command\n'
     printf 'launcher=plumos-retroarch-launch defaults to OSS, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, and safe state slot 999\n'
     printf '\nNEEDED:\n'
     "${READELF}" -d "${TARGET_DIR}/plumos/retroarch/bin/retroarch.bin" | awk '/NEEDED/ {print}'

@@ -134,6 +134,11 @@ RetroArch 1.22.2 practical:
   Mali fbdev の native surface は物理 480x640 のまま保持する。GL2 frame/menu/OSD は
   640x480 の offscreen FBO に描画し、swap 前の present で 480x640 backbuffer へ90度回転して出す。
   そのため practical config の `video_rotation` と `screen_orientation` はどちらも `0` にする。
+- A30 の `mali_fbdev` context は threaded video 切替時に RetroArch restart を要求する。
+  plumOS wrapper は `PLUMOS_RA_EXEC_PATH` / `PLUMOS_RA_LD_PATH` /
+  `PLUMOS_RA_LIBRARY_PATH` / `PLUMOS_RA_CONFIG_PATH` を渡し、Unix frontend の restart 経路は
+  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --menu` で
+  RGUI へ戻す。これは動的 loader を libretro core と誤認して落ちることを避けるため。
 - 実機では `input_driver = "null"` + `input_joypad_driver = "sdl2"` +
   `plumos-joystickd --device-mode xbox` で `plumOS A30 Gamepad` が認識された。
 - `udev`/`linuxraw` を primary input driver にした probe は初期化に失敗したため、

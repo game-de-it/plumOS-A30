@@ -139,6 +139,12 @@ RetroArch 1.22.2 practical:
   FBO, then the final present rotates it 90 degrees into the 480x640 backbuffer
   before swap. Therefore both `video_rotation` and `screen_orientation` stay at
   `0` in the practical config.
+- The A30 `mali_fbdev` context requires a RetroArch restart when threaded video
+  is toggled. The plumOS wrapper passes `PLUMOS_RA_EXEC_PATH`,
+  `PLUMOS_RA_LD_PATH`, `PLUMOS_RA_LIBRARY_PATH`, and `PLUMOS_RA_CONFIG_PATH`;
+  the Unix frontend restart path then runs
+  `ld-linux --library-path ... retroarch.bin --config retroarch-practical.cfg --menu`
+  to return to RGUI. This avoids treating the dynamic loader as a libretro core.
 - On the A30, `input_driver = "null"` plus `input_joypad_driver = "sdl2"` and
   `plumos-joystickd --device-mode xbox` detected `plumOS A30 Gamepad`.
 - Probes using `udev`/`linuxraw` as the primary input driver failed to
