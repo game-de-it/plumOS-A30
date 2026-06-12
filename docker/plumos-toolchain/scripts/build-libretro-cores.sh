@@ -335,7 +335,8 @@ patch_makefile_optimization() {
   local log=$3
   local make_args=${4:-}
   local file="${work}/${makefile}"
-  local opt_flags escaped_flags
+  local opt_flags escaped_flags candidate rel
+  local patched=0
 
   if [ "${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS}" != "1" ]; then
     printf '%s\n' "makefile_opt_patch=disabled"
@@ -350,19 +351,36 @@ patch_makefile_optimization() {
     printf '%s\n' "makefile_opt_patch=not_needed"
     return 0
   fi
-  if ! grep -Eq -- '-O(0|1|2|3|s|fast)[[:space:]]+-DNDEBUG' "${file}"; then
+
+  escaped_flags=$(printf '%s' "${opt_flags}" | sed 's/[&@\\]/\\&/g')
+  while IFS= read -r candidate; do
+    if ! grep -Eq -- '(^|[[:space:]=])-O(1|2|3|s|fast)([[:space:]\\]|$)' "${candidate}"; then
+      continue
+    fi
+    cp "${candidate}" "${candidate}.plumos-opt.bak"
+    if ! sed -i -E "s@(^|[[:space:]=])-O(1|2|3|s|fast)([[:space:]\\]|$)@\\1${escaped_flags}\\3@g" "${candidate}"; then
+      mv "${candidate}.plumos-opt.bak" "${candidate}"
+      printf '%s\n' "makefile_opt_patch=failed"
+      return 1
+    fi
+    rel=${candidate#"${work}/"}
+    printf '\n[plumOS] patched makefile optimization flags in %s: %s\n' "${rel}" "${opt_flags}" >>"${log}"
+    patched=$((patched + 1))
+  done <<EOF_PATCH_FILES
+$(find "${work}" -maxdepth 5 -type f \( \
+  -name 'Makefile' -o \
+  -name 'Makefile.*' -o \
+  -name 'makefile' -o \
+  -name 'makefile.*' -o \
+  -name '*.mk' -o \
+  -name '*.mak' \
+\) ! -name '*.plumos-opt.bak' -print)
+EOF_PATCH_FILES
+
+  if [ "${patched}" -eq 0 ]; then
     printf '%s\n' "makefile_opt_patch=not_needed"
     return 0
   fi
-
-  escaped_flags=$(printf '%s' "${opt_flags}" | sed 's/[&@\\]/\\&/g')
-  cp "${file}" "${file}.plumos-opt.bak"
-  if ! sed -i -E "s@-O(0|1|2|3|s|fast)[[:space:]]+-DNDEBUG@${escaped_flags} -DNDEBUG@g" "${file}"; then
-    mv "${file}.plumos-opt.bak" "${file}"
-    printf '%s\n' "makefile_opt_patch=failed"
-    return 1
-  fi
-  printf '\n[plumOS] patched makefile optimization flags: %s\n' "${opt_flags}" >>"${log}"
   printf '%s\n' "makefile_opt_patch=applied"
   printf '%s\n' "makefile_opt_flags=${opt_flags}"
 }

@@ -113,6 +113,10 @@ For each successful candidate, inspect the build log for the compiler, final
 `-O` flag, Cortex-A7/NEON/hard-float flags, and dynarec/GPU defines, then keep
 only the best A30-measured option in `libretro-core-recipes.tsv`. Unverified
 generic fallback artifacts are left as failures to investigate.
+The Makefile optimization patch checks not only the top-level Makefile but also
+shallow `Makefile*`, `*.mk`, and `*.mak` files inside the core tree. This avoids
+cases like `gambatte`, where the wrapper `Makefile` includes `Makefile.libretro`
+and the included file appends upstream `-O2` after plumOS' `-O3`/`-Ofast`.
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and
@@ -127,6 +131,17 @@ The probe logs are under
 `20260613-072334-quicknes`, `20260613-072436-snes9x2005`,
 `20260613-072521-mednafen_pce_fast`, and
 `20260613-072713-mednafen_supergrafx`.
+
+The second same-day probe compared `gambatte`, `gpsp`, `genesis_plus_gx`, and
+`picodrive`. `gambatte`, `gpsp`, and `picodrive` enter
+`platform=classic_armv7_a7` with `-Ofast`/LTO and build through the `-j1` retry.
+`genesis_plus_gx` does not enable LTO in that branch, but `classic_armv7_a7`
+does enable `-Ofast`, with no host compiler use or residual `-O2`. `picodrive`
+also had a standalone `-O2` in `platform/common/common.mak` for the Cyclone tool
+build, so `*.mak` files are included in the optimization patch. Probe logs are
+under `artifacts/libretro-core-option-probes/20260613-075643-gambatte`,
+`20260613-074053-gpsp`, `20260613-074216-genesis_plus_gx`, and
+`20260613-080709-picodrive`.
 
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package

@@ -23,11 +23,11 @@
 fceumm|A|https://github.com/libretro/libretro-fceumm.git|master||Makefile.libretro|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
 nestopia|A|https://github.com/libretro/nestopia.git|master|libretro|Makefile|platform=classic_armv7_a7
 quicknes|A|https://github.com/libretro/QuickNES_Core.git|HEAD||Makefile|platform=classic_armv7_a7
-gambatte|A|https://github.com/libretro/gambatte-libretro.git|master||Makefile|platform=armv7-hardfloat-neon
+gambatte|A|https://github.com/libretro/gambatte-libretro.git|master||Makefile.libretro|platform=classic_armv7_a7
 mgba|A|https://github.com/libretro/mgba.git|master||Makefile.libretro|platform=unix
-gpsp|A|https://github.com/libretro/gpsp.git|master||Makefile|platform=armv7-hardfloat-neon
-genesis_plus_gx|A|https://github.com/libretro/Genesis-Plus-GX.git|master||Makefile.libretro|platform=armv7-hardfloat-neon
-picodrive|A|https://github.com/libretro/picodrive.git|master||Makefile.libretro|platform=armv7-hardfloat-neon
+gpsp|A|https://github.com/libretro/gpsp.git|master||Makefile|platform=classic_armv7_a7
+genesis_plus_gx|A|https://github.com/libretro/Genesis-Plus-GX.git|master||Makefile.libretro|platform=classic_armv7_a7
+picodrive|A|https://github.com/libretro/picodrive.git|master||Makefile.libretro|platform=classic_armv7_a7
 snes9x|A|https://github.com/libretro/snes9x.git|master|libretro|Makefile|platform=armv LTO=
 snes9x2005|A|https://github.com/libretro/snes9x2005.git|master||Makefile|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
 mednafen_pce_fast|A|https://github.com/libretro/beetle-pce-fast-libretro.git|master||Makefile|platform=classic_armv7_a7
