@@ -151,6 +151,11 @@ RetroArch 1.22.2 practical:
 - OSS audio + SDL2 joypad + `audio_latency = 128` + CPU `performance` では画面/音/操作が
   ユーザー目視で良好だった。その後、System Settings の `volume` を全体音量として扱うため、
   既定は ALSA `default` + `Soft Volume Master` に移行し、OSS は互換 fallback として残す。
+- A30 では fast-forward 開始時の一瞬停止を避けるため、RetroArch の
+  `vrr_runloop_enable`（menu 表示名は `Sync to Exact Content Frame-rate (G-Sync, FreeSync)`）
+  を初期 ON にする。実 VRR panel 前提ではなく、A30 の GL/vsync 切替で詰まる場面を
+  runloop 側の frame limit に寄せるための A30 runtime default として扱う。既存の
+  `retroarch-practical.cfg` は deploy 時に保護されるため、launcher append でも同じ値を渡す。
 - CPU `ondemand` では音途切れが出た。CPU `userspace fixed 648000 kHz` + 2 cores は
   NES/GB で画面/音/操作が良好で、電池消費と安定性のバランス上、軽量 core の初期値にする。
 - 電源ケーブルを抜いた状態の dummy CPU負荷計測では、2 cores + performance が約 1.98 W、

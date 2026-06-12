@@ -290,6 +290,7 @@ video_driver = "gl"
 video_context_driver = "mali_fbdev"
 video_fullscreen = "true"
 video_vsync = "true"
+vrr_runloop_enable = "true"
 video_threaded = "false"
 video_smooth = "false"
 video_shader_enable = "false"
@@ -559,6 +560,7 @@ CPU_FREQ="${PLUMOS_RA_CPU_FREQ:-648000}"
 CPU_CORES="${PLUMOS_RA_CPU_CORES:-2}"
 ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-none}"
 LANDSCAPE_MODE="${PLUMOS_RA_LANDSCAPE_MODE:-fbo}"
+VRR_RUNLOOP="${PLUMOS_RA_VRR_RUNLOOP:-true}"
 MAX_FRAMES="${PLUMOS_RA_MAX_FRAMES:-}"
 QUIT_PRESS_TWICE="${PLUMOS_RA_QUIT_PRESS_TWICE:-}"
 ENTRY_SLOT="${PLUMOS_RA_ENTRY_SLOT:-}"
@@ -588,6 +590,7 @@ Options:
   --cores 2|4               CPU online core policy. Default: ${CPU_CORES}
   --rotation VALUE          PLUMOS_RA_DISPLAY_ROTATION. Default: ${ROTATION}
   --landscape-mode VALUE    A30 landscape present mode. Default: ${LANDSCAPE_MODE}
+  --vrr-runloop true|false  Set RetroArch vrr_runloop_enable. Default: ${VRR_RUNLOOP}
   --max-frames N            Exit RetroArch after N frames. Default: disabled.
   --quit-press-twice true|false
                             Override RetroArch quit_press_twice for this launch.
@@ -943,6 +946,10 @@ while [ "$#" -gt 0 ]; do
       LANDSCAPE_MODE="${2:?missing landscape mode}"
       shift
       ;;
+    --vrr-runloop)
+      VRR_RUNLOOP="${2:?missing vrr runloop value}"
+      shift
+      ;;
     --max-frames)
       MAX_FRAMES="${2:?missing max frames}"
       shift
@@ -1012,6 +1019,10 @@ case "$QUIT_PRESS_TWICE" in
   ''|true|false) ;;
   *) echo "error: invalid quit_press_twice: $QUIT_PRESS_TWICE" >&2; exit 2 ;;
 esac
+case "$VRR_RUNLOOP" in
+  true|false) ;;
+  *) echo "error: invalid vrr_runloop: $VRR_RUNLOOP" >&2; exit 2 ;;
+esac
 case "$ENTRY_SLOT" in
   '') ;;
   *) validate_state_slot "entry slot" "$ENTRY_SLOT" ;;
@@ -1072,6 +1083,7 @@ apply_system_volume
 cat > "$APPEND" <<APPEND
 config_save_on_exit = "false"
 state_slot = "$SAFE_STATE_SLOT"
+vrr_runloop_enable = "$VRR_RUNLOOP"
 APPEND
 if [ -n "$QUIT_PRESS_TWICE" ]; then
   cat >> "$APPEND" <<APPEND
@@ -1138,7 +1150,7 @@ EOF
     printf 'sha256=%s\n' "${RETROARCH_SHA256}"
     printf 'configure=GLESv2/EGL Mali fbdev RGUI; OSS/ALSA audio; SDL2/udev/linuxraw input; screenshots/images; zlib/7zip/network command\n'
     printf 'patches=A30 GL2 display rotation; A30 landscape FBO present; A30 restart exec path; NCI SAVE_STATE_SLOT command\n'
-    printf 'launcher=plumos-retroarch-launch defaults to OSS, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, and safe state slot 999\n'
+    printf 'launcher=plumos-retroarch-launch defaults to ALSA, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, safe state slot 999, and vrr_runloop_enable=true\n'
     printf '\nNEEDED:\n'
     "${READELF}" -d "${TARGET_DIR}/plumos/retroarch/bin/retroarch.bin" | awk '/NEEDED/ {print}'
   } > "${TARGET_DIR}/docs/manifest.txt"

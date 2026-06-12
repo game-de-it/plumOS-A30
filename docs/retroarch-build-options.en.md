@@ -159,6 +159,13 @@ RetroArch 1.22.2 practical:
   working screen, sound, and controls in user visual testing. The default later
   moved to ALSA `default` plus `Soft Volume Master` so System Settings `volume`
   works as a shared volume backend; OSS remains a compatibility fallback.
+- On the A30, `vrr_runloop_enable` defaults to ON to avoid the brief stall when
+  fast-forward starts. The RetroArch menu label is
+  `Sync to Exact Content Frame-rate (G-Sync, FreeSync)`. This is treated as an
+  A30 runtime default for moving the GL/vsync transition into the runloop frame
+  limit path, not as a real VRR panel assumption. Existing
+  `retroarch-practical.cfg` files are preserved during deploy, so the launcher
+  append config passes the same value at runtime.
 - CPU `ondemand` caused audio stutter. CPU `userspace fixed 648000 kHz` with
   2 cores worked well for NES/GB and is the initial lightweight-core default
   for a better stability/battery balance.
