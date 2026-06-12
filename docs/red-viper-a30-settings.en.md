@@ -22,11 +22,12 @@ Up/down moves, left/right or A changes a value, and B or Function returns.
 | Fast Fwd | `PLUMOS_A30_RED_VIPER_FAST_FORWARD` | Immediate | Removes frame pacing. |
 | FF Mode | `PLUMOS_A30_RED_VIPER_FF_TOGGLE` | Stored | Upstream hold/toggle setting, reserved for A30 fast-forward hotkey expansion. |
 | VIP OC | `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK` | Immediate | Upstream VIP timing shortcut. |
-| Perf Info | `PLUMOS_A30_RED_VIPER_PERF_INFO` | Immediate | Shows `EMU`, `SPD`, `PRES`, `REND`, and `LATE` in a top-left overlay. |
+| Perf Info | `PLUMOS_A30_RED_VIPER_PERF_INFO` | Immediate | Shows `EMU`, `SPD`, `PRES`, `REND`, `LATE`, and `AUD` in a top-left overlay. |
 | Sound | `PLUMOS_A30_RED_VIPER_AUDIO` | Immediate | `alsa` / `off`. Re-enabling from an audio-off launch depends on backend state. |
 | Audio Lat | `PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US` | Next launch | ALSA latency. |
 | Prebuffer | `PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS` | Next launch | Startup audio prebuffer chunks. |
 | Queue | `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS` | Next launch | Producer queue chunks. |
+| Audio Gap | `PLUMOS_A30_RED_VIPER_AUDIO_GAP` | Immediate | Gap fill used when audio generation cannot keep up: `fade`, `silence`, `repeat`. |
 | CPU Policy | `PLUMOS_A30_RED_VIPER_CPU_POLICY` | Next launch | `fixed` / `performance`; the launcher applies and restores it. |
 | CPU Freq | `PLUMOS_A30_RED_VIPER_CPU_FREQ` | Next launch | `648000`, `816000`, `1008000`, `1200000`, `1344000`. |
 | CPU Cores | `PLUMOS_A30_RED_VIPER_CPU_CORES` | Next launch | `2` / `4`. |
@@ -48,7 +49,8 @@ A30-specific settings are:
 - Audio: `PLUMOS_A30_RED_VIPER_AUDIO`, `PLUMOS_A30_RED_VIPER_ALSA_DEVICE`,
   `PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US`,
   `PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS`,
-  `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS`
+  `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS`,
+  `PLUMOS_A30_RED_VIPER_AUDIO_GAP`
 - Emulation/performance: `PLUMOS_A30_RED_VIPER_FRAME_SKIP`,
   `PLUMOS_A30_RED_VIPER_FAST_FORWARD`, `PLUMOS_A30_RED_VIPER_FF_TOGGLE`,
   `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK`,
@@ -67,7 +69,7 @@ connects the settings that have a meaningful A30 backend first.
 | Color/palette | `MULTICOL`, `TINT`, `MULTIID`, `MTINT`, `STINT`, `PALMODE`, `FIXPAL`, `BFACTOR` | The menu currently exposes mono tint and arbitrary RGB. A multicolor palette editor is future work. |
 | Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | A30 has no 3DS Citro3D/GPU backend, so it runs `RM_CPUONLY`. Framebuffer vsync is exposed as `Wait Vsync`. |
 | Performance | `MAXCYCLES`, `FRMSKIP`, `FASTFORWARD`, `FF_TOGGLE`, `N3DS_SPEEDUP`, `VIP_OVERCLOCK`, `VIP_OVER_SOFT`, `ANTIFLICKER`, `PERF_INFO` | `FRMSKIP`, fast-forward, and `VIP_OVERCLOCK` are connected. `N3DS_SPEEDUP` and `ANTIFLICKER` need A30 effect checks. |
-| Audio | `SOUND` | The A30 ALSA backend exposes sound, latency, prebuffer, and queue settings. |
+| Audio | `SOUND` | The A30 ALSA backend exposes sound, latency, prebuffer, queue, and gap-fill settings. |
 | Input | `ABXY_MODE`, `ZLZR_MODE`, `DPAD_MODE`, `CUSTOM_CONTROLS`, `CUSTOM_MAPPING_*`, `CUSTOM_MOD`, `INPUTS` | A30 physical mapping is currently implemented in the wrapper. User remap UI is future work. |
 | Touch/3DS device | `TOUCH_*`, `TOUCH_SWITCH`, `CPP_ENABLED`, `PAUSE_RIGHT` | These are for 3DS touchscreen / Circle Pad Pro. They only matter on A30 if an equivalent UI is implemented. |
 | Multiplayer | `INPUT_BUFFER` and multiplayer path | 3DS local multiplayer path. A30 backend is not implemented. |
@@ -86,3 +88,4 @@ connects the settings that have a meaningful A30 backend first.
 - `PRES`: fps actually presented to the A30 framebuffer. This should drop when Frame Skip is raised.
 - `REND`: Red Viper software-render fps. It should usually stay near `EMU`.
 - `LATE`: percentage of frames where the 50Hz pacing deadline was missed and no sleep occurred.
+- `AUD R/D/X`: audio repeat/drop/xrun counts over roughly the last second. If `R` rises, audio generation is not keeping up with real time and gap fill is active.

@@ -19,6 +19,12 @@ static unsigned g_queue_read;
 static unsigned g_queue_write;
 static unsigned g_queue_count;
 static int16_t g_last_chunk[SAMPLE_COUNT * 2];
+typedef enum {
+  AUDIO_GAP_FADE,
+  AUDIO_GAP_SILENCE,
+  AUDIO_GAP_REPEAT,
+} audio_gap_mode_t;
+static audio_gap_mode_t g_audio_gap_mode = AUDIO_GAP_FADE;
 static pthread_t g_audio_thread;
 static pthread_mutex_t g_audio_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool g_audio_thread_started;
@@ -76,6 +82,61 @@ static unsigned parse_queue_chunks(void) {
   return (unsigned)parsed;
 }
 
+static audio_gap_mode_t parse_audio_gap_mode(const char *value) {
+  if (!value || !*value) {
+    return AUDIO_GAP_FADE;
+  }
+  if (strcasecmp(value, "repeat") == 0 || strcasecmp(value, "hold") == 0) {
+    return AUDIO_GAP_REPEAT;
+  }
+  if (strcasecmp(value, "silence") == 0 || strcasecmp(value, "silent") == 0 ||
+      strcasecmp(value, "zero") == 0 || strcasecmp(value, "mute") == 0) {
+    return AUDIO_GAP_SILENCE;
+  }
+  return AUDIO_GAP_FADE;
+}
+
+static const char *audio_gap_mode_name(audio_gap_mode_t mode) {
+  switch (mode) {
+  case AUDIO_GAP_REPEAT:
+    return "repeat";
+  case AUDIO_GAP_SILENCE:
+    return "silence";
+  case AUDIO_GAP_FADE:
+  default:
+    return "fade";
+  }
+}
+
+void sound_backend_set_gap_mode(const char *value) {
+  pthread_mutex_lock(&g_audio_mutex);
+  g_audio_gap_mode = parse_audio_gap_mode(value);
+  pthread_mutex_unlock(&g_audio_mutex);
+}
+
+const char *sound_backend_gap_mode_name(void) {
+  const char *name;
+  pthread_mutex_lock(&g_audio_mutex);
+  name = audio_gap_mode_name(g_audio_gap_mode);
+  pthread_mutex_unlock(&g_audio_mutex);
+  return name;
+}
+
+void sound_backend_get_counters(unsigned long *repeats, unsigned long *drops,
+                                unsigned long *xruns) {
+  pthread_mutex_lock(&g_audio_mutex);
+  if (repeats) {
+    *repeats = g_audio_repeat_count;
+  }
+  if (drops) {
+    *drops = g_audio_drop_count;
+  }
+  if (xruns) {
+    *xruns = g_audio_xrun_count;
+  }
+  pthread_mutex_unlock(&g_audio_mutex);
+}
+
 static void tune_sw_params(void) {
   snd_pcm_sw_params_t *sw = NULL;
   snd_pcm_sw_params_alloca(&sw);
@@ -130,6 +191,30 @@ static void queue_reset(bool clear_last_chunk) {
   pthread_mutex_unlock(&g_audio_mutex);
 }
 
+static void fill_gap_chunk_locked(int16_t *chunk) {
+  switch (g_audio_gap_mode) {
+  case AUDIO_GAP_REPEAT:
+    memcpy(chunk, g_last_chunk, sizeof(g_last_chunk));
+    break;
+  case AUDIO_GAP_SILENCE:
+    memset(chunk, 0, sizeof(g_last_chunk));
+    memset(g_last_chunk, 0, sizeof(g_last_chunk));
+    break;
+  case AUDIO_GAP_FADE:
+  default:
+    for (int i = 0; i < SAMPLE_COUNT; i++) {
+      int remaining = SAMPLE_COUNT - i;
+      chunk[i * 2] = (int16_t)((int32_t)g_last_chunk[i * 2] * remaining /
+                               SAMPLE_COUNT);
+      chunk[i * 2 + 1] =
+          (int16_t)((int32_t)g_last_chunk[i * 2 + 1] * remaining /
+                    SAMPLE_COUNT);
+    }
+    memset(g_last_chunk, 0, sizeof(g_last_chunk));
+    break;
+  }
+}
+
 static void *audio_thread_main(void *arg) {
   (void)arg;
   int16_t chunk[SAMPLE_COUNT * 2];
@@ -147,7 +232,7 @@ static void *audio_thread_main(void *arg) {
       g_queue_count--;
       memcpy(g_last_chunk, chunk, sizeof(g_last_chunk));
     } else {
-      memcpy(chunk, g_last_chunk, sizeof(chunk));
+      fill_gap_chunk_locked(chunk);
       g_audio_repeat_count++;
     }
     pthread_mutex_unlock(&g_audio_mutex);
@@ -227,6 +312,10 @@ bool sound_init_backend(int16_t *wavebufs[]) {
 
   g_prebuffer_chunks = parse_prebuffer_chunks();
   g_queue_chunks = parse_queue_chunks();
+  g_audio_gap_mode = parse_audio_gap_mode(getenv("PLUMOS_A30_RED_VIPER_AUDIO_GAP"));
+  g_audio_repeat_count = 0;
+  g_audio_drop_count = 0;
+  g_audio_xrun_count = 0;
   g_audio_queue =
       calloc((size_t)g_queue_chunks * SAMPLE_COUNT * 2, sizeof(*g_audio_queue));
   if (!g_audio_queue) {

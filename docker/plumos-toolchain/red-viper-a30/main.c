@@ -30,6 +30,11 @@
 #define VB_SRC_H 224
 #define TARGET_FPS 50
 
+extern void sound_backend_get_counters(unsigned long *repeats,
+                                       unsigned long *drops,
+                                       unsigned long *xruns);
+extern void sound_backend_set_gap_mode(const char *value);
+
 typedef enum {
   ROTATE_CCW,
   ROTATE_CW,
@@ -70,6 +75,7 @@ typedef struct {
   unsigned audio_latency_us;
   unsigned audio_prebuffer_chunks;
   unsigned audio_queue_chunks;
+  char audio_gap_mode[16];
   char cpu_policy[16];
   unsigned cpu_freq;
   unsigned cpu_cores;
@@ -95,6 +101,13 @@ typedef struct {
   double present_fps;
   double speed_pct;
   double late_pct;
+  unsigned long audio_repeats;
+  unsigned long audio_drops;
+  unsigned long audio_xruns;
+  unsigned long last_audio_repeats;
+  unsigned long last_audio_drops;
+  unsigned long last_audio_xruns;
+  int audio_stats_initialized;
 } perf_stats_t;
 
 typedef enum {
@@ -113,6 +126,7 @@ typedef enum {
   MENU_AUDIO_LATENCY,
   MENU_AUDIO_PREBUFFER,
   MENU_AUDIO_QUEUE,
+  MENU_AUDIO_GAP,
   MENU_CPU_POLICY,
   MENU_CPU_FREQ,
   MENU_CPU_CORES,
@@ -943,6 +957,50 @@ static void cycle_audio_queue(red_viper_settings_t *settings, int delta) {
   mark_restart_setting(settings);
 }
 
+static const char *audio_gap_mode_value(const char *value) {
+  if (value && (strcasecmp(value, "repeat") == 0 ||
+                strcasecmp(value, "hold") == 0)) {
+    return "repeat";
+  }
+  if (value && (strcasecmp(value, "silence") == 0 ||
+                strcasecmp(value, "silent") == 0 ||
+                strcasecmp(value, "zero") == 0 ||
+                strcasecmp(value, "mute") == 0)) {
+    return "silence";
+  }
+  return "fade";
+}
+
+static void set_audio_gap_mode(red_viper_settings_t *settings,
+                               const char *value) {
+  const char *mode = audio_gap_mode_value(value);
+  snprintf(settings->audio_gap_mode, sizeof(settings->audio_gap_mode), "%s",
+           mode);
+  setenv("PLUMOS_A30_RED_VIPER_AUDIO_GAP", mode, 1);
+  sound_backend_set_gap_mode(mode);
+}
+
+static void cycle_audio_gap(red_viper_settings_t *settings, int delta) {
+  static const char *values[] = {"fade", "silence", "repeat"};
+  size_t index = 0;
+
+  for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+    if (strcmp(settings->audio_gap_mode, values[i]) == 0) {
+      index = i;
+      break;
+    }
+  }
+  if (delta < 0) {
+    index = (index + sizeof(values) / sizeof(values[0]) - 1) %
+            (sizeof(values) / sizeof(values[0]));
+  } else {
+    index = (index + 1) % (sizeof(values) / sizeof(values[0]));
+  }
+  set_audio_gap_mode(settings, values[index]);
+  persist_setting("PLUMOS_A30_RED_VIPER_AUDIO_GAP",
+                  settings->audio_gap_mode);
+}
+
 static void cycle_cpu_policy(red_viper_settings_t *settings) {
   if (strcmp(settings->cpu_policy, "performance") == 0) {
     snprintf(settings->cpu_policy, sizeof(settings->cpu_policy), "fixed");
@@ -980,6 +1038,10 @@ static double timespec_elapsed_seconds(const struct timespec *start,
 static void perf_stats_reset(perf_stats_t *stats) {
   memset(stats, 0, sizeof(*stats));
   clock_gettime(CLOCK_MONOTONIC, &stats->window_start);
+  sound_backend_get_counters(&stats->last_audio_repeats,
+                             &stats->last_audio_drops,
+                             &stats->last_audio_xruns);
+  stats->audio_stats_initialized = 1;
   stats->initialized = 1;
 }
 
@@ -1008,6 +1070,23 @@ static void perf_stats_update(perf_stats_t *stats, int rendered, int presented,
   if (elapsed < 1.0) {
     return;
   }
+
+  unsigned long current_repeats = 0;
+  unsigned long current_drops = 0;
+  unsigned long current_xruns = 0;
+  sound_backend_get_counters(&current_repeats, &current_drops, &current_xruns);
+  if (!stats->audio_stats_initialized) {
+    stats->last_audio_repeats = current_repeats;
+    stats->last_audio_drops = current_drops;
+    stats->last_audio_xruns = current_xruns;
+    stats->audio_stats_initialized = 1;
+  }
+  stats->audio_repeats = current_repeats - stats->last_audio_repeats;
+  stats->audio_drops = current_drops - stats->last_audio_drops;
+  stats->audio_xruns = current_xruns - stats->last_audio_xruns;
+  stats->last_audio_repeats = current_repeats;
+  stats->last_audio_drops = current_drops;
+  stats->last_audio_xruns = current_xruns;
 
   stats->emu_fps = (double)stats->emu_frames / elapsed;
   stats->render_fps = (double)stats->render_frames / elapsed;
@@ -1119,7 +1198,7 @@ static void draw_perf_overlay(fb_ctx_t *fb, uint32_t page_yoffset,
   int x = 8;
   int y = 8;
   int w = 292;
-  int h = 86;
+  int h = 110;
 
   if (!stats) {
     return;
@@ -1146,6 +1225,13 @@ static void draw_perf_overlay(fb_ctx_t *fb, uint32_t page_yoffset,
            stats->late_pct);
   draw_text(fb, page_yoffset, x + 10, y + 58, line, 2,
             stats->late_pct > 0.0 ? warn : text);
+  snprintf(line, sizeof(line), "AUD R%lu D%lu X%lu", stats->audio_repeats,
+           stats->audio_drops, stats->audio_xruns);
+  draw_text(fb, page_yoffset, x + 10, y + 82, line, 2,
+            (stats->audio_repeats || stats->audio_drops ||
+             stats->audio_xruns)
+                ? warn
+                : text);
 }
 
 static const char *on_off(int enabled) {
@@ -1213,6 +1299,9 @@ static void menu_item_text(const fb_ctx_t *fb,
   case MENU_AUDIO_QUEUE:
     snprintf(out, out_size, "QUEUE      < %u >",
              settings->audio_queue_chunks);
+    break;
+  case MENU_AUDIO_GAP:
+    snprintf(out, out_size, "AUDIO GAP  < %s >", settings->audio_gap_mode);
     break;
   case MENU_CPU_POLICY:
     snprintf(out, out_size, "CPU POLICY < %s >", settings->cpu_policy);
@@ -1476,6 +1565,9 @@ static void menu_adjust(menu_ctx_t *menu, fb_ctx_t *fb,
     break;
   case MENU_AUDIO_QUEUE:
     cycle_audio_queue(settings, delta);
+    break;
+  case MENU_AUDIO_GAP:
+    cycle_audio_gap(settings, delta);
     break;
   case MENU_CPU_POLICY:
     cycle_cpu_policy(settings);
@@ -1873,6 +1965,7 @@ int main(int argc, char **argv) {
   settings.audio_queue_chunks =
       parse_unsigned_value(getenv("PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS"),
                            8, 2, 32);
+  set_audio_gap_mode(&settings, getenv("PLUMOS_A30_RED_VIPER_AUDIO_GAP"));
   const char *cpu_policy = getenv("PLUMOS_A30_RED_VIPER_CPU_POLICY");
   if (cpu_policy && strcasecmp(cpu_policy, "performance") == 0) {
     snprintf(settings.cpu_policy, sizeof(settings.cpu_policy), "performance");
