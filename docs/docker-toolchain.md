@@ -182,6 +182,12 @@ Onion catalog と plumOS recipe の差分は host 側で監査できます。
 ./scripts/inventory-onion-libretro-cores.sh
 ```
 
+Onion prebuilt core の version/provenance と plumOS recipe の対応表は以下で再生成できます。
+
+```sh
+./scripts/inventory-libretro-core-versions.py > docs/libretro-core-version-inventory.tsv
+```
+
 別の recipe file を試す場合は、container 内 path として `CORE_RECIPES` を指定します。
 
 ```sh

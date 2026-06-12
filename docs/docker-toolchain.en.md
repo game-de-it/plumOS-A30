@@ -183,6 +183,13 @@ Audit Onion catalog coverage against the plumOS recipe file from the host:
 ./scripts/inventory-onion-libretro-cores.sh
 ```
 
+Regenerate the Onion prebuilt core version/provenance inventory and plumOS recipe
+mapping with:
+
+```sh
+./scripts/inventory-libretro-core-versions.py > docs/libretro-core-version-inventory.tsv
+```
+
 To test another recipe file, pass `CORE_RECIPES` as a container path.
 
 ```sh

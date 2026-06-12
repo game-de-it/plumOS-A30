@@ -49,6 +49,9 @@ core を読み込んだ実ゲーム画面は `fceumm`/`gambatte` で確認済み
 `PLUMOS_CORE_FILTER=onion` または `all` は Onion catalog 補完用 Class O も対象にします。
 `scripts/inventory-onion-libretro-cores.sh` では、Onion 側にあって plumOS recipe に未登録の
 core と、QuickNES のように plumOS recipe にだけある独自採用 core を確認します。
+Onion core の `display_version`、prebuilt binary の更新 commit、builder recipe、plumOS
+recipe の対応は [libretro core version inventory](libretro-core-version-inventory.md) と
+`docs/libretro-core-version-inventory.tsv` に残します。
 
 2026-06-07 の旧 bulk build では `./scripts/docker-build.sh libretro-cores` により Class A/B の
 41 core を `dist/plumos-libretro-cores/plumos/retroarch/cores` に stage 済みで、

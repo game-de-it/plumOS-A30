@@ -57,6 +57,10 @@ source of truth for libretro core recipes. The default
 or `all` also includes Onion-catalog Class O entries. Use
 `scripts/inventory-onion-libretro-cores.sh` to inspect Onion cores missing from
 the plumOS recipe and intentional plumOS-only cores such as QuickNES.
+Onion core `display_version`, prebuilt binary update commits, builder recipes,
+and plumOS recipe mappings are recorded in
+`docs/libretro-core-version-inventory.tsv`; see
+[libretro core version inventory](libretro-core-version-inventory.en.md).
 
 The older 2026-06-07 bulk build staged 41 Class A/B cores under
 `dist/plumos-libretro-cores/plumos/retroarch/cores`, and its manifest reported
