@@ -590,7 +590,7 @@ dosbox_pure|A|https://github.com/libretro/dosbox-pure.git|HEAD||Makefile|platfor
 bluemsx|A|https://github.com/libretro/blueMSX-libretro.git|HEAD||Makefile|platform=armv
 fmsx|A|https://github.com/libretro/fmsx-libretro.git|HEAD||Makefile|platform=armv
 neocd|A|https://github.com/libretro/neocd_libretro.git|HEAD||Makefile|platform=unix USE_LTO=0
-beetle_vb|B|https://github.com/libretro/beetle-vb-libretro.git|HEAD||Makefile|platform=armv
+beetle_vb|B|https://github.com/libretro/beetle-vb-libretro.git|162918f06d9a705330b2ba128e0d3b65fd1a1bcc||Makefile|platform=armv
 quasi88|B|https://github.com/libretro/quasi88-libretro.git|HEAD||Makefile|platform=armv
 np2kai|B|https://github.com/AZO234/NP2kai.git|HEAD|sdl|Makefile.libretro|platform=rpi2 NP2KAI_VERSION=latest
 px68k|B|https://github.com/libretro/px68k-libretro.git|HEAD||Makefile|platform=armv

@@ -127,8 +127,20 @@ Onion PR 直前の builder commit `8a552f2` では、GitHub Actions が
 cross compiler を環境変数で指定した `make -f Makefile platform=unix -j...` に近い可能性があります。
 Actions artifact/log は保存期限切れのため、同一 hash の完全再現には builder image か GCC 8.3
 相当で再 build して確認する必要があります。
+
+2026-06-13 の追加測定では、plumOS toolchain / GCC 12.2.0 でも Beetle VB を upstream
+`162918f06d9a705330b2ba128e0d3b65fd1a1bcc` に pin すれば Onion 相当の速度が出ることを確認しました。
+同じ A30、1344MHz/4core、RetroArch null video/audio、Bad Apple 600 frames 条件で、現行
+plumOS core `1275bd7` は 18.84秒 / 約31.85fps、Onion core は 5.73秒 / 約104.71fps、
+plumOS build の `162918f` + `platform=armv` は 5.58秒 / 約107.53fps でした。
+`162918f` + `platform=classic_armv7_a7` は 5.38秒 / 約111.52fps でしたが、GCC 12 LTO のため
+`-j1` が必要になり、通常 build の安定性とのトレードオフがあります。現行 `1275bd7` は
+`classic_armv7_a7` にしても 18.46秒 / 約32.50fps だったため、性能低下の主因は build option
+ではなく upstream commit 差です。plumOS の通常 build recipe は、まず VB core だけを
+`162918f` に固定し、既存の `platform=armv` / common A30 flags で build します。
 測定ログは `artifacts/a30-logs/mednafen-vb-core-compare-20260613.log` と
-`artifacts/miyoo-mini-plus/ra-vb-null-600-scale1.*` に残しています。
+`artifacts/miyoo-mini-plus/ra-vb-null-600-scale1.*`、
+`artifacts/vb-core-build-options-20260613/summary.txt` に残しています。
 
 Red Viper は libretro core ではなく 3DS 由来の standalone emulator ですが、A30 の armv7
 hard-float で ARM dynarec が動きます。zip から一時展開した raw `.vb` ROM を使った実験用

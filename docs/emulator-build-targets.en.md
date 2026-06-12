@@ -152,6 +152,20 @@ variables, not `platform=miyoomini` and not a direct invocation of Beetle VB's
 expired, so exact hash reproduction still requires rebuilding with the builder
 image or a matching GCC 8.3 environment.
 
+Additional 2026-06-13 measurements confirmed that the plumOS toolchain / GCC
+12.2.0 can also produce an Onion-speed Beetle VB core when upstream is pinned
+to `162918f06d9a705330b2ba128e0d3b65fd1a1bcc`. On the same A30, at
+1344 MHz / 4 cores, with RetroArch null video/audio and the Bad Apple 600-frame
+benchmark, the current plumOS `1275bd7` core took 18.84 seconds, about
+31.85fps; the Onion core took 5.73 seconds, about 104.71fps; and the plumOS
+`162918f` + `platform=armv` build took 5.58 seconds, about 107.53fps.
+`162918f` + `platform=classic_armv7_a7` reached 5.38 seconds, about 111.52fps,
+but GCC 12 LTO requires `-j1`, so it carries build-stability trade-offs. Current
+`1275bd7` still took 18.46 seconds, about 32.50fps, even with
+`classic_armv7_a7`, so the slowdown is caused primarily by the upstream commit
+change, not by build options. The normal plumOS recipe now pins only Beetle VB
+to `162918f` and keeps the existing `platform=armv` / common A30 flags.
+
 Red Viper is a standalone emulator derived from the 3DS project line, not a
 libretro core, but its ARM dynarec runs on the A30 armv7 hard-float target. The
 experimental static probe used a raw `.vb` ROM extracted temporarily from zip
