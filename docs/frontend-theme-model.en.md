@@ -54,7 +54,10 @@ Graphic mode remains usable through built-in color/font fallback.
 
 ## System Logo Targets
 
-System logos are required for systems where `systems.json` has `enabled != false`.
+System logos are required for systems where `systems.json` has `enabled != false`,
+plus the `favorites` and `recent` virtual TOP entries. Graphic TOP resolves those
+virtual entries through the same `logos/systems/<id>.png` path as normal systems.
+
 Systems with `enabled:false` may remain as future or investigation definitions,
 but they are excluded from normal TOP scans, launch profile audits, and required
 theme logo counts.
@@ -68,13 +71,13 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-As of 2026-06-12, the default theme family has 49 target systems and all
-required logos are present. `dreamcast`, `n64`, and `saturn` are excluded from
-required logos because they are `enabled:false`, but their older seed logos may
-remain as optional assets.
+As of 2026-06-12, the default theme family has 49 target systems and 2 virtual
+TOP logos, for 51 required logos total. All required logos are present.
+`dreamcast`, `n64`, and `saturn` are excluded from required logos because they
+are `enabled:false`, but their older seed logos may remain as optional assets.
 
-Use this script to regenerate the filled-in logos. It writes to each
-`logos/systems/` directory under `default`, `default-horizontal`, and
+Use this script to regenerate the filled-in and virtual TOP logos. It writes to
+each `logos/systems/` directory under `default`, `default-horizontal`, and
 `default-vertical`.
 
 ```sh

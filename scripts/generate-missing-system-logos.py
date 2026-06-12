@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate pixel-style fallback system logos for the default Graphic themes."""
+"""Generate pixel-style fallback logos for the default Graphic themes."""
 
 from __future__ import annotations
 
@@ -22,6 +22,11 @@ SYSTEMS = [
     "supervision",
     "vectrex",
     "virtualboy",
+]
+
+VIRTUAL_TOP_IDS = [
+    "favorites",
+    "recent",
 ]
 
 THEME_IDS = ["default", "default-horizontal", "default-vertical"]
@@ -292,6 +297,56 @@ def virtualboy() -> Image.Image:
     return scale(im)
 
 
+def favorites() -> Image.Image:
+    im, d = make_canvas()
+    add_shadow(d, (18, 19, 94, 63))
+    bevel(d, (18, 19, 94, 63), (32, 35, 37), (98, 104, 104), (88, 94, 94), (5, 6, 6))
+    bevel(d, (25, 27, 87, 55), (18, 29, 30), (78, 88, 88), (82, 104, 104), (4, 5, 5))
+    star = [
+        (56, 25),
+        (61, 35),
+        (73, 35),
+        (64, 42),
+        (68, 54),
+        (56, 47),
+        (44, 54),
+        (48, 42),
+        (39, 35),
+        (51, 35),
+    ]
+    d.polygon(star, fill=YELLOW)
+    d.line(star + [star[0]], fill=(132, 92, 18))
+    rect(d, (53, 33, 58, 38), (255, 230, 92))
+    rect(d, (56, 48, 59, 51), ORANGE)
+    rect(d, (23, 58, 89, 61), (16, 17, 18))
+    rect(d, (31, 63, 81, 66), (9, 10, 11))
+    draw_buttons(d, [(79, 22), (86, 22)], [RED, BLUE])
+    pixel_text(d, (56, 13), "FAVORITES", WHITE, "mm")
+    pixel_text(d, (56, 69), "FAV", (220, 226, 214), "mm")
+    return scale(im)
+
+
+def recent() -> Image.Image:
+    im, d = make_canvas()
+    add_shadow(d, (18, 17, 94, 64))
+    bevel(d, (18, 17, 94, 64), (31, 33, 35), (94, 100, 102), (82, 90, 92), (5, 6, 6))
+    screen(d, (27, 25, 85, 56), (20, 39, 43))
+    d.ellipse((42, 27, 70, 55), fill=(12, 25, 28), outline=BLUE)
+    d.ellipse((45, 30, 67, 52), outline=(126, 214, 200))
+    rect(d, (55, 33, 57, 42), WHITE)
+    rect(d, (57, 41, 65, 43), WHITE)
+    rect(d, (52, 40, 60, 45), (118, 216, 196))
+    rect(d, (55, 42, 57, 44), BLACK)
+    d.arc((37, 22, 75, 60), 205, 508, fill=GREEN)
+    rect(d, (38, 40, 42, 43), GREEN)
+    rect(d, (40, 37, 43, 40), GREEN)
+    speaker(d, 25, 59, 10)
+    draw_buttons(d, [(78, 20), (85, 20)], [YELLOW, RED])
+    pixel_text(d, (56, 12), "RECENT", WHITE, "mm")
+    pixel_text(d, (56, 70), "HISTORY", (220, 226, 214), "mm")
+    return scale(im)
+
+
 def scale(image: Image.Image) -> Image.Image:
     scaled = image.resize((224, 160), Image.Resampling.NEAREST)
     return crop_to_content(scaled)
@@ -330,6 +385,8 @@ GENERATORS = {
     "supervision": supervision,
     "vectrex": vectrex,
     "virtualboy": virtualboy,
+    "favorites": favorites,
+    "recent": recent,
 }
 
 
@@ -365,7 +422,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     generated: dict[str, Image.Image] = {}
-    for system_id in SYSTEMS:
+    for system_id in SYSTEMS + VIRTUAL_TOP_IDS:
         generated[system_id] = GENERATORS[system_id]()
 
     for theme_id in THEME_IDS:

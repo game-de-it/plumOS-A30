@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit Graphic system logo PNGs against systems.json."""
+"""Audit Graphic system logo PNGs against TOP logo targets."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 SOURCE_SHEET_NAMES = {"all-logo.png"}
+VIRTUAL_TOP_LOGOS = ["favorites", "recent"]
 
 
 def repo_root() -> Path:
@@ -61,7 +62,7 @@ def csv(items: list[str]) -> str:
 def parse_args(argv: list[str]) -> argparse.Namespace:
     root = repo_root()
     parser = argparse.ArgumentParser(
-        description="Audit Graphic system logo PNGs against enabled systems."
+        description="Audit Graphic system logo PNGs against enabled systems and virtual TOP entries."
     )
     parser.add_argument(
         "--systems-json",
@@ -83,7 +84,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--list-targets",
         action="store_true",
-        help="Print one required system id per line instead of summary output.",
+        help="Print one required logo id per line instead of summary output.",
+    )
+    parser.add_argument(
+        "--no-virtual-top",
+        action="store_true",
+        help="Exclude virtual TOP entries such as favorites and recent from required logo targets.",
     )
     parser.add_argument(
         "--strict",
@@ -95,7 +101,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    target_ids, disabled_ids = load_systems(args.systems_json, args.include_disabled)
+    system_ids, disabled_ids = load_systems(args.systems_json, args.include_disabled)
+    virtual_ids = [] if args.no_virtual_top else VIRTUAL_TOP_LOGOS
+    target_ids = system_ids + virtual_ids
     logo_ids = load_logo_ids(args.logo_dir)
 
     target_set = set(target_ids)
@@ -110,7 +118,9 @@ def main(argv: list[str]) -> int:
             print(system_id)
         return 0
 
-    print(f"target_systems={len(target_ids)}")
+    print(f"target_systems={len(system_ids)}")
+    print(f"target_logos={len(target_ids)}")
+    print(f"virtual_targets={csv(virtual_ids)}")
     print(f"logo_pngs={len(logo_ids)}")
     print(f"disabled_excluded={csv(sorted(disabled_ids))}")
     print(f"missing_logo={csv(missing)}")

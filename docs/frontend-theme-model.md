@@ -53,7 +53,10 @@ importer として検討します。
 
 ## system logo 対象
 
-system logo の作成対象は `systems.json` の `enabled != false` な system です。
+system logo の作成対象は `systems.json` の `enabled != false` な system と、
+TOP に表示される仮想 entry の `favorites`、`recent` です。仮想 entry も Graphic TOP では
+通常 system と同じ `logos/systems/<id>.png` を参照します。
+
 `enabled:false` の system は将来候補や調査用定義として残せますが、通常の TOP scan、
 launch profile audit、theme logo 必須数からは除外します。
 
@@ -65,12 +68,13 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-2026-06-12 時点の default theme 系では、対象 system は49件で、必須 logo は充足済みです。
+2026-06-12 時点の default theme 系では、対象 system は49件、仮想TOP logo は2件、
+必須 logo は合計51件で、すべて充足済みです。
 `dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外しますが、
 旧 seed 由来の logo は任意 asset として残せます。
 
-不足分を再生成する場合は以下を使います。生成結果は `default`、`default-horizontal`、
-`default-vertical` の各 `logos/systems/` に出力されます。
+不足分と仮想TOP logo を再生成する場合は以下を使います。生成結果は `default`、
+`default-horizontal`、`default-vertical` の各 `logos/systems/` に出力されます。
 
 ```sh
 scripts/generate-missing-system-logos.py
