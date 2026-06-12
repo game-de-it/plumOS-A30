@@ -130,6 +130,28 @@ static bool logical_to_raw(const fb_ctx_t *fb, int x, int y, int *fx_out,
   return true;
 }
 
+static void raw_to_logical(const fb_ctx_t *fb, int fx, int fy, int *x_out,
+                           int *y_out) {
+  int x = fx;
+  int y = fy;
+
+  switch (fb->rotation) {
+  case ROTATE_CCW:
+    x = (int)fb->var.yres - 1 - fy;
+    y = fx;
+    break;
+  case ROTATE_CW:
+    x = fy;
+    y = (int)fb->var.xres - 1 - fx;
+    break;
+  case ROTATE_NONE:
+    break;
+  }
+
+  *x_out = x;
+  *y_out = y;
+}
+
 static void put_raw_pixel(const fb_ctx_t *fb, int fx, int fy,
                           uint32_t page_yoffset, uint32_t color) {
   uint32_t px = (uint32_t)fx + fb->var.xoffset;
@@ -388,6 +410,31 @@ static int vb_framebuffer_pixel(const uint16_t *vb_fb, int sx, int sy) {
   return (word >> shift) & 3;
 }
 
+static uint32_t vb_framebuffer_color(const fb_ctx_t *fb, const uint16_t *left_fb,
+                                     const uint16_t *right_fb, int sx, int sy,
+                                     const uint32_t palette[4]) {
+  int colour = 0;
+  switch (fb->eye_mode) {
+  case EYE_RIGHT:
+    colour = vb_framebuffer_pixel(right_fb, sx, sy);
+    break;
+  case EYE_BOTH:
+    colour = vb_framebuffer_pixel(left_fb, sx, sy);
+    {
+      int right_colour = vb_framebuffer_pixel(right_fb, sx, sy);
+      if (right_colour > colour) {
+        colour = right_colour;
+      }
+    }
+    break;
+  case EYE_LEFT:
+  default:
+    colour = vb_framebuffer_pixel(left_fb, sx, sy);
+    break;
+  }
+  return palette[colour];
+}
+
 static void fb_blit_vb(fb_ctx_t *fb, int fb_index) {
   const uint16_t *left_fb =
       (const uint16_t *)(vb_players[0].V810_DISPLAY_RAM.off +
@@ -400,33 +447,46 @@ static void fb_blit_vb(fb_ctx_t *fb, int fb_index) {
   build_palette(fb, palette);
 
 retry:
-  fb_clear_page(fb, target_yoffset);
-  for (int y = 0; y < fb->out_h; y++) {
-    int sy = fb->src_y[y];
-    for (int x = 0; x < fb->out_w; x++) {
-      int sx = fb->src_x[x];
-      int colour = 0;
-      switch (fb->eye_mode) {
-      case EYE_RIGHT:
-        colour = vb_framebuffer_pixel(right_fb, sx, sy);
-        break;
-      case EYE_BOTH:
-        colour = vb_framebuffer_pixel(left_fb, sx, sy);
-        {
-          int right_colour = vb_framebuffer_pixel(right_fb, sx, sy);
-          if (right_colour > colour) {
-            colour = right_colour;
-          }
+  for (uint32_t raw_y = 0; raw_y < fb->var.yres; raw_y++) {
+    uint32_t py = target_yoffset + raw_y;
+    size_t offset = (size_t)py * fb->fix.line_length +
+                    (size_t)fb->var.xoffset * fb->var.bits_per_pixel / 8u;
+    size_t row_bytes = (size_t)fb->var.xres * fb->var.bits_per_pixel / 8u;
+    if (py >= fb->var.yres_virtual || offset + row_bytes > fb->map_size) {
+      break;
+    }
+
+    if (fb->var.bits_per_pixel == 32) {
+      uint32_t *dst = (uint32_t *)(fb->pixels + offset);
+      for (uint32_t raw_x = 0; raw_x < fb->var.xres; raw_x++) {
+        int logical_x;
+        int logical_y;
+        raw_to_logical(fb, (int)raw_x, (int)raw_y, &logical_x, &logical_y);
+        int out_x = logical_x - fb->out_x;
+        int out_y = logical_y - fb->out_y;
+        uint32_t color = fb->black;
+        if ((unsigned)out_x < (unsigned)fb->out_w &&
+            (unsigned)out_y < (unsigned)fb->out_h) {
+          color = vb_framebuffer_color(fb, left_fb, right_fb, fb->src_x[out_x],
+                                       fb->src_y[out_y], palette);
         }
-        break;
-      case EYE_LEFT:
-      default:
-        colour = vb_framebuffer_pixel(left_fb, sx, sy);
-        break;
+        dst[raw_x] = color;
       }
-      if (colour != 0) {
-        put_logical_pixel_page(fb, fb->out_x + x, fb->out_y + y,
-                               target_yoffset, palette[colour]);
+    } else {
+      uint16_t *dst = (uint16_t *)(fb->pixels + offset);
+      for (uint32_t raw_x = 0; raw_x < fb->var.xres; raw_x++) {
+        int logical_x;
+        int logical_y;
+        raw_to_logical(fb, (int)raw_x, (int)raw_y, &logical_x, &logical_y);
+        int out_x = logical_x - fb->out_x;
+        int out_y = logical_y - fb->out_y;
+        uint32_t color = fb->black;
+        if ((unsigned)out_x < (unsigned)fb->out_w &&
+            (unsigned)out_y < (unsigned)fb->out_h) {
+          color = vb_framebuffer_color(fb, left_fb, right_fb, fb->src_x[out_x],
+                                       fb->src_y[out_y], palette);
+        }
+        dst[raw_x] = (uint16_t)color;
       }
     }
   }

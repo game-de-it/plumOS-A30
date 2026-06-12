@@ -741,6 +741,7 @@ build_red_viper() {
   local wrapper_dir="${RED_VIPER_A30_FRONTEND_DIR}"
   local out="${build_dir}/red-viper-a30"
   local red_cflags red_cxxflags red_asflags
+  local red_audio_rate
   local objects=()
 
   [ -d "${wrapper_dir}" ] || {
@@ -750,6 +751,20 @@ build_red_viper() {
 
   rm -rf "${build_dir}"
   mkdir -p "${build_dir}"
+
+  red_audio_rate=${RED_VIPER_A30_AUDIO_RATE:-48000}
+  case "${red_audio_rate}" in
+    48000|50000)
+      ;;
+    *)
+      msg "unsupported Red Viper A30 audio rate: ${red_audio_rate}"
+      return 1
+      ;;
+  esac
+  if [ "${red_audio_rate}" != 50000 ]; then
+    sed -i "s/#define SAMPLE_RATE 50000/#define SAMPLE_RATE ${red_audio_rate}/g" \
+      "${src}/include/vb_sound.h" "${src}/source/common/vb_sound.c"
+  fi
 
   red_cflags="${COMMON_CFLAGS} -O3 -std=gnu11 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough"
   red_cxxflags="${COMMON_CXXFLAGS} -O3 -std=gnu++17 -DDEBUGLEVEL=0 -I${wrapper_dir}/include -I${src}/include -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation -Wno-stringop-truncation -Wno-implicit-fallthrough -fno-exceptions -fno-rtti"
@@ -809,6 +824,7 @@ build_red_viper() {
 
   append_manifest "  frontend=red-viper-a30 fbdev/input wrapper"
   append_manifest "  audio=alsa-default"
+  append_manifest "  audio_rate=${red_audio_rate}"
 }
 
 prepare_dist() {
@@ -829,6 +845,7 @@ prepare_dist() {
     echo "ppsspp_binary_name=${PPSSPP_BINARY_NAME}"
     echo "scummvm_engines=${SCUMMVM_ENGINES}"
     echo "red_viper_ref=${RED_VIPER_REF}"
+    echo "red_viper_a30_audio_rate=${RED_VIPER_A30_AUDIO_RATE:-48000}"
     echo
   } >"${MANIFEST}"
 }
@@ -910,7 +927,8 @@ Environment:
   PLUMOS_A30_RED_VIPER_EYE            Red Viper eye mode: left, right, both. Default: both.
   PLUMOS_A30_RED_VIPER_AUDIO          Red Viper audio mode: alsa, off. Default: alsa.
   PLUMOS_A30_RED_VIPER_ALSA_DEVICE    Red Viper ALSA PCM device. Default: default.
-  PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US Red Viper ALSA latency in microseconds. Default: 80000.
+  PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US Red Viper ALSA latency in microseconds. Default: 160000.
+  PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS Red Viper ALSA startup prebuffer chunks. Default: 6.
   SDL_VIDEODRIVER / SDL_AUDIODRIVER   Override per-emulator defaults.
 USAGE
 }
@@ -1815,7 +1833,8 @@ case "${id}" in
     export PLUMOS_A30_RED_VIPER_EYE=${PLUMOS_A30_RED_VIPER_EYE:-both}
     export PLUMOS_A30_RED_VIPER_AUDIO=${PLUMOS_A30_RED_VIPER_AUDIO:-alsa}
     export PLUMOS_A30_RED_VIPER_ALSA_DEVICE=${PLUMOS_A30_RED_VIPER_ALSA_DEVICE:-default}
-    export PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=${PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US:-80000}
+    export PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=${PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US:-160000}
+    export PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS=${PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS:-6}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
     run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
       --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
@@ -1948,7 +1967,8 @@ PLUMOS_A30_RED_VIPER_SCALE=fit
 PLUMOS_A30_RED_VIPER_EYE=both
 PLUMOS_A30_RED_VIPER_AUDIO=alsa
 PLUMOS_A30_RED_VIPER_ALSA_DEVICE=default
-PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=80000
+PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US=160000
+PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS=6
 EOF
   append_manifest "config=plumos/config/standalone/red_viper.env"
 }

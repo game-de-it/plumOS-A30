@@ -98,7 +98,12 @@ hard-float で ARM dynarec が動きます。zip から一時展開した raw `.
 fallback として残します。A30 wrapper は 3DS 版 Red Viper の menu UI は持たず、
 設定は `plumos/config/standalone/red_viper.env` と FE launch profile で扱います。
 単眼画面向けに `PLUMOS_A30_RED_VIPER_EYE=both` を既定にし、左右目を赤成分の最大値で合成します。
-音声は上流 `vb_sound.c` と ALSA `default` 出力で有効化しています。7z 展開は後続課題です。
+音声は上流 `vb_sound.c` と ALSA `default` 出力で有効化しています。A30 の実 PCM は
+48kHz で開かれるため、Red Viper A30 build では `RED_VIPER_A30_AUDIO_RATE=48000`
+を既定にし、ALSA latency 160ms と起動時 prebuffer を使います。上流既定の 50kHz のままでは
+音飛びと映像のカクつきが出ました。`plug:default` による変換は A30 の libasound で assert
+するため使いません。2026-06-13 の実機確認では、48kHz build でゲーム本編の音声/映像が
+正常に見えることを確認しています。7z 展開は後続課題です。
 Red Viper/Reality Boy 系の license は配布前に third-party notice と利用条件を確認します。
 
 ## Class A: 初期ビルド対象
