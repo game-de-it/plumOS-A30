@@ -29,6 +29,8 @@
 #define VB_SRC_W 384
 #define VB_SRC_H 224
 #define TARGET_FPS 50
+#define FRAME_NS (1000000000L / TARGET_FPS)
+#define PACING_MAX_CATCHUP_FRAMES 4
 
 extern void sound_backend_get_counters(unsigned long *repeats,
                                        unsigned long *drops,
@@ -1677,7 +1679,7 @@ static void poll_input(int input_fd, uint16_t *state, menu_ctx_t *menu,
 static int sleep_until_next_frame(struct timespec *next_frame) {
   struct timespec now;
 
-  next_frame->tv_nsec += 1000000000L / TARGET_FPS;
+  next_frame->tv_nsec += FRAME_NS;
   while (next_frame->tv_nsec >= 1000000000L) {
     next_frame->tv_nsec -= 1000000000L;
     next_frame->tv_sec++;
@@ -1687,7 +1689,20 @@ static int sleep_until_next_frame(struct timespec *next_frame) {
   if (next_frame->tv_sec < now.tv_sec ||
       (next_frame->tv_sec == now.tv_sec &&
        next_frame->tv_nsec <= now.tv_nsec)) {
-    *next_frame = now;
+    long long behind_ns =
+        ((long long)now.tv_sec - (long long)next_frame->tv_sec) *
+            1000000000LL +
+        ((long long)now.tv_nsec - (long long)next_frame->tv_nsec);
+    long long max_behind_ns =
+        (long long)FRAME_NS * (long long)PACING_MAX_CATCHUP_FRAMES;
+    if (behind_ns > max_behind_ns) {
+      *next_frame = now;
+      next_frame->tv_nsec -= (long)max_behind_ns;
+      while (next_frame->tv_nsec < 0) {
+        next_frame->tv_nsec += 1000000000L;
+        next_frame->tv_sec--;
+      }
+    }
     return 0;
   }
 
