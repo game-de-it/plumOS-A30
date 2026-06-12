@@ -328,6 +328,13 @@ RetroArch の `video_rotation` だけでは足りず、GL2 menu/default draw の
 使います。この minimal build は表示確認用で、core/audio/input は full runtime 段階で
 検証します。
 
+2026-06-12 時点の RetroArch practical build では、上記の `video_rotation=1` / GL2 MVP
+回転方式ではなく、A30 専用の landscape FBO present を既定にします。RetroArch には
+logical screen を 640x480 として認識させ、Mali fbdev native surface は物理 480x640 の
+まま使います。描画は 640x480 FBO に集約し、最後の present だけ90度回転するため、
+FPS OSD や RGUI text の横引き伸ばしを避け、WonderSwan など core 側 rotation とも
+矛盾しにくい構成になります。
+
 ## 既存 launch script の傾向
 
 多くの emulator script は以下を行います。

@@ -58,6 +58,7 @@ apply_patches() {
   cd "${SRC_DIR}"
   msg "applying A30 display patches"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-gl2-display-rotation.patch"
+  patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-landscape-fbo.patch"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-nci-save-state-slot.patch"
 }
 
@@ -291,8 +292,8 @@ video_vsync = "true"
 video_threaded = "false"
 video_smooth = "false"
 video_shader_enable = "false"
-video_rotation = "1"
-screen_orientation = "1"
+video_rotation = "0"
+screen_orientation = "0"
 
 audio_enable = "true"
 audio_driver = "alsa"
@@ -336,6 +337,7 @@ menu_show_online_updater = "false"
 menu_show_load_core = "false"
 menu_show_load_content = "false"
 menu_show_information = "true"
+content_show_history = "false"
 history_list_enable = "false"
 config_save_on_exit = "false"
 gamemode_enable = "false"
@@ -502,11 +504,13 @@ PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
 PLUMOS_LIB="${PLUMOS_ROOT}/lib"
 RETROARCH_BIN="${PLUMOS_ROOT}/retroarch/bin/retroarch.bin"
 export HOME="${PLUMOS_ROOT}/retroarch/home"
-export PLUMOS_RA_DISPLAY_ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-ccw}"
+export PLUMOS_RA_DISPLAY_ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-none}"
+export PLUMOS_RA_LANDSCAPE_MODE="${PLUMOS_RA_LANDSCAPE_MODE:-fbo}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}"
 mkdir -p "${HOME}"
 
 exec "${PLUMOS_LIB}/ld-linux-armhf.so.3" \
+  --argv0 "${RETROARCH_BIN}" \
   --library-path "${PLUMOS_LIB}:/usr/lib:/lib" \
   "${RETROARCH_BIN}" "$@"
 EOF
@@ -547,7 +551,8 @@ AUDIO_LATENCY="${PLUMOS_RA_AUDIO_LATENCY:-}"
 CPU_POLICY="${PLUMOS_RA_CPU_POLICY:-fixed}"
 CPU_FREQ="${PLUMOS_RA_CPU_FREQ:-648000}"
 CPU_CORES="${PLUMOS_RA_CPU_CORES:-2}"
-ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-ccw}"
+ROTATION="${PLUMOS_RA_DISPLAY_ROTATION:-none}"
+LANDSCAPE_MODE="${PLUMOS_RA_LANDSCAPE_MODE:-fbo}"
 MAX_FRAMES="${PLUMOS_RA_MAX_FRAMES:-}"
 QUIT_PRESS_TWICE="${PLUMOS_RA_QUIT_PRESS_TWICE:-}"
 ENTRY_SLOT="${PLUMOS_RA_ENTRY_SLOT:-}"
@@ -576,6 +581,7 @@ Options:
   --freq KHZ                Fixed CPU frequency in kHz. Default: ${CPU_FREQ}
   --cores 2|4               CPU online core policy. Default: ${CPU_CORES}
   --rotation VALUE          PLUMOS_RA_DISPLAY_ROTATION. Default: ${ROTATION}
+  --landscape-mode VALUE    A30 landscape present mode. Default: ${LANDSCAPE_MODE}
   --max-frames N            Exit RetroArch after N frames. Default: disabled.
   --quit-press-twice true|false
                             Override RetroArch quit_press_twice for this launch.
@@ -872,9 +878,11 @@ run_retroarch() {
   if [ -n "$GAMEPAD_JS" ]; then
     SDL_JOYSTICK_DEVICE="$GAMEPAD_JS" \
     PLUMOS_RA_DISPLAY_ROTATION="$ROTATION" \
+    PLUMOS_RA_LANDSCAPE_MODE="$LANDSCAPE_MODE" \
       "$RA" --appendconfig "$APPEND" ${MAX_FRAMES:+"--max-frames=$MAX_FRAMES"} ${ENTRY_SLOT:+"--entryslot=$ENTRY_SLOT"} -L "$CORE" "$ROM" >"$RA_LOG" 2>&1 &
   else
     PLUMOS_RA_DISPLAY_ROTATION="$ROTATION" \
+    PLUMOS_RA_LANDSCAPE_MODE="$LANDSCAPE_MODE" \
       "$RA" --appendconfig "$APPEND" ${MAX_FRAMES:+"--max-frames=$MAX_FRAMES"} ${ENTRY_SLOT:+"--entryslot=$ENTRY_SLOT"} -L "$CORE" "$ROM" >"$RA_LOG" 2>&1 &
   fi
   RA_PID=$!
@@ -923,6 +931,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --rotation)
       ROTATION="${2:?missing rotation}"
+      shift
+      ;;
+    --landscape-mode)
+      LANDSCAPE_MODE="${2:?missing landscape mode}"
       shift
       ;;
     --max-frames)
@@ -1119,7 +1131,7 @@ EOF
     printf 'source=%s\n' "${RETROARCH_URL}"
     printf 'sha256=%s\n' "${RETROARCH_SHA256}"
     printf 'configure=GLESv2/EGL Mali fbdev RGUI; OSS/ALSA audio; SDL2/udev/linuxraw input; screenshots/images; zlib/7zip/network command\n'
-    printf 'patches=A30 GL2 display rotation; NCI SAVE_STATE_SLOT command\n'
+    printf 'patches=A30 GL2 display rotation; A30 landscape FBO present; NCI SAVE_STATE_SLOT command\n'
     printf 'launcher=plumos-retroarch-launch defaults to OSS, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, and safe state slot 999\n'
     printf '\nNEEDED:\n'
     "${READELF}" -d "${TARGET_DIR}/plumos/retroarch/bin/retroarch.bin" | awk '/NEEDED/ {print}'

@@ -1,0 +1,235 @@
+--- a/gfx/drivers/gl2.c
++++ b/gfx/drivers/gl2.c
+@@ -400,6 +400,144 @@
+    if (gl2_plumos_a30_display_rotation_enabled(gl))
+       return &gl->mvp;
+    return &gl->mvp_no_rot;
++}
++
++static GLuint gl2_plumos_a30_landscape_fbo;
++static GLuint gl2_plumos_a30_landscape_tex;
++static unsigned gl2_plumos_a30_landscape_width;
++static unsigned gl2_plumos_a30_landscape_height;
++
++static bool gl2_plumos_a30_landscape_fbo_enabled(const gl2_t *gl)
++{
++   const char *mode = getenv("PLUMOS_RA_LANDSCAPE_MODE");
++
++   return       gl
++         &&     gl->ctx_driver
++         &&     gl->ctx_driver->ident
++         &&     string_is_equal(gl->ctx_driver->ident, "fbdev_mali")
++         &&     !string_is_empty(mode)
++         &&     string_is_equal(mode, "fbo");
++}
++
++static void gl2_plumos_a30_landscape_free(void)
++{
++   if (gl2_plumos_a30_landscape_fbo)
++   {
++      gl2_delete_fb(1, &gl2_plumos_a30_landscape_fbo);
++      gl2_plumos_a30_landscape_fbo = 0;
++   }
++
++   if (gl2_plumos_a30_landscape_tex)
++   {
++      glDeleteTextures(1, &gl2_plumos_a30_landscape_tex);
++      gl2_plumos_a30_landscape_tex = 0;
++   }
++
++   gl2_plumos_a30_landscape_width  = 0;
++   gl2_plumos_a30_landscape_height = 0;
++}
++
++static bool gl2_plumos_a30_landscape_ensure(gl2_t *gl)
++{
++   GLenum status;
++   unsigned width  = gl->video_width;
++   unsigned height = gl->video_height;
++
++   if (!gl2_plumos_a30_landscape_fbo_enabled(gl))
++      return false;
++
++   if (     gl2_plumos_a30_landscape_fbo
++         && gl2_plumos_a30_landscape_tex
++         && gl2_plumos_a30_landscape_width  == width
++         && gl2_plumos_a30_landscape_height == height)
++      return true;
++
++   gl2_plumos_a30_landscape_free();
++
++   glGenTextures(1, &gl2_plumos_a30_landscape_tex);
++   GL2_BIND_TEXTURE(gl2_plumos_a30_landscape_tex,
++         GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
++   glTexImage2D(GL_TEXTURE_2D,
++         0, GL_RGBA,
++         width, height, 0,
++         GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++
++   gl2_gen_fb(1, &gl2_plumos_a30_landscape_fbo);
++   gl2_bind_fb(gl2_plumos_a30_landscape_fbo);
++   gl2_fb_texture_2d(RARCH_GL_FRAMEBUFFER,
++         RARCH_GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
++         gl2_plumos_a30_landscape_tex, 0);
++
++   status = gl2_check_fb_status(RARCH_GL_FRAMEBUFFER);
++   gl2_bind_fb(0);
++
++   if (status != RARCH_GL_FRAMEBUFFER_COMPLETE)
++   {
++      RARCH_ERR("[plumOS] A30 landscape FBO incomplete: 0x%04x.\n", status);
++      gl2_plumos_a30_landscape_free();
++      return false;
++   }
++
++   gl2_plumos_a30_landscape_width  = width;
++   gl2_plumos_a30_landscape_height = height;
++   RARCH_LOG("[plumOS] A30 landscape FBO created: logical=%ux%u physical=%ux%u.\n",
++         width, height, height, width);
++
++   return true;
++}
++
++static bool gl2_plumos_a30_landscape_begin(gl2_t *gl)
++{
++   if (!gl2_plumos_a30_landscape_ensure(gl))
++      return false;
++
++   gl2_bind_fb(gl2_plumos_a30_landscape_fbo);
++   glViewport(0, 0, gl->video_width, gl->video_height);
++   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++   glClear(GL_COLOR_BUFFER_BIT);
++
++   return true;
++}
++
++static void gl2_plumos_a30_landscape_present(gl2_t *gl)
++{
++   static const GLfloat vertexes_present[8] = {
++      0, 0,
++      1, 0,
++      0, 1,
++      1, 1
++   };
++   static const GLfloat tex_cw[8] = {
++      0, 1,
++      0, 0,
++      1, 1,
++      1, 0
++   };
++
++   if (!gl2_plumos_a30_landscape_fbo_enabled(gl)
++         || !gl2_plumos_a30_landscape_tex)
++      return;
++
++   gl2_bind_fb(0);
++   glViewport(0, 0, gl->video_height, gl->video_width);
++   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++   glClear(GL_COLOR_BUFFER_BIT);
++
++   gl->shader->use(gl, gl->shader_data, VIDEO_SHADER_STOCK_BLEND, true);
++   glBindTexture(GL_TEXTURE_2D, gl2_plumos_a30_landscape_tex);
++
++   gl->coords.vertex    = vertexes_present;
++   gl->coords.tex_coord = tex_cw;
++   gl->coords.color     = gl->white_color_ptr;
++   gl->coords.vertices  = 4;
++
++   gl->shader->set_coords(gl->shader_data, &gl->coords);
++   gl->shader->set_mvp(gl->shader_data, &gl->mvp_no_rot);
++   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++
++   gl->coords.vertex    = gl->vertex_ptr;
++   gl->coords.tex_coord = gl->tex_info.coord;
++   gl->coords.color     = gl->white_color_ptr;
+ }
+
+ static void *gfx_display_gl2_get_default_mvp(void *data)
+@@ -3430,6 +3568,7 @@
+ #endif
+    bool overlay_behind_menu            = video_info->overlay_behind_menu;
+    bool video_scale_integer            = config_get_ptr()->bools.video_scale_integer;
++   bool plumos_a30_landscape_frame     = false;
+
+    if (!gl)
+       return false;
+@@ -3444,6 +3583,8 @@
+
+    gl->shader->use(gl, gl->shader_data, 1, true);
+
++   plumos_a30_landscape_frame = gl2_plumos_a30_landscape_begin(gl);
++
+ #ifdef IOS
+    /* Apparently the viewport is lost each frame, thanks Apple. */
+    gl2_set_viewport(gl, width, height, false, true, video_scale_integer);
+@@ -3674,6 +3815,9 @@
+       gl->shader->use(gl, gl->shader_data, 0, true);
+       glBindTexture(GL_TEXTURE_2D, 0);
+    }
++
++   if (plumos_a30_landscape_frame)
++      gl2_plumos_a30_landscape_present(gl);
+
+    /* Screenshots. */
+    if (gl->readback_buffer_screenshot)
+@@ -3820,6 +3964,8 @@
+    gl2_free_overlay(gl);
+ #endif
+
++   gl2_plumos_a30_landscape_free();
++
+ #if defined(HAVE_PSGL)
+    glBindBuffer(GL_TEXTURE_REFERENCE_BUFFER_SCE, 0);
+    glDeleteBuffers(1, &gl->pbo);
+--- a/gfx/drivers_context/mali_fbdev_ctx.c
++++ b/gfx/drivers_context/mali_fbdev_ctx.c
+@@ -25,6 +25,7 @@
+ #include <linux/vt.h>
+
+ #include <compat/strl.h>
++#include <string/stdstring.h>
+
+ #ifdef HAVE_CONFIG_H
+ #include "../../config.h"
+@@ -71,6 +72,19 @@
+ static mali_ctx_data_t *gfx_ctx_mali_fbdev_global = NULL;
+ static uint8_t mali_flags = 0;
+
++static const char *gfx_ctx_mali_fbdev_plumos_landscape_mode(void)
++{
++   const char *mode = getenv("PLUMOS_RA_LANDSCAPE_MODE");
++
++   if (string_is_empty(mode)
++         || string_is_equal(mode, "0")
++         || string_is_equal(mode, "false")
++         || string_is_equal(mode, "none"))
++      return NULL;
++
++   return mode;
++}
++
+ static int gfx_ctx_mali_fbdev_get_vinfo(void *data)
+ {
+    struct fb_var_screeninfo vinfo;
+@@ -97,6 +111,21 @@
+    mali->native_window.width  = vinfo.xres;
+    mali->native_window.height = vinfo.yres;
+
++   {
++      const char *landscape_mode = gfx_ctx_mali_fbdev_plumos_landscape_mode();
++      if (landscape_mode)
++      {
++         mali->width            = vinfo.yres;
++         mali->height           = vinfo.xres;
++
++         RARCH_LOG("[plumOS] A30 Mali fbdev landscape mode=%s logical=%ux%u native=%ux%u fb=%ux%u.\n",
++               landscape_mode,
++               mali->width, mali->height,
++               mali->native_window.width, mali->native_window.height,
++               vinfo.xres, vinfo.yres);
++      }
++   }
++
+    if (vinfo.pixclock)
+    {
+       mali->refresh_rate = 1000000.0f / vinfo.pixclock * 1000000.0f /

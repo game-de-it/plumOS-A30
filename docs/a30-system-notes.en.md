@@ -326,6 +326,14 @@ switches GL2 menu/default drawing to the rotated `mvp` only under the
 `fbdev_mali` context, with `--rotation ccw`. This minimal build is for display
 validation; core/audio/input testing belongs to the full runtime phase.
 
+As of 2026-06-12, the RetroArch practical build defaults to an A30-specific
+landscape FBO present path instead of the older `video_rotation=1` / GL2 MVP
+rotation path above. RetroArch sees a logical 640x480 screen, while the Mali
+fbdev native surface remains at the physical 480x640 size. Rendering is
+collected into a 640x480 FBO, and only the final present rotates it 90 degrees.
+This avoids horizontally stretched FPS OSD/RGUI text and should interact more
+cleanly with core-side rotation such as WonderSwan orientation changes.
+
 ## Launch Script Patterns
 
 Most emulator scripts:

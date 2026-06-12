@@ -132,6 +132,13 @@ RetroArch 1.22.2 practical:
 - `./scripts/docker-build.sh retroarch-practical` builds a practical runtime
   with ALSA/OSS audio, SDL2 joypad, Network Command, LibretroDB, 7zip, and
   screenshots/images.
+- As of 2026-06-12, the A30 display path defaults to
+  `PLUMOS_RA_LANDSCAPE_MODE=fbo`. The `mali_fbdev` context reports a logical
+  640x480 screen to RetroArch while keeping the Mali fbdev native surface at the
+  physical 480x640 size. GL2 frame/menu/OSD drawing goes to a 640x480 offscreen
+  FBO, then the final present rotates it 90 degrees into the 480x640 backbuffer
+  before swap. Therefore both `video_rotation` and `screen_orientation` stay at
+  `0` in the practical config.
 - On the A30, `input_driver = "null"` plus `input_joypad_driver = "sdl2"` and
   `plumos-joystickd --device-mode xbox` detected `plumOS A30 Gamepad`.
 - Probes using `udev`/`linuxraw` as the primary input driver failed to
