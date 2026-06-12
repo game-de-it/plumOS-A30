@@ -36,10 +36,10 @@ pcsx_rearmed|A|https://github.com/libretro/pcsx_rearmed.git|master||Makefile.lib
 fbneo|A|https://github.com/libretro/FBNeo.git|master|src/burner/libretro|Makefile|platform=armv
 mame2003_plus|A|https://github.com/libretro/mame2003-plus-libretro.git|master||Makefile|platform=armv
 fbalpha2012|A|https://github.com/libretro/fbalpha2012.git|master|svn-current/trunk|makefile.libretro|platform=armv
-mednafen_ngp|A|https://github.com/libretro/beetle-ngp-libretro.git|master||Makefile|platform=armv
-mednafen_wswan|A|https://github.com/libretro/beetle-wswan-libretro.git|master||Makefile|platform=armv
-mednafen_lynx|A|https://github.com/libretro/beetle-lynx-libretro.git|master||Makefile|platform=armv
-handy|A|https://github.com/libretro/libretro-handy.git|master||Makefile|platform=armv
+mednafen_ngp|A|https://github.com/libretro/beetle-ngp-libretro.git|master||Makefile|platform=classic_armv7_a7
+mednafen_wswan|A|https://github.com/libretro/beetle-wswan-libretro.git|master||Makefile|platform=classic_armv7_a7
+mednafen_lynx|A|https://github.com/libretro/beetle-lynx-libretro.git|master||Makefile|platform=classic_armv7_a7
+handy|A|https://github.com/libretro/libretro-handy.git|master||Makefile|platform=classic_armv7_a7
 stella2014|A|https://github.com/libretro/stella2014-libretro.git|master||Makefile|platform=armv
 prosystem|A|https://github.com/libretro/prosystem-libretro.git|master||Makefile|platform=armv
 vecx|A|https://github.com/libretro/libretro-vecx.git|master||Makefile.libretro|platform=armv HAS_GPU=0

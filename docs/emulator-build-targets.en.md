@@ -143,6 +143,16 @@ under `artifacts/libretro-core-option-probes/20260613-075643-gambatte`,
 `20260613-074053-gpsp`, `20260613-074216-genesis_plus_gx`, and
 `20260613-080709-picodrive`.
 
+The third probe compared `mednafen_ngp`, `mednafen_wswan`, `mednafen_lynx`, and
+`handy`. All four use `platform=classic_armv7_a7`. `mednafen_ngp` failed under
+the strict recipe `platform=armv` path and only built with classic
+`-Ofast`/LTO plus the `-j1` retry. `mednafen_lynx` and `handy` also enter
+`-Ofast`/LTO with classic, while `mednafen_wswan` does not enable LTO but does
+use `-Ofast`. Probe logs are under
+`artifacts/libretro-core-option-probes/20260613-081612-mednafen_ngp`,
+`20260613-081750-mednafen_wswan`, `20260613-081818-mednafen_lynx`, and
+`20260613-081907-handy`.
+
 Standalone emulators are staged with `./scripts/docker-build.sh standalone-emulators`
 under `dist/plumos-standalone-emulators`. As of 2026-06-07, the trial package
 contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,
