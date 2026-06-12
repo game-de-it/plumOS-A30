@@ -98,6 +98,35 @@ Onion repository には prebuilt core が
 `/mnt/SDCARD/App/PackageManager/data` 配下の package directory を `/mnt/SDCARD` へコピーする構造で、
 VB package 自体は `Emu/VB` launcher/config と `Roms/VB` directory を追加し、core 本体は共通
 RetroArch build 領域の既成バイナリを参照します。
+Onion 本体 repository の CI は release/package を組み立てますが、少なくともこの core は
+repository 内に commit 済みの prebuilt binary として扱われており、Onion 本体側で Beetle VB を
+source から毎回 build している形ではありません。
+
+Onion 側 core の由来は PR #624 / commit `bffa64e2c78505444b8dfc4ff0d0439b866b0d79`
+で、commit message には `beetle-vb-libretro` を `v1.27.1 (aa77198)` から
+`v1.31.0 (162918f)` へ更新した、と明記されています。binary 内の version string も
+`v1.31.0 162918f` で、compiler string は `GCC: (Debian 8.3.0-2) 8.3.0` でした。
+公式 `libretro/beetle-vb-libretro` の `162918f06d9a705330b2ba128e0d3b65fd1a1bcc` は
+2022-08-28 の commit です。plumOS 現行 build は upstream `1275bd7` / GCC 12.2.0 なので、
+Onion core とは source commit と toolchain の両方が異なります。
+
+外部 builder としては `schmurtzm/Miyoo-Mini-Retroarch-builder` が一次候補です。2022-11-21 の
+Onion PR 直前の builder commit `8a552f2` では、GitHub Actions が
+`techdevangelist/miyoomini-buildroot:latest` Docker image を使い、`libretro-super` に対して
+`./libretro-buildbot-recipe.sh ../cores-onionos` と `../cores-onionos-special` を実行します。
+`cores-onionos` の `mednafen_vb` 行は `https://github.com/libretro/beetle-vb-libretro.git`
+の `master` を `GENERIC Makefile .` で build する定義です。`cores-onionos.conf` は
+`CC=arm-linux-gnueabihf-gcc`, `CXX=arm-linux-gnueabihf-g++`,
+`STRIP=arm-linux-gnueabihf-strip`, `ARM_NEON=1`, `CORTEX_A7=1`, `ARM_HARDFLOAT=1` を設定し、
+成果物は `libretro-super/dist/unix/*` として upload されます。
+
+ただし当時の `libretro-super` submodule `b941477` では、recipe の `platform classic_armv7_a7` は
+`libretro-config.sh` 側で専用 target として認識されず、`FORMAT_COMPILER_TARGET=unix` に落ちます。
+したがって残っている recipe から推定できる実際の core build は、
+`platform=miyoomini` や Beetle VB Makefile の `classic_armv7_a7` section 直指定ではなく、
+cross compiler を環境変数で指定した `make -f Makefile platform=unix -j...` に近い可能性があります。
+Actions artifact/log は保存期限切れのため、同一 hash の完全再現には builder image か GCC 8.3
+相当で再 build して確認する必要があります。
 測定ログは `artifacts/a30-logs/mednafen-vb-core-compare-20260613.log` と
 `artifacts/miyoo-mini-plus/ra-vb-null-600-scale1.*` に残しています。
 

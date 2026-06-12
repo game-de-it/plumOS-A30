@@ -117,6 +117,40 @@ copies selected package directories from `/mnt/SDCARD/App/PackageManager/data`
 to `/mnt/SDCARD`; the Virtual Boy package adds the `Emu/VB` launcher/config and
 the `Roms/VB` directory, while the launcher references the prebuilt core from
 the common RetroArch build area.
+The Onion repository CI assembles releases/packages, but this core is treated
+as a committed prebuilt binary in the Onion repository; the main Onion CI does
+not rebuild Beetle VB from source on every release.
+
+The Onion core provenance points to PR #624 / commit
+`bffa64e2c78505444b8dfc4ff0d0439b866b0d79`. Its commit message says the
+`beetle-vb-libretro` core was updated from `v1.27.1 (aa77198)` to
+`v1.31.0 (162918f)`. The binary's version string is also `v1.31.0 162918f`,
+and its compiler string is `GCC: (Debian 8.3.0-2) 8.3.0`. In the official
+`libretro/beetle-vb-libretro` repository,
+`162918f06d9a705330b2ba128e0d3b65fd1a1bcc` is a 2022-08-28 commit. The current
+plumOS build uses upstream `1275bd7` and GCC 12.2.0, so both the source commit
+and the toolchain differ from the Onion core.
+
+The likely external builder is `schmurtzm/Miyoo-Mini-Retroarch-builder`. At
+builder commit `8a552f2`, just before the 2022-11-21 Onion PR, GitHub Actions
+ran the `techdevangelist/miyoomini-buildroot:latest` Docker image, then invoked
+`./libretro-buildbot-recipe.sh ../cores-onionos` and `../cores-onionos-special`
+inside `libretro-super`. The `cores-onionos` `mednafen_vb` line builds
+`https://github.com/libretro/beetle-vb-libretro.git` `master` with
+`GENERIC Makefile .`. `cores-onionos.conf` sets
+`CC=arm-linux-gnueabihf-gcc`, `CXX=arm-linux-gnueabihf-g++`,
+`STRIP=arm-linux-gnueabihf-strip`, `ARM_NEON=1`, `CORTEX_A7=1`, and
+`ARM_HARDFLOAT=1`; artifacts are uploaded from `libretro-super/dist/unix/*`.
+
+One caveat: in the relevant `libretro-super` submodule `b941477`, the recipe's
+`platform classic_armv7_a7` is not recognized as a dedicated target by
+`libretro-config.sh`, so it falls back to `FORMAT_COMPILER_TARGET=unix`.
+Therefore, the build recipe that remains visible suggests an actual core build
+closer to `make -f Makefile platform=unix -j...` with cross-compiler environment
+variables, not `platform=miyoomini` and not a direct invocation of Beetle VB's
+`classic_armv7_a7` Makefile section. The Actions artifact/log retention has
+expired, so exact hash reproduction still requires rebuilding with the builder
+image or a matching GCC 8.3 environment.
 
 Red Viper is a standalone emulator derived from the 3DS project line, not a
 libretro core, but its ARM dynarec runs on the A30 armv7 hard-float target. The
