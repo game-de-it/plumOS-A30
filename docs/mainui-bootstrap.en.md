@@ -26,8 +26,10 @@ uses that path as a small wrapper and moves the actual frontend entry point to
   Scan correctness comes from the ignore rules; physical deletion happens
   asynchronously.
 - Do not run `plumos-network-rescue` automatically at boot.
-- Run `plumos-network-control --wifi on` from the saved Wi-Fi config to acquire
-  DHCP/IP and start SSH.
+- Run `plumos-network-control --wifi on`, but if `wlan0` already has an IP
+  address, preserve the active wpa_supplicant/udhcpc runtime and only refresh
+  runtime status / SSH. Only attempt saved-config DHCP/IP acquisition when no IP
+  is present.
 - Start SSH and enabled network services through `plumos-network-services start-enabled`.
 - If `wlan0` already has an IP address, call `plumos-stock-services network-ready`
   to start plumOS-managed `ntpd`.
@@ -70,8 +72,9 @@ The install script:
 The bootstrap package does not include the controller UI binary. Build and
 deploy the frontend package separately with `./scripts/docker-build.sh frontend`.
 At startup the wrapper does not run `plumos-network-rescue`; it shows the normal
-FE and starts saved-config Wi-Fi and enabled network services, including SSH, in
-the background.
+FE, preserves an already-connected Wi-Fi runtime, only tries saved-config Wi-Fi
+when disconnected, and starts enabled network services, including SSH, in the
+background.
 Left/Right are not used for confirm/run/back/cancel; A confirms/runs and B
 backs/cancels.
 

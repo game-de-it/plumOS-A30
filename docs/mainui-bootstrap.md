@@ -23,8 +23,9 @@ A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動しま
   cache を消さない cleanup を background 起動する。scan 結果の正確さは無視ルールで守り、
   実ファイル削除は非同期で行う
 - wrapper は boot 時に `plumos-network-rescue` を自動実行しない
-- wrapper は保存済み Wi-Fi 設定から `plumos-network-control --wifi on` を実行し、
-  DHCP/IP取得とSSH起動を試みる
+- wrapper は `plumos-network-control --wifi on` を実行するが、既に `wlan0` に IP がある場合は
+  wpa_supplicant/udhcpc を停止せず接続を維持し、runtime status とSSHだけを確認する。
+  IP が無い場合だけ保存済み Wi-Fi 設定から DHCP/IP取得を試みる
 - wrapper は `plumos-network-services start-enabled` で SSH と有効化済み network service を起動する
 - `wlan0` に IP が既にある場合だけ `plumos-stock-services network-ready` を呼び、
   plumOS 管理の `ntpd` を起動する
@@ -67,8 +68,9 @@ install script は以下を行います。
 bootstrap package は controller UI 本体を含みません。frontend は
 `./scripts/docker-build.sh frontend` で別 package として build/deploy します。
 wrapper 起動時は `plumos-network-rescue` を実行せず、そのまま通常FEを表示します。
-保存済み Wi-Fi 設定での接続、SSH を含む有効化済み network service は background
-で開始します。左右キーは実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
+Wi-Fi が既に接続済みの場合はその接続を維持し、未接続の場合だけ保存済み Wi-Fi 設定での
+接続を試みます。SSH を含む有効化済み network service は background で開始します。
+左右キーは実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
 
 SSH が復旧していない状態でのネットワーク復旧は、FE 内の Network Recovery ではなく、
 StockOS MainUI から直接起動できる独立した shell script として設計します。

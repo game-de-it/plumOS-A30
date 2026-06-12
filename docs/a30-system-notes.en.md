@@ -85,9 +85,10 @@ remain untouched.
   separate shell script launched directly from StockOS MainUI.
 - On June 10, 2026, the wrapper gained a background
   `plumos-network-control --wifi on` startup path so automatic Wi-Fi remains
-  available after disabling Network Recovery. It starts `wpa_supplicant` from the
-  saved `/config/wpa_supplicant.conf`, requests DHCP through `udhcpc`, and starts
-  the SSH helper.
+  available after disabling Network Recovery. As of June 13, 2026, this path
+  preserves an existing `wlan0` IP/runtime without stopping Wi-Fi; it only starts
+  `wpa_supplicant` from the saved `/config/wpa_supplicant.conf` and requests DHCP
+  through `udhcpc` when no IP is present, then starts the SSH helper.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,

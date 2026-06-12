@@ -99,8 +99,9 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
   復旧は、StockOS MainUI から直接起動できる独立した shell script として別途設計する。
 - 2026-06-10 に、Network Recovery 停止後も boot 時の自動接続を維持するため、
   wrapper が `plumos-network-control --wifi on` を background 実行するようにした。
-  この処理は保存済み `/config/wpa_supplicant.conf` で `wpa_supplicant` を起動し、
-  `udhcpc` で IP を取得し、SSH helper を起動する。
+  2026-06-13 以降、この処理は既存の `wlan0` IP がある場合は接続を落とさず維持し、
+  IP が無い場合だけ保存済み `/config/wpa_supplicant.conf` から `wpa_supplicant`/DHCP
+  を起動し、SSH helper を起動する。
 
 実装上の意味:
 

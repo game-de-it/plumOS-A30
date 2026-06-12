@@ -94,6 +94,33 @@ stop_processes() {
   killall wpa_supplicant 2>/dev/null || true
 }
 
+start_ssh_if_available() {
+  if [ -x "$SSH_START" ]; then
+    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
+  fi
+}
+
+ensure_existing_config_best_effort() {
+  ip="$(get_wlan_ip || true)"
+  if [ -n "$ip" ] && wifi_runtime_on; then
+    log "wifi_on preserve existing_runtime ip=${ip}"
+    write_runtime_status_current
+    return 0
+  fi
+
+  if process_running "wpa_supplicant"; then
+    log "wifi_on preserve wpa_supplicant; requesting DHCP only"
+    ifconfig "$WIFI_IFACE" up >/dev/null 2>&1 || true
+    if ! process_running "udhcpc -i ${WIFI_IFACE}"; then
+      udhcpc -i "$WIFI_IFACE" -n -q -t 5 >> "$LOG_FILE" 2>&1 || true
+    fi
+    write_runtime_status_current
+    return 0
+  fi
+
+  restart_existing_config_best_effort
+}
+
 wifi_off() {
   log "wifi_off begin"
   stop_processes
@@ -119,7 +146,7 @@ wifi_on() {
     return 1
   fi
 
-  restart_existing_config_best_effort
+  ensure_existing_config_best_effort
   ip="$(wait_for_ip_seconds 10 || true)"
   if [ -z "$ip" ]; then
     log "wifi_on fail no_ip"
@@ -128,9 +155,7 @@ wifi_on() {
     return 1
   fi
 
-  if [ -x "$SSH_START" ]; then
-    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
-  fi
+  start_ssh_if_available
   log "wifi_on success ip=${ip}"
   echo "result=connected"
   echo "ip=${ip}"
@@ -424,9 +449,7 @@ connect_wifi_from_file() {
   fi
   rm -f "$candidate"
   write_runtime_status_current
-  if [ -x "$SSH_START" ]; then
-    "$SSH_START" >> "$LOG_FILE" 2>&1 || true
-  fi
+  start_ssh_if_available
   log "connect success ip=${ip} gateway_ping=${gateway_ping}"
   echo "result=connected"
   echo "ip=${ip}"
