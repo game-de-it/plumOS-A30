@@ -148,6 +148,9 @@ tic80
 CRC miss handling:
 
 - Default behavior returns `no_match`.
+- If a CRC is absent from the libretro base DB but present in a
+  build/prefetch-generated rescue overlay, the scraper uses that overlay's
+  `crc -> thumbnail href` mapping.
 - Japanese file stems are not searched as filename candidates.
 - Filename-derived candidate search is limited to an explicit user-selected
   advisory option.
@@ -320,6 +323,16 @@ stores only the regional name. In that case the runner builds conservative
 candidates from the CRC-confirmed canonical name, dropping language and selected
 auxiliary tags only, and saves the image only when the candidate still fully
 matches the thumbnail index.
+When a CRC is absent from the libretro base DAT, the runner also checks the
+prefetch-generated rescue overlay. Rescue overlays are generated per kind from
+verified seeds in `package/frontend/plumos/config/frontend/scraper-rescue-seeds.tsv`
+and installed under
+`/mnt/SDCARD/plumos/share/frontend/artwork-scraper/rescue/<system>/<kind>.tsv`.
+The runtime never fetches external DAT files; it reads only these reduced TSVs.
+When pre-downloaded external DATs should be used at build/prefetch time, pass a
+local root with `PLUMOS_RESCUE_DAT_ROOTS` or
+`scripts/prefetch-thumbnail-scraper-cache.sh --rescue-dat-root`.
+Data provenance and attribution live in `docs/third-party-data.md`.
 Thumbnail indexes still come from the `https://thumbnails.libretro.com/`
 directory index, while PNG bytes use GitHub raw by default.
 `wget` / `curl` use `PLUMOS_THUMBNAIL_FETCH_TIMEOUT` so network waits do not
@@ -419,14 +432,17 @@ also accepts `--kind Named_Snaps`, but that option is not exposed in the FE.
    direct download. If the exact URL is absent, try exact thumbnail-index matches
    for candidates made only by dropping language and selected auxiliary tags from
    the canonical name.
-6. Save the image when the download succeeds. Return `download_failed` or
+6. When the base DAT has no CRC match, try the rescue overlay's
+   `crc -> thumbnail href` mapping.
+7. Save the image when the download succeeds. Return `download_failed` or
    `invalid_png` when it fails.
-7. When CRC does not match, default behavior returns `no_match`.
-8. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
+8. When neither the base DAT nor the rescue overlay matches, default behavior
+   returns `no_match`.
+9. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
    `candidate-report` lookup.
-9. Only when `--loose-index` is passed, fetch the large thumbnail directory
+10. Only when `--loose-index` is passed, fetch the large thumbnail directory
    index and try normalized matching as `crc-loose` or `name-loose`.
-10. If all matching fails, return `no_match`. Negative cache is updated only in
+11. If all matching fails, return `no_match`. Negative cache is updated only in
    `--fetch` mode.
 
 Dry-run does not update the negative cache.

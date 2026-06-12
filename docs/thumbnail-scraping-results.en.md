@@ -61,10 +61,10 @@ skipped tool 0
 ```
 
 - `CRC checked`: ROMs whose CRC was calculated.
-- `CRC matched`: ROMs whose CRC was found in the libretro DAT.
+- `CRC matched`: ROMs whose CRC was found in the libretro DAT or rescue overlay.
 - `downloaded`: PNG files saved by this run.
 - `no match`: `CRC miss` plus `image miss`.
-- `CRC miss`: ROMs whose CRC was not present in the libretro DAT.
+- `CRC miss`: ROMs whose CRC was not present in either the libretro DAT or rescue overlay.
 - `image miss`: ROMs whose CRC matched, but neither the canonical name nor
   rescue candidates found an image in libretro thumbnails.
 - `download failed`: a URL was known, but network or save failed.
@@ -75,8 +75,9 @@ skipped tool 0
 ## What To Do
 
 - When `CRC miss` is high:
-  the ROM dump may not match a known clean dump. Try re-dumping, use another
-  verified dump, or place an image manually.
+  the ROM dump may not match a known clean dump, or the current rescue overlay
+  may not include it yet. Try re-dumping, use another verified dump, add a
+  rescue seed, or place an image manually.
 - When `image miss` is high:
   the ROM is recognized, but libretro either has no image or uses a name that
   is still outside the current rescue candidates. Manual images are the

@@ -58,10 +58,10 @@ skipped tool 0
 ```
 
 - `CRC checked`: CRC を計算した ROM 数です。
-- `CRC matched`: libretro DAT に CRC が見つかった ROM 数です。
+- `CRC matched`: libretro DAT または rescue overlay に CRC が見つかった ROM 数です。
 - `downloaded`: 今回新しく保存できた PNG 数です。
 - `no match`: `CRC miss` と `image miss` の合計です。
-- `CRC miss`: CRC が libretro DAT に無かった ROM 数です。
+- `CRC miss`: CRC が libretro DAT と rescue overlay のどちらにも無かった ROM 数です。
 - `image miss`: CRC は一致したが、canonical 名と救済候補のどちらでも libretro thumbnails に
   画像が無かった ROM 数です。
 - `download failed`: URL は決まったが、通信や保存で失敗した数です。
@@ -72,8 +72,9 @@ skipped tool 0
 ## What To Do
 
 - `CRC miss` が多い場合:
-  正規 dump と CRC が違う可能性があります。吸い出し直し、別 dump の確認、
-  または手動で `/mnt/SDCARD/Images/<system>/` に画像を置く方法を使います。
+  正規 dump と CRC が違う、または現在の rescue overlay に未収録の可能性があります。
+  吸い出し直し、別 dump の確認、rescue seed の追加、または手動で
+  `/mnt/SDCARD/Images/<system>/` に画像を置く方法を使います。
 - `image miss` が多い場合:
   ROM は認識されていますが、libretro 側に画像が無い、または現在の救済候補では届かない
   名前になっています。手動画像を置くのが確実です。

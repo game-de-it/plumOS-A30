@@ -1,0 +1,10 @@
+# system	crc	thumbnail_label	source
+# Minimal, verified rescue seeds used to generate kind-specific
+# crc -> thumbnail href overlays during prefetch/build.
+nes	ed0aa77b	Klax (1990-12-14)(Hudson)(JP)	no-intro/datomatic-derived
+nes	d60e10aa	Gegege no Kitarou - Youkai Dai Makyou (1986-04-17)(Bandai)(JP)	no-intro/datomatic-derived
+nes	589b2ec8	Spelunker (1985-12-06)(Irem)(JP)	no-intro/datomatic-derived
+nes	5e98ba4a	Spelunker 2 - Yuusha heno Chousen (1987-09-18)(Irem)(JP)	no-intro/datomatic-derived
+nes	0caf2f15	Seicross (1986-05-15)(Nihon Bussan)(JP)	no-intro/datomatic-derived
+nes	b807446e	Tetris (1988-12-22)(BPS)(JP)	no-intro/datomatic-derived
+nes	f865ec8d	Door Door (1985-07-18)(Enix)(JP)	no-intro/datomatic-derived

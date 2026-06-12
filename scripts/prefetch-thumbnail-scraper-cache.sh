@@ -4,10 +4,13 @@ set -euo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 SYSTEMS_JSON="${ROOT_DIR}/package/frontend/plumos/config/frontend/systems.json"
 SOURCES_TSV="${ROOT_DIR}/package/frontend/plumos/config/frontend/scraper-sources.tsv"
+RESCUE_SEEDS_TSV="${ROOT_DIR}/package/frontend/plumos/config/frontend/scraper-rescue-seeds.tsv"
+RESCUE_DAT_ROOTS="${PLUMOS_RESCUE_DAT_ROOTS:-}"
 OUTPUT_DIR="${ROOT_DIR}/build/thumbnail-scraper-cache"
 KINDS="Named_Boxarts Named_Snaps Named_Titles"
 SYSTEM_FILTER=""
 FORCE=0
+SKIP_RESCUE=0
 
 usage() {
   cat <<EOF
@@ -22,11 +25,17 @@ Options:
                        Default: ${SYSTEMS_JSON}
   --sources PATH       scraper-sources.tsv.
                        Default: ${SOURCES_TSV}
+  --rescue-seeds PATH  scraper-rescue-seeds.tsv.
+                       Default: ${RESCUE_SEEDS_TSV}
+  --rescue-dat-root PATH
+                       Local root containing pre-downloaded external DAT files.
+                       Can be repeated. Default: PLUMOS_RESCUE_DAT_ROOTS.
   --output PATH        Output cache root.
                        Default: ${OUTPUT_DIR}
   --system ID          Prefetch one system only.
   --kind KIND          Thumbnail kind to prefetch. Can be repeated.
                        Default: ${KINDS}
+  --skip-rescue        Do not generate rescue overlays.
   --force              Re-download source DAT/HTML files.
   -h, --help           Show this help.
 EOF
@@ -186,6 +195,17 @@ while [ "$#" -gt 0 ]; do
       SOURCES_TSV="${2:-}"
       shift 2
       ;;
+    --rescue-seeds)
+      RESCUE_SEEDS_TSV="${2:-}"
+      shift 2
+      ;;
+    --rescue-dat-root)
+      if [ -n "$RESCUE_DAT_ROOTS" ]; then
+        RESCUE_DAT_ROOTS="${RESCUE_DAT_ROOTS}:"
+      fi
+      RESCUE_DAT_ROOTS="${RESCUE_DAT_ROOTS}${2:-}"
+      shift 2
+      ;;
     --output)
       OUTPUT_DIR="${2:-}"
       shift 2
@@ -197,6 +217,10 @@ while [ "$#" -gt 0 ]; do
     --kind)
       KINDS="${2:-}"
       shift 2
+      ;;
+    --skip-rescue)
+      SKIP_RESCUE=1
+      shift
       ;;
     --force)
       FORCE=1
@@ -228,6 +252,12 @@ install -m 0644 "$SOURCES_TSV" "${OUTPUT_DIR}/sources.tsv"
   echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "systems_json=$(basename "$SYSTEMS_JSON")"
   echo "sources=$(basename "$SOURCES_TSV")"
+  if [ -r "$RESCUE_SEEDS_TSV" ]; then
+    echo "rescue_seeds=$(basename "$RESCUE_SEEDS_TSV")"
+  fi
+  if [ -n "$RESCUE_DAT_ROOTS" ]; then
+    echo "rescue_dat_roots=${RESCUE_DAT_ROOTS}"
+  fi
   echo "kinds=${KINDS}"
 } > "${OUTPUT_DIR}/manifest.txt"
 
@@ -239,5 +269,36 @@ while IFS=$'\t' read -r system playlist dat_path; do
   [ -n "$dat_path" ] || die "missing DAT path for $system"
   prefetch_one "$system" "$playlist" "$dat_path"
 done < "$SOURCES_TSV"
+
+if [ "$SKIP_RESCUE" -eq 0 ] && [ -r "$RESCUE_SEEDS_TSV" ]; then
+  rescue_args=()
+  for kind in $KINDS; do
+    rescue_args+=(--kind "$kind")
+  done
+  if [ -n "$RESCUE_DAT_ROOTS" ]; then
+    rescue_roots="$RESCUE_DAT_ROOTS"
+    while [ -n "$rescue_roots" ]; do
+      case "$rescue_roots" in
+        *:*)
+          rescue_root="${rescue_roots%%:*}"
+          rescue_roots="${rescue_roots#*:}"
+          ;;
+        *)
+          rescue_root="$rescue_roots"
+          rescue_roots=""
+          ;;
+      esac
+      [ -n "$rescue_root" ] || continue
+      rescue_args+=(--external-dat-root "$rescue_root")
+    done
+  fi
+  python3 "${ROOT_DIR}/scripts/build-thumbnail-rescue-overlays.py" \
+    --systems-json "$SYSTEMS_JSON" \
+    --sources "$SOURCES_TSV" \
+    --cache-root "$OUTPUT_DIR" \
+    --seeds "$RESCUE_SEEDS_TSV" \
+    --output "${OUTPUT_DIR}/rescue" \
+    "${rescue_args[@]}"
+fi
 
 find "$OUTPUT_DIR" -type f | sort | xargs shasum -a 256 > "${OUTPUT_DIR}/SHA256SUMS"

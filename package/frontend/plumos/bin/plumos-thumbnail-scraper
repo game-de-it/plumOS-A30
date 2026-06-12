@@ -615,6 +615,22 @@ ensure_thumb_index() {
   printf '%s\n' "$cached"
 }
 
+ensure_rescue_index() {
+  system="$1"
+  preloaded="${PRELOAD_DIR}/rescue/${system}/${KIND}.tsv"
+  cached="${CACHE_DIR}/rescue/${system}/${KIND}.tsv"
+
+  if [ -s "$preloaded" ]; then
+    printf '%s\n' "$preloaded"
+    return 0
+  fi
+  if [ -s "$cached" ]; then
+    printf '%s\n' "$cached"
+    return 0
+  fi
+  return 1
+}
+
 lookup_crc_name() {
   index="$1"
   crc="$2"
@@ -625,6 +641,13 @@ lookup_thumb_href() {
   index="$1"
   name="$2"
   awk -F "$TAB_CHAR" -v name="$name" '$1 == name { print $2; exit }' "$index"
+}
+
+lookup_rescue_href() {
+  index="$1"
+  crc="$2"
+  [ -s "$index" ] || return 1
+  awk -F "$TAB_CHAR" -v crc="$crc" '$1 == crc { print $2; exit }' "$index"
 }
 
 thumbnail_name_candidates() {
@@ -1063,12 +1086,14 @@ fetch_system() {
   skipped_zip=0
   skipped_tool=0
   thumbnail_rescued=0
+  external_rescued=0
   zip_single_payload=0
   seen_dirs=" "
   stop_scan=0
   missing_processed=0
   dat_index=
   thumb_index=
+  rescue_index=
   thumb_base=
   index_ready=0
   index_system=
@@ -1169,6 +1194,7 @@ fetch_system() {
         *)
           dat_index="$(ensure_dat_index "$lookup_system" 2>/dev/null || true)"
           thumb_index="$(ensure_thumb_index "$lookup_system" 2>/dev/null || true)"
+          rescue_index="$(ensure_rescue_index "$lookup_system" 2>/dev/null || true)"
           thumb_base="$(thumb_base_url "$lookup_system" 2>/dev/null || true)"
           if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
             index_failed_systems="${index_failed_systems}${lookup_system} "
@@ -1191,9 +1217,16 @@ fetch_system() {
       else
         crc_checked=$((crc_checked + 1))
         canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
+        href=""
         if [ -z "$canonical" ]; then
-          no_match=$((no_match + 1))
-          crc_miss=$((crc_miss + 1))
+          href="$(lookup_rescue_href "$rescue_index" "$crc" || true)"
+          if [ -n "$href" ]; then
+            crc_matched=$((crc_matched + 1))
+            external_rescued=$((external_rescued + 1))
+          else
+            no_match=$((no_match + 1))
+            crc_miss=$((crc_miss + 1))
+          fi
         else
           crc_matched=$((crc_matched + 1))
           href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
@@ -1202,23 +1235,29 @@ fetch_system() {
             [ -n "$href" ] && thumbnail_rescued=$((thumbnail_rescued + 1))
           fi
           if [ -z "$href" ]; then
+            href="$(lookup_rescue_href "$rescue_index" "$crc" || true)"
+            [ -n "$href" ] && external_rescued=$((external_rescued + 1))
+          fi
+          if [ -z "$href" ]; then
             no_match=$((no_match + 1))
             thumbnail_miss=$((thumbnail_miss + 1))
+          fi
+        fi
+
+        if [ -n "$href" ]; then
+          dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
+          mkdir -p "$(dirname "$dest")" 2>/dev/null || true
+          tmp_dest="${dest}.tmp.$$"
+          if ! fetch_thumbnail_png "$lookup_system" "$href" "$tmp_dest"; then
+            rm -f "$tmp_dest" 2>/dev/null || true
+            case "$FETCH_THUMBNAIL_ERROR" in
+              invalid_png) invalid_png=$((invalid_png + 1)) ;;
+              *) download_failed=$((download_failed + 1)) ;;
+            esac
           else
-            dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
-            mkdir -p "$(dirname "$dest")" 2>/dev/null || true
-            tmp_dest="${dest}.tmp.$$"
-            if ! fetch_thumbnail_png "$lookup_system" "$href" "$tmp_dest"; then
-              rm -f "$tmp_dest" 2>/dev/null || true
-              case "$FETCH_THUMBNAIL_ERROR" in
-                invalid_png) invalid_png=$((invalid_png + 1)) ;;
-                *) download_failed=$((download_failed + 1)) ;;
-              esac
-            else
-              mv "$tmp_dest" "$dest"
-              thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
-              downloaded=$((downloaded + 1))
-            fi
+            mv "$tmp_dest" "$dest"
+            thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
+            downloaded=$((downloaded + 1))
           fi
         fi
       fi
@@ -1237,7 +1276,7 @@ fetch_system() {
     "$download_failed" "$invalid_png" "$skipped_zip" "$skipped_tool"
 
   log "fetch system=${fetch_system_id} aliases=${aliases_seen} candidates=${rom_candidates} existing=${existing_thumbnails} missing=${missing_thumbnails} crc_checked=${crc_checked} crc_matched=${crc_matched} downloaded=${downloaded} no_match=${no_match} crc_miss=${crc_miss} thumbnail_miss=${thumbnail_miss} download_failed=${download_failed} invalid_png=${invalid_png} skipped_zip=${skipped_zip} skipped_tool=${skipped_tool} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
-  log "fetch rescue system=${fetch_system_id} thumbnail_rescued=${thumbnail_rescued} zip_single_payload=${zip_single_payload} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
+  log "fetch rescue system=${fetch_system_id} thumbnail_rescued=${thumbnail_rescued} external_rescued=${external_rescued} zip_single_payload=${zip_single_payload} kind=${KIND} replace_existing=${REPLACE_EXISTING} limit=${LIMIT}"
   return 0
 }
 

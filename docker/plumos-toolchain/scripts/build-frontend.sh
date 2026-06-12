@@ -52,6 +52,7 @@ prefetch_thumbnail_cache() {
   if "$prefetch_script" \
       --systems-json "${DIST_DIR}/plumos/config/frontend/systems.json" \
       --sources "${DIST_DIR}/plumos/config/frontend/scraper-sources.tsv" \
+      --rescue-seeds "${DIST_DIR}/plumos/config/frontend/scraper-rescue-seeds.tsv" \
       --output "$scraper_cache_dir"; then
     return 0
   fi
