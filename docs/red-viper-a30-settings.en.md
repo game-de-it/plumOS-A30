@@ -8,8 +8,10 @@ next-launch settings, and upstream settings that still need an A30 backend.
 As of 2026-06-13, the standard Virtual Boy profile is the optimized
 `retroarch:mednafen_vb` core. Red Viper standalone builds the StockOS-derived
 SDL2 `mali` + GLES2 rendering path as `red-viper-sdlgl-a30`. Orientation and
-fit are fixed in the GLES final quad, but it remains an experimental profile
-until menu/input/FE cleanup and user-setting integration are complete.
+fit, single-eye rendering, and SDL audio queue settings are wired, but Bad
+Apple still drops audio in heavy scenes. Red Viper is therefore removed from
+normal distribution and the FE profile list. Build it explicitly with
+`PLUMOS_STANDALONE_FILTER=red_viper` only when probing.
 
 ## A30 In-Game Menu
 
@@ -89,7 +91,7 @@ connects the settings that have a meaningful A30 backend first.
 - Settings that affect the A30 backend are exposed through menu/env.
 - Settings that are only safe at launch are saved and applied on the next run.
 - 3DS-only settings are not silently hidden; they remain inventoried as backend gaps.
-- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed a partial A30 benefit, and orientation/fit are now handled in the GLES final quad. Bad Apple's 120 second load still averaged only 35.18fps. Keep Red Viper experimental until menu/input/FE cleanup and user settings are integrated.
+- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed a partial A30 benefit, and orientation/fit plus single-eye rendering are now handled in the GLES path. Heavy scenes still drop audio, and a deeper SDL audio queue did not materially improve it, so Red Viper is removed from normal distribution and the FE profile list.
 
 ## Reading Perf Info
 

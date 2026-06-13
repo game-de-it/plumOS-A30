@@ -13,6 +13,7 @@ JOBS=${JOBS:-$(nproc 2>/dev/null || echo 2)}
 
 PLUMOS_STANDALONE_FILTER=${PLUMOS_STANDALONE_FILTER:-all}
 FAIL_ON_STANDALONE_ERROR=${FAIL_ON_STANDALONE_ERROR:-0}
+PLUMOS_STANDALONE_INCLUDE_EXPERIMENTAL=${PLUMOS_STANDALONE_INCLUDE_EXPERIMENTAL:-0}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -170,6 +171,20 @@ emulator_selected() {
   esac
   case "${filter}" in
     *,"${id}",*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+red_viper_build_enabled() {
+  local filter=",$PLUMOS_STANDALONE_FILTER,"
+  case "${PLUMOS_STANDALONE_FILTER}" in
+    all|ALL)
+      [ "${PLUMOS_STANDALONE_INCLUDE_EXPERIMENTAL}" = "1" ]
+      return
+      ;;
+  esac
+  case "${filter}" in
+    *,red_viper,*|*,red-viper,*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -829,6 +844,10 @@ build_red_viper() {
 
   patch -d "${src}" -p1 < "${PATCH_DIR}/red-viper-a30-sdlgl-present.patch" || return 1
   append_manifest "  patch=red-viper-a30-sdlgl-present.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/red-viper-a30-sdlgl-env-options.patch" || return 1
+  append_manifest "  patch=red-viper-a30-sdlgl-env-options.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/red-viper-a30-sdlgl-audio-queue-env.patch" || return 1
+  append_manifest "  patch=red-viper-a30-sdlgl-audio-queue-env.patch"
 
   build_dir="${src}/build-plumos-a30-sdlgl"
   out="${build_dir}/red-viper-sdlgl-a30"
@@ -881,6 +900,7 @@ prepare_dist() {
     echo "cc=$("${CC}" --version | head -n 1)"
     echo "cflags=${COMMON_CFLAGS}"
     echo "filter=${PLUMOS_STANDALONE_FILTER}"
+    echo "include_experimental=${PLUMOS_STANDALONE_INCLUDE_EXPERIMENTAL}"
     echo "target_dir=${TARGET_DIR}"
     echo "ppsspp_patch_mode=${PPSSPP_PATCH_MODE}"
     echo "ppsspp_stage_id=${PPSSPP_STAGE_ID}"
@@ -2044,7 +2064,8 @@ PLUMOS_A30_PSX_JOYSTICKD_SHOULDER_LAYOUT=user
 EOF
   append_manifest "config=plumos/config/standalone/pcsx_rearmed.env"
 
-  cat >"${config_dir}/red_viper.env" <<'EOF'
+  if red_viper_build_enabled; then
+    cat >"${config_dir}/red_viper.env" <<'EOF'
 # Red Viper launcher overrides for Miyoo A30.
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
@@ -2075,7 +2096,10 @@ PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS=6
 PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS=8
 PLUMOS_A30_RED_VIPER_AUDIO_GAP=fade
 EOF
-  append_manifest "config=plumos/config/standalone/red_viper.env"
+    append_manifest "config=plumos/config/standalone/red_viper.env"
+  else
+    append_manifest "config=plumos/config/standalone/red_viper.env skipped experimental_disabled"
+  fi
 }
 
 build_one() {
@@ -2165,7 +2189,14 @@ build_one scummvm "${SCUMMVM_REPO}" "${SCUMMVM_REF}" build_scummvm
 build_one easyrpg "${EASYRPG_REPO}" "${EASYRPG_REF}" build_easyrpg
 build_one dosbox-staging "${DOSBOX_REPO}" "${DOSBOX_REF}" build_dosbox
 build_one pcsx_rearmed "${PCSX_REARMED_REPO}" "${PCSX_REARMED_REF}" build_pcsx_rearmed
-build_one red_viper "${RED_VIPER_REPO}" "${RED_VIPER_REF}" build_red_viper
+if red_viper_build_enabled; then
+  build_one red_viper "${RED_VIPER_REPO}" "${RED_VIPER_REF}" build_red_viper
+else
+  msg "skip red_viper: experimental disabled"
+  append_manifest "red_viper: skipped"
+  append_manifest "  reason=experimental_disabled"
+  SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+fi
 
 overlay_preferred_sdl_runtime
 finish_manifest

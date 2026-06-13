@@ -572,7 +572,7 @@ rules:
 - launch profile が `standalone:<emulator>` の場合は、
   `/mnt/SDCARD/plumos/bin/plumos-standalone-launch <emulator> <ROM>` に解決する。
   `standalone:ppsspp`、`standalone:pcsx_rearmed`、`standalone:scummvm`、
-  `standalone:easyrpg`、`standalone:red_viper` は A30 実機 first-pass
+  `standalone:easyrpg` は A30 実機 first-pass
   検証済みの候補として扱う
 - ROM list で A を押すと `plumos-text-ui launch ... --execute` を呼び、起動前に
   pending resume を保存し、エミュレータ終了後に pending resume を clear する

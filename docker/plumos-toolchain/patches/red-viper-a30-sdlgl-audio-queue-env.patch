@@ -1,0 +1,76 @@
+--- a/source/linux-test/sound.c
++++ b/source/linux-test/sound.c
+@@ -1,0 +1 @@
++#include <stdlib.h>
+@@ -8,0 +10,3 @@
++static Uint32 audioChunkBytes;
++static unsigned audioQueueChunks = BUF_COUNT / 2;
++static unsigned audioPrebufferChunks;
+@@ -9,0 +14,35 @@
++static unsigned a30_parse_env_unsigned(const char *name, unsigned fallback,
++                                       unsigned min_value,
++                                       unsigned max_value) {
++    const char *value = getenv(name);
++    char *end = NULL;
++    unsigned long parsed;
++
++    if (value == NULL || value[0] == '\0') return fallback;
++    parsed = strtoul(value, &end, 10);
++    if (end == value || *end != '\0' ||
++        parsed < min_value || parsed > max_value) {
++        return fallback;
++    }
++    return (unsigned)parsed;
++}
++
++static void a30_load_audio_config(void) {
++    audioQueueChunks =
++        a30_parse_env_unsigned("PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS",
++                               BUF_COUNT / 2, 2, 64);
++    audioPrebufferChunks =
++        a30_parse_env_unsigned("PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS",
++                               0, 0, audioQueueChunks);
++}
++
++static void a30_queue_silence(unsigned chunks) {
++    int16_t silence[SAMPLE_COUNT * 2];
++    memset(silence, 0, sizeof(silence));
++    for (unsigned i = 0; i < chunks; i++) {
++        if (SDL_QueueAudio(audioDevice, silence, audioChunkBytes) != 0) {
++            break;
++        }
++    }
++}
++
+@@ -10,0 +50,4 @@
++    SDL_AudioSpec obtainedSpec;
++    a30_load_audio_config();
++    audioChunkBytes = sizeof(int16_t) * SAMPLE_COUNT * 2;
++
+@@ -17 +60 @@
+-    audioDevice = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, NULL, 0);
++    audioDevice = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, &obtainedSpec, 0);
+@@ -23,0 +67,5 @@
++    fprintf(stderr,
++            "red-viper-sdlgl: audio freq=%d samples=%u queue_chunks=%u prebuffer_chunks=%u\n",
++            obtainedSpec.freq, obtainedSpec.samples,
++            audioQueueChunks, audioPrebufferChunks);
++    a30_queue_silence(audioPrebufferChunks);
+@@ -30 +78,5 @@
+-    SDL_CloseAudioDevice(audioDevice);
++    if (audioDevice != 0) {
++        SDL_ClearQueuedAudio(audioDevice);
++        SDL_CloseAudioDevice(audioDevice);
++        audioDevice = 0;
++    }
+@@ -42,4 +94,6 @@
+-    // limit queue size to account for fast forwarding
+-    if (SDL_GetQueuedAudioSize(audioDevice) < SAMPLE_COUNT * 4 * (BUF_COUNT / 2)) {
+-        SDL_QueueAudio(audioDevice, buf, sizeof(int16_t) * SAMPLE_COUNT * 2);
+-        return true;
++    Uint32 queuedBytes;
++    if (audioDevice == 0) return false;
++
++    queuedBytes = SDL_GetQueuedAudioSize(audioDevice);
++    if (queuedBytes + audioChunkBytes <= audioChunkBytes * audioQueueChunks) {
++        return SDL_QueueAudio(audioDevice, buf, audioChunkBytes) == 0;

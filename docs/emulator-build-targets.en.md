@@ -224,7 +224,7 @@ near its limit and audio is more fragile.
 | EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
 | PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
 | DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
-| Red Viper | Experimental standalone candidate for Virtual Boy | The ARM dynarec works on the A30. In the 2026-06-12 hardware probe, headless reached 322.86fps, and software VIP rendering still reached 289.00fps at 1344 MHz / 4 cores and 135.13fps at 648 MHz / 2 cores. The StockOS-derived SDL2 `mali` + GLES2 path is built as `red-viper-sdlgl-a30`, and orientation/fit are fixed in the GLES final quad. The 120 second Bad Apple load still averaged only 35.18fps, so Virtual Boy defaults to `retroarch:mednafen_vb`. Reconsider Red Viper after menu/input/cleanup/settings work. |
+| Red Viper | Experimental Virtual Boy probe | The ARM dynarec works on the A30. The StockOS-derived SDL2 `mali` + GLES2 path can be built as `red-viper-sdlgl-a30`, and orientation/fit plus single-eye rendering are fixed. Bad Apple still drops audio in heavy scenes, and a deeper SDL audio queue did not materially improve it, so Red Viper is removed from normal distribution and the FE profile list. Build it explicitly with `PLUMOS_STANDALONE_FILTER=red_viper` only when probing. |
 
 ## Virtual Boy Note
 
@@ -323,13 +323,12 @@ and produced these results:
 | software VIP render, no audio, 648 MHz / 2 cores, 600 frames + 60 warmup | 135.13fps |
 
 The current Virtual Boy performance problem is resolved by the `mednafen_vb`
-libretro core pinned to the Onion-proven commit, so Red Viper is now kept as an
-experimental standalone profile rather than the default. The `red-viper-a30`
+libretro core pinned to the Onion-proven commit, so Red Viper is removed from
+normal distribution and the FE profile list. The `red-viper-a30`
 wrapper copies Red Viper's software framebuffer to `/dev/fb0` in landscape
 orientation, handles A30 physical input, opens an in-game menu with Function,
 and exits with START+SELECT. The frontend now uses `retroarch:mednafen_vb` as
-the Virtual Boy default profile and keeps `standalone:red_viper` as an
-experimental profile. The A30
+the only Virtual Boy profile. The A30
 wrapper does not include the Red Viper 3DS menu UI; settings are handled through
 a small A30 menu and `plumos/config/standalone/red_viper.env`. For the
 A30's single display, `PLUMOS_A30_RED_VIPER_EYE=both` is the default and blends
@@ -359,8 +358,12 @@ relative to the fbdev software presentation path, but it does not handle Bad
 Apple's peak load. Orientation/fit for this path is now fixed in the GLES final
 quad. A 2026-06-13 `ccw` capture confirmed that the raw `480x640` framebuffer
 matches the existing FE orientation and becomes readable landscape after the cw
-capture transform. A30 menu, A30 input mapping, FE launcher cleanup, and user
-settings are still incomplete, so this path is not the default profile.
+capture transform. The SDL/GLES frontend was also wired to
+`PLUMOS_A30_RED_VIPER_EYE`, `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK`, and SDL
+audio queue/prebuffer settings; with `EYE=left`, `present_fps` improved to about
+49fps on average. Heavy scenes still fell to the low 40s and audio dropout did
+not materially improve with a deeper audio queue, so Red Viper is not built in
+normal distribution and is not exposed as an FE profile.
 
 ## Class A: initial build targets
 
@@ -408,7 +411,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
 | PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
-| Virtual Boy | `retroarch:mednafen_vb`, optional `standalone:red_viper` | The plumOS-built `mednafen_vb` core pinned to Onion-proven commit `162918f` has confirmed Bad Apple gameplay on A30. Red Viper's StockOS-derived rendering path now has correct orientation/fit, but performance and menu/input/cleanup/settings work keep it experimental. |
+| Virtual Boy | `retroarch:mednafen_vb` | The plumOS-built `mednafen_vb` core pinned to Onion-proven commit `162918f` has confirmed Bad Apple gameplay on A30. Red Viper's StockOS-derived rendering path now has correct orientation/fit and single-eye rendering, but heavy-scene audio dropout remains, so it is removed from the FE profile list. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
 

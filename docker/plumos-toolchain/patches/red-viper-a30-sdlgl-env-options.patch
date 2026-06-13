@@ -1,0 +1,72 @@
+--- a/source/linux-test/main.c
++++ b/source/linux-test/main.c
+@@ -2,0 +3,2 @@
++#include <string.h>
++#include <strings.h>
+@@ -30,0 +33,64 @@
++static bool a30_env_enabled(const char *name, bool fallback) {
++    const char *value = getenv(name);
++    if (value == NULL || value[0] == '\0') return fallback;
++    if (!strcasecmp(value, "0") || !strcasecmp(value, "no") ||
++        !strcasecmp(value, "false") || !strcasecmp(value, "off")) {
++        return false;
++    }
++    return true;
++}
++
++static void a30_apply_eye_env(void) {
++    const char *value = getenv("PLUMOS_A30_RED_VIPER_EYE");
++    if (value == NULL || value[0] == '\0') {
++        value = getenv("PLUMOS_A30_RED_VIPER_SDLGL_EYE");
++    }
++    if (value == NULL || value[0] == '\0') {
++        return;
++    }
++    if (!strcasecmp(value, "left") || !strcmp(value, "0")) {
++        tVBOpt.DEFAULT_EYE = 0;
++        eye_count = 1;
++    } else if (!strcasecmp(value, "right") || !strcmp(value, "1")) {
++        tVBOpt.DEFAULT_EYE = 1;
++        eye_count = 1;
++    } else if (!strcasecmp(value, "both") || !strcasecmp(value, "stereo") ||
++               !strcmp(value, "2")) {
++        eye_count = 2;
++    }
++}
++
++static void a30_apply_audio_env(void) {
++    const char *value = getenv("PLUMOS_A30_RED_VIPER_AUDIO");
++    if (value == NULL || value[0] == '\0') {
++        value = getenv("PLUMOS_A30_RED_VIPER_SDLGL_AUDIO");
++    }
++    if (value == NULL || value[0] == '\0') {
++        return;
++    }
++    if (!strcasecmp(value, "off") || !strcasecmp(value, "none") ||
++        !strcasecmp(value, "0") || !strcasecmp(value, "no") ||
++        !strcasecmp(value, "false")) {
++        tVBOpt.SOUND = 0;
++    } else {
++        tVBOpt.SOUND = 1;
++    }
++}
++
++static void a30_apply_env_options(void) {
++    a30_apply_eye_env();
++    a30_apply_audio_env();
++    tVBOpt.FASTFORWARD =
++        a30_env_enabled("PLUMOS_A30_RED_VIPER_FAST_FORWARD", tVBOpt.FASTFORWARD);
++    tVBOpt.VIP_OVERCLOCK =
++        a30_env_enabled("PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK", tVBOpt.VIP_OVERCLOCK);
++    tVBOpt.PERF_INFO =
++        a30_env_enabled("PLUMOS_A30_RED_VIPER_PERF_INFO", tVBOpt.PERF_INFO);
++    tVBOpt.ANTIFLICKER =
++        a30_env_enabled("PLUMOS_A30_RED_VIPER_ANTIFLICKER", tVBOpt.ANTIFLICKER);
++    fprintf(stderr,
++            "red-viper-sdlgl: eye_count=%d default_eye=%d sound=%d vip_overclock=%d fastforward=%d\n",
++            eye_count, tVBOpt.DEFAULT_EYE, tVBOpt.SOUND,
++            tVBOpt.VIP_OVERCLOCK ? 1 : 0, tVBOpt.FASTFORWARD ? 1 : 0);
++}
++
+@@ -72,0 +139 @@
++    a30_apply_env_options();
