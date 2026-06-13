@@ -5613,6 +5613,7 @@ static int ui_uses_graphic_mode(const struct ui_state *ui) {
 #define UI_GRAPHIC_TOP_STRIP_ROWS 1
 #define UI_GRAPHIC_TOP_STRIP_PAGE_SIZE \
   (UI_GRAPHIC_TOP_STRIP_COLUMNS * UI_GRAPHIC_TOP_STRIP_ROWS)
+#define UI_GRAPHIC_ROM_PAGE_SIZE 10
 #define UI_GRAPHIC_TOP_TRANSITION_DEFAULT_MS 260
 
 static int ui_graphic_top_uses_strip(const struct ui_state *ui) {
@@ -5637,7 +5638,7 @@ static size_t ui_list_window_size(const struct ui_state *ui) {
     }
     if (ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
         ui->screen == SCREEN_RECENT) {
-      return 8;
+      return UI_GRAPHIC_ROM_PAGE_SIZE;
     }
   }
   if (ui && ui->renderer_mali) {

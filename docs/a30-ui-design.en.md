@@ -205,7 +205,7 @@ misclick prevention.
   confirm, or back behavior. Transition duration, axis, and easing are controlled
   by theme `transition_ms`, `transition_axis`, and `transition_easing`.
 - ROM lists put the selectable list on the left and a selected-ROM preview panel
-  on the right. One page shows 8 entries.
+  on the right. A Graphic page shows 10 entries.
 - ROM names prefer FreeType rendering so Japanese names and symbols remain
   accurate.
 - ROM previews use `media.thumbnail` from the existing ROM cache. PNG

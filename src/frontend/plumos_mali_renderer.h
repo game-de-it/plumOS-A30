@@ -3203,7 +3203,7 @@ static void plumos_mali_graphic_draw_roms(
   float preview_x = 394.0f;
   float preview_y = 72.0f;
   float preview_w = (float)renderer->width - preview_x - 16.0f;
-  float preview_h = 310.0f;
+  float preview_h = (float)renderer->height - preview_y - 16.0f;
   char header[96];
   char initials[8];
   int initials_width;

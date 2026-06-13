@@ -132,7 +132,7 @@
   eased motion で入れ替わる上下方向の演出にする。theme は入力、ページサイズ、決定/戻る動作を変えない。
   transition の時間、軸、easing は theme の `transition_ms`、`transition_axis`、
   `transition_easing` で管理する。
-- ROM list は左に選択リスト、右に選択中ROMのプレビューパネルを置く。1ページは8件を基準にする。
+- ROM list は左に選択リスト、右に選択中ROMのプレビューパネルを置く。Graphic の1ページは10件を基準にする。
 - ROM名は日本語を含めて正確に表示するため、GraphicのROM listではFreeType描画を優先する。
 - ROM preview は既存ROM cacheの `media.thumbnail` を使う。PNG thumbnail が存在する場合は右側
   preview panel に contain 表示し、画像が無い/読めない場合は initials/fallback panel を表示する。
