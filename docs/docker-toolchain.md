@@ -134,6 +134,32 @@ dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 同じ probe binary は GameController 確認に加えて、SDL video/render backend の列挙と
 software renderer の描画試行にも使います。
 
+Python 3 runtime を build します。既定では Python 3.14.6 を source から armv7
+hard-float 向けに cross build し、`pip`/Pyxel が plumOS 同梱 glibc 2.36 経路で動く
+ように loader wrapper と runtime library を同梱します。stockOS の glibc 2.23 では
+PyPI の Pyxel manylinux wheel が要求する glibc 2.28+ を満たせないため、必ず
+`/mnt/SDCARD/plumos/bin/python3` または `/mnt/SDCARD/plumos/bin/pip3` から起動します。
+
+```sh
+./scripts/docker-build.sh python-runtime
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-python-runtime/plumos/bin/python3
+dist/plumos-python-runtime/plumos/bin/pip3
+dist/plumos-python-runtime/plumos/bin/pyxel
+dist/plumos-python-runtime/plumos/python/
+dist/plumos-python-runtime/plumos/lib/
+dist/plumos-python-runtime/plumos/share/doc/plumos-python-runtime/manifest.txt
+```
+
+`pip` の manylinux armv7l 判定は `sys.executable` の ELF header を見ますが、plumOS では
+subprocess 安定化のため `sys.executable` を shell wrapper に向けます。その差を
+`sitecustomize.py` で補正し、実機上の通常の `pip3 install pyxel` が
+`manylinux_2_28_armv7l` wheel を選べるようにしています。
+
 RetroArch minimal display probe を build します。これは core/audio/input をまだ扱わず、
 RetroArch 本体の RGUI が A30 の Mali fbdev 経路で実画面表示できるかを見るための
 短時間確認用 build です。
@@ -280,6 +306,16 @@ frontend prototype も SD カード root に展開します。
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+Python runtime も SD カード root に展開します。初回は `ensurepip` で pip を展開し、
+その後は通常の pip command として Pyxel を導入できます。
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-python-runtime /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/python3 -m ensurepip --upgrade'
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/pip3 install --upgrade pyxel'
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/python3 -c "import pyxel; print(pyxel.VERSION)"'
 ```
 
 `deploy-a30.sh` は既存の plumOS mutable settings

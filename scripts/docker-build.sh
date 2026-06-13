@@ -19,6 +19,7 @@ Commands:
   joystickd      Build the A30 serial-to-uinput joystick daemon into dist/plumos-joystickd.
   network-services
                  Build FTP/SFTP/Samba service package into dist/plumos-network-services.
+  python-runtime Build Python 3 runtime with pip support into dist/plumos-python-runtime.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
   sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
@@ -78,6 +79,8 @@ Environment:
   PPSSPP_PATCH_MODE        PPSSPP patch mode: a30, display-ui, or vanilla. Default: a30.
   PPSSPP_STAGE_ID          PPSSPP output emulator id. Default: ppsspp.
   PPSSPP_BINARY_NAME       PPSSPP staged binary name. Default: PPSSPPSDL.
+  PYTHON_VERSION           Python source version for python-runtime. Default: 3.14.6.
+  PYTHON_SHA256            Python source SHA-256 for python-runtime.
 EOF
 }
 
@@ -135,6 +138,8 @@ docker_run_base=(
   -e PPSSPP_PATCH_MODE="${PPSSPP_PATCH_MODE:-a30}"
   -e PPSSPP_STAGE_ID="${PPSSPP_STAGE_ID:-ppsspp}"
   -e PPSSPP_BINARY_NAME="${PPSSPP_BINARY_NAME:-PPSSPPSDL}"
+  -e PYTHON_VERSION="${PYTHON_VERSION:-3.14.6}"
+  -e PYTHON_SHA256="${PYTHON_SHA256:-}"
   -v "${ROOT_DIR}:/workspace"
   -w /workspace
   "$IMAGE"
@@ -164,6 +169,10 @@ case "$cmd" in
   network-services|net-services)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-network-services.sh
+    ;;
+  python-runtime|python|python3)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-python-runtime.sh
     ;;
   runtime-probe|probe)
     ensure_image

@@ -45,12 +45,18 @@ RUN dpkg --add-architecture armhf \
     liblhasa-dev:armhf \
     libmad0-dev:armhf \
     libmpg123-dev:armhf \
+    libbz2-dev:armhf \
+    libgdbm-dev:armhf \
+    libgdbm-compat-dev:armhf \
     libogg-dev:armhf \
     libopusfile-dev:armhf \
     libpixman-1-dev:armhf \
     libpng-dev:armhf \
+    libreadline-dev:armhf \
     libsamplerate0-dev:armhf \
     libsndfile1-dev:armhf \
+    libsqlite3-dev:armhf \
+    libssl-dev:armhf \
     libsdl1.2-dev:armhf \
     libsdl2-dev:armhf \
     libspeexdsp-dev:armhf \
@@ -58,6 +64,8 @@ RUN dpkg --add-architecture armhf \
     libvorbis-dev:armhf \
     libxmp-dev:armhf \
     libxml2-dev:armhf \
+    liblzma-dev:armhf \
+    libzstd-dev:armhf \
     make \
     meson \
     ninja-build \

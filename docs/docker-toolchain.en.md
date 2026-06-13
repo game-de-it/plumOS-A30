@@ -135,6 +135,33 @@ dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 The same probe binary is used for GameController checks and for enumerating SDL
 video/render backends and attempting a software-renderer draw.
 
+Build the Python 3 runtime. By default this cross-builds Python 3.14.6 from
+source for the armv7 hard-float target and bundles loader wrappers plus runtime
+libraries so `pip` and Pyxel run through the plumOS glibc 2.36 path. stockOS
+glibc 2.23 is too old for PyPI's Pyxel manylinux wheel, which requires glibc
+2.28+, so launch Python through `/mnt/SDCARD/plumos/bin/python3` or
+`/mnt/SDCARD/plumos/bin/pip3`.
+
+```sh
+./scripts/docker-build.sh python-runtime
+```
+
+Outputs:
+
+```text
+dist/plumos-python-runtime/plumos/bin/python3
+dist/plumos-python-runtime/plumos/bin/pip3
+dist/plumos-python-runtime/plumos/bin/pyxel
+dist/plumos-python-runtime/plumos/python/
+dist/plumos-python-runtime/plumos/lib/
+dist/plumos-python-runtime/plumos/share/doc/plumos-python-runtime/manifest.txt
+```
+
+pip's manylinux armv7l check reads the ELF header from `sys.executable`, while
+plumOS points `sys.executable` at a shell wrapper so subprocesses keep using the
+plumOS loader route. `sitecustomize.py` bridges that difference so a normal
+device-side `pip3 install pyxel` can select the `manylinux_2_28_armv7l` wheel.
+
 Build the RetroArch minimal display probe. This build does not handle
 core/audio/input yet; it is a short device check for whether RetroArch itself
 can show RGUI through the A30 Mali fbdev path.
@@ -285,6 +312,16 @@ Deploy the frontend prototype to the SD card root.
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
+```
+
+Deploy the Python runtime to the SD card root as well. On first install, run
+`ensurepip` to unpack pip, then install Pyxel with the normal pip command.
+
+```sh
+A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-python-runtime /mnt/SDCARD
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/python3 -m ensurepip --upgrade'
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/pip3 install --upgrade pyxel'
+A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/python3 -c "import pyxel; print(pyxel.VERSION)"'
 ```
 
 `deploy-a30.sh` preserves existing plumOS mutable settings, such as
