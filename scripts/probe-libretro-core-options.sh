@@ -142,6 +142,7 @@ for candidate in "${candidates[@]}"; do
       LIBRETRO_MAKE_ARGS_OVERRIDE="${override}" \
       LIBRETRO_OPTIMIZATION_PROFILE="${LIBRETRO_OPTIMIZATION_PROFILE}" \
       FAIL_ON_CORE_ERROR=1 \
+      LIBRETRO_CORE_BUILD_CONCURRENCY=1 \
       JOBS="${JOBS}" \
       BUILD_JOB_FALLBACKS="${BUILD_JOB_FALLBACKS}" \
       ./scripts/docker-build.sh libretro-cores

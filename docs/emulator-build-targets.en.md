@@ -84,6 +84,15 @@ first and retries the same build condition with `BUILD_JOB_FALLBACKS`, default
 objects as `*_libretro.dll`; staging now verifies those files with `readelf` and
 normalizes them to `*_libretro.so`.
 
+Builds that target multiple cores, such as `PLUMOS_CORE_FILTER=all`, also run
+in parallel at the core level. The default is
+`LIBRETRO_CORE_BUILD_CONCURRENCY=4`, meaning four cores build at once. `JOBS` is
+the per-core `make`/`cmake --build` parallelism; when it is unset, the script
+derives it by dividing the container CPU count by the core concurrency. Each
+core builds into an isolated temporary staging directory, then the parent
+process merges manifests and artifacts in recipe order so parallel jobs do not
+write the final manifest or output directories concurrently.
+
 Cores produced through platform fallback cannot be treated as optimized A30
 artifacts. `build-libretro-cores.sh` therefore treats the recipe `make_args` as
 the only valid build condition and no longer relaxes failed builds to generic

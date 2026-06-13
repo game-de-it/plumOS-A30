@@ -73,6 +73,12 @@ A30 実機の title/profile 別検証で判断します。
 ARM ELF 共有ライブラリを `*_libretro.dll` 名で出すため、staging では ELF と確認できる
 `.dll` も `*_libretro.so` に正規化して配置します。
 
+`PLUMOS_CORE_FILTER=all` など複数 core を対象にする build は、core 単位でも並列実行します。
+既定は `LIBRETRO_CORE_BUILD_CONCURRENCY=4` で 4 core 同時処理です。`JOBS` は各 core 内で
+`make`/`cmake --build` に渡す並列数で、未指定時は container CPU 数を core 並列数で割った値に
+します。各 core の成果物は一時 staging へ分離して build し、最後に recipe 順で manifest と
+成果物を merge するため、並列 build 中に manifest や output directory を同時書き込みしません。
+
 platform fallback で成功数を増やした core は、A30 向け最適化を保証できないため配布物として
 扱いません。`build-libretro-cores.sh` は recipe の `make_args` だけを正とし、失敗時に
 `platform=unix` などへ条件を緩める fallback を行いません。同一条件で `JOBS` だけを落とす

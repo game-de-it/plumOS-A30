@@ -6,7 +6,25 @@ BUILD_ROOT=${BUILD_ROOT:-"${ROOT_DIR}/build"}
 DIST_ROOT=${DIST_ROOT:-"${ROOT_DIR}/dist"}
 TARGET_DIR=${TARGET_DIR:-"${DIST_ROOT}/plumos-libretro-cores"}
 SRC_ROOT=${SRC_ROOT:-"${BUILD_ROOT}/libretro-cores/src"}
-JOBS=${JOBS:-$(nproc 2>/dev/null || echo 2)}
+HOST_JOBS=${HOST_JOBS:-$(nproc 2>/dev/null || echo 2)}
+LIBRETRO_CORE_BUILD_CONCURRENCY=${LIBRETRO_CORE_BUILD_CONCURRENCY:-4}
+
+case "${HOST_JOBS}" in
+  ''|*[!0-9]*) HOST_JOBS=2 ;;
+esac
+case "${LIBRETRO_CORE_BUILD_CONCURRENCY}" in
+  ''|*[!0-9]*) LIBRETRO_CORE_BUILD_CONCURRENCY=4 ;;
+esac
+[ "${HOST_JOBS}" -gt 0 ] || HOST_JOBS=2
+[ "${LIBRETRO_CORE_BUILD_CONCURRENCY}" -gt 0 ] || LIBRETRO_CORE_BUILD_CONCURRENCY=1
+
+if [ -z "${JOBS:-}" ]; then
+  JOBS=$(((HOST_JOBS + LIBRETRO_CORE_BUILD_CONCURRENCY - 1) / LIBRETRO_CORE_BUILD_CONCURRENCY))
+fi
+case "${JOBS}" in
+  ''|*[!0-9]*) JOBS=1 ;;
+esac
+[ "${JOBS}" -gt 0 ] || JOBS=1
 
 CORE_INFO_REPO=${CORE_INFO_REPO:-https://github.com/libretro/libretro-core-info.git}
 CORE_INFO_REF=${CORE_INFO_REF:-HEAD}
@@ -884,6 +902,8 @@ prepare_dist() {
     printf 'make_platform_fallbacks=disabled\n'
     printf 'make_args_override=%s\n' "${LIBRETRO_MAKE_ARGS_OVERRIDE}"
     printf 'core_filter=%s\n' "${PLUMOS_CORE_FILTER}"
+    printf 'host_jobs=%s\n' "${HOST_JOBS}"
+    printf 'core_build_concurrency=%s\n' "${LIBRETRO_CORE_BUILD_CONCURRENCY}"
     printf 'jobs=%s\n' "${JOBS}"
     printf 'job_fallbacks=%s\n' "${BUILD_JOB_FALLBACKS}"
   } >"${MANIFEST}"
@@ -913,8 +933,146 @@ clone_core_info() {
   return 1
 }
 
+prepare_core_job_dist() {
+  rm -rf "${TARGET_DIR}"
+  mkdir -p \
+    "${TARGET_DIR}/plumos/lib" \
+    "${TARGET_DIR}/plumos/retroarch/cores" \
+    "${TARGET_DIR}/plumos/retroarch/info" \
+    "${TARGET_DIR}/docs/build-logs"
+  LOG_DIR="${TARGET_DIR}/docs/build-logs"
+  MANIFEST="${TARGET_DIR}/docs/manifest.txt"
+  : >"${MANIFEST}"
+}
+
+run_core_job() {
+  local id=$1
+  local class=$2
+  local repo=$3
+  local ref=$4
+  local subdir=$5
+  local makefile=$6
+  local make_args=$7
+  local job_target=$8
+  local rc
+
+  TARGET_DIR="${job_target}"
+  BUILT_COUNT=0
+  FAILED_COUNT=0
+  SKIPPED_COUNT=0
+  ACTIVE_JOBS=${JOBS}
+  LAST_SUCCESSFUL_JOBS=""
+  LAST_SUCCESSFUL_ARGS=""
+
+  prepare_core_job_dist
+  build_one_core "${id}" "${class}" "${repo}" "${ref}" "${subdir}" "${makefile}" "${make_args}"
+  rc=$?
+  {
+    printf 'built=%d\n' "${BUILT_COUNT}"
+    printf 'failed=%d\n' "${FAILED_COUNT}"
+    printf 'skipped=%d\n' "${SKIPPED_COUNT}"
+    printf 'exit_code=%d\n' "${rc}"
+  } >"${TARGET_DIR}/status.env"
+  return "${rc}"
+}
+
+running_core_jobs() {
+  jobs -pr | wc -l | tr -d '[:space:]'
+}
+
+wait_for_core_slot() {
+  local running
+  while :; do
+    running=$(running_core_jobs)
+    [ "${running:-0}" -lt "${LIBRETRO_CORE_BUILD_CONCURRENCY}" ] && return 0
+    sleep 1
+  done
+}
+
+wait_for_core_jobs() {
+  wait || true
+}
+
+copy_dir_contents() {
+  local src=$1
+  local dst=$2
+  local entry
+
+  [ -d "${src}" ] || return 0
+  mkdir -p "${dst}"
+  while IFS= read -r entry; do
+    [ -n "${entry}" ] || continue
+    cp -a "${entry}" "${dst}/"
+  done < <(find "${src}" -mindepth 1 -maxdepth 1 -print)
+}
+
+status_value() {
+  local file=$1
+  local key=$2
+  awk -F= -v key="${key}" '$1 == key { print $2; found = 1; exit } END { if (!found) exit 1 }' "${file}"
+}
+
+append_missing_job_manifest() {
+  local id=$1
+  local class=$2
+  local repo=$3
+  local ref=$4
+  local reason=$5
+
+  append_manifest ""
+  append_manifest "[${id}]"
+  append_manifest "class=${class}"
+  append_manifest "repo=${repo}"
+  append_manifest "ref=${ref}"
+  append_manifest "status=failed"
+  append_manifest "reason=${reason}"
+}
+
+merge_core_job() {
+  local id=$1
+  local class=$2
+  local repo=$3
+  local ref=$4
+  local job_target=$5
+  local job_manifest="${job_target}/docs/manifest.txt"
+  local status_file="${job_target}/status.env"
+  local built=0
+  local failed=1
+  local skipped=0
+
+  copy_dir_contents "${job_target}/plumos/lib" "${TARGET_DIR}/plumos/lib"
+  copy_dir_contents "${job_target}/plumos/retroarch/cores" "${TARGET_DIR}/plumos/retroarch/cores"
+  copy_dir_contents "${job_target}/plumos/retroarch/info" "${TARGET_DIR}/plumos/retroarch/info"
+  copy_dir_contents "${job_target}/docs/build-logs" "${TARGET_DIR}/docs/build-logs"
+  if [ -d "${job_target}/docs" ]; then
+    find "${job_target}/docs" -mindepth 1 -maxdepth 1 -type f ! -name manifest.txt -exec cp -a {} "${TARGET_DIR}/docs/" \;
+  fi
+
+  if [ -f "${status_file}" ]; then
+    built=$(status_value "${status_file}" built || printf '0')
+    failed=$(status_value "${status_file}" failed || printf '0')
+    skipped=$(status_value "${status_file}" skipped || printf '0')
+  fi
+
+  if [ -f "${job_manifest}" ]; then
+    cat "${job_manifest}" >>"${MANIFEST}"
+  else
+    append_missing_job_manifest "${id}" "${class}" "${repo}" "${ref}" "job_manifest_missing"
+    if [ -f "${status_file}" ]; then
+      failed=$((failed + 1))
+    fi
+  fi
+
+  BUILT_COUNT=$((BUILT_COUNT + built))
+  FAILED_COUNT=$((FAILED_COUNT + failed))
+  SKIPPED_COUNT=$((SKIPPED_COUNT + skipped))
+}
+
 main() {
   local line id class repo ref subdir makefile make_args
+  local job_root="${TARGET_DIR}/.core-jobs"
+  local job_target
+  local -a selected_rows=()
 
   if [ ! -f "${CORE_RECIPES}" ]; then
     msg "error: core recipe file not found: ${CORE_RECIPES}"
@@ -927,8 +1085,31 @@ main() {
 
   while IFS='|' read -r id class repo ref subdir makefile make_args; do
     [ -n "${id}" ] || continue
-    build_one_core "${id}" "${class}" "${repo}" "${ref}" "${subdir}" "${makefile}" "${make_args}"
+    if core_selected "${id}" "${class}"; then
+      selected_rows+=("${id}|${class}|${repo}|${ref}|${subdir}|${makefile}|${make_args}")
+    else
+      SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    fi
   done < <(core_table)
+
+  mkdir -p "${job_root}"
+  msg "core build concurrency=${LIBRETRO_CORE_BUILD_CONCURRENCY}; per-core jobs=${JOBS}; job fallbacks=${BUILD_JOB_FALLBACKS}"
+  msg "selected cores=${#selected_rows[@]} skipped=${SKIPPED_COUNT}"
+
+  for line in "${selected_rows[@]}"; do
+    IFS='|' read -r id class repo ref subdir makefile make_args <<<"${line}"
+    job_target="${job_root}/${id}"
+    wait_for_core_slot
+    run_core_job "${id}" "${class}" "${repo}" "${ref}" "${subdir}" "${makefile}" "${make_args}" "${job_target}" &
+  done
+
+  wait_for_core_jobs
+
+  for line in "${selected_rows[@]}"; do
+    IFS='|' read -r id class repo ref subdir makefile make_args <<<"${line}"
+    merge_core_job "${id}" "${class}" "${repo}" "${ref}" "${job_root}/${id}"
+  done
+  rm -rf "${job_root}"
 
   {
     printf '\n[summary]\n'

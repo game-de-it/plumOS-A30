@@ -58,8 +58,13 @@ Environment:
   LIBRETRO_MAKE_OPT_FLAGS  Override the -O flags used by that Makefile patch.
   LIBRETRO_MAKE_ARGS_OVERRIDE
                            Override recipe make_args for single-core option probes.
-  JOBS                    Parallel build job count passed into the container.
+  LIBRETRO_CORE_BUILD_CONCURRENCY
+                           Number of libretro cores to build concurrently.
+                           Default: 4.
+  HOST_JOBS                Host job budget used to derive JOBS when JOBS is unset.
                            Default: container CPU count.
+  JOBS                    Per-core parallel build job count passed into make/cmake.
+                           Default: HOST_JOBS divided by LIBRETRO_CORE_BUILD_CONCURRENCY.
   BUILD_JOB_FALLBACKS     libretro-cores retry job counts after a failed build attempt.
                            Default: 1.
   PLUMOS_STANDALONE_FILTER
@@ -116,6 +121,8 @@ docker_run_base=(
   -e LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS="${LIBRETRO_PATCH_MAKEFILE_OPT_FLAGS:-1}"
   -e LIBRETRO_MAKE_OPT_FLAGS="${LIBRETRO_MAKE_OPT_FLAGS:-}"
   -e LIBRETRO_MAKE_ARGS_OVERRIDE="${LIBRETRO_MAKE_ARGS_OVERRIDE:-}"
+  -e LIBRETRO_CORE_BUILD_CONCURRENCY="${LIBRETRO_CORE_BUILD_CONCURRENCY:-4}"
+  -e HOST_JOBS="${HOST_JOBS:-}"
   -e JOBS="${JOBS:-}"
   -e BUILD_JOB_FALLBACKS="${BUILD_JOB_FALLBACKS:-1}"
   -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"
