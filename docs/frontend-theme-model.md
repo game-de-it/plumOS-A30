@@ -68,16 +68,23 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-2026-06-12 時点の default theme 系では、対象 system は49件、仮想TOP logo は2件、
-必須 logo は合計51件で、すべて充足済みです。
+2026-06-13 時点の default theme 系では、対象 system は88件、仮想TOP logo は2件、
+必須 logo は合計90件で、すべて充足済みです。
 `dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外しますが、
 旧 seed 由来の logo は任意 asset として残せます。
 
-不足分と仮想TOP logo を再生成する場合は以下を使います。生成結果は `default`、
-`default-horizontal`、`default-vertical` の各 `logos/systems/` に出力されます。
+不足分と仮想TOP logo を手描き fallback で再生成する場合は以下を使います。生成結果は
+`default`、`default-horizontal`、`default-vertical` の各 `logos/systems/` に出力されます。
 
 ```sh
 scripts/generate-missing-system-logos.py
+```
+
+ChatGPT などで作成した 2048x768 のロゴ sheet から、TSV の `system_id` 順に不足ロゴだけを
+切り出す場合は以下を使います。
+
+```sh
+scripts/slice-system-logos-from-sheet.py path/to/sheet.png
 ```
 
 ## `themes.json`

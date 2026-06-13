@@ -17,11 +17,11 @@
 #define PATH_MAX 4096
 #endif
 
-#define MAX_SYSTEMS 96
+#define MAX_SYSTEMS 128
 #define MAX_ALIASES 16
-#define MAX_EXTENSIONS 32
+#define MAX_EXTENSIONS 64
 #define MAX_ARTWORK_LOOKUPS 16
-#define MAX_PROFILES 12
+#define MAX_PROFILES 16
 #define MAX_SCANNED_DIRS 1024
 
 struct alias_def {
@@ -830,7 +830,10 @@ static int load_systems(const char *path, struct system_def *systems, size_t *co
     parse_artwork(obj, obj + strlen(obj), &system);
     parse_launch_profiles(obj, obj + strlen(obj), &system);
 
-    if (system.id[0] && system.alias_count > 0 && system.extension_count > 0) {
+    if (system.id[0] &&
+        ((system.alias_count > 0 && system.extension_count > 0) ||
+         (system.launch_profile_count > 0 && system.default_launch_profile[0] &&
+          system.extension_count == 0))) {
       if (!system.display_name[0]) {
         copy_string(system.display_name, sizeof(system.display_name), system.id);
       }

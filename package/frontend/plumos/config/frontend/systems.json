@@ -10,14 +10,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "FC", "source": "miyoo", "priority": 10, "shared": true },
-        { "name": "nes", "source": "rocknix", "priority": 20 },
-        { "name": "famicom", "source": "rocknix", "priority": 30 }
+        {"name": "FC", "source": "miyoo", "priority": 10, "shared": true},
+        {"name": "nes", "source": "rocknix", "priority": 20},
+        {"name": "famicom", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["nes", "unf", "unif", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/nes" }
+          {"root": "sdcard", "path": "Images/nes"}
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia", "retroarch:quicknes"],
@@ -28,8 +28,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["nes", "unf", "unif", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -41,14 +41,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "FDS", "source": "miyoo", "priority": 10 },
-        { "name": "FC", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "fds", "source": "rocknix", "priority": 30 }
+        {"name": "FDS", "source": "miyoo", "priority": 10},
+        {"name": "FC", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "fds", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["fds", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/fds" }
+          {"root": "sdcard", "path": "Images/fds"}
         ]
       },
       "launch_profiles": ["retroarch:fceumm", "retroarch:nestopia"],
@@ -59,8 +59,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["fds", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -72,17 +72,17 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SFC", "source": "miyoo", "priority": 10 },
-        { "name": "sfc", "source": "rocknix", "priority": 20 },
-        { "name": "snes", "source": "rocknix", "priority": 30 }
+        {"name": "SFC", "source": "miyoo", "priority": 10},
+        {"name": "sfc", "source": "rocknix", "priority": 20},
+        {"name": "snes", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/sfc" }
+          {"root": "sdcard", "path": "Images/sfc"}
         ]
       },
-      "launch_profiles": ["retroarch:snes9x2005", "retroarch:snes9x"],
+      "launch_profiles": ["retroarch:snes9x2005", "retroarch:snes9x", "retroarch:chimerasnes", "retroarch:mednafen_supafaust", "retroarch:snes9x2002", "retroarch:snes9x2005_plus", "retroarch:snes9x2010"],
       "default_launch_profile": "retroarch:snes9x2005",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -90,8 +90,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -103,16 +103,16 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "GB", "source": "miyoo", "priority": 10, "shared": true },
-        { "name": "gb", "source": "rocknix", "priority": 20 }
+        {"name": "GB", "source": "miyoo", "priority": 10, "shared": true},
+        {"name": "gb", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["gb", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/gb" }
+          {"root": "sdcard", "path": "Images/gb"}
         ]
       },
-      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:tgbdual", "retroarch:vbam"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -120,8 +120,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gb", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -133,17 +133,17 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "GBC", "source": "miyoo", "priority": 10 },
-        { "name": "GB", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "gbc", "source": "rocknix", "priority": 30 }
+        {"name": "GBC", "source": "miyoo", "priority": 10},
+        {"name": "GB", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "gbc", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["gbc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/gbc" }
+          {"root": "sdcard", "path": "Images/gbc"}
         ]
       },
-      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba"],
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:tgbdual", "retroarch:vbam"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -151,8 +151,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gbc", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -164,16 +164,16 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "GBA", "source": "miyoo", "priority": 10 },
-        { "name": "gba", "source": "rocknix", "priority": 20 }
+        {"name": "GBA", "source": "miyoo", "priority": 10},
+        {"name": "gba", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["gba", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/gba" }
+          {"root": "sdcard", "path": "Images/gba"}
         ]
       },
-      "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
+      "launch_profiles": ["retroarch:mgba", "retroarch:gpsp", "retroarch:mednafen_gba", "retroarch:meteor", "retroarch:vba_next", "retroarch:vbam"],
       "default_launch_profile": "retroarch:mgba",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -181,8 +181,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gba", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -194,14 +194,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "MD", "source": "miyoo", "priority": 10, "shared": true },
-        { "name": "megadrive", "source": "rocknix", "priority": 20 },
-        { "name": "genesis", "source": "rocknix", "priority": 30 }
+        {"name": "MD", "source": "miyoo", "priority": 10, "shared": true},
+        {"name": "megadrive", "source": "rocknix", "priority": 20},
+        {"name": "genesis", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["gen", "md", "smd", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/megadrive" }
+          {"root": "sdcard", "path": "Images/megadrive"}
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
@@ -212,8 +212,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gen", "md", "smd", "bin", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -225,17 +225,17 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "MS", "source": "miyoo", "priority": 10 },
-        { "name": "MD", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "mastersystem", "source": "rocknix", "priority": 30 }
+        {"name": "MS", "source": "miyoo", "priority": 10},
+        {"name": "MD", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "mastersystem", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["sms", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/mastersystem" }
+          {"root": "sdcard", "path": "Images/mastersystem"}
         ]
       },
-      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive", "retroarch:gearsystem"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -243,8 +243,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sms", "bin", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -256,18 +256,18 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "GG", "source": "miyoo", "priority": 10 },
-        { "name": "GameGear", "source": "miyoo", "priority": 20 },
-        { "name": "MD", "source": "miyoo", "priority": 30, "shared": true },
-        { "name": "gamegear", "source": "rocknix", "priority": 40 }
+        {"name": "GG", "source": "miyoo", "priority": 10},
+        {"name": "GameGear", "source": "miyoo", "priority": 20},
+        {"name": "MD", "source": "miyoo", "priority": 30, "shared": true},
+        {"name": "gamegear", "source": "rocknix", "priority": 40}
       ],
       "extensions": ["gg", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/gamegear" }
+          {"root": "sdcard", "path": "Images/gamegear"}
         ]
       },
-      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive", "retroarch:gearsystem"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -275,8 +275,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gg", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -288,14 +288,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "THIRTYTWOX", "source": "miyoo", "priority": 10 },
-        { "name": "MD", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "sega32x", "source": "rocknix", "priority": 30 }
+        {"name": "THIRTYTWOX", "source": "miyoo", "priority": 10},
+        {"name": "MD", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "sega32x", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["32x", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/sega32x" }
+          {"root": "sdcard", "path": "Images/sega32x"}
         ]
       },
       "launch_profiles": ["retroarch:picodrive"],
@@ -306,8 +306,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["32x", "bin", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -319,21 +319,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SEGACD", "source": "miyoo", "priority": 10 },
-        { "name": "segacd", "source": "rocknix", "priority": 20 },
-        { "name": "megacd", "source": "rocknix", "priority": 30 }
+        {"name": "SEGACD", "source": "miyoo", "priority": 10},
+        {"name": "segacd", "source": "rocknix", "priority": 20},
+        {"name": "megacd", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["cue", "chd", "iso", "m3u", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/segacd" }
+          {"root": "sdcard", "path": "Images/segacd"}
         ]
       },
       "launch_profiles": ["retroarch:genesis_plus_gx", "retroarch:picodrive"],
       "default_launch_profile": "retroarch:genesis_plus_gx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "pcengine",
@@ -344,17 +347,17 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PCE", "source": "miyoo", "priority": 10 },
-        { "name": "pcengine", "source": "rocknix", "priority": 20 },
-        { "name": "tg16", "source": "rocknix", "priority": 30 }
+        {"name": "PCE", "source": "miyoo", "priority": 10},
+        {"name": "pcengine", "source": "rocknix", "priority": 20},
+        {"name": "tg16", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["pce", "sgx", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pcengine" }
+          {"root": "sdcard", "path": "Images/pcengine"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx", "retroarch:mednafen_pce"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -362,8 +365,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["pce", "sgx", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -375,21 +378,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SGX", "source": "miyoo", "priority": 10 },
-        { "name": "PCE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "supergrafx", "source": "rocknix", "priority": 30 }
+        {"name": "SGX", "source": "miyoo", "priority": 10},
+        {"name": "PCE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "supergrafx", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["sgx", "pce", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/supergrafx" }
+          {"root": "sdcard", "path": "Images/supergrafx"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_supergrafx", "retroarch:mednafen_pce_fast"],
+      "launch_profiles": ["retroarch:mednafen_supergrafx", "retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
       "default_launch_profile": "retroarch:mednafen_supergrafx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "pcenginecd",
@@ -400,21 +406,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PCECD", "source": "miyoo", "priority": 10 },
-        { "name": "pcenginecd", "source": "rocknix", "priority": 20 },
-        { "name": "tg16cd", "source": "rocknix", "priority": 30 }
+        {"name": "PCECD", "source": "miyoo", "priority": 10},
+        {"name": "pcenginecd", "source": "rocknix", "priority": 20},
+        {"name": "tg16cd", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["cue", "chd", "iso", "m3u"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pcenginecd" }
+          {"root": "sdcard", "path": "Images/pcenginecd"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "psx",
@@ -425,14 +434,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PS", "source": "miyoo", "priority": 10 },
-        { "name": "PSX", "source": "miyoo", "priority": 20 },
-        { "name": "psx", "source": "rocknix", "priority": 30 }
+        {"name": "PS", "source": "miyoo", "priority": 10},
+        {"name": "PSX", "source": "miyoo", "priority": 20},
+        {"name": "psx", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["cue", "chd", "pbp", "m3u", "iso", "img", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/psx" }
+          {"root": "sdcard", "path": "Images/psx"}
         ]
       },
       "launch_profiles": ["standalone:pcsx_rearmed", "retroarch:pcsx_rearmed"],
@@ -440,7 +449,10 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "default_cpu_cores": 2,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "psp",
@@ -451,14 +463,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PSP", "source": "miyoo", "priority": 10 },
-        { "name": "PPSSPP", "source": "miyoo", "priority": 20 },
-        { "name": "psp", "source": "rocknix", "priority": 30 }
+        {"name": "PSP", "source": "miyoo", "priority": 10},
+        {"name": "PPSSPP", "source": "miyoo", "priority": 20},
+        {"name": "psp", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["iso", "cso", "pbp"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/psp" }
+          {"root": "sdcard", "path": "Images/psp"}
         ]
       },
       "launch_profiles": ["standalone:ppsspp"],
@@ -466,7 +478,10 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "default_cpu_cores": 2,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "n64",
@@ -477,13 +492,13 @@
       "enabled": false,
       "pinned": false,
       "directory_aliases": [
-        { "name": "N64", "source": "miyoo", "priority": 10 },
-        { "name": "n64", "source": "rocknix", "priority": 20 }
+        {"name": "N64", "source": "miyoo", "priority": 10},
+        {"name": "n64", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["z64", "n64", "v64", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/n64" }
+          {"root": "sdcard", "path": "Images/n64"}
         ]
       },
       "launch_profiles": ["retroarch:mupen64plus_next", "retroarch:parallel_n64"],
@@ -494,8 +509,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["z64", "n64", "v64", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -507,20 +522,23 @@
       "enabled": false,
       "pinned": false,
       "directory_aliases": [
-        { "name": "DC", "source": "miyoo", "priority": 10 },
-        { "name": "dreamcast", "source": "rocknix", "priority": 20 }
+        {"name": "DC", "source": "miyoo", "priority": 10},
+        {"name": "dreamcast", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["chd", "cdi", "gdi", "m3u"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/dreamcast" }
+          {"root": "sdcard", "path": "Images/dreamcast"}
         ]
       },
       "launch_profiles": ["retroarch:flycast"],
       "default_launch_profile": "retroarch:flycast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "saturn",
@@ -531,20 +549,23 @@
       "enabled": false,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SATURN", "source": "miyoo", "priority": 10 },
-        { "name": "saturn", "source": "rocknix", "priority": 20 }
+        {"name": "SATURN", "source": "miyoo", "priority": 10},
+        {"name": "saturn", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["cue", "chd", "iso", "m3u", "bin"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/saturn" }
+          {"root": "sdcard", "path": "Images/saturn"}
         ]
       },
       "launch_profiles": ["retroarch:yabasanshiro", "retroarch:beetle_saturn"],
       "default_launch_profile": "retroarch:yabasanshiro",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "neogeo",
@@ -555,20 +576,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "NEOGEO", "source": "miyoo", "priority": 10 },
-        { "name": "neogeo", "source": "rocknix", "priority": 20 }
+        {"name": "NEOGEO", "source": "miyoo", "priority": 10},
+        {"name": "neogeo", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/neogeo" }
+          {"root": "sdcard", "path": "Images/neogeo"}
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus", "retroarch:fbalpha2012", "retroarch:fbalpha2012_neogeo"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "neogeocd",
@@ -579,20 +603,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "NEOCD", "source": "miyoo", "priority": 10 },
-        { "name": "neogeocd", "source": "rocknix", "priority": 20 }
+        {"name": "NEOCD", "source": "miyoo", "priority": 10},
+        {"name": "neogeocd", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["cue", "chd"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/neogeocd" }
+          {"root": "sdcard", "path": "Images/neogeocd"}
         ]
       },
       "launch_profiles": ["retroarch:neocd"],
       "default_launch_profile": "retroarch:neocd",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "cd_media_crc_expensive" }
+      "scraper": {
+        "enabled": false,
+        "reason": "cd_media_crc_expensive"
+      }
     },
     {
       "id": "ngp",
@@ -603,13 +630,13 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "NGP", "source": "miyoo", "priority": 10 },
-        { "name": "ngp", "source": "rocknix", "priority": 20 }
+        {"name": "NGP", "source": "miyoo", "priority": 10},
+        {"name": "ngp", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["ngp", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/ngp" }
+          {"root": "sdcard", "path": "Images/ngp"}
         ]
       },
       "launch_profiles": ["retroarch:mednafen_ngp"],
@@ -620,8 +647,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ngp", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -633,14 +660,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "NGPC", "source": "miyoo", "priority": 10 },
-        { "name": "NGP", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "ngpc", "source": "rocknix", "priority": 30 }
+        {"name": "NGPC", "source": "miyoo", "priority": 10},
+        {"name": "NGP", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "ngpc", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["ngc", "ngpc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/ngpc" }
+          {"root": "sdcard", "path": "Images/ngpc"}
         ]
       },
       "launch_profiles": ["retroarch:mednafen_ngp"],
@@ -651,8 +678,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ngc", "ngpc", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -664,14 +691,14 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "WS", "source": "miyoo", "priority": 10 },
-        { "name": "WSC", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "wonderswan", "source": "rocknix", "priority": 30 }
+        {"name": "WS", "source": "miyoo", "priority": 10},
+        {"name": "WSC", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "wonderswan", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["ws", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/wonderswan" }
+          {"root": "sdcard", "path": "Images/wonderswan"}
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
@@ -682,8 +709,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ws", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -695,13 +722,13 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "WSC", "source": "miyoo", "priority": 10 },
-        { "name": "wonderswancolor", "source": "rocknix", "priority": 20 }
+        {"name": "WSC", "source": "miyoo", "priority": 10},
+        {"name": "wonderswancolor", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["wsc", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/wonderswancolor" }
+          {"root": "sdcard", "path": "Images/wonderswancolor"}
         ]
       },
       "launch_profiles": ["retroarch:mednafen_wswan"],
@@ -712,8 +739,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["wsc", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -725,20 +752,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "LYNX", "source": "miyoo", "priority": 10 },
-        { "name": "lynx", "source": "rocknix", "priority": 20 }
+        {"name": "LYNX", "source": "miyoo", "priority": 10},
+        {"name": "lynx", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["lnx", "lyx", "bll", "o", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/lynx" }
+          {"root": "sdcard", "path": "Images/lynx"}
         ]
       },
       "launch_profiles": ["retroarch:mednafen_lynx", "retroarch:handy"],
       "default_launch_profile": "retroarch:mednafen_lynx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "virtualboy",
@@ -749,20 +779,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "VB", "source": "miyoo", "priority": 10 },
-        { "name": "virtualboy", "source": "rocknix", "priority": 20 }
+        {"name": "VB", "source": "miyoo", "priority": 10},
+        {"name": "virtualboy", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["vb", "vboy", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/virtualboy" }
+          {"root": "sdcard", "path": "Images/virtualboy"}
         ]
       },
       "launch_profiles": ["standalone:red_viper", "retroarch:mednafen_vb"],
       "default_launch_profile": "standalone:red_viper",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "arcade",
@@ -773,20 +806,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "ARCADE", "source": "miyoo", "priority": 10, "shared": true },
-        { "name": "arcade", "source": "rocknix", "priority": 20 }
+        {"name": "ARCADE", "source": "miyoo", "priority": 10, "shared": true},
+        {"name": "arcade", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/arcade" }
+          {"root": "sdcard", "path": "Images/arcade"}
         ]
       },
-      "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo", "retroarch:fbalpha2012"],
+      "launch_profiles": ["retroarch:mame2003_plus", "retroarch:fbneo", "retroarch:fbalpha2012", "retroarch:mame2000"],
       "default_launch_profile": "retroarch:mame2003_plus",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "fbneo",
@@ -797,21 +833,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "FBNEO", "source": "miyoo", "priority": 10 },
-        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "fbneo", "source": "rocknix", "priority": 30 }
+        {"name": "FBNEO", "source": "miyoo", "priority": 10},
+        {"name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "fbneo", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/fbneo" }
+          {"root": "sdcard", "path": "Images/fbneo"}
         ]
       },
       "launch_profiles": ["retroarch:fbneo"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "mame2003plus",
@@ -822,21 +861,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "MAME2003PLUS", "source": "miyoo", "priority": 10 },
-        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "mame", "source": "rocknix", "priority": 30 }
+        {"name": "MAME2003PLUS", "source": "miyoo", "priority": 10},
+        {"name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "mame", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/mame2003plus" }
+          {"root": "sdcard", "path": "Images/mame2003plus"}
         ]
       },
       "launch_profiles": ["retroarch:mame2003_plus"],
       "default_launch_profile": "retroarch:mame2003_plus",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "cps1",
@@ -847,21 +889,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "CPS1", "source": "miyoo", "priority": 10 },
-        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "cps1", "source": "rocknix", "priority": 30 }
+        {"name": "CPS1", "source": "miyoo", "priority": 10},
+        {"name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "cps1", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/cps1" }
+          {"root": "sdcard", "path": "Images/cps1"}
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012", "retroarch:fbalpha2012_cps1"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "cps2",
@@ -872,21 +917,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "CPS2", "source": "miyoo", "priority": 10 },
-        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "cps2", "source": "rocknix", "priority": 30 }
+        {"name": "CPS2", "source": "miyoo", "priority": 10},
+        {"name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "cps2", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/cps2" }
+          {"root": "sdcard", "path": "Images/cps2"}
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012", "retroarch:fbalpha2012_cps2"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "cps3",
@@ -897,21 +945,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "CPS3", "source": "miyoo", "priority": 10 },
-        { "name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true },
-        { "name": "cps3", "source": "rocknix", "priority": 30 }
+        {"name": "CPS3", "source": "miyoo", "priority": 10},
+        {"name": "ARCADE", "source": "miyoo", "priority": 20, "shared": true},
+        {"name": "cps3", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/cps3" }
+          {"root": "sdcard", "path": "Images/cps3"}
         ]
       },
       "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "arcade_romset_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "arcade_romset_policy_pending"
+      }
     },
     {
       "id": "dos",
@@ -922,20 +973,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "DOS", "source": "miyoo", "priority": 10 },
-        { "name": "pc", "source": "rocknix", "priority": 20 }
+        {"name": "DOS", "source": "miyoo", "priority": 10},
+        {"name": "pc", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["dosz", "conf", "exe", "bat", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/dos" }
+          {"root": "sdcard", "path": "Images/dos"}
         ]
       },
       "launch_profiles": ["retroarch:dosbox_pure"],
       "default_launch_profile": "retroarch:dosbox_pure",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "easyrpg",
@@ -946,21 +1000,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "EASYRPG", "source": "miyoo", "priority": 10 },
-        { "name": "easyrpg", "source": "rocknix", "priority": 20 }
+        {"name": "EASYRPG", "source": "miyoo", "priority": 10},
+        {"name": "easyrpg", "source": "rocknix", "priority": 20}
       ],
       "scan_directories": true,
       "extensions": ["easyrpg", "ldb", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/easyrpg" }
+          {"root": "sdcard", "path": "Images/easyrpg"}
         ]
       },
       "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
       "default_launch_profile": "standalone:easyrpg",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "pico8",
@@ -971,21 +1028,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PICO8", "source": "miyoo", "priority": 10 },
-        { "name": "PICO", "source": "miyoo", "priority": 20 },
-        { "name": "pico-8", "source": "rocknix", "priority": 30 }
+        {"name": "PICO8", "source": "miyoo", "priority": 10},
+        {"name": "PICO", "source": "miyoo", "priority": 20},
+        {"name": "pico-8", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["p8", "png"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pico8" }
+          {"root": "sdcard", "path": "Images/pico8"}
         ]
       },
       "launch_profiles": ["retroarch:retro8", "retroarch:fake08"],
       "default_launch_profile": "retroarch:retro8",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "scummvm",
@@ -996,21 +1056,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SCUMMVM", "source": "miyoo", "priority": 10 },
-        { "name": "scummvm", "source": "rocknix", "priority": 20 }
+        {"name": "SCUMMVM", "source": "miyoo", "priority": 10},
+        {"name": "scummvm", "source": "rocknix", "priority": 20}
       ],
       "scan_directories": true,
       "extensions": ["scummvm", "svm"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/scummvm" }
+          {"root": "sdcard", "path": "Images/scummvm"}
         ]
       },
       "launch_profiles": ["standalone:scummvm", "retroarch:scummvm"],
       "default_launch_profile": "standalone:scummvm",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "openbor",
@@ -1021,18 +1084,21 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "OPENBOR", "source": "miyoo", "priority": 10 },
-        { "name": "openbor", "source": "rocknix", "priority": 20 }
+        {"name": "OPENBOR", "source": "miyoo", "priority": 10},
+        {"name": "openbor", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["pak"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/openbor" }
+          {"root": "sdcard", "path": "Images/openbor"}
         ]
       },
       "launch_profiles": ["external:openbor"],
       "default_launch_profile": "external:openbor",
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "ports",
@@ -1043,19 +1109,22 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PORTS", "source": "miyoo", "priority": 10 },
-        { "name": "A30PORTS", "source": "miyoo", "priority": 20 },
-        { "name": "ports", "source": "rocknix", "priority": 30 }
+        {"name": "PORTS", "source": "miyoo", "priority": 10},
+        {"name": "A30PORTS", "source": "miyoo", "priority": 20},
+        {"name": "ports", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["sh"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/ports" }
+          {"root": "sdcard", "path": "Images/ports"}
         ]
       },
       "launch_profiles": ["external:port"],
       "default_launch_profile": "external:port",
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "msx",
@@ -1066,13 +1135,13 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "MSX", "source": "miyoo", "priority": 10 },
-        { "name": "msx", "source": "rocknix", "priority": 20 }
+        {"name": "MSX", "source": "miyoo", "priority": 10},
+        {"name": "msx", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["rom", "mx1", "mx2", "dsk", "cas", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/msx" }
+          {"root": "sdcard", "path": "Images/msx"}
         ]
       },
       "launch_profiles": ["retroarch:bluemsx", "retroarch:fmsx"],
@@ -1083,8 +1152,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["rom", "mx1", "mx2", "zip"],
-        "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-        "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1096,20 +1165,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PC88", "source": "miyoo", "priority": 10 },
-        { "name": "pc-8800", "source": "rocknix", "priority": 20 }
+        {"name": "PC88", "source": "miyoo", "priority": 10},
+        {"name": "pc-8800", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["d88", "u88", "m3u", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pc88" }
+          {"root": "sdcard", "path": "Images/pc88"}
         ]
       },
       "launch_profiles": ["retroarch:quasi88"],
       "default_launch_profile": "retroarch:quasi88",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "pc_disk_image_policy_pending"
+      }
     },
     {
       "id": "pc98",
@@ -1120,20 +1192,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "PC98", "source": "miyoo", "priority": 10 },
-        { "name": "pc-9800", "source": "rocknix", "priority": 20 }
+        {"name": "PC98", "source": "miyoo", "priority": 10},
+        {"name": "pc-9800", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["d88", "fdi", "hdi", "fdd", "nhd", "hdd", "m3u", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pc98" }
+          {"root": "sdcard", "path": "Images/pc98"}
         ]
       },
-      "launch_profiles": ["retroarch:np2kai"],
+      "launch_profiles": ["retroarch:np2kai", "retroarch:nekop2"],
       "default_launch_profile": "retroarch:np2kai",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "pc_disk_image_policy_pending"
+      }
     },
     {
       "id": "x68000",
@@ -1144,20 +1219,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "X68000", "source": "miyoo", "priority": 10 },
-        { "name": "x68000", "source": "rocknix", "priority": 20 }
+        {"name": "X68000", "source": "miyoo", "priority": 10},
+        {"name": "x68000", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["dim", "hdf", "xdf", "m3u", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/x68000" }
+          {"root": "sdcard", "path": "Images/x68000"}
         ]
       },
       "launch_profiles": ["retroarch:px68k"],
       "default_launch_profile": "retroarch:px68k",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "pc_disk_image_policy_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "pc_disk_image_policy_pending"
+      }
     },
     {
       "id": "tic80",
@@ -1168,20 +1246,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "TIC", "source": "miyoo", "priority": 10 },
-        { "name": "tic-80", "source": "rocknix", "priority": 20 }
+        {"name": "TIC", "source": "miyoo", "priority": 10},
+        {"name": "tic-80", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["tic"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/tic80" }
+          {"root": "sdcard", "path": "Images/tic80"}
         ]
       },
       "launch_profiles": ["retroarch:tic80"],
       "default_launch_profile": "retroarch:tic80",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
     },
     {
       "id": "atari2600",
@@ -1192,20 +1273,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "ATARI2600", "source": "miyoo", "priority": 10 },
-        { "name": "atari2600", "source": "rocknix", "priority": 20 }
+        {"name": "ATARI2600", "source": "miyoo", "priority": 10},
+        {"name": "atari2600", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["a26", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/atari2600" }
+          {"root": "sdcard", "path": "Images/atari2600"}
         ]
       },
       "launch_profiles": ["retroarch:stella2014"],
       "default_launch_profile": "retroarch:stella2014",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "atari7800",
@@ -1216,20 +1300,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "ATARI7800", "source": "miyoo", "priority": 10 },
-        { "name": "atari7800", "source": "rocknix", "priority": 20 }
+        {"name": "ATARI7800", "source": "miyoo", "priority": 10},
+        {"name": "atari7800", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["a78", "bin", "cdf", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/atari7800" }
+          {"root": "sdcard", "path": "Images/atari7800"}
         ]
       },
       "launch_profiles": ["retroarch:prosystem"],
       "default_launch_profile": "retroarch:prosystem",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "vectrex",
@@ -1240,20 +1327,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "VECTREX", "source": "miyoo", "priority": 10 },
-        { "name": "vectrex", "source": "rocknix", "priority": 20 }
+        {"name": "VECTREX", "source": "miyoo", "priority": 10},
+        {"name": "vectrex", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["vec", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/vectrex" }
+          {"root": "sdcard", "path": "Images/vectrex"}
         ]
       },
       "launch_profiles": ["retroarch:vecx"],
       "default_launch_profile": "retroarch:vecx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "supervision",
@@ -1264,20 +1354,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "SUPERVISION", "source": "miyoo", "priority": 10 },
-        { "name": "supervision", "source": "rocknix", "priority": 20 }
+        {"name": "SUPERVISION", "source": "miyoo", "priority": 10},
+        {"name": "supervision", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["sv", "bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/supervision" }
+          {"root": "sdcard", "path": "Images/supervision"}
         ]
       },
       "launch_profiles": ["retroarch:potator"],
       "default_launch_profile": "retroarch:potator",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "odyssey2",
@@ -1288,21 +1381,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "ODYSSEY2", "source": "miyoo", "priority": 10 },
-        { "name": "VIDEOPAC", "source": "miyoo", "priority": 20 },
-        { "name": "odyssey2", "source": "rocknix", "priority": 30 }
+        {"name": "ODYSSEY2", "source": "miyoo", "priority": 10},
+        {"name": "VIDEOPAC", "source": "miyoo", "priority": 20},
+        {"name": "odyssey2", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["bin", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/odyssey2" }
+          {"root": "sdcard", "path": "Images/odyssey2"}
         ]
       },
       "launch_profiles": ["retroarch:o2em"],
       "default_launch_profile": "retroarch:o2em",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "gameandwatch",
@@ -1313,21 +1409,24 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "GW", "source": "miyoo", "priority": 10 },
-        { "name": "GAMEANDWATCH", "source": "miyoo", "priority": 20 },
-        { "name": "gameandwatch", "source": "rocknix", "priority": 30 }
+        {"name": "GW", "source": "miyoo", "priority": 10},
+        {"name": "GAMEANDWATCH", "source": "miyoo", "priority": 20},
+        {"name": "gameandwatch", "source": "rocknix", "priority": 30}
       ],
       "extensions": ["mgw", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/gameandwatch" }
+          {"root": "sdcard", "path": "Images/gameandwatch"}
         ]
       },
       "launch_profiles": ["retroarch:gw"],
       "default_launch_profile": "retroarch:gw",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "pokemini",
@@ -1338,20 +1437,23 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "POKEMINI", "source": "miyoo", "priority": 10 },
-        { "name": "pokemini", "source": "rocknix", "priority": 20 }
+        {"name": "POKEMINI", "source": "miyoo", "priority": 10},
+        {"name": "pokemini", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["min", "zip", "7z"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/pokemini" }
+          {"root": "sdcard", "path": "Images/pokemini"}
         ]
       },
       "launch_profiles": ["retroarch:pokemini"],
       "default_launch_profile": "retroarch:pokemini",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "scraper_source_pending" }
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     },
     {
       "id": "doom",
@@ -1362,20 +1464,1037 @@
       "enabled": true,
       "pinned": false,
       "directory_aliases": [
-        { "name": "DOOM", "source": "miyoo", "priority": 10 },
-        { "name": "doom", "source": "rocknix", "priority": 20 }
+        {"name": "DOOM", "source": "miyoo", "priority": 10},
+        {"name": "doom", "source": "rocknix", "priority": 20}
       ],
       "extensions": ["wad", "iwad", "pwad", "zip"],
       "artwork": {
         "lookup": [
-          { "root": "sdcard", "path": "Images/doom" }
+          {"root": "sdcard", "path": "Images/doom"}
         ]
       },
       "launch_profiles": ["retroarch:prboom"],
       "default_launch_profile": "retroarch:prboom",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
-      "scraper": { "enabled": false, "reason": "not_single_rom_crc" }
+      "scraper": {
+        "enabled": false,
+        "reason": "not_single_rom_crc"
+      }
+    },
+    {
+      "id": "2048",
+      "display_name": "2048",
+      "short_name": "2048",
+      "sort_order": 490,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": true,
+      "directory_aliases": [
+        {"name": "2048", "source": "plumos", "priority": 10}
+      ],
+      "extensions": [],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/2048"}
+        ]
+      },
+      "launch_profiles": ["retroarch:2048"],
+      "default_launch_profile": "retroarch:2048",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "contentless_core"
+      }
+    },
+    {
+      "id": "3do",
+      "display_name": "3DO",
+      "short_name": "3DO",
+      "sort_order": 500,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "PANASONIC", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["iso", "chd", "bin", "cue"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/3do"}
+        ]
+      },
+      "launch_profiles": ["retroarch:opera"],
+      "default_launch_profile": "retroarch:opera",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "amiga",
+      "display_name": "Amiga",
+      "short_name": "Amiga",
+      "sort_order": 510,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "AMIGA", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["adf", "adz", "dms", "fdi", "ipf", "hdf", "hdz", "lha", "slave", "info", "cue", "ccd", "nrg", "mds", "iso", "chd", "uae", "m3u", "zip", "7z", "rp9"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/amiga"}
+        ]
+      },
+      "launch_profiles": ["retroarch:puae"],
+      "default_launch_profile": "retroarch:puae",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "atari5200",
+      "display_name": "Atari 5200",
+      "short_name": "A5200",
+      "sort_order": 520,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "FIFTYTWOHUNDRED", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["a52", "bin", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/atari5200"}
+        ]
+      },
+      "launch_profiles": ["retroarch:atari800"],
+      "default_launch_profile": "retroarch:atari800",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "atari800",
+      "display_name": "Atari 8-bit",
+      "short_name": "A800",
+      "sort_order": 530,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "EIGHTHUNDRED", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["atr", "xfd", "dcm", "cas", "bin", "atx", "car", "rom", "com", "xex", "m3u", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/atari800"}
+        ]
+      },
+      "launch_profiles": ["retroarch:atari800"],
+      "default_launch_profile": "retroarch:atari800",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "atarist",
+      "display_name": "Atari ST",
+      "short_name": "ST",
+      "sort_order": 540,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "ATARIST", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["st", "msa", "zip", "stx", "dim", "ipf", "vhd", "gem", "ide", "m3u"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/atarist"}
+        ]
+      },
+      "launch_profiles": ["retroarch:hatari"],
+      "default_launch_profile": "retroarch:hatari",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "bk",
+      "display_name": "Elektronika BK",
+      "short_name": "BK",
+      "sort_order": 550,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "BK", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["bin"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/bk"}
+        ]
+      },
+      "launch_profiles": ["retroarch:bk"],
+      "default_launch_profile": "retroarch:bk",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "c64",
+      "display_name": "Commodore 64",
+      "short_name": "C64",
+      "sort_order": 560,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "COMMODORE", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["d64", "d71", "d80", "d81", "d82", "g64", "g41", "x64", "t64", "tap", "prg", "p00", "crt", "bin", "zip", "gz", "m3u"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/c64"}
+        ]
+      },
+      "launch_profiles": ["retroarch:frodo", "retroarch:vice_x64"],
+      "default_launch_profile": "retroarch:vice_x64",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "cannonball",
+      "display_name": "Cannonball",
+      "short_name": "OutRun",
+      "sort_order": 570,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "CANNONBALL", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["game", "88"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/cannonball"}
+        ]
+      },
+      "launch_profiles": ["retroarch:cannonball"],
+      "default_launch_profile": "retroarch:cannonball",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "cavestory",
+      "display_name": "Cave Story",
+      "short_name": "Cave",
+      "sort_order": 580,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "CAVESTORY", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["exe"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/cavestory"}
+        ]
+      },
+      "launch_profiles": ["retroarch:nxengine"],
+      "default_launch_profile": "retroarch:nxengine",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "chailove",
+      "display_name": "ChaiLove",
+      "short_name": "Chai",
+      "sort_order": 590,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "CHAILOVE", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["chai", "chailove"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/chailove"}
+        ]
+      },
+      "launch_profiles": ["retroarch:chailove"],
+      "default_launch_profile": "retroarch:chailove",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "channelf",
+      "display_name": "Fairchild Channel F",
+      "short_name": "ChF",
+      "sort_order": 600,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "FAIRCHILD", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["bin", "chf", "rom", "zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/channelf"}
+        ]
+      },
+      "launch_profiles": ["retroarch:freechaf"],
+      "default_launch_profile": "retroarch:freechaf",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "colecovision",
+      "display_name": "ColecoVision",
+      "short_name": "Coleco",
+      "sort_order": 610,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "COLECO", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["rom", "ri", "mx1", "mx2", "col", "dsk", "cas", "sg", "sc", "m3u", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/colecovision"}
+        ]
+      },
+      "launch_profiles": ["retroarch:bluemsx"],
+      "default_launch_profile": "retroarch:bluemsx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "cpc",
+      "display_name": "Amstrad CPC",
+      "short_name": "CPC",
+      "sort_order": 620,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "CPC", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["dsk", "sna", "zip", "tap", "cdt", "voc", "cpr", "m3u", "kcr"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/cpc"}
+        ]
+      },
+      "launch_profiles": ["retroarch:cap32", "retroarch:crocods"],
+      "default_launch_profile": "retroarch:crocods",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "daphne",
+      "display_name": "Daphne",
+      "short_name": "Daphne",
+      "sort_order": 630,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "DAPHNE", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/daphne"}
+        ]
+      },
+      "launch_profiles": ["retroarch:daphne"],
+      "default_launch_profile": "retroarch:daphne",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "dinothawr",
+      "display_name": "Dinothawr",
+      "short_name": "Dino",
+      "sort_order": 640,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "DINOTHAWR", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["game"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/dinothawr"}
+        ]
+      },
+      "launch_profiles": ["retroarch:dinothawr"],
+      "default_launch_profile": "retroarch:dinothawr",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "flashback",
+      "display_name": "Flashback",
+      "short_name": "Flashback",
+      "sort_order": 650,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "FLASHBACK", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["map", "aba", "seq", "lev"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/flashback"}
+        ]
+      },
+      "launch_profiles": ["retroarch:reminiscence"],
+      "default_launch_profile": "retroarch:reminiscence",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "intellivision",
+      "display_name": "Intellivision",
+      "short_name": "INTV",
+      "sort_order": 660,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "INTELLIVISION", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["int", "bin", "rom", "zip", "7z"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/intellivision"}
+        ]
+      },
+      "launch_profiles": ["retroarch:freeintv"],
+      "default_launch_profile": "retroarch:freeintv",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "j2me",
+      "display_name": "Java ME",
+      "short_name": "J2ME",
+      "sort_order": 670,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "J2ME", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["jar", "sqc", "jam", "jad", "kjx", "adf", "sec", "sto", "sp", "sp0", "sp1", "sp2", "sp3", "sp4", "sp5", "sp6", "sp7", "sp8", "sp9"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/j2me"}
+        ]
+      },
+      "launch_profiles": ["retroarch:squirreljme"],
+      "default_launch_profile": "retroarch:squirreljme",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "frontend_policy_pending"
+      }
+    },
+    {
+      "id": "jaguar",
+      "display_name": "Atari Jaguar",
+      "short_name": "Jaguar",
+      "sort_order": 680,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "JAGUAR", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["j64", "jag", "rom", "abs", "cof", "bin", "prg"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/jaguar"}
+        ]
+      },
+      "launch_profiles": ["retroarch:virtualjaguar"],
+      "default_launch_profile": "retroarch:virtualjaguar",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "lowresnx",
+      "display_name": "LowRes NX",
+      "short_name": "LowRes NX",
+      "sort_order": 690,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "LOWRESNX", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["nx"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/lowresnx"}
+        ]
+      },
+      "launch_profiles": ["retroarch:lowresnx"],
+      "default_launch_profile": "retroarch:lowresnx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "lutro",
+      "display_name": "Lutro",
+      "short_name": "Lutro",
+      "sort_order": 700,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "LUTRO", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["lutro", "love", "lua"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/lutro"}
+        ]
+      },
+      "launch_profiles": ["retroarch:lutro"],
+      "default_launch_profile": "retroarch:lutro",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "microw8",
+      "display_name": "MicroW8",
+      "short_name": "MicroW8",
+      "sort_order": 710,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "MICROW8", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["uw8", "wasm"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/microw8"}
+        ]
+      },
+      "launch_profiles": ["retroarch:uw8"],
+      "default_launch_profile": "retroarch:uw8",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "mrboom",
+      "display_name": "Mr.Boom",
+      "short_name": "Mr.Boom",
+      "sort_order": 720,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "MRBOOM", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["desktop"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/mrboom"}
+        ]
+      },
+      "launch_profiles": ["retroarch:mrboom"],
+      "default_launch_profile": "retroarch:mrboom",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "music",
+      "display_name": "Game Music Emu",
+      "short_name": "Music",
+      "sort_order": 730,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "MUSIC", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["ay", "gbs", "gym", "hes", "kss", "nsf", "nsfe", "sap", "spc", "vgm", "vgz", "zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/music"}
+        ]
+      },
+      "launch_profiles": ["retroarch:gme"],
+      "default_launch_profile": "retroarch:gme",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "frontend_policy_pending"
+      }
+    },
+    {
+      "id": "palm",
+      "display_name": "Palm OS",
+      "short_name": "Palm",
+      "sort_order": 740,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "PALM", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["prc", "pqa", "img", "pdb", "zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/palm"}
+        ]
+      },
+      "launch_profiles": ["retroarch:mu"],
+      "default_launch_profile": "retroarch:mu",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "frontend_policy_pending"
+      }
+    },
+    {
+      "id": "pcfx",
+      "display_name": "PC-FX",
+      "short_name": "PC-FX",
+      "sort_order": 750,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "PCFX", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["cue", "ccd", "toc", "chd", "zip", "bin"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/pcfx"}
+        ]
+      },
+      "launch_profiles": ["retroarch:mednafen_pcfx"],
+      "default_launch_profile": "retroarch:mednafen_pcfx",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "quake",
+      "display_name": "Quake",
+      "short_name": "Quake",
+      "sort_order": 760,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "QUAKE", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["pak"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/quake"}
+        ]
+      },
+      "launch_profiles": ["retroarch:tyrquake"],
+      "default_launch_profile": "retroarch:tyrquake",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "rickdangerous",
+      "display_name": "Rick Dangerous",
+      "short_name": "XRick",
+      "sort_order": 770,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "XRICK", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/rickdangerous"}
+        ]
+      },
+      "launch_profiles": ["retroarch:xrick"],
+      "default_launch_profile": "retroarch:xrick",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "sg1000",
+      "display_name": "SG-1000",
+      "short_name": "SG-1000",
+      "sort_order": 780,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "SEGASGONE", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["sg", "mv", "bin", "rom", "sms", "gg"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/sg1000"}
+        ]
+      },
+      "launch_profiles": ["retroarch:bluemsx", "retroarch:gearsystem", "retroarch:genesis_plus_gx", "retroarch:picodrive"],
+      "default_launch_profile": "retroarch:gearsystem",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "sharpx1",
+      "display_name": "Sharp X1",
+      "short_name": "X1",
+      "sort_order": 790,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "XONE", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["dx1", "zip", "2d", "2hd", "tfd", "d88", "88d", "hdm", "xdf", "dup", "tap", "cmd"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/sharpx1"}
+        ]
+      },
+      "launch_profiles": ["retroarch:x1"],
+      "default_launch_profile": "retroarch:x1",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "thomson",
+      "display_name": "Thomson MO/TO",
+      "short_name": "Thomson",
+      "sort_order": 800,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "THOMSON", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["fd", "sap", "k7", "m7", "m5", "rom"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/thomson"}
+        ]
+      },
+      "launch_profiles": ["retroarch:theodore"],
+      "default_launch_profile": "retroarch:theodore",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "ti83",
+      "display_name": "TI-83",
+      "short_name": "TI-83",
+      "sort_order": 810,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "TI83", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["8xp", "8xk", "8xg"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/ti83"}
+        ]
+      },
+      "launch_profiles": ["retroarch:numero"],
+      "default_launch_profile": "retroarch:numero",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "frontend_policy_pending"
+      }
+    },
+    {
+      "id": "uzebox",
+      "display_name": "Uzebox",
+      "short_name": "Uzebox",
+      "sort_order": 820,
+      "hardware": "console",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "UZEBOX", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["uze"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/uzebox"}
+        ]
+      },
+      "launch_profiles": ["retroarch:uzem"],
+      "default_launch_profile": "retroarch:uzem",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "vic20",
+      "display_name": "Commodore VIC-20",
+      "short_name": "VIC-20",
+      "sort_order": 830,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "VIC20", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["d64", "d6z", "d71", "d7z", "d80", "d81", "d82", "d8z", "g64", "g6z", "g41", "g4z", "x64", "x6z", "nib", "nbz", "d2m", "d4m", "t64", "tap", "tcrt", "prg", "p00", "crt", "bin", "cmd", "m3u", "vfl", "vsf", "zip", "7z", "gz", "20", "40", "60", "a0", "b0", "rom"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/vic20"}
+        ]
+      },
+      "launch_profiles": ["retroarch:vice_xvic"],
+      "default_launch_profile": "retroarch:vice_xvic",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "vmu",
+      "display_name": "Dreamcast VMU",
+      "short_name": "VMU",
+      "sort_order": 840,
+      "hardware": "portable",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "VMU", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["vms", "dci", "bin"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/vmu"}
+        ]
+      },
+      "launch_profiles": ["retroarch:vemulator"],
+      "default_launch_profile": "retroarch:vemulator",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "frontend_policy_pending"
+      }
+    },
+    {
+      "id": "wolf3d",
+      "display_name": "Wolfenstein 3D",
+      "short_name": "Wolf3D",
+      "sort_order": 850,
+      "hardware": "engine",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "WOLF3D", "source": "plumos", "priority": 10}
+      ],
+      "extensions": ["wl6", "n3d", "sod", "sdm", "wl1", "pk3", "exe"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/wolf3d"}
+        ]
+      },
+      "launch_profiles": ["retroarch:ecwolf"],
+      "default_launch_profile": "retroarch:ecwolf",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "data_layout_policy_pending"
+      }
+    },
+    {
+      "id": "zx81",
+      "display_name": "ZX-81",
+      "short_name": "ZX-81",
+      "sort_order": 860,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "ZXEIGHTYONE", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["p", "tzx", "t81", "zip"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/zx81"}
+        ]
+      },
+      "launch_profiles": ["retroarch:81"],
+      "default_launch_profile": "retroarch:81",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
+    },
+    {
+      "id": "zxspectrum",
+      "display_name": "ZX Spectrum",
+      "short_name": "Spectrum",
+      "sort_order": 870,
+      "hardware": "computer",
+      "enabled": true,
+      "pinned": false,
+      "directory_aliases": [
+        {"name": "ZXS", "source": "onion", "priority": 10}
+      ],
+      "extensions": ["tzx", "tap", "z80", "rzx", "scl", "trd", "dsk", "dck", "sna", "szx", "zip", "gz", "udi", "mgt", "img"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/zxspectrum"}
+        ]
+      },
+      "launch_profiles": ["retroarch:fuse"],
+      "default_launch_profile": "retroarch:fuse",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 648000,
+      "scraper": {
+        "enabled": false,
+        "reason": "scraper_source_pending"
+      }
     }
   ]
 }

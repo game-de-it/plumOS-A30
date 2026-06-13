@@ -71,17 +71,25 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-As of 2026-06-12, the default theme family has 49 target systems and 2 virtual
-TOP logos, for 51 required logos total. All required logos are present.
+As of 2026-06-13, the default theme family has 88 target systems and 2 virtual
+TOP logos, for 90 required logos total. All required logos are present.
 `dreamcast`, `n64`, and `saturn` are excluded from required logos because they
 are `enabled:false`, but their older seed logos may remain as optional assets.
 
-Use this script to regenerate the filled-in and virtual TOP logos. It writes to
-each `logos/systems/` directory under `default`, `default-horizontal`, and
-`default-vertical`.
+Use this script to regenerate hand-drawn fallback and virtual TOP logos. It
+writes to each `logos/systems/` directory under `default`, `default-horizontal`,
+and `default-vertical`.
 
 ```sh
 scripts/generate-missing-system-logos.py
+```
+
+Use this script to slice only missing logos from a 2048x768 logo sheet generated
+with ChatGPT or a similar tool. The sheet order must match the TSV `system_id`
+order.
+
+```sh
+scripts/slice-system-logos-from-sheet.py path/to/sheet.png
 ```
 
 ## `themes.json`
