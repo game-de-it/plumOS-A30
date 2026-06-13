@@ -854,16 +854,19 @@ stop_joystickd() {
   if [ -n "$JOY_PID" ]; then
     kill_pid_quick "$JOY_PID"
   fi
+  set +e
   for f in /proc/[0-9]*/cmdline; do
     [ -r "$f" ] || continue
     pid=${f#/proc/}
     pid=${pid%/cmdline}
     [ "$pid" = "$$" ] && continue
-    cmd=$(tr '\0' ' ' <"$f" 2>/dev/null || true)
+    cmd=$(cat "$f" 2>/dev/null | tr '\0' ' ')
+    [ -n "$cmd" ] || continue
     case "$cmd" in
       *"$JOY --device-mode xbox"*) kill_pid_quick "$pid" ;;
     esac
   done
+  set -e
   JOY_PID=""
 }
 
