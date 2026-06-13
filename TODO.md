@@ -110,6 +110,7 @@
 - [x] SELECT+B menu、SELECT+START quit、FE 復帰時の input drain/cooldown を実装する。
 - [x] `fceumm` と `gambatte` を build/deploy し、NES/GB の実画面確認を行う。
 - [x] Class A/B libretro core を A30 armv7 hard-float 向けに build する。
+- [x] Virtual Boy の `mednafen_vb` を Onion 由来 commit に pin し、Bad Apple の実動作を確認する。
 - [x] PPSSPP standalone の表示、入力、menu hotkey、config defaults、joystickd 起動を固める。
 - [x] ScummVM、EasyRPG Player、PCSX-ReARMed、DOSBox-Pure の起動方針を固める。
 - [x] standalone DOSBox Staging を通常配布対象から外し、DOSBox-Pure を DOS 標準候補にする。
@@ -120,7 +121,7 @@
 - [ ] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
 - [ ] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用に Red Viper standalone の fbdev 表示、A30 input mapping、終了 cleanup、FE profile を実装/検証する。
-- [ ] Red Viper standalone の 7z 展開、物理ボタン実操作を検証する。
+- [ ] Red Viper standalone の StockOS 由来描画経路で画面向き/fit、7z 展開、物理ボタン実操作、FE cleanup を検証/修正する。
 - [ ] PPSSPP config/controls の backup、restore、factory reset 機能を実装する。
 - [ ] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。
 - [ ] `--config` と override config で system/core ごとの差分を管理する。

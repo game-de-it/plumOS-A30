@@ -5,6 +5,12 @@ This document inventories settings for the Virtual Boy standalone
 backend can apply them, while clearly separating immediate settings,
 next-launch settings, and upstream settings that still need an A30 backend.
 
+As of 2026-06-13, the standard Virtual Boy profile is the optimized
+`retroarch:mednafen_vb` core. Red Viper standalone is being moved to a
+StockOS-derived SDL2 `mali` + GLES2 rendering path, but screen orientation is
+still wrong. Treat it as an experimental profile until orientation, fit,
+menu/input, and FE cleanup are integrated.
+
 ## A30 In-Game Menu
 
 Press Function (`KEY_ESC`) while `red-viper-a30` is running to open the A30 menu.
@@ -67,7 +73,7 @@ connects the settings that have a meaningful A30 backend first.
 | --- | --- | --- |
 | Video/stereo | `DSPMODE`, `DSPSWAP`, `DSP2X`, `SLIDERMODE`, `DEFAULT_EYE`, `ANAGLYPH`, `ANAGLYPH_LEFT`, `ANAGLYPH_RIGHT`, `ANAGLYPH_DEPTH` | The A30 has one framebuffer, so `Eye` and `Color` are connected first. Anaglyph/depth need extra A30 renderer work. |
 | Color/palette | `MULTICOL`, `TINT`, `MULTIID`, `MTINT`, `STINT`, `PALMODE`, `FIXPAL`, `BFACTOR` | The menu currently exposes mono tint and arbitrary RGB. A multicolor palette editor is future work. |
-| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | The current standard A30 backend runs `RM_CPUONLY`. A 2026-06-13 stock SDL2 `mali` + GLES2 experiment can look close to 50fps in light Bad Apple scenes, but the 120 second run averaged 35.18fps and bottomed at 14.49fps. It remains an A30 HW backend candidate, but does not solve Bad Apple's peak load. Framebuffer vsync is exposed as `Wait Vsync`. |
+| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | The fbdev A30 backend runs `RM_CPUONLY`. A 2026-06-13 stock SDL2 `mali` + GLES2 experiment can look close to 50fps in light Bad Apple scenes, but the 120 second run averaged 35.18fps and bottomed at 14.49fps. The current StockOS-derived rendering path still has wrong screen orientation. It remains an A30 HW backend candidate, but it is not the standard profile. Framebuffer vsync is exposed as `Wait Vsync`. |
 | Performance | `MAXCYCLES`, `FRMSKIP`, `FASTFORWARD`, `FF_TOGGLE`, `N3DS_SPEEDUP`, `VIP_OVERCLOCK`, `VIP_OVER_SOFT`, `ANTIFLICKER`, `PERF_INFO` | `FRMSKIP`, fast-forward, and `VIP_OVERCLOCK` are connected. `N3DS_SPEEDUP` and `ANTIFLICKER` need A30 effect checks. |
 | Audio | `SOUND` | The A30 ALSA backend exposes sound, latency, prebuffer, queue, and gap-fill settings. |
 | Input | `ABXY_MODE`, `ZLZR_MODE`, `DPAD_MODE`, `CUSTOM_CONTROLS`, `CUSTOM_MAPPING_*`, `CUSTOM_MOD`, `INPUTS` | A30 physical mapping is currently implemented in the wrapper. User remap UI is future work. |
@@ -80,7 +86,7 @@ connects the settings that have a meaningful A30 backend first.
 - Settings that affect the A30 backend are exposed through menu/env.
 - Settings that are only safe at launch are saved and applied on the next run.
 - 3DS-only settings are not silently hidden; they remain inventoried as backend gaps.
-- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed a partial A30 benefit, but Bad Apple's 120 second load still averaged only 35.18fps, and menu/input/FE cleanup/screen rotation are not integrated yet, so it is not exposed as a user setting.
+- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed a partial A30 benefit, but Bad Apple's 120 second load still averaged only 35.18fps, and the current StockOS-derived rendering path still has wrong orientation. Do not expose it as a user setting until menu/input/FE cleanup/screen rotation are integrated.
 
 ## Reading Perf Info
 
