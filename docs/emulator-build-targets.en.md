@@ -100,6 +100,24 @@ targets such as `platform=unix`. It still retries the same condition with a
 lower `JOBS` value because that does not change the optimization contract of the
 output.
 
+The follow-up 2026-06-13 pass fixed the remaining 14 cores by root cause.
+`tic80` and `dosbox_pure` had moved their upstream default branch to `main`, so
+their recipe refs were updated. `dinothawr`, `freeintv`, `mrboom`, and
+`tgbdual` now use `classic_armv7_a7`; `ecwolf`, `frodo`, `nekop2`, and `uzem`
+use `unix-armv7-hardfloat-neon`; and `x1` uses `crosspi` so each Makefile enters
+its intended ARM optimized branch explicitly. `lutro` uses
+`platform=armv7-hardfloat-neon` plus a minimal Lua Makefile patch so
+`AR=ar rcu` does not conflict with the command-line `AR` override.
+`squirreljme` moved its libretro frontend from `ratufacoat` to the `nanocoat`
+CMake target, so it is now a special builder. Current mGBA HEAD needs a minimal
+libretro CMake build with scripting/docgen/LTO disabled and generated
+`version.c` plus duplicate POSIX `memory.c` removed from the source list.
+These 14 cores were verified with
+`PLUMOS_CORE_FILTER=mgba,tic80,dosbox_pure,dinothawr,ecwolf,freeintv,frodo,lutro,mrboom,nekop2,squirreljme,tgbdual,uzem,x1 FAIL_ON_CORE_ERROR=1 LIBRETRO_CORE_BUILD_CONCURRENCY=4 ./scripts/docker-build.sh libretro-cores`,
+which reported `built=14`, `failed=0`, and `skipped=83`. The default
+`PLUMOS_CORE_FILTER=plumos` set also reports `built=41`, `failed=0`, and
+`skipped=56` after the same changes.
+
 In the inspected Makefiles, some `platform=armv` branches reset the compiler to
 host `gcc`, defeating the Docker cross-compiler environment. The script now
 defaults `LIBRETRO_FORCE_MAKE_TOOLCHAIN=1` and passes `CC/CXX/AR/RANLIB` as make

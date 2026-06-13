@@ -403,6 +403,40 @@ EOF_PATCH_FILES
   printf '%s\n' "makefile_opt_flags=${opt_flags}"
 }
 
+patch_core_source() {
+  local id=$1
+  local src=$2
+  local log=$3
+  local lua_makefile
+
+  case "${id}" in
+    mgba)
+      if [ -f "${src}/src/core/CMakeLists.txt" ]; then
+        sed -i -E '/^[[:space:]]+scripting\.c$/d' "${src}/src/core/CMakeLists.txt"
+        printf '\n[plumOS] patched mgba minimal libretro build to omit core scripting.c\n' >>"${log}"
+      fi
+      if [ -f "${src}/CMakeLists.txt" ]; then
+        sed -i -E \
+          -e '/list\(APPEND UTIL_SRC \$\{CMAKE_CURRENT_BINARY_DIR\}\/version\.c\)/d' \
+          -e '/file\(GLOB OS_SRC \$\{CMAKE_CURRENT_SOURCE_DIR\}\/src\/platform\/posix\/\*\.c\)/a\
+	list(REMOVE_ITEM OS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/posix/memory.c)' \
+          "${src}/CMakeLists.txt"
+        printf '[plumOS] patched mgba libretro CMake source list for duplicate symbols\n' >>"${log}"
+      fi
+      ;;
+    lutro)
+      lua_makefile="${src}/deps/lua/src/Makefile"
+      if [ -f "${lua_makefile}" ]; then
+        sed -i -E \
+          -e 's/^AR=[[:space:]]*ar rcu/AR= ar/' \
+          -e 's/^\t\$\(AR\)[[:space:]]+\$@/\t$(AR) rcu $@/' \
+          "${lua_makefile}"
+        printf '\n[plumOS] patched lutro Lua Makefile for command-line AR override\n' >>"${log}"
+      fi
+      ;;
+  esac
+}
+
 run_make_attempt_with_job_retry() {
   local work=$1
   local makefile=$2
@@ -624,8 +658,14 @@ build_special_core() {
         -DBUILD_GL=OFF \
         -DBUILD_GLES2=OFF \
         -DBUILD_PGO=OFF \
+        -DBUILD_LTO=OFF \
         -DBUILD_PERF=OFF \
         -DBUILD_TEST=OFF \
+        -DBUILD_DOCGEN=OFF \
+        -DENABLE_SCRIPTING=OFF \
+        -DUSE_LUA=OFF \
+        -DUSE_JSON_C=OFF \
+        -DUSE_FREETYPE=OFF \
         -DUSE_FFMPEG=OFF \
         -DUSE_DISCORD_RPC=OFF \
         -DUSE_EDITLINE=OFF
@@ -670,6 +710,15 @@ build_special_core() {
     scummvm)
       msg "make ${id}: libretro build"
       run_scummvm_build_with_job_retry "${src}" "${log}"
+      ;;
+    squirreljme)
+      msg "cmake ${id}: nanocoat libretro build"
+      run_cmake_build_with_job_retry "${src}/nanocoat" "${src}/nanocoat/build-libretro" squirreljme_libretro Release "${log}" \
+        -DSQUIRRELJME_ENABLE_FRONTEND_LIBRETRO=ON \
+        -DSQUIRRELJME_ENABLE_FRONTEND_JRI=OFF \
+        -DSQUIRRELJME_ENABLE_DYLIB=ON \
+        -DSQUIRRELJME_ENABLE_PACKING=OFF \
+        -DLIBRETRO_REALLY_STATIC=OFF
       ;;
     *)
       return 99
@@ -788,6 +837,7 @@ build_one_core() {
 
   commit=$(git -C "${src}" rev-parse HEAD 2>/dev/null || echo unknown)
   append_manifest "commit=${commit}"
+  patch_core_source "${id}" "${src}" "${log}"
 
   local special_status
   build_special_core "${id}" "${src}" "${log}"
