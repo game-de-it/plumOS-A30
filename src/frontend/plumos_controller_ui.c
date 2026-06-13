@@ -5934,8 +5934,8 @@ static void ui_emit_graphic_top_entry(struct ui_state *ui,
     return;
   }
   resolve_theme_system_logo_path(ui, entry->id, logo_path, sizeof(logo_path));
-  ui_printf(ui, "%s\t%d\t%s\t%ld ROMS\t%s\n", prefix, selected ? 1 : 0,
-            entry->display_name, entry->rom_count, logo_path);
+  ui_printf(ui, "%s\t%d\t%s\t\t%s\n", prefix, selected ? 1 : 0,
+            entry->display_name, logo_path);
 }
 
 static void ui_emit_graphic_rom_entry(struct ui_state *ui,
@@ -5994,7 +5994,7 @@ static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {
                               i == ui->top_cursor);
   }
   if (ui->top_count == 0) {
-    ui_printf(ui, "graphic_entry\t1\tNo Systems\t0 ROMS\n");
+    ui_printf(ui, "graphic_entry\t1\tNo Systems\t\t\n");
   }
   if (ui->status[0]) {
     ui_printf(ui, "status: %s\n", ui->status);
@@ -6055,9 +6055,8 @@ static void render_top(struct ui_state *ui) {
   ui_printf(ui, "\n");
   for (i = start; i < end; i++) {
     const struct top_entry *entry = &ui->top_entries[i];
-    ui_printf(ui, "%c %3zu  %-18s ROMs=%-5ld profile=%s\n",
-              i == ui->top_cursor ? '>' : ' ', i + 1, entry->display_name, entry->rom_count,
-              entry->default_launch_profile[0] ? entry->default_launch_profile : "-");
+    ui_printf(ui, "%c %3zu  %s\n", i == ui->top_cursor ? '>' : ' ', i + 1,
+              entry->display_name);
   }
   if (ui->top_count == 0) {
     ui_printf(ui, "(system entry is empty; run plumos-library-scan first)\n");
@@ -6071,17 +6070,24 @@ static void render_roms_graphic(struct ui_state *ui, const char *title,
                                 size_t start, size_t end) {
   size_t i;
   const char *mode = "roms";
+  const char *base_title;
+  const char *count_label = "ROMS";
+  char counted_title[160];
 
   if (ui->screen == SCREEN_FAVORITES) {
     mode = "favorites";
+    count_label = "ENTRIES";
   } else if (ui->screen == SCREEN_RECENT) {
     mode = "recent";
+    count_label = "ENTRIES";
   }
+  base_title = ui->current_system_name[0] ? ui->current_system_name : title;
+  snprintf(counted_title, sizeof(counted_title), "%s  %s %zu", base_title,
+           count_label, ui->rom_count);
 
   ui_printf(ui, "plumOS controller UI - %s\n", title);
   ui_printf(ui, "graphic_mode=%s\n", mode);
-  ui_printf(ui, "graphic_system=%s\n",
-            ui->current_system_name[0] ? ui->current_system_name : title);
+  ui_printf(ui, "graphic_system=%s\n", counted_title);
   ui_emit_graphic_theme(ui);
   ui_printf(ui, "graphic_entries=%zu cursor=%zu\n", ui->rom_count,
             ui->rom_count ? ui->rom_cursor + 1 : 0);
@@ -6124,11 +6130,16 @@ static void ui_emit_gallery_window(struct ui_state *ui, const char *prefix,
 static void render_gallery(struct ui_state *ui) {
   double transition_progress = 1.0;
   int transition_active = 0;
+  const char *base_title;
+  char counted_title[160];
+
+  base_title = ui->current_system_name[0] ? ui->current_system_name : "ROMS";
+  snprintf(counted_title, sizeof(counted_title), "%s  ROMS %zu", base_title,
+           ui->rom_count);
 
   ui_printf(ui, "plumOS controller UI - Gallery\n");
   ui_printf(ui, "graphic_mode=gallery\n");
-  ui_printf(ui, "graphic_system=%s\n",
-            ui->current_system_name[0] ? ui->current_system_name : "ROMS");
+  ui_printf(ui, "graphic_system=%s\n", counted_title);
   ui_emit_graphic_theme(ui);
 
   if (ui->gallery_transition_active &&
@@ -6204,7 +6215,8 @@ static void render_roms(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - %s\n", title);
   if (ui->screen == SCREEN_ROMS) {
     char prompt_path[PATH_MAX];
-    ui_printf(ui, "system=%s (%s)\n", ui->current_system_id, ui->current_system_name);
+    ui_printf(ui, "system=%s ROMs=%zu (%s)\n", ui->current_system_id,
+              ui->rom_count, ui->current_system_name);
     if (ui->renderer_mali && ui->rom_count > 0 &&
         rom_entry_alias_root_path(&ui->rom_entries[ui->rom_cursor],
                                   prompt_path, sizeof(prompt_path))) {

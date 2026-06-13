@@ -305,7 +305,7 @@ FE の START -> Apps には `Scraping` 入口を置きます。`Scraping` 画面
 `Image < Box Art | Title Screen >`、`Existing < Replace | Skip >`、`System < ALL >`
 または `System < NES >` のように対象 system を選び、A で実行します。
 対象は `scraper.enabled=true` かつ現在の ROM 数が 1 以上の system だけです。画面を開く時に
-library scan を行い、FE 再起動なしで TOP/Graphic の ROM 数と Scraping 対象を更新します。
+library scan を行い、FE 再起動なしで ROM list/Graphic の ROM 数と Scraping 対象を更新します。
 実行中は `Scraping Running` 画面を表示し、内部では対象 system ごとに
 `plumos-thumbnail-scraper --kind <kind> --system <id>` と
 `plumos-thumbnail-scraper --fetch --kind <kind> --system <id>` を順に実行します。

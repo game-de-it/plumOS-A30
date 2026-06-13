@@ -3281,8 +3281,8 @@ static void print_top(const struct top_entry *entries, size_t count, int show_al
     printf("cache_ready_ms: %ld\n", ready_ms);
   }
   printf("\n");
-  printf("%-4s %-3s %-18s %8s  %s\n", "No.", "V", "System", "ROMs", "Default profile");
-  printf("%-4s %-3s %-18s %8s  %s\n", "---", "-", "------", "----", "---------------");
+  printf("%-4s %-3s %-18s  %s\n", "No.", "V", "System", "Default profile");
+  printf("%-4s %-3s %-18s  %s\n", "---", "-", "------", "---------------");
 
   for (i = 0; i < count; i++) {
     if (!show_all && entries[i].rom_count <= 0 && !entries[i].pinned) {
@@ -3293,8 +3293,8 @@ static void print_top(const struct top_entry *entries, size_t count, int show_al
       continue;
     }
     shown++;
-    printf("%3zu. %-3s %-18s %8ld  %s\n", shown, entries[i].virtual_entry ? "*" : "",
-           entries[i].display_name, entries[i].rom_count, entries[i].default_launch_profile);
+    printf("%3zu. %-3s %-18s  %s\n", shown, entries[i].virtual_entry ? "*" : "",
+           entries[i].display_name, entries[i].default_launch_profile);
   }
   if (available == 0) {
     printf("(ROMがあるsystemはまだありません。full scan cacheを確認してください。)\n");
@@ -3311,6 +3311,7 @@ static void print_roms(const char *system_id, const struct rom_entry *entries, s
 
   printf("plumOS text UI - ROM list\n");
   printf("system: %s\n", system_id);
+  printf("roms: %zu\n", count);
   printf("cache: %s\n", cache_path);
   if (ready_ms >= 0) {
     printf("ready_ms: %ld\n", ready_ms);

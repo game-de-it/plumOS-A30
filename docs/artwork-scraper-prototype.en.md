@@ -346,7 +346,7 @@ FE START -> Apps exposes a `Scraping` entry. The `Scraping` screen lets users
 choose `Image < Box Art | Title Screen >`, `Existing < Replace | Skip >`, and
 `System < ALL >` or a concrete system such as `System < NES >`, then start
 scraping with A. Targets are limited to systems with `scraper.enabled=true` and
-at least one current ROM. Opening the screen runs a library scan so TOP and
+at least one current ROM. Opening the screen runs a library scan so ROM list and
 Graphic ROM counts, and the scraping target list, update without restarting the
 frontend. While running, the UI shows `Scraping Running`; internally it runs
 `plumos-thumbnail-scraper --kind <kind> --system <id>` and

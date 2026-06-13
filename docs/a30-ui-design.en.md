@@ -54,13 +54,13 @@ This document defines the design rules for plumOS frontend UI on the A30's
   gallery presentation.
 - Preserve meaningful capitalization in user-facing labels and values.
   Examples: `UI Settings`, `System Settings`, `UI Mode`, `Text`, `Graphic`.
-- Align system names and ROM counts with fixed character-cell columns.
-- Keep the ROM count column readable. If a system name is too long, truncate the
-  system name side.
+- Align TOP system names with fixed character-cell columns.
+- Show ROM counts on the ROM list side, not on TOP, and keep the count readable
+  after entering the list.
 - Use `2x` as the A30 baseline review size. It is acceptable for `2x` to show
   fewer rows; readability wins.
 - Highlighted rows must not hide text. Cursor, number, system name, and ROM
-  count should remain readable at the same time.
+  name should remain readable at the same time.
 - Prompt or command-like decoration must also stay at least `1x`. Wrap or
   shorten long commands instead of rendering them below `1x`.
 - A blinking cursor should be at least one `1x` fixed cell.
@@ -114,8 +114,8 @@ The current Linux-console-style TOP/list UI should follow these rules.
   pressing Left, flash `<` red once briefly.
 - Numeric values also appear as `Name < 500 >` and change with Left/Right. Each
   setting owns its own step size.
-- In Settings lists, checkbox and `< value >` controls are right-aligned like
-  the TOP ROM-count column. Treat labels and controls as two columns.
+- In Settings lists, checkbox and `< value >` controls are right-aligned. Treat
+  labels and controls as two columns.
 - Settings screens reserve a two-line footer for the selected item's meaning
   only, rendered at `1x` or larger. Do not show button hints there; the controls
   should be visually obvious.
@@ -150,8 +150,8 @@ The current Linux-console-style TOP/list UI should follow these rules.
   decoration that reads as `|>`.
 - Do not show row numbers before system names.
 - Render ASCII system names uppercase. If a system name is too long, truncate
-  the system-name side to protect the ROM-count column.
-- TOP system names, ROM counts, and normal ROM-list names should use a
+  the system-name side so it fits the screen.
+- TOP system names, ROM-list counts, and normal ROM-list names should use a
   grayish near-white color inspired by the early UI mockup. Selected rows may
   remain yellow.
 - Preserve ROM name spelling. Do not uppercase ROM names; render uppercase,
@@ -171,10 +171,10 @@ The current Linux-console-style TOP/list UI should follow these rules.
   and cursor.
 - For decomposed UTF-8 kana dakuten/handakuten, compose display glyphs where
   practical without changing the ROM-name source of truth.
-- Right-align ROM counts. Compute each row's x position from the right edge so
-  the `S` in `ROMS` aligns to the right-side baseline.
+- Show ROM counts as ROM list/Gallery header or meta information, not on TOP
+  cards.
 - Highlight selected rows with only a wide background, without hiding the
-  cursor, system name, or ROM count.
+  cursor, system name, or ROM name.
 - Add a thin vertical accent bar at the left edge. TOP and ROM lists use
   orange; Settings uses blue. This bar is a screen-type visual accent, not a
   cursor or list column.
@@ -191,8 +191,9 @@ misclick prevention.
 
 - TOP uses a `PLUMOS A30 GUI` card grid. One page shows a 3-column by 2-row
   grid of six square cards so system logos remain large enough to identify.
-- TOP cards show system logo, system name, ROM count, and fallback initials so
+- TOP cards show system logo, system name, and fallback initials so
   they never look empty when artwork is missing.
+- ROM list/Gallery headers show the current ROM count.
 - Graphic TOP directional input follows the layout: `tile_grid` uses Left/Right
   for horizontal movement and Up/Down for vertical movement, while `tile_strip`
   primarily uses Left/Right movement. Page boundaries move naturally to the

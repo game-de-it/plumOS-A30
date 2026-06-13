@@ -410,7 +410,7 @@ Rules:
 - Show empty systems only when pinned.
 - When `show_favorites_on_top=true`, show `Favorites` as a virtual TOP system.
 - Use `display_name`.
-- Text mode shows only text and counts.
+- TOP shows `display_name`; ROM counts are shown on the ROM list side.
 - Gallery mode may use system icons.
 - Manufacturer names are not included in labels.
 - The Favorites virtual system target id is `favorites`; its action is
@@ -446,7 +446,8 @@ enters that ROM list screen. Newly copied ROMs should appear without a manual
 Initial policy:
 
 - Avoid heavy full scans on the TOP screen.
-- TOP counts may use the previous scan cache.
+- Do not show ROM counts on the TOP screen.
+- On ROM lists, show the count after the selected system scan/list load.
 - Scan only the selected system when entering it.
 - Show a text fallback such as `Scanning...` while scanning.
 - Thumbnail loading/generation may be deferred until after the ROM list appears.

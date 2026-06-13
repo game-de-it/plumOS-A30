@@ -44,10 +44,10 @@
   `UI Mode: Text/Graphic` の1項目で、TOP/ROM/list/gallery 全体を切り替える。
 - ユーザーに見せるラベルや設定値は、大文字・小文字を意識して表記する。
   例: `UI Settings`、`System Settings`、`UI Mode`、`Text`、`Graphic`。
-- system 名と ROM 数は固定セル column で揃える。
-- ROM 数 column は常に読める位置に置く。system 名が長い場合は system 名側を省略する。
+- TOP の system 名は固定セル column で揃える。
+- ROM 数は TOP ではなく ROM list 側に表示し、一覧へ入った時点の件数を読める位置に置く。
 - A30 の基準確認は `2x` で行う。`2x` で表示行数が減ることは許容し、可読性を優先する。
-- 選択行の highlight は文字を隠さず、カーソル/番号/system名/ROM数が同時に読めること。
+- 選択行の highlight は文字を隠さず、カーソル/番号/system名/ROM名が同時に読めること。
 - prompt や command 風の装飾も `1x` 未満にしない。長い command は折り返すか短縮する。
 - 点滅 cursor は `1x` の固定セル以上の大きさで描く。
 
@@ -93,8 +93,8 @@
   値を切り替える。右を押した直後は `>`、左を押した直後は `<` を1回だけ短く赤くする。
 - 数値系も `項目名 < 500 >` のように表示し、十字キー左右で増減する。step幅は項目ごとに
   決める。
-- Settings list の checkbox と `< value >` 操作部は、TOP の ROM 数 column と同じように
-  画面右端へ寄せる。項目名は左、操作部は右という2カラムとして扱う。
+- Settings list の checkbox と `< value >` 操作部は画面右端へ寄せる。
+  項目名は左、操作部は右という2カラムとして扱う。
 - Settings 画面下部には2行の説明欄を置き、カーソル中項目の意味だけを `1x` 以上で
   表示する。操作は見た目から直感的にわかるため、フッターにボタン説明は出さない。
 - Favorites と Recent は START 第一階層ではなく、TOP の system list と一緒に
@@ -121,8 +121,9 @@
 
 - TOP は `PLUMOS A30 GUI` のカードUIにする。`tile_grid` は1ページ3列x2行の正方形6件、
   `tile_strip` は1ページ1行x2列の正方形2件を基準にし、system logo を判別できる大きさで表示する。
-- TOP card は system logo、system 名、ROM数、fallback initials を表示する。
+- TOP card は system logo、system 名、fallback initials を表示する。
   画像がなくても空に見せない。
+- ROM list/Gallery の header には、現在の ROM 件数を表示する。
 - Graphic TOP の十字キーはタイルの見た目に合わせる。`tile_grid` は左右で横移動、上下で縦移動とし、
   行端では前後の行へ回り込む。`tile_strip` は左右移動のみを基本にする。
   ページ境界を越える場合は前/次ページへ自然に移動する。
@@ -168,9 +169,9 @@
   画面スクロールできるようにする。
 - System 選択 cursor は `>` のみ。左アクセントバーや `|>` に見える装飾は使わない。
 - System 名の前に行番号は表示しない。
-- System 名は ASCII を大文字化して表示する。長い system 名は ROM 数 column を守るために
+- System 名は ASCII を大文字化して表示する。長い system 名は画面幅に収まるように
   system 名側を省略する。
-- TOP の system 名、ROM 数、ROM list の通常 ROM 名は、初期デザインの白灰色に近い
+- TOP の system 名、ROM list の件数、ROM list の通常 ROM 名は、初期デザインの白灰色に近い
   灰色寄りの色を基準にする。選択行は従来どおり黄色寄りでよい。
 - ROM 名は正確性を優先し、大文字化しない。大文字・小文字・ASCII記号・日本語などの非ASCIIを
   できるだけ元の表記のまま表示する。
@@ -183,9 +184,8 @@
 - ROM list の選択背景も同じ理由で、bitmap行用の背景位置をそのまま使わない。
   TTF の ROM 名と cursor の見た目中心に合うよう、背景矩形の y と高さをROM list専用に補正する。
 - decomposed UTF-8 のかな濁点/半濁点は、ROM 名の正本を変えず、表示時だけ可能な範囲で合成する。
-- ROM 数は画面右寄せにする。`ROMS` の `S` が右端基準に揃うように、行ごとに右端から
-  text width を引いて x 座標を決める。
-- 選択行の highlight は横長背景だけにし、cursor、system 名、ROM 数を隠さない。
+- ROM 数は ROM list/Gallery の header または meta 情報として表示し、TOP card には表示しない。
+- 選択行の highlight は横長背景だけにし、cursor、system 名、ROM 名を隠さない。
 - 左端には細い縦アクセントバーを置く。TOP と ROM list はオレンジ、Settings はブルーを
   使う。バーは画面種別を視認しやすくするための装飾で、cursor や list column を兼ねない。
 - 実機確認時は `/dev/fb0` owner が1 processだけであることを確認する。重複した
