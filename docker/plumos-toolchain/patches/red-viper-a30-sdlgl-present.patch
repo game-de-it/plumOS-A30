@@ -1,0 +1,209 @@
+diff --git a/source/linux-test/opengl.c b/source/linux-test/opengl.c
+index 5942c02..f60c0bb 100644
+--- a/source/linux-test/opengl.c
++++ b/source/linux-test/opengl.c
+@@ -1 +1,5 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
+ #include <GLES2/gl2.h>
+@@ -464,0 +469,184 @@ bool gpu_antiflicker_allowed(void) {
++typedef enum {
++    A30_ROT_NONE,
++    A30_ROT_CCW,
++    A30_ROT_CW,
++    A30_ROT_180,
++} a30_rotation_t;
++
++typedef enum {
++    A30_SCALE_FIT,
++    A30_SCALE_STRETCH,
++    A30_SCALE_INTEGER,
++} a30_scale_t;
++
++typedef struct {
++    bool initialized;
++    int physical_w;
++    int physical_h;
++    a30_rotation_t rotation;
++    a30_scale_t scale;
++    bool trace;
++} a30_present_t;
++
++static a30_present_t a30_present = {
++    false,
++    480,
++    640,
++    A30_ROT_CCW,
++    A30_SCALE_FIT,
++    false,
++};
++
++static bool a30_env_enabled(const char *value) {
++    return value && value[0] &&
++        strcasecmp(value, "0") != 0 &&
++        strcasecmp(value, "no") != 0 &&
++        strcasecmp(value, "false") != 0 &&
++        strcasecmp(value, "off") != 0;
++}
++
++static bool a30_parse_size(const char *value, int *w, int *h) {
++    char *end = NULL;
++    long parsed_w;
++    long parsed_h;
++
++    if (!value || !value[0]) return false;
++    parsed_w = strtol(value, &end, 10);
++    if (end == value || (*end != 'x' && *end != 'X')) return false;
++    value = end + 1;
++    parsed_h = strtol(value, &end, 10);
++    if (end == value || *end != '\0') return false;
++    if (parsed_w <= 0 || parsed_h <= 0 || parsed_w > 4096 || parsed_h > 4096) {
++        return false;
++    }
++
++    *w = (int)parsed_w;
++    *h = (int)parsed_h;
++    return true;
++}
++
++static a30_rotation_t a30_parse_rotation(const char *value,
++                                         a30_rotation_t fallback) {
++    if (!value || !value[0]) return fallback;
++    if (!strcasecmp(value, "none") || !strcmp(value, "0")) return A30_ROT_NONE;
++    if (!strcasecmp(value, "ccw") || !strcmp(value, "270")) return A30_ROT_CCW;
++    if (!strcasecmp(value, "cw") || !strcmp(value, "90")) return A30_ROT_CW;
++    if (!strcasecmp(value, "180")) return A30_ROT_180;
++    return fallback;
++}
++
++static a30_scale_t a30_parse_scale(const char *value,
++                                   a30_scale_t fallback) {
++    if (!value || !value[0]) return fallback;
++    if (!strcasecmp(value, "fit")) return A30_SCALE_FIT;
++    if (!strcasecmp(value, "stretch")) return A30_SCALE_STRETCH;
++    if (!strcasecmp(value, "integer")) return A30_SCALE_INTEGER;
++    return fallback;
++}
++
++static void a30_init_present(void) {
++    const char *value;
++
++    if (a30_present.initialized) return;
++    a30_present.initialized = true;
++
++    value = getenv("PLUMOS_A30_RED_VIPER_SDLGL_PHYSICAL");
++    if (!a30_parse_size(value, &a30_present.physical_w, &a30_present.physical_h)) {
++        a30_present.physical_w = 480;
++        a30_present.physical_h = 640;
++    }
++
++    a30_present.rotation = a30_parse_rotation(
++        getenv("PLUMOS_A30_RED_VIPER_SDLGL_ROTATION"),
++        a30_parse_rotation(getenv("PLUMOS_A30_DISPLAY_ROTATION"), A30_ROT_CCW));
++    a30_present.scale = a30_parse_scale(
++        getenv("PLUMOS_A30_RED_VIPER_SDLGL_SCALE"),
++        a30_parse_scale(getenv("PLUMOS_A30_RED_VIPER_SCALE"), A30_SCALE_FIT));
++    a30_present.trace = a30_env_enabled(getenv("PLUMOS_A30_RED_VIPER_SDLGL_TRACE"));
++
++    if (a30_present.trace) {
++        fprintf(stderr, "red-viper-sdlgl: a30_present physical=%dx%d rotation=%d scale=%d\n",
++                a30_present.physical_w, a30_present.physical_h,
++                (int)a30_present.rotation, (int)a30_present.scale);
++    }
++}
++
++static void a30_rect_to_ndc(float x, float y, float w, float h,
++                            GLfloat out[8]) {
++    float x0 = -1.0f + (2.0f * x) / (float)a30_present.physical_w;
++    float x1 = -1.0f + (2.0f * (x + w)) / (float)a30_present.physical_w;
++    float y0 = -1.0f + (2.0f * y) / (float)a30_present.physical_h;
++    float y1 = -1.0f + (2.0f * (y + h)) / (float)a30_present.physical_h;
++
++    switch (a30_present.rotation) {
++        case A30_ROT_CCW:
++            out[0] = x1; out[1] = y0;
++            out[2] = x1; out[3] = y1;
++            out[4] = x0; out[5] = y0;
++            out[6] = x0; out[7] = y1;
++            break;
++        case A30_ROT_CW:
++            out[0] = x0; out[1] = y1;
++            out[2] = x0; out[3] = y0;
++            out[4] = x1; out[5] = y1;
++            out[6] = x1; out[7] = y0;
++            break;
++        case A30_ROT_180:
++            out[0] = x1; out[1] = y1;
++            out[2] = x0; out[3] = y1;
++            out[4] = x1; out[5] = y0;
++            out[6] = x0; out[7] = y0;
++            break;
++        case A30_ROT_NONE:
++        default:
++            out[0] = x0; out[1] = y0;
++            out[2] = x1; out[3] = y0;
++            out[4] = x0; out[5] = y1;
++            out[6] = x1; out[7] = y1;
++            break;
++    }
++}
++
++static void a30_configure_present(GLfloat vPositions[8]) {
++    bool swap_axes;
++
++    a30_init_present();
++    swap_axes =
++        a30_present.rotation == A30_ROT_CCW || a30_present.rotation == A30_ROT_CW;
++    const int logical_w = swap_axes ? a30_present.physical_h : a30_present.physical_w;
++    const int logical_h = swap_axes ? a30_present.physical_w : a30_present.physical_h;
++    const float source_aspect = 384.0f / 224.0f;
++    float draw_w = (float)logical_w;
++    float draw_h = (float)logical_h;
++    float raw_w;
++    float raw_h;
++    float raw_x;
++    float raw_y;
++    if (a30_present.scale == A30_SCALE_INTEGER) {
++        int scale = logical_w / 384;
++        int scale_h = logical_h / 224;
++        if (scale_h < scale) scale = scale_h;
++        if (scale < 1) scale = 1;
++        draw_w = (float)(384 * scale);
++        draw_h = (float)(224 * scale);
++    } else if (a30_present.scale == A30_SCALE_FIT) {
++        draw_w = (float)logical_w;
++        draw_h = draw_w / source_aspect;
++        if (draw_h > (float)logical_h) {
++            draw_h = (float)logical_h;
++            draw_w = draw_h * source_aspect;
++        }
++    }
++
++    raw_w = swap_axes ? draw_h : draw_w;
++    raw_h = swap_axes ? draw_w : draw_h;
++    raw_x = ((float)a30_present.physical_w - raw_w) * 0.5f;
++    raw_y = ((float)a30_present.physical_h - raw_h) * 0.5f;
++
++    glDisable(GL_SCISSOR_TEST);
++    glViewport(0, 0, a30_present.physical_w, a30_present.physical_h);
++    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++    glClear(GL_COLOR_BUFFER_BIT);
++    a30_rect_to_ndc(raw_x, raw_y, raw_w, raw_h, vPositions);
++}
++
+@@ -468,2 +656,0 @@ void gpu_flush(bool default_for_both, int displayed_fb, int vip_displayed_fb) {
+-    glViewport(0, 0, 384*2, 224*2);
+-    glScissor(0, 0, 384*2, 224*2);
+@@ -488,6 +674,2 @@ void gpu_flush(bool default_for_both, int displayed_fb, int vip_displayed_fb) {
+-    GLfloat vPositions[] = {
+-        -1, -1,
+-        1, -1,
+-        -1, 1,
+-        1, 1};
+-    glVertexAttribPointer(glGetAttribLocation(sFinal, "aPosition"), 2, GL_FLOAT, GL_FALSE, 0, vPositions);
++    GLfloat vPositions[8];
++    a30_configure_present(vPositions);
+@@ -501,0 +684,1 @@ void gpu_flush(bool default_for_both, int displayed_fb, int vip_displayed_fb) {
++    glVertexAttribPointer(glGetAttribLocation(sFinal, "aPosition"), 2, GL_FLOAT, GL_FALSE, 0, vPositions);

@@ -826,6 +826,47 @@ build_red_viper() {
   append_manifest "  audio=alsa-default"
   append_manifest "  audio_rate=${red_audio_rate}"
   append_manifest "  audio_queue=threaded-gap-fill"
+
+  patch -d "${src}" -p1 < "${PATCH_DIR}/red-viper-a30-sdlgl-present.patch" || return 1
+  append_manifest "  patch=red-viper-a30-sdlgl-present.patch"
+
+  build_dir="${src}/build-plumos-a30-sdlgl"
+  out="${build_dir}/red-viper-sdlgl-a30"
+  rm -rf "${build_dir}"
+  mkdir -p "${build_dir}"
+  objects=()
+
+  compile_wrapper_c replay_stubs.c || return 1
+  compile_wrapper_c sdlgl_stats.c || return 1
+
+  compile_c source/common/interpreter.c || return 1
+  compile_c source/common/patches.c || return 1
+  compile_c source/common/rom_db.c || return 1
+  compile_c source/common/v810_cpu.c || return 1
+  compile_c source/common/v810_ins.c || return 1
+  compile_c source/common/v810_mem.c || return 1
+  compile_c source/common/vb_set.c || return 1
+  compile_c source/common/vb_sound.c || return 1
+  compile_c source/common/video.c || return 1
+  compile_c source/common/video_common.c || return 1
+  compile_c source/common/video_hard.c || return 1
+  compile_c source/arm/drc_alloc.c || return 1
+  compile_c source/arm/drc_core.c || return 1
+  compile_c source/linux-test/arm_utils.c || return 1
+  compile_c source/linux-test/main.c || return 1
+  compile_c source/linux-test/opengl.c || return 1
+  compile_c source/linux-test/sound.c || return 1
+  compile_cxx source/common/video_soft.cpp || return 1
+  compile_asm source/arm/drc_exec.s || return 1
+  compile_asm source/arm/drc_static.s || return 1
+
+  "${CXX}" ${COMMON_LDFLAGS} -pthread \
+    -Wl,--wrap=SDL_GL_SwapWindow \
+    -o "${out}" "${objects[@]}" -lSDL2 -lGLESv2 -lm || return 1
+  stage_binary red_viper "${out}" red-viper-sdlgl-a30 || return 1
+
+  append_manifest "  frontend=red-viper-sdlgl-a30 stock-sdl2-mali-gles2"
+  append_manifest "  display=gles-final-quad-rotation"
 }
 
 prepare_dist() {
@@ -921,10 +962,14 @@ Environment:
   PLUMOS_A30_RED_VIPER_CPU_POLICY     Red Viper CPU policy. Default: fixed.
   PLUMOS_A30_RED_VIPER_CPU_FREQ       Red Viper fixed CPU frequency. Default: 648000.
   PLUMOS_A30_RED_VIPER_CPU_CORES      Red Viper CPU core policy. Default: 2.
+  PLUMOS_A30_RED_VIPER_RENDERER       Red Viper renderer: sdlgl, fbdev. Default: sdlgl.
   PLUMOS_A30_RED_VIPER_FB             Red Viper framebuffer path. Default: /dev/fb0.
   PLUMOS_A30_RED_VIPER_INPUT          Red Viper input event path. Default: /dev/input/event3.
   PLUMOS_A30_RED_VIPER_ROTATION       Red Viper final display rotation: ccw, cw, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_SCALE          Red Viper scaling: fit, stretch, integer. Default: fit.
+  PLUMOS_A30_RED_VIPER_SDLGL_ROTATION Red Viper SDL/GLES final rotation: ccw, cw, 180, none. Default: ccw.
+  PLUMOS_A30_RED_VIPER_SDLGL_SCALE    Red Viper SDL/GLES scaling: fit, stretch, integer. Default: fit.
+  PLUMOS_A30_RED_VIPER_SDLGL_PHYSICAL Red Viper SDL/GLES framebuffer size. Default: 480x640.
   PLUMOS_A30_RED_VIPER_EYE            Red Viper eye mode: left, right, both. Default: both.
   PLUMOS_A30_RED_VIPER_COLOR          Red Viper tint: red, white, green, amber, blue, or R,G,B. Default: red.
   PLUMOS_A30_RED_VIPER_WAIT_VSYNC     Red Viper framebuffer pan vsync wait: 0 or 1. Default: 1.
@@ -1840,6 +1885,15 @@ case "${id}" in
     cpu_policy=${PLUMOS_A30_RED_VIPER_CPU_POLICY:-${PLUMOS_STANDALONE_CPU_POLICY:-fixed}}
     cpu_freq=${PLUMOS_A30_RED_VIPER_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-648000}}
     cpu_cores=${PLUMOS_A30_RED_VIPER_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
+    red_viper_renderer=${PLUMOS_A30_RED_VIPER_RENDERER:-sdlgl}
+    case "${red_viper_renderer}" in
+      sdlgl|stock-sdl|stock_sdl|gles|mali)
+        if [ ! -x "${EMU_ROOT}/red_viper/bin/red-viper-sdlgl-a30" ]; then
+          echo "warning: Red Viper SDL/GLES binary is missing; falling back to fbdev renderer" >&2
+          red_viper_renderer=fbdev
+        fi
+        ;;
+    esac
     export PLUMOS_A30_RED_VIPER_EYE=${PLUMOS_A30_RED_VIPER_EYE:-both}
     export PLUMOS_A30_RED_VIPER_COLOR=${PLUMOS_A30_RED_VIPER_COLOR:-red}
     export PLUMOS_A30_RED_VIPER_WAIT_VSYNC=${PLUMOS_A30_RED_VIPER_WAIT_VSYNC:-1}
@@ -1855,16 +1909,34 @@ case "${id}" in
     export PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS=${PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS:-8}
     export PLUMOS_A30_RED_VIPER_AUDIO_GAP=${PLUMOS_A30_RED_VIPER_AUDIO_GAP:-fade}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
-    run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
-      --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
-      --input "${PLUMOS_A30_RED_VIPER_INPUT:-/dev/input/event3}" \
-      --rotation "${PLUMOS_A30_RED_VIPER_ROTATION:-ccw}" \
-      --scale "${PLUMOS_A30_RED_VIPER_SCALE:-fit}" \
-      --eye "${PLUMOS_A30_RED_VIPER_EYE}" \
-      --color "${PLUMOS_A30_RED_VIPER_COLOR}" \
-      --audio "${PLUMOS_A30_RED_VIPER_AUDIO}" \
-      --save-base "${red_viper_save_base}" \
-      "${red_viper_prepared_rom}" "$@"
+    case "${red_viper_renderer}" in
+      sdlgl|stock-sdl|stock_sdl|gles|mali)
+        export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-mali}
+        export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-alsa}
+        export SDL_AUDIO_ALSA_SET_BUFFER_SIZE=${SDL_AUDIO_ALSA_SET_BUFFER_SIZE:-1}
+        export PLUMOS_A30_RED_VIPER_SDLGL_ROTATION=${PLUMOS_A30_RED_VIPER_SDLGL_ROTATION:-ccw}
+        export PLUMOS_A30_RED_VIPER_SDLGL_SCALE=${PLUMOS_A30_RED_VIPER_SDLGL_SCALE:-${PLUMOS_A30_RED_VIPER_SCALE:-fit}}
+        export PLUMOS_A30_RED_VIPER_SDLGL_PHYSICAL=${PLUMOS_A30_RED_VIPER_SDLGL_PHYSICAL:-480x640}
+        run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-sdlgl-a30" \
+          "${red_viper_prepared_rom}" "$@"
+        ;;
+      fbdev|software|cpu)
+        run_with_fb_restore "${EMU_ROOT}/red_viper/bin/red-viper-a30" \
+          --fb "${PLUMOS_A30_RED_VIPER_FB:-/dev/fb0}" \
+          --input "${PLUMOS_A30_RED_VIPER_INPUT:-/dev/input/event3}" \
+          --rotation "${PLUMOS_A30_RED_VIPER_ROTATION:-ccw}" \
+          --scale "${PLUMOS_A30_RED_VIPER_SCALE:-fit}" \
+          --eye "${PLUMOS_A30_RED_VIPER_EYE}" \
+          --color "${PLUMOS_A30_RED_VIPER_COLOR}" \
+          --audio "${PLUMOS_A30_RED_VIPER_AUDIO}" \
+          --save-base "${red_viper_save_base}" \
+          "${red_viper_prepared_rom}" "$@"
+        ;;
+      *)
+        echo "error: invalid PLUMOS_A30_RED_VIPER_RENDERER=${red_viper_renderer}" >&2
+        exit 2
+        ;;
+    esac
     ;;
   dosbox-staging|dosbox)
     cd "${EMU_ROOT}/dosbox-staging" || exit 1
@@ -1980,10 +2052,14 @@ PLUMOS_A30_RED_VIPER_CPU_POLICY=fixed
 PLUMOS_A30_RED_VIPER_CPU_FREQ=648000
 PLUMOS_A30_RED_VIPER_CPU_CORES=2
 
+PLUMOS_A30_RED_VIPER_RENDERER=sdlgl
 PLUMOS_A30_RED_VIPER_FB=/dev/fb0
 PLUMOS_A30_RED_VIPER_INPUT=/dev/input/event3
 PLUMOS_A30_RED_VIPER_ROTATION=ccw
 PLUMOS_A30_RED_VIPER_SCALE=fit
+PLUMOS_A30_RED_VIPER_SDLGL_ROTATION=ccw
+PLUMOS_A30_RED_VIPER_SDLGL_SCALE=fit
+PLUMOS_A30_RED_VIPER_SDLGL_PHYSICAL=480x640
 PLUMOS_A30_RED_VIPER_EYE=both
 PLUMOS_A30_RED_VIPER_COLOR=red
 PLUMOS_A30_RED_VIPER_WAIT_VSYNC=1

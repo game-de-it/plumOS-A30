@@ -121,7 +121,7 @@
 - [ ] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
 - [ ] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用に Red Viper standalone の fbdev 表示、A30 input mapping、終了 cleanup、FE profile を実装/検証する。
-- [ ] Red Viper standalone の StockOS 由来描画経路で画面向き/fit、7z 展開、物理ボタン実操作、FE cleanup を検証/修正する。
+- [ ] Red Viper standalone の StockOS 由来描画経路で 7z 展開、物理ボタン実操作、A30 menu/settings、FE cleanup を検証/修正する。
 - [ ] PPSSPP config/controls の backup、restore、factory reset 機能を実装する。
 - [ ] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。
 - [ ] `--config` と override config で system/core ごとの差分を管理する。

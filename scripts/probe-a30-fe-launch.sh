@@ -235,7 +235,7 @@ cpu_policy_key() {
 }
 
 interesting_ps() {
-  ps w | grep -E 'plumos-controller-ui-mali|plumos-text-ui|frontend-launch|plumos-retroarch-launch|retroarch|plumos-standalone-launch|PPSSPP|pcsx|/scummvm/bin/scummvm|easyrpg-player|/dosbox|red-viper-a30|plumos-joystickd' | grep -v grep || true
+  ps w | grep -E 'plumos-controller-ui-mali|plumos-text-ui|frontend-launch|plumos-retroarch-launch|retroarch|plumos-standalone-launch|PPSSPP|pcsx|/scummvm/bin/scummvm|easyrpg-player|/dosbox|red-viper-a30|red-viper-sdlgl-a30|plumos-joystickd' | grep -v grep || true
 }
 
 kill_pid_quick() {
@@ -268,8 +268,9 @@ kill_launch_targets() {
       *'/mnt/SDCARD/plumos/emulators/easyrpg/bin/easyrpg-player'*|\
       *'/mnt/SDCARD/plumos/emulators/dosbox-staging/'*|\
       *'/mnt/SDCARD/plumos/emulators/red_viper/bin/red-viper-a30'*|\
+      *'/mnt/SDCARD/plumos/emulators/red_viper/bin/red-viper-sdlgl-a30'*|\
       *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
-      *PPSSPPSDL*|*pcsx_rearmed*|*easyrpg-player*|*red-viper-a30*|\
+      *PPSSPPSDL*|*pcsx_rearmed*|*easyrpg-player*|*red-viper-a30*|*red-viper-sdlgl-a30*|\
       *plumos-joystickd*)
         case " $pids " in *" $pid "*) ;; *) pids="$pids $pid" ;; esac
         ;;
@@ -289,7 +290,7 @@ kill_launch_targets() {
 wait_for_launch_start() {
   i=0
   while [ "$i" -lt 80 ]; do
-    if interesting_ps | grep -Eq 'plumos-standalone-launch|plumos-retroarch-launch|retroarch|PPSSPP|pcsx|/scummvm/bin/scummvm|easyrpg-player|/dosbox|red-viper-a30'; then
+    if interesting_ps | grep -Eq 'plumos-standalone-launch|plumos-retroarch-launch|retroarch|PPSSPP|pcsx|/scummvm/bin/scummvm|easyrpg-player|/dosbox|red-viper-a30|red-viper-sdlgl-a30'; then
       return 0
     fi
     i=$((i + 1))
