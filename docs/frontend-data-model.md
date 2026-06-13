@@ -712,6 +712,8 @@ schema:
 rules:
 
 - 保存する値は core path ではなく `launch_profile` id とする
+- `launch_profile` override は現在の `SystemDefinition.launch_profiles` に存在する
+  場合だけ有効とし、候補から外れた古い override は無視して次の優先順位へ fallback する
 - `retroarch:fceumm` のような profile id は launcher 側で RetroArch binary、core `.so`、
   config override、CPU policy へ解決する
 - `standalone:ppsspp` のような profile id は `plumos-standalone-launch` と

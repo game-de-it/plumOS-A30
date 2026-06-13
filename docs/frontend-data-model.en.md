@@ -740,6 +740,9 @@ Priority:
 Rules:
 
 - Store a `launch_profile` id, not a direct core path.
+- A `launch_profile` override is valid only while it exists in the current
+  `SystemDefinition.launch_profiles`; stale overrides are ignored and resolution
+  falls through to the next priority.
 - Profile ids such as `retroarch:fceumm` are resolved by the launcher into the
   RetroArch binary, core `.so`, config overrides, and CPU policy.
 - Profile ids such as `standalone:ppsspp` are resolved into

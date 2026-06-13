@@ -1101,6 +1101,10 @@ static int core_profile_index(const struct core_system_def *system, const char *
   return -1;
 }
 
+static int core_profile_is_listed(const struct core_system_def *system, const char *profile) {
+  return profile && profile[0] && core_profile_index(system, profile) >= 0;
+}
+
 static int add_core_profile(struct core_system_def *system, const char *profile) {
   if (!valid_launch_profile_id(profile)) {
     return 0;
@@ -1890,15 +1894,17 @@ static int resolve_launch_profile(const struct core_system_def *system,
 
   if (relative_path) {
     idx = find_rom_core_override(overrides, system->id, relative_path);
-    if (idx >= 0 && overrides->rom_overrides[idx].launch_profile[0]) {
+    if (idx >= 0 &&
+        core_profile_is_listed(system, overrides->rom_overrides[idx].launch_profile)) {
       return copy_string(out, out_size, overrides->rom_overrides[idx].launch_profile);
     }
   }
   idx = find_system_core_override(overrides, system->id);
-  if (idx >= 0 && overrides->system_overrides[idx].launch_profile[0]) {
+  if (idx >= 0 &&
+      core_profile_is_listed(system, overrides->system_overrides[idx].launch_profile)) {
     return copy_string(out, out_size, overrides->system_overrides[idx].launch_profile);
   }
-  if (system->default_launch_profile[0]) {
+  if (core_profile_is_listed(system, system->default_launch_profile)) {
     return copy_string(out, out_size, system->default_launch_profile);
   }
   return copy_string(out, out_size, "auto");
@@ -3594,13 +3600,13 @@ static void print_core_selection(const char *scope, const struct core_system_def
     }
   }
 
-  if (rom_profile && rom_profile[0]) {
+  if (core_profile_is_listed(system, rom_profile)) {
     effective_profile = rom_profile;
     effective_source = "ROM override";
-  } else if (system_profile && system_profile[0]) {
+  } else if (core_profile_is_listed(system, system_profile)) {
     effective_profile = system_profile;
     effective_source = "system override";
-  } else if (system->default_launch_profile[0]) {
+  } else if (core_profile_is_listed(system, system->default_launch_profile)) {
     effective_profile = system->default_launch_profile;
     effective_source = "plumOS default";
   } else {
