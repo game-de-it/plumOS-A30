@@ -32,6 +32,7 @@ CORE_RECIPES=${CORE_RECIPES:-"${ROOT_DIR}/docker/plumos-toolchain/libretro-core-
 PLUMOS_CORE_FILTER=${PLUMOS_CORE_FILTER:-plumos}
 FAIL_ON_CORE_ERROR=${FAIL_ON_CORE_ERROR:-0}
 BUILD_JOB_FALLBACKS=${BUILD_JOB_FALLBACKS:-1}
+LIBRETRO_SERIAL_CORES=${LIBRETRO_SERIAL_CORES:-"nestopia quicknes gambatte gpsp picodrive mednafen_pce_fast mednafen_supergrafx mednafen_ngp mednafen_lynx handy prosystem gw pokemini mednafen_vb dinothawr mrboom tgbdual"}
 LIBRETRO_OPTIMIZATION_PROFILE=${LIBRETRO_OPTIMIZATION_PROFILE:-speed}
 LIBRETRO_ENABLE_LTO=${LIBRETRO_ENABLE_LTO:-0}
 LIBRETRO_EXTRA_CFLAGS=${LIBRETRO_EXTRA_CFLAGS:-}
@@ -253,6 +254,16 @@ core_aliases() {
     mednafen_supergrafx) printf '%s\n' beetle_supergrafx ;;
     mednafen_vb) printf '%s\n' beetle_vb ;;
     mednafen_wswan) printf '%s\n' beetle_wswan ;;
+  esac
+}
+
+core_initial_jobs() {
+  local id=$1
+  local serial_cores=" ${LIBRETRO_SERIAL_CORES//,/ } "
+
+  case "${serial_cores}" in
+    *" ${id} "*) printf '%s\n' 1 ;;
+    *) printf '%s\n' "${JOBS}" ;;
   esac
 }
 
@@ -804,7 +815,6 @@ build_one_core() {
   local work makefile commit effective_make_args
   local opt_patch_status
 
-  ACTIVE_JOBS=${JOBS}
   LAST_SUCCESSFUL_JOBS=""
   LAST_SUCCESSFUL_ARGS=""
   effective_make_args="${make_args}"
@@ -955,6 +965,7 @@ prepare_dist() {
     printf 'host_jobs=%s\n' "${HOST_JOBS}"
     printf 'core_build_concurrency=%s\n' "${LIBRETRO_CORE_BUILD_CONCURRENCY}"
     printf 'jobs=%s\n' "${JOBS}"
+    printf 'serial_cores=%s\n' "${LIBRETRO_SERIAL_CORES}"
     printf 'job_fallbacks=%s\n' "${BUILD_JOB_FALLBACKS}"
   } >"${MANIFEST}"
 }
@@ -1010,7 +1021,7 @@ run_core_job() {
   BUILT_COUNT=0
   FAILED_COUNT=0
   SKIPPED_COUNT=0
-  ACTIVE_JOBS=${JOBS}
+  ACTIVE_JOBS=$(core_initial_jobs "${id}")
   LAST_SUCCESSFUL_JOBS=""
   LAST_SUCCESSFUL_ARGS=""
 

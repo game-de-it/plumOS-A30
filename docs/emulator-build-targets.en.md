@@ -92,6 +92,11 @@ derives it by dividing the container CPU count by the core concurrency. Each
 core builds into an isolated temporary staging directory, then the parent
 process merges manifests and artifacts in recipe order so parallel jobs do not
 write the final manifest or output directories concurrently.
+Cores that have already proven to require `-j1` are listed in
+`LIBRETRO_SERIAL_CORES` and start directly with `jobs=1`. The default serial set
+is `nestopia quicknes gambatte gpsp picodrive mednafen_pce_fast mednafen_supergrafx mednafen_ngp mednafen_lynx handy prosystem gw pokemini mednafen_vb dinothawr mrboom tgbdual`.
+This does not relax the build condition; it only avoids a known-failing first
+attempt while keeping the same optimization flags and recipe platform.
 
 Cores produced through platform fallback cannot be treated as optimized A30
 artifacts. `build-libretro-cores.sh` therefore treats the recipe `make_args` as
@@ -117,6 +122,12 @@ These 14 cores were verified with
 which reported `built=14`, `failed=0`, and `skipped=83`. The default
 `PLUMOS_CORE_FILTER=plumos` set also reports `built=41`, `failed=0`, and
 `skipped=56` after the same changes.
+After adding the serial-core initial job override,
+`PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 LIBRETRO_CORE_BUILD_CONCURRENCY=4 ./scripts/docker-build.sh libretro-cores`
+now reports `built=97`, `failed=0`, and `skipped=0` across all recipes. The
+generated-core inventory is in `docs/libretro-built-cores.tsv`; the candidate
+system/core/extension/ROM-directory mapping for `systems.json` is in
+`docs/libretro-system-core-map.tsv`.
 
 In the inspected Makefiles, some `platform=armv` branches reset the compiler to
 host `gcc`, defeating the Docker cross-compiler environment. The script now

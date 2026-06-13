@@ -5,6 +5,7 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 IMAGE="${PLUMOS_DOCKER_IMAGE:-plumos-a30-toolchain:dev}"
 PLATFORM="${PLUMOS_DOCKER_PLATFORM:-linux/amd64}"
 DOCKERFILE="${ROOT_DIR}/docker/plumos-toolchain/Dockerfile"
+DEFAULT_LIBRETRO_SERIAL_CORES="nestopia quicknes gambatte gpsp picodrive mednafen_pce_fast mednafen_supergrafx mednafen_ngp mednafen_lynx handy prosystem gw pokemini mednafen_vb dinothawr mrboom tgbdual"
 
 usage() {
   cat <<EOF
@@ -67,6 +68,8 @@ Environment:
                            Default: HOST_JOBS divided by LIBRETRO_CORE_BUILD_CONCURRENCY.
   BUILD_JOB_FALLBACKS     libretro-cores retry job counts after a failed build attempt.
                            Default: 1.
+  LIBRETRO_SERIAL_CORES   Space- or comma-separated core ids that should start
+                           directly with JOBS=1. Default: known serial-only cores.
   PLUMOS_STANDALONE_FILTER
                            standalone-emulators filter: all or comma-separated emulator ids.
   FAIL_ON_STANDALONE_ERROR
@@ -125,6 +128,7 @@ docker_run_base=(
   -e HOST_JOBS="${HOST_JOBS:-}"
   -e JOBS="${JOBS:-}"
   -e BUILD_JOB_FALLBACKS="${BUILD_JOB_FALLBACKS:-1}"
+  -e LIBRETRO_SERIAL_CORES="${LIBRETRO_SERIAL_CORES:-${DEFAULT_LIBRETRO_SERIAL_CORES}}"
   -e PLUMOS_STANDALONE_FILTER="${PLUMOS_STANDALONE_FILTER:-all}"
   -e FAIL_ON_STANDALONE_ERROR="${FAIL_ON_STANDALONE_ERROR:-0}"
   -e TARGET_DIR="${TARGET_DIR:-}"

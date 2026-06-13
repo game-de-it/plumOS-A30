@@ -1,0 +1,86 @@
+system_id	display_name	rom_dir	directory_aliases	extensions	default_core	candidate_cores	status	source	notes
+nes	NES	FC	nes;famicom	nes,unf,unif,zip,7z	fceumm	fceumm,nestopia,quicknes	existing	systems.json	-
+fds	FDS	FDS	FC;fds	fds,zip,7z	fceumm	fceumm,nestopia	existing	systems.json	-
+sfc	SFC	SFC	sfc;snes	sfc,smc,fig,bs,swc,zip,7z	snes9x2005	chimerasnes,mednafen_supafaust,snes9x,snes9x2002,snes9x2005,snes9x2005_plus,snes9x2010	add_core	systems.json	add candidates: chimerasnes,mednafen_supafaust,snes9x2002,snes9x2005_plus,snes9x2010
+gb	GB	GB	gb	gb,zip,7z	gambatte	gambatte,gearboy,mgba,tgbdual,vbam	add_core	systems.json	add candidates: gearboy,tgbdual,vbam
+gbc	GBC	GBC	GB;gbc	gbc,zip,7z	gambatte	gambatte,gearboy,mgba,tgbdual,vbam	add_core	systems.json	add candidates: gearboy,tgbdual,vbam
+gba	GBA	GBA	gba	gba,zip,7z	mgba	gpsp,mednafen_gba,meteor,mgba,vba_next,vbam	add_core	systems.json	add candidates: mednafen_gba,meteor,vba_next,vbam
+megadrive	Mega Drive	MD	megadrive;genesis	gen,md,smd,bin,zip,7z	genesis_plus_gx	genesis_plus_gx,picodrive	existing	systems.json	-
+mastersystem	Master System	MS	MD;mastersystem	sms,bin,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem
+gamegear	Game Gear	GG	GameGear;MD;gamegear	gg,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem
+sega32x	32X	THIRTYTWOX	MD;sega32x	32x,bin,zip,7z	picodrive	picodrive	existing	systems.json	-
+segacd	Sega CD	SEGACD	segacd;megacd	cue,chd,iso,m3u,bin	genesis_plus_gx	genesis_plus_gx,picodrive	existing	systems.json	-
+pcengine	PC Engine	PCE	pcengine;tg16	pce,sgx,zip,7z	mednafen_pce_fast	mednafen_pce,mednafen_pce_fast,mednafen_supergrafx	add_core	systems.json	add candidates: mednafen_pce
+supergrafx	SuperGrafx	SGX	PCE;supergrafx	sgx,pce,zip,7z	mednafen_supergrafx	mednafen_pce,mednafen_pce_fast,mednafen_supergrafx	add_core	systems.json	add candidates: mednafen_pce
+pcenginecd	PC Engine CD	PCECD	pcenginecd;tg16cd	cue,chd,iso,m3u	mednafen_pce_fast	mednafen_pce,mednafen_pce_fast	add_core	systems.json	add candidates: mednafen_pce
+psx	PlayStation	PS	PSX;psx	cue,chd,pbp,m3u,iso,img,bin	pcsx_rearmed	pcsx_rearmed	existing	systems.json	-
+neogeo	Neo Geo	NEOGEO	neogeo	zip,7z	fbneo	fbalpha2012,fbalpha2012_neogeo,fbneo	add_core	systems.json	add candidates: fbalpha2012,fbalpha2012_neogeo
+neogeocd	Neo Geo CD	NEOCD	neogeocd	cue,chd	neocd	neocd	existing	systems.json	-
+ngp	NGP	NGP	ngp	ngp,zip,7z	mednafen_ngp	mednafen_ngp	existing	systems.json	-
+ngpc	NGPC	NGPC	NGP;ngpc	ngc,ngpc,zip,7z	mednafen_ngp	mednafen_ngp	existing	systems.json	-
+wonderswan	WonderSwan	WS	WSC;wonderswan	ws,zip,7z	mednafen_wswan	mednafen_wswan	existing	systems.json	-
+wonderswancolor	WonderSwan Color	WSC	wonderswancolor	wsc,zip,7z	mednafen_wswan	mednafen_wswan	existing	systems.json	-
+lynx	Atari Lynx	LYNX	lynx	lnx,lyx,bll,o,zip,7z	mednafen_lynx	handy,mednafen_lynx	existing	systems.json	-
+virtualboy	Virtual Boy	VB	virtualboy	vb,vboy,bin,zip,7z	mednafen_vb	mednafen_vb	existing	systems.json	-
+arcade	Arcade	ARCADE	arcade	zip,7z	mame2003_plus	fbalpha2012,fbneo,mame2000,mame2003_plus	add_core	systems.json	add candidates: mame2000
+fbneo	FBNeo	FBNEO	ARCADE;fbneo	zip,7z	fbneo	fbneo	existing	systems.json	-
+mame2003plus	MAME 2003+	MAME2003PLUS	ARCADE;mame	zip,7z	mame2003_plus	mame2003_plus	existing	systems.json	-
+cps1	CPS1	CPS1	ARCADE;cps1	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps1,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps1
+cps2	CPS2	CPS2	ARCADE;cps2	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps2,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps2
+cps3	CPS3	CPS3	ARCADE;cps3	zip,7z	fbneo	fbalpha2012,fbneo	existing	systems.json	-
+dos	DOS	DOS	pc	dosz,conf,exe,bat,zip	dosbox_pure	dosbox_pure	existing	systems.json	-
+easyrpg	EasyRPG	EASYRPG	easyrpg	easyrpg,ldb,zip	easyrpg	easyrpg	existing	systems.json	-
+pico8	PICO-8	PICO8	PICO;pico-8	p8,png	retro8	fake08,retro8	existing	systems.json	-
+scummvm	ScummVM	SCUMMVM	scummvm	scummvm,svm	scummvm	scummvm	existing	systems.json	-
+msx	MSX	MSX	msx	rom,mx1,mx2,dsk,cas,zip,7z	bluemsx	bluemsx,fmsx	existing	systems.json	-
+pc88	PC-88	PC88	pc-8800	d88,u88,m3u,zip	quasi88	quasi88	existing	systems.json	-
+pc98	PC-98	PC98	pc-9800	d88,fdi,hdi,fdd,nhd,hdd,m3u,zip	np2kai	nekop2,np2kai	add_core	systems.json	add candidates: nekop2
+x68000	X68000	X68000	x68000	dim,hdf,xdf,m3u,zip,7z	px68k	px68k	existing	systems.json	-
+tic80	TIC-80	TIC	tic-80	tic	tic80	tic80	existing	systems.json	-
+atari2600	Atari 2600	ATARI2600	atari2600	a26,bin,zip,7z	stella2014	stella2014	existing	systems.json	-
+atari7800	Atari 7800	ATARI7800	atari7800	a78,bin,cdf,zip,7z	prosystem	prosystem	existing	systems.json	-
+vectrex	Vectrex	VECTREX	vectrex	vec,bin,zip,7z	vecx	vecx	existing	systems.json	-
+supervision	Supervision	SUPERVISION	supervision	sv,bin,zip,7z	potator	potator	existing	systems.json	-
+odyssey2	Odyssey2	ODYSSEY2	VIDEOPAC;odyssey2	bin,zip,7z	o2em	o2em	existing	systems.json	-
+gameandwatch	Game & Watch	GW	GAMEANDWATCH;gameandwatch	mgw,zip,7z	gw	gw	existing	systems.json	-
+pokemini	Pokemon Mini	POKEMINI	pokemini	min,zip,7z	pokemini	pokemini	existing	systems.json	-
+doom	Doom	DOOM	doom	wad,iwad,pwad,zip	prboom	prboom	existing	systems.json	-
+2048	2048	2048			2048	2048	contentless	proposal	contentless; core can run without ROM
+3do	3DO	PANASONIC		iso,chd,bin,cue	opera	opera	add_system	proposal	Onion folder PANASONIC; expected heavy on A30
+amiga	Amiga	AMIGA		adf,adz,dms,fdi,ipf,hdf,hdz,lha,slave,info,cue,ccd,nrg,mds,iso,chd,uae,m3u,zip,7z,rp9	puae	puae	add_system	proposal	PUAE family; needs BIOS/config policy
+atari5200	Atari 5200	FIFTYTWOHUNDRED		a52,bin,zip,7z	atari800	atari800	add_system	proposal	Onion folder FIFTYTWOHUNDRED
+atari800	Atari 8-bit	EIGHTHUNDRED		atr,xfd,dcm,cas,bin,atx,car,rom,com,xex,m3u,zip,7z	atari800	atari800	add_system	proposal	Onion folder EIGHTHUNDRED
+atarist	Atari ST	ATARIST		st,msa,zip,stx,dim,ipf,vhd,gem,ide,m3u	hatari	hatari	add_system	proposal	Onion folder ATARIST
+bk	Elektronika BK	BK		bin	bk	bk	add_system	proposal	proposed plumOS folder
+c64	Commodore 64	COMMODORE		d64,d71,d80,d81,d82,g64,g41,x64,t64,tap,prg,p00,crt,bin,zip,gz,m3u	vice_x64	frodo,vice_x64	add_system	proposal	Onion folder COMMODORE
+cannonball	Cannonball	CANNONBALL		game,88	cannonball	cannonball	add_system	proposal	OutRun engine; requires game data policy
+cavestory	Cave Story	CAVESTORY		exe	nxengine	nxengine	add_system	proposal	NXEngine; requires data layout policy
+chailove	ChaiLove	CHAILOVE		chai,chailove	chailove	chailove	add_system	proposal	homebrew engine
+channelf	Fairchild Channel F	FAIRCHILD		bin,chf,rom,zip	freechaf	freechaf	add_system	proposal	Onion folder FAIRCHILD
+colecovision	ColecoVision	COLECO		rom,ri,mx1,mx2,col,dsk,cas,sg,sc,m3u,zip,7z	bluemsx	bluemsx	add_system	proposal	Onion folder COLECO
+cpc	Amstrad CPC	CPC		dsk,sna,zip,tap,cdt,voc,cpr,m3u,kcr	crocods	cap32,crocods	add_system	proposal	Onion folder CPC
+daphne	Daphne	DAPHNE		zip	daphne	daphne	add_system	proposal	laserdisc data/layout policy pending
+dinothawr	Dinothawr	DINOTHAWR		game	dinothawr	dinothawr	add_system	proposal	homebrew game engine
+flashback	Flashback	FLASHBACK		map,aba,seq,lev	reminiscence	reminiscence	add_system	proposal	REminiscence data layout policy pending
+intellivision	Intellivision	INTELLIVISION		int,bin,rom,zip,7z	freeintv	freeintv	add_system	proposal	Onion folder INTELLIVISION; BIOS required
+j2me	Java ME	J2ME		jar,sqc,jam,jad,kjx,adf,sec,sto,sp,sp0,sp1,sp2,sp3,sp4,sp5,sp6,sp7,sp8,sp9	squirreljme	squirreljme	add_system	proposal	SquirrelJME; controls/config policy pending
+jaguar	Atari Jaguar	JAGUAR		j64,jag,rom,abs,cof,bin,prg	virtualjaguar	virtualjaguar	add_system	proposal	Onion folder JAGUAR; expected heavy
+lowresnx	LowRes NX	LOWRESNX		nx	lowresnx	lowresnx	add_system	proposal	homebrew engine
+lutro	Lutro	LUTRO		lutro,love,lua	lutro	lutro	add_system	proposal	Lua engine
+microw8	MicroW8	MICROW8		uw8,wasm	uw8	uw8	add_system	proposal	fantasy console
+mrboom	Mr.Boom	MRBOOM		desktop	mrboom	mrboom	add_system	proposal	content/data policy pending
+music	Game Music Emu	MUSIC		ay,gbs,gym,hes,kss,nsf,nsfe,sap,spc,vgm,vgz,zip	gme	gme	add_system	proposal	music player; FE UX policy pending
+palm	Palm OS	PALM		prc,pqa,img,pdb,zip	mu	mu	add_system	proposal	Mu; BIOS/ROM policy pending
+pcfx	PC-FX	PCFX		cue,ccd,toc,chd,zip,bin	mednafen_pcfx	mednafen_pcfx	add_system	proposal	Onion folder PCFX; BIOS required
+quake	Quake	QUAKE		pak	tyrquake	tyrquake	add_system	proposal	TyrQuake; data layout policy pending
+rickdangerous	Rick Dangerous	XRICK		zip	xrick	xrick	add_system	proposal	XRick data policy pending
+sg1000	SG-1000	SEGASGONE		sg,mv,bin,rom,sms,gg	gearsystem	bluemsx,gearsystem,genesis_plus_gx,picodrive	add_system	proposal	Onion folder SEGASGONE
+sharpx1	Sharp X1	XONE		dx1,zip,2d,2hd,tfd,d88,88d,hdm,xdf,dup,tap,cmd	x1	x1	add_system	proposal	Onion folder XONE; BIOS required
+thomson	Thomson MO/TO	THOMSON		fd,sap,k7,m7,m5,rom	theodore	theodore	add_system	proposal	proposed plumOS folder
+ti83	TI-83	TI83		8xp,8xk,8xg	numero	numero	add_system	proposal	calculator core
+uzebox	Uzebox	UZEBOX		uze	uzem	uzem	add_system	proposal	homebrew console
+vic20	Commodore VIC-20	VIC20		d64,d6z,d71,d7z,d80,d81,d82,d8z,g64,g6z,g41,g4z,x64,x6z,nib,nbz,d2m,d4m,t64,tap,tcrt,prg,p00,crt,bin,cmd,m3u,vfl,vsf,zip,7z,gz,20,40,60,a0,b0,rom	vice_xvic	vice_xvic	add_system	proposal	Onion folder VIC20
+vmu	Dreamcast VMU	VMU		vms,dci,bin	vemulator	vemulator	add_system	proposal	VeMUlator; FE UX policy pending
+wolf3d	Wolfenstein 3D	WOLF3D		wl6,n3d,sod,sdm,wl1,pk3,exe	ecwolf	ecwolf	add_system	proposal	ECWolf data layout policy pending
+zx81	ZX-81	ZXEIGHTYONE		p,tzx,t81,zip	81	81	add_system	proposal	Onion folder ZXEIGHTYONE
+zxspectrum	ZX Spectrum	ZXS		tzx,tap,z80,rzx,scl,trd,dsk,dck,sna,szx,zip,gz,udi,mgt,img	fuse	fuse	add_system	proposal	Onion folder ZXS
