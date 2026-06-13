@@ -148,7 +148,9 @@ RetroArch の software volume に保存値を反映します。
 物理音量ボタンは FE 表示中は controller UI が、RetroArch 実行中は
 `plumos-safe-hotkeyd --oneshot` が、standalone emulator 実行中は
 `plumos-safe-hotkeyd --volume-only` が `plumos-volume-control up|down` 相当の処理を呼び、
-同じ `volume` 設定と softvol に反映します。
+同じ `volume` 設定と softvol に反映します。エミュレータ実行中の hotkeyd 経路では
+フレーム落ちを避けるため、ALSA softvol と `/tmp` の一時状態だけを即時更新し、
+`settings.json` 書き込みと `sync` はエミュレータ終了後の `persist-runtime` で遅延実行します。
 
 ## Wi-Fi
 

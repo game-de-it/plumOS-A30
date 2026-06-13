@@ -6,6 +6,7 @@ SYSTEM_SETTINGS=${PLUMOS_SYSTEM_SETTINGS_JSON:-$PLUMOS_ROOT/config/system/settin
 LOG=${PLUMOS_VOLUME_LOG:-/tmp/.plumos_volume_set}
 SOFTVOL_NAME=${PLUMOS_VOLUME_SOFTVOL_NAME:-Soft Volume Master}
 SILENCE_RAW=${PLUMOS_VOLUME_SILENCE_RAW:-/tmp/plumos-volume-silence.raw}
+RUNTIME_STATE=${PLUMOS_VOLUME_RUNTIME_STATE:-/tmp/plumos-volume-runtime}
 
 find_cmd() {
   for path in "$@"; do
@@ -23,6 +24,7 @@ APLAY=${PLUMOS_APLAY:-$(find_cmd /usr/bin/aplay /bin/aplay /sbin/aplay 2>/dev/nu
 usage() {
   cat <<USAGE
 Usage: plumos-volume-control init|apply [0..20]|up|down|step +/-N|get|status
+       plumos-volume-control runtime-up|runtime-down|runtime-step +/-N|persist-runtime
 
 Initializes and applies the A30 stock-compatible ALSA softvol control.
 USAGE
@@ -44,6 +46,20 @@ read_volume() {
   printf '%s\n' "$value"
 }
 
+read_runtime_volume() {
+  value=""
+  if [ -r "$RUNTIME_STATE" ]; then
+    value="$(sed -n '1s/^\([0-9][0-9]*\).*$/\1/p' "$RUNTIME_STATE" 2>/dev/null | head -n 1)"
+  fi
+  case "$value" in
+    ""|*[!0-9]*)
+      read_volume
+      return
+      ;;
+  esac
+  normalize_volume "$value"
+}
+
 normalize_volume() {
   value=${1:-}
   case "$value" in
@@ -55,6 +71,28 @@ normalize_volume() {
     value=20
   fi
   printf '%s\n' "$value"
+}
+
+write_runtime_volume_state() {
+  volume="$(normalize_volume "$1")" || {
+    echo "invalid volume: $1" >"$LOG"
+    return 2
+  }
+  tmp="$RUNTIME_STATE.tmp.$$"
+  printf '%s\n' "$volume" >"$tmp" || {
+    rm -f "$tmp"
+    echo "cannot write runtime volume state" >"$LOG"
+    return 1
+  }
+  mv "$tmp" "$RUNTIME_STATE" 2>/dev/null || {
+    rm -f "$tmp"
+    echo "cannot replace runtime volume state" >"$LOG"
+    return 1
+  }
+}
+
+clear_runtime_volume_state() {
+  rm -f "$RUNTIME_STATE" 2>/dev/null || true
 }
 
 valid_signed_int() {
@@ -219,14 +257,44 @@ change_volume() {
   fi
   if [ "$next" = "$current" ]; then
     apply_volume "$next" || return $?
+    clear_runtime_volume_state
     echo "volume=$next" >"$LOG"
     printf 'volume=%s\n' "$next"
     return 0
   fi
   write_volume_setting "$next" >/dev/null || return $?
   apply_volume "$next" || return $?
+  clear_runtime_volume_state
   echo "volume=$next" >"$LOG"
   printf 'volume=%s\n' "$next"
+}
+
+change_volume_runtime() {
+  delta=${1:-}
+  valid_signed_int "$delta" || {
+    echo "invalid volume delta: $delta" >"$LOG"
+    return 2
+  }
+  current="$(read_runtime_volume)"
+  next=$(( current + delta ))
+  if [ "$next" -lt 0 ]; then
+    next=0
+  elif [ "$next" -gt 20 ]; then
+    next=20
+  fi
+  write_runtime_volume_state "$next" || return $?
+  apply_volume "$next" || return $?
+  echo "runtime_volume=$next" >"$LOG"
+  printf 'volume=%s\n' "$next"
+}
+
+persist_runtime_volume() {
+  [ -r "$RUNTIME_STATE" ] || return 0
+  volume="$(read_runtime_volume)"
+  write_volume_setting "$volume" >/dev/null || return $?
+  clear_runtime_volume_state
+  echo "volume=$volume" >"$LOG"
+  printf 'volume=%s\n' "$volume"
 }
 
 get_volume() {
@@ -251,6 +319,19 @@ case "${1:-status}" in
   step)
     shift
     change_volume "${1:-}"
+    ;;
+  runtime-up|up-runtime)
+    change_volume_runtime 1
+    ;;
+  runtime-down|down-runtime)
+    change_volume_runtime -1
+    ;;
+  runtime-step|step-runtime)
+    shift
+    change_volume_runtime "${1:-}"
+    ;;
+  persist-runtime)
+    persist_runtime_volume
     ;;
   get|status)
     get_volume

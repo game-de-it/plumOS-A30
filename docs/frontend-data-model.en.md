@@ -607,8 +607,10 @@ Rules:
   `plumos-text-ui launch --execute` auto-starts `plumos-safe-hotkeyd --oneshot`
   during RetroArch launches. Standalone emulators auto-start
   `plumos-safe-hotkeyd --volume-only`, which handles only the volume keys.
-  `SIGUSR1` remains available for tests of the RetroArch safe hotkey path
-  without a physical button.
+  Volume changes during gameplay update runtime softvol immediately and defer
+  persistent settings writes until after the emulator exits. `SIGUSR1` remains
+  available for tests of the RetroArch safe hotkey path without a physical
+  button.
 
 ## SAFE Menu
 

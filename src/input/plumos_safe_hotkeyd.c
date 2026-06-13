@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -52,6 +53,7 @@ struct input_event {
 #define DEFAULT_SDCARD_ROOT "/mnt/SDCARD"
 #define DEFAULT_DEBOUNCE_MS 1500
 #define DEFAULT_POLL_MS 250
+#define VOLUME_LOCK_PATH "/tmp/plumos-safe-hotkeyd-volume.lock"
 #define COMMAND_MAX 8192
 #define SHELL_QUOTE_MAX (PATH_MAX * 4 + 4)
 
@@ -79,6 +81,7 @@ struct config {
   int volume_keys_enabled;
   int event_path_explicit;
   int volume_event_path_explicit;
+  int volume_lock_fd;
 };
 
 static void handle_signal(int sig) {
@@ -394,6 +397,7 @@ static int init_config(struct config *cfg) {
   }
   cfg->key_code = KEY_POWER;
   cfg->debounce_ms = DEFAULT_DEBOUNCE_MS;
+  cfg->volume_lock_fd = -1;
   cfg->safe_key_enabled = 1;
   cfg->volume_keys_enabled = 1;
 
@@ -623,6 +627,46 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
   return 1;
 }
 
+static int acquire_volume_lock(struct config *cfg) {
+  char pid_buf[64];
+  int fd;
+  int n;
+
+  if (!cfg || !cfg->volume_keys_enabled) {
+    return 1;
+  }
+  fd = open(VOLUME_LOCK_PATH, O_CREAT | O_RDWR, 0644);
+  if (fd < 0) {
+    log_msg(cfg, "warning volume_lock open_failed path=%s errno=%d", VOLUME_LOCK_PATH,
+            errno);
+    cfg->volume_keys_enabled = 0;
+    return 0;
+  }
+  if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+    log_msg(cfg, "warning volume_lock busy path=%s errno=%d", VOLUME_LOCK_PATH, errno);
+    close(fd);
+    cfg->volume_keys_enabled = 0;
+    return 0;
+  }
+  if (ftruncate(fd, 0) == 0) {
+    n = snprintf(pid_buf, sizeof(pid_buf), "%ld\n", (long)getpid());
+    if (n > 0) {
+      (void)write(fd, pid_buf, (size_t)n);
+    }
+  }
+  cfg->volume_lock_fd = fd;
+  return 1;
+}
+
+static void release_volume_lock(struct config *cfg) {
+  if (!cfg || cfg->volume_lock_fd < 0) {
+    return;
+  }
+  flock(cfg->volume_lock_fd, LOCK_UN);
+  close(cfg->volume_lock_fd);
+  cfg->volume_lock_fd = -1;
+}
+
 static int run_trigger_command(struct config *cfg, const char *source) {
   long long start;
   long long elapsed;
@@ -662,7 +706,7 @@ static int run_volume_key_command(struct config *cfg, int direction) {
   char q_bin[SHELL_QUOTE_MAX];
   char q_command_log[SHELL_QUOTE_MAX];
   char command[COMMAND_MAX];
-  const char *action = direction > 0 ? "up" : "down";
+  const char *action = direction > 0 ? "runtime-up" : "runtime-down";
   const char *source = direction > 0 ? "volume_up" : "volume_down";
   long long start;
   long long elapsed;
@@ -776,12 +820,17 @@ static int event_loop(struct config *cfg) {
   long long last_trigger_ms = 0;
   int exit_rc = 0;
 
+  if (cfg->volume_keys_enabled) {
+    acquire_volume_lock(cfg);
+  }
+
   if (cfg->safe_key_enabled) {
     fd = open(cfg->event_path, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
       fprintf(stderr, "error: cannot open input event device: %s: %s\n", cfg->event_path,
               strerror(errno));
       log_msg(cfg, "error open_event path=%s errno=%d", cfg->event_path, errno);
+      release_volume_lock(cfg);
       return 1;
     }
   }
@@ -795,6 +844,7 @@ static int event_loop(struct config *cfg) {
     fprintf(stderr, "error: no input event device is available\n");
     log_msg(cfg, "error no_input_event safe_key=%d volume_keys=%d", cfg->safe_key_enabled,
             cfg->volume_keys_enabled);
+    release_volume_lock(cfg);
     return 1;
   }
 
@@ -887,6 +937,7 @@ static int event_loop(struct config *cfg) {
   if (volume_fd >= 0) {
     close(volume_fd);
   }
+  release_volume_lock(cfg);
   log_msg(cfg, "exit rc=%d stop=%d", exit_rc, (int)g_stop);
   return exit_rc;
 }

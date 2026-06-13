@@ -172,7 +172,10 @@ saved value into RetroArch software volume. During FE screens, the controller UI
 handles the physical volume buttons. While RetroArch is running,
 `plumos-safe-hotkeyd --oneshot` calls the equivalent of
 `plumos-volume-control up|down`; while standalone emulators are running,
-`plumos-safe-hotkeyd --volume-only` handles only the volume keys.
+`plumos-safe-hotkeyd --volume-only` handles only the volume keys. In the
+emulator hotkey path, only ALSA softvol and temporary `/tmp` runtime state are
+updated immediately; the `settings.json` write and `sync` are deferred until the
+launcher runs `persist-runtime` after the emulator exits.
 
 ## Wi-Fi
 

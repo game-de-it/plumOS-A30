@@ -1060,6 +1060,25 @@ static void stop_safe_hotkeyd(pid_t pid) {
   waitpid(pid, &status, 0);
 }
 
+static void persist_runtime_volume(const char *plumos_root) {
+  char helper[PATH_MAX];
+  char cmd[TEXT_COMMAND_MAX];
+  size_t pos = 0;
+
+  if (!join_path(helper, sizeof(helper), plumos_root, "bin/plumos-volume-control") ||
+      !file_exists(helper)) {
+    return;
+  }
+  if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, helper) ||
+      !append_string(cmd, sizeof(cmd), &pos, " persist-runtime >/tmp/.plumos_volume_set 2>&1")) {
+    return;
+  }
+  system(cmd);
+}
+
 static void init_frontend_settings(struct frontend_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
@@ -2862,6 +2881,7 @@ static int execute_launch_plan(const struct launch_plan *plan, const char *plumo
   hotkeyd_pid = start_safe_hotkeyd(plumos_root, plan);
   rc = system(plan->command);
   stop_safe_hotkeyd(hotkeyd_pid);
+  persist_runtime_volume(plumos_root);
   if (rc == -1) {
     fprintf(stderr, "error: failed to execute launch command\n");
     return 0;
