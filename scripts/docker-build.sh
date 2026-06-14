@@ -20,6 +20,7 @@ Commands:
   network-services
                  Build FTP/SFTP/Samba service package into dist/plumos-network-services.
   python-runtime Build Python 3 runtime with pip support into dist/plumos-python-runtime.
+  pyxel-a30      Build patched Pyxel runtime with A30 GLES FBO present into dist/plumos-pyxel-a30.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
   sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
@@ -81,6 +82,8 @@ Environment:
   PPSSPP_BINARY_NAME       PPSSPP staged binary name. Default: PPSSPPSDL.
   PYTHON_VERSION           Python source version for python-runtime. Default: 3.14.6.
   PYTHON_SHA256            Python source SHA-256 for python-runtime.
+  PYXEL_VERSION            Pyxel version for pyxel-a30. Default: 2.9.6.
+  PYXEL_REF                Pyxel git ref for pyxel-a30. Default: v\$PYXEL_VERSION.
 EOF
 }
 
@@ -140,6 +143,9 @@ docker_run_base=(
   -e PPSSPP_BINARY_NAME="${PPSSPP_BINARY_NAME:-PPSSPPSDL}"
   -e PYTHON_VERSION="${PYTHON_VERSION:-3.14.6}"
   -e PYTHON_SHA256="${PYTHON_SHA256:-}"
+  -e PYXEL_VERSION="${PYXEL_VERSION:-2.9.6}"
+  -e PYXEL_REF="${PYXEL_REF:-}"
+  -e RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly-2026-06-12}"
   -v "${ROOT_DIR}:/workspace"
   -w /workspace
   "$IMAGE"
@@ -173,6 +179,10 @@ case "$cmd" in
   python-runtime|python|python3)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-python-runtime.sh
+    ;;
+  pyxel-a30|pyxel)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-pyxel-a30.sh
     ;;
   runtime-probe|probe)
     ensure_image

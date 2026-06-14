@@ -1,0 +1,485 @@
+diff --git a/crates/pyxel-core/src/platform/facade.rs b/crates/pyxel-core/src/platform/facade.rs
+index 9c9ff35..fe8d381 100644
+--- a/crates/pyxel-core/src/platform/facade.rs
++++ b/crates/pyxel-core/src/platform/facade.rs
+@@ -161,6 +161,18 @@ pub fn display_size() -> (u32, u32) {
+     platform().display_size()
+ }
+
++pub fn begin_frame_render() {
++    if !is_headless() {
++        platform().begin_frame_render();
++    }
++}
++
++pub fn end_frame_render() {
++    if !is_headless() {
++        platform().end_frame_render();
++    }
++}
++
+ // Audio
+
+ pub fn start_audio<F: FnMut(&mut [i16]) + 'static>(
+diff --git a/crates/pyxel-core/src/platform/mod.rs b/crates/pyxel-core/src/platform/mod.rs
+index 2fd27f4..3477808 100644
+--- a/crates/pyxel-core/src/platform/mod.rs
++++ b/crates/pyxel-core/src/platform/mod.rs
+@@ -7,9 +7,9 @@ mod sdl2;
+
+ pub use event::Event;
+ pub use facade::{
+-    display_size, export_browser_file, gl_context, gl_profile, init, init_window, is_fullscreen,
+-    is_sigint_received, lock_audio, pause_audio, poll_events, quit, run_frame_loop, set_fullscreen,
+-    set_mouse_pos, set_mouse_visible, set_window_icon, set_window_pos, set_window_size,
+-    set_window_title, start_audio, step_frame, ticks, unlock_audio, window_pos, window_size,
+-    GlProfile,
++    begin_frame_render, display_size, end_frame_render, export_browser_file, gl_context,
++    gl_profile, init, init_window, is_fullscreen, is_sigint_received, lock_audio, pause_audio,
++    poll_events, quit, run_frame_loop, set_fullscreen, set_mouse_pos, set_mouse_visible,
++    set_window_icon, set_window_pos, set_window_size, set_window_title, start_audio, step_frame,
++    ticks, unlock_audio, window_pos, window_size, GlProfile,
+ };
+diff --git a/crates/pyxel-core/src/platform/sdl2/platform_sdl2.rs b/crates/pyxel-core/src/platform/sdl2/platform_sdl2.rs
+index c6324cb..c46f7b8 100644
+--- a/crates/pyxel-core/src/platform/sdl2/platform_sdl2.rs
++++ b/crates/pyxel-core/src/platform/sdl2/platform_sdl2.rs
+@@ -5,7 +5,7 @@ use std::ptr::{copy_nonoverlapping, null_mut};
+ use std::slice::from_raw_parts_mut;
+ use std::sync::atomic::{AtomicU32, Ordering};
+
+-use glow::Context;
++use glow::{Context, HasContext, PixelUnpackData};
+
+ use super::super::facade::GlProfile;
+ use super::poll_events::{open_gamepad, GamepadSlot};
+@@ -14,6 +14,259 @@ use super::sdl2_sys::*;
+
+ static AUDIO_DEVICE_ID: AtomicU32 = AtomicU32::new(0);
+
++const A30_PRESENT_VERT: &str = r#"#version 100
++precision highp float;
++attribute vec2 position;
++attribute vec2 texCoord;
++varying vec2 v_texCoord;
++
++void main() {
++    gl_Position = vec4(position, 0.0, 1.0);
++    v_texCoord = texCoord;
++}
++"#;
++
++const A30_PRESENT_FRAG: &str = r#"#version 100
++precision mediump float;
++varying vec2 v_texCoord;
++uniform sampler2D u_texture;
++
++void main() {
++    gl_FragColor = texture2D(u_texture, v_texCoord);
++}
++"#;
++
++struct A30Present {
++    logical_width: u32,
++    logical_height: u32,
++    physical_width: u32,
++    physical_height: u32,
++    framebuffer: glow::NativeFramebuffer,
++    texture: glow::NativeTexture,
++    program: glow::NativeProgram,
++    vertex_array: glow::NativeVertexArray,
++    _vertex_buffer: glow::NativeBuffer,
++}
++
++impl A30Present {
++    unsafe fn new(
++        gl: &mut Context,
++        logical_width: u32,
++        logical_height: u32,
++        physical_width: u32,
++        physical_height: u32,
++        rotation: &str,
++    ) -> Self {
++        let texture = gl
++            .create_texture()
++            .expect("Failed to create A30 present texture");
++        gl.bind_texture(glow::TEXTURE_2D, Some(texture));
++        gl.tex_parameter_i32(
++            glow::TEXTURE_2D,
++            glow::TEXTURE_MIN_FILTER,
++            glow::LINEAR as i32,
++        );
++        gl.tex_parameter_i32(
++            glow::TEXTURE_2D,
++            glow::TEXTURE_MAG_FILTER,
++            glow::LINEAR as i32,
++        );
++        gl.tex_parameter_i32(
++            glow::TEXTURE_2D,
++            glow::TEXTURE_WRAP_S,
++            glow::CLAMP_TO_EDGE as i32,
++        );
++        gl.tex_parameter_i32(
++            glow::TEXTURE_2D,
++            glow::TEXTURE_WRAP_T,
++            glow::CLAMP_TO_EDGE as i32,
++        );
++        gl.tex_image_2d(
++            glow::TEXTURE_2D,
++            0,
++            glow::RGBA as i32,
++            logical_width as i32,
++            logical_height as i32,
++            0,
++            glow::RGBA,
++            glow::UNSIGNED_BYTE,
++            PixelUnpackData::Slice(None),
++        );
++
++        let framebuffer = gl
++            .create_framebuffer()
++            .expect("Failed to create A30 present framebuffer");
++        gl.bind_framebuffer(glow::FRAMEBUFFER, Some(framebuffer));
++        gl.framebuffer_texture_2d(
++            glow::FRAMEBUFFER,
++            glow::COLOR_ATTACHMENT0,
++            glow::TEXTURE_2D,
++            Some(texture),
++            0,
++        );
++        assert_eq!(
++            gl.check_framebuffer_status(glow::FRAMEBUFFER),
++            glow::FRAMEBUFFER_COMPLETE,
++            "A30 present framebuffer is incomplete"
++        );
++        gl.bind_framebuffer(glow::FRAMEBUFFER, None);
++
++        let program = Self::create_program(gl);
++        let vertex_array = gl
++            .create_vertex_array()
++            .expect("Failed to create A30 present vertex array");
++        let vertex_buffer = gl
++            .create_buffer()
++            .expect("Failed to create A30 present vertex buffer");
++        let vertices = Self::vertices(
++            rotation,
++            logical_width,
++            logical_height,
++            physical_width,
++            physical_height,
++        );
++
++        gl.bind_vertex_array(Some(vertex_array));
++        gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
++        gl.buffer_data_u8_slice(
++            glow::ARRAY_BUFFER,
++            vertices.align_to::<u8>().1,
++            glow::STATIC_DRAW,
++        );
++
++        let position = gl
++            .get_attrib_location(program, "position")
++            .expect("Failed to find A30 present attribute 'position'");
++        gl.vertex_attrib_pointer_f32(
++            position,
++            2,
++            glow::FLOAT,
++            false,
++            4 * std::mem::size_of::<f32>() as i32,
++            0,
++        );
++        gl.enable_vertex_attrib_array(position);
++
++        let tex_coord = gl
++            .get_attrib_location(program, "texCoord")
++            .expect("Failed to find A30 present attribute 'texCoord'");
++        gl.vertex_attrib_pointer_f32(
++            tex_coord,
++            2,
++            glow::FLOAT,
++            false,
++            4 * std::mem::size_of::<f32>() as i32,
++            2 * std::mem::size_of::<f32>() as i32,
++        );
++        gl.enable_vertex_attrib_array(tex_coord);
++
++        Self {
++            logical_width,
++            logical_height,
++            physical_width,
++            physical_height,
++            framebuffer,
++            texture,
++            program,
++            vertex_array,
++            _vertex_buffer: vertex_buffer,
++        }
++    }
++
++    unsafe fn create_program(gl: &mut Context) -> glow::NativeProgram {
++        let vertex_shader = gl
++            .create_shader(glow::VERTEX_SHADER)
++            .expect("Failed to create A30 present vertex shader");
++        gl.shader_source(vertex_shader, A30_PRESENT_VERT);
++        gl.compile_shader(vertex_shader);
++        assert!(
++            gl.get_shader_compile_status(vertex_shader),
++            "{}",
++            gl.get_shader_info_log(vertex_shader)
++        );
++
++        let fragment_shader = gl
++            .create_shader(glow::FRAGMENT_SHADER)
++            .expect("Failed to create A30 present fragment shader");
++        gl.shader_source(fragment_shader, A30_PRESENT_FRAG);
++        gl.compile_shader(fragment_shader);
++        assert!(
++            gl.get_shader_compile_status(fragment_shader),
++            "{}",
++            gl.get_shader_info_log(fragment_shader)
++        );
++
++        let program = gl
++            .create_program()
++            .expect("Failed to create A30 present shader program");
++        gl.attach_shader(program, vertex_shader);
++        gl.attach_shader(program, fragment_shader);
++        gl.link_program(program);
++        assert!(
++            gl.get_program_link_status(program),
++            "{}",
++            gl.get_program_info_log(program)
++        );
++        gl.detach_shader(program, vertex_shader);
++        gl.detach_shader(program, fragment_shader);
++        gl.delete_shader(vertex_shader);
++        gl.delete_shader(fragment_shader);
++        program
++    }
++
++    fn fit_extents(
++        rotation: &str,
++        logical_width: u32,
++        logical_height: u32,
++        physical_width: u32,
++        physical_height: u32,
++    ) -> (f32, f32) {
++        let (display_width, display_height) = match rotation {
++            "none" => (physical_width as f32, physical_height as f32),
++            _ => (physical_height as f32, physical_width as f32),
++        };
++        let scale = (display_width / logical_width as f32)
++            .min(display_height / logical_height as f32)
++            .min(1.0);
++        let output_width = logical_width as f32 * scale;
++        let output_height = logical_height as f32 * scale;
++        match rotation {
++            "none" => (output_width / display_width, output_height / display_height),
++            _ => (output_height / physical_width as f32, output_width / physical_height as f32),
++        }
++    }
++
++    fn vertices(
++        rotation: &str,
++        logical_width: u32,
++        logical_height: u32,
++        physical_width: u32,
++        physical_height: u32,
++    ) -> [f32; 16] {
++        let (x, y) = Self::fit_extents(
++            rotation,
++            logical_width,
++            logical_height,
++            physical_width,
++            physical_height,
++        );
++        match rotation {
++            "cw" => [
++                -x, -y, 0.0, 1.0, -x, y, 1.0, 1.0, x, -y, 0.0, 0.0, x, y, 1.0,
++                0.0,
++            ],
++            "none" => [
++                -x, -y, 0.0, 0.0, -x, y, 0.0, 1.0, x, -y, 1.0, 0.0, x, y, 1.0,
++                1.0,
++            ],
++            _ => [
++                -x, -y, 1.0, 0.0, -x, y, 0.0, 0.0, x, -y, 1.0, 1.0, x, y, 0.0,
++                1.0,
++            ],
++        }
++    }
++}
++
+ #[cfg(target_os = "emscripten")]
+ extern "C" {
+     fn emscripten_run_script(script: *const std::os::raw::c_char);
+@@ -40,6 +293,7 @@ extern "C" fn audio_callback(userdata: *mut c_void, stream: *mut u8, len: c_int)
+ pub struct PlatformSdl2 {
+     pub window: *mut SDL_Window,
+     pub gl_context: *mut Context,
++    a30_present: Option<A30Present>,
+     pub audio_device_id: SDL_AudioDeviceID,
+     pub mouse_x: i32,
+     pub mouse_y: i32,
+@@ -56,6 +310,7 @@ impl PlatformSdl2 {
+         Self {
+             window: null_mut(),
+             gl_context: null_mut(),
++            a30_present: None,
+             audio_device_id: 0,
+             mouse_x: i32::MIN,
+             mouse_y: i32::MIN,
+@@ -139,13 +394,21 @@ impl PlatformSdl2 {
+
+     pub fn init_window(&mut self, title: &str, width: u32, height: u32) {
+         let title = CString::new(title).unwrap();
++        let a30_enabled = Self::a30_present_enabled();
++        let (window_width, window_height, logical_width, logical_height) = if a30_enabled {
++            let (display_width, display_height) = Self::raw_display_size();
++            (display_width, display_height, width, height)
++        } else {
++            (width, height, width, height)
++        };
++
+         unsafe {
+             self.window = SDL_CreateWindow(
+                 title.as_ptr(),
+                 SDL_WINDOWPOS_UNDEFINED_MASK as i32,
+                 SDL_WINDOWPOS_UNDEFINED_MASK as i32,
+-                width as i32,
+-                height as i32,
++                window_width as i32,
++                window_height as i32,
+                 (SDL_WINDOW_OPENGL as Uint32) | (SDL_WINDOW_RESIZABLE as Uint32),
+             );
+             assert!(
+@@ -186,6 +449,23 @@ impl PlatformSdl2 {
+                 SDL_GL_GetProcAddress(s.as_ptr().cast()).cast_const()
+             })));
+
++            if a30_enabled {
++                let rotation =
++                    std::env::var("PLUMOS_PYXEL_A30_ROTATION").unwrap_or_else(|_| "cw".into());
++                self.a30_present = Some(A30Present::new(
++                    &mut *self.gl_context,
++                    logical_width,
++                    logical_height,
++                    window_width,
++                    window_height,
++                    &rotation,
++                ));
++                println!(
++                    "plumOS Pyxel A30 present enabled logical={}x{} physical={}x{} rotation={}",
++                    logical_width, logical_height, window_width, window_height, rotation
++                );
++            }
++
+             // Grab input focus, which CLI-launched windows don't reliably get on their own
+             #[cfg(not(target_os = "emscripten"))]
+             SDL_RaiseWindow(self.window);
+@@ -203,12 +483,18 @@ impl PlatformSdl2 {
+     }
+
+     pub fn window_size(&self) -> (u32, u32) {
++        if let Some(present) = &self.a30_present {
++            return (present.logical_width, present.logical_height);
++        }
+         let (mut w, mut h) = (0i32, 0i32);
+         unsafe { SDL_GetWindowSize(self.window, &raw mut w, &raw mut h) };
+         (w as u32, h as u32)
+     }
+
+     pub fn set_window_size(&mut self, width: u32, height: u32) {
++        if self.a30_present.is_some() {
++            return;
++        }
+         unsafe { SDL_SetWindowSize(self.window, width as i32, height as i32) };
+     }
+
+@@ -262,6 +548,14 @@ impl PlatformSdl2 {
+     }
+
+     pub fn display_size(&self) -> (u32, u32) {
++        if Self::a30_present_enabled() {
++            let (width, height) = Self::raw_display_size();
++            return (height, width);
++        }
++        Self::raw_display_size()
++    }
++
++    fn raw_display_size() -> (u32, u32) {
+         let mut mode = MaybeUninit::<SDL_DisplayMode>::uninit();
+         assert!(
+             unsafe { SDL_GetCurrentDisplayMode(0, mode.as_mut_ptr()) } == 0,
+@@ -271,6 +565,57 @@ impl PlatformSdl2 {
+         (mode.w as u32, mode.h as u32)
+     }
+
++    fn a30_present_enabled() -> bool {
++        std::env::var("PLUMOS_PYXEL_A30_PRESENT").is_ok_and(|value| {
++            !matches!(value.as_str(), "" | "0" | "false" | "False" | "no" | "No")
++        })
++    }
++
++    pub fn begin_frame_render(&mut self) {
++        let Some(present) = &self.a30_present else {
++            return;
++        };
++
++        unsafe {
++            let gl = &mut *self.gl_context;
++            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(present.framebuffer));
++            gl.viewport(
++                0,
++                0,
++                present.logical_width as i32,
++                present.logical_height as i32,
++            );
++            gl.clear_color(0.0, 0.0, 0.0, 1.0);
++            gl.clear(glow::COLOR_BUFFER_BIT);
++        }
++    }
++
++    pub fn end_frame_render(&mut self) {
++        let Some(present) = &self.a30_present else {
++            return;
++        };
++
++        unsafe {
++            let gl = &mut *self.gl_context;
++            gl.bind_framebuffer(glow::FRAMEBUFFER, None);
++            gl.viewport(
++                0,
++                0,
++                present.physical_width as i32,
++                present.physical_height as i32,
++            );
++            gl.disable(glow::BLEND);
++            gl.use_program(Some(present.program));
++            gl.active_texture(glow::TEXTURE0);
++            gl.bind_texture(glow::TEXTURE_2D, Some(present.texture));
++            if let Some(location) = gl.get_uniform_location(present.program, "u_texture") {
++                gl.uniform_1_i32(Some(&location), 0);
++            }
++            gl.bind_vertex_array(Some(present.vertex_array));
++            gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
++        }
++    }
++
+     // Audio
+
+     pub fn start_audio<F: FnMut(&mut [i16]) + 'static>(
+diff --git a/crates/pyxel-core/src/system.rs b/crates/pyxel-core/src/system.rs
+index f11e6cb..3057281 100644
+--- a/crates/pyxel-core/src/system.rs
++++ b/crates/pyxel-core/src/system.rs
+@@ -521,7 +521,9 @@ impl Pyxel {
+         self.system.window_watcher.update();
+         self.draw_perf_monitor();
+         self.draw_cursor();
++        platform::begin_frame_render();
+         self.render_screen();
++        platform::end_frame_render();
+         self.capture_screen();
+
+         self.system.draw_profiler.end(platform::ticks());

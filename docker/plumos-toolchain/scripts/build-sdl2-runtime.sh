@@ -12,6 +12,7 @@ SDL2_COMPAT_SHA256="${SDL2_COMPAT_SHA256:-401a64f5d0948f0d1a217cfdba4e72ce63d22f
 SDL2_COMPAT_URL="${SDL2_COMPAT_URL:-https://github.com/libsdl-org/sdl2-compat/releases/download/${SDL2_COMPAT_TAG}/sdl2-compat-${SDL2_COMPAT_VERSION}.tar.gz}"
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
+PATCH_DIR="${ROOT_DIR}/docker/plumos-toolchain/patches"
 DOWNLOAD_DIR="${ROOT_DIR}/build/downloads"
 BUILD_DIR="${ROOT_DIR}/build/sdl-upstream"
 SDL3_SRC_DIR="${BUILD_DIR}/SDL3-${SDL3_VERSION}"
@@ -53,14 +54,15 @@ SDL3_CMAKE_OPTIONS=(
   -DSDL_INSTALL=ON
   -DSDL_UNIX_CONSOLE_BUILD=ON
   -DSDL_OPENGL=OFF
-  -DSDL_OPENGLES=OFF
+  -DSDL_OPENGLES=ON
   -DSDL_VULKAN=OFF
   -DSDL_X11=OFF
   -DSDL_WAYLAND=OFF
   -DSDL_KMSDRM=OFF
   -DSDL_PIPEWIRE=OFF
   -DSDL_PULSEAUDIO=OFF
-  -DSDL_ALSA=OFF
+  -DSDL_ALSA=ON
+  -DSDL_ALSA_SHARED=ON
   -DSDL_JACK=OFF
   -DSDL_LIBUDEV=OFF
   -DSDL_DBUS=OFF
@@ -120,6 +122,11 @@ prepare_source() {
   rm -rf "$src_dir"
   mkdir -p "$src_dir"
   tar -C "$src_dir" --strip-components=1 -xf "$tarball"
+}
+
+apply_sdl3_patches() {
+  log "Applying SDL3 A30 Mali video backend patch"
+  patch -d "$SDL3_SRC_DIR" -p1 < "${PATCH_DIR}/sdl3-3.4.10-a30mali-video-driver.patch"
 }
 
 build_sdl3() {
@@ -253,6 +260,7 @@ assemble_package() {
     echo "== SDL3 enabled backends =="
     grep -E "Enabled backends:|Video drivers:|Render drivers:|Audio drivers:|Joystick drivers:" \
       "$SDL3_CONFIGURE_LOG" 2>/dev/null || true
+    echo "plumOS custom video drivers: a30mali"
     echo
     echo "== needed =="
     "$READELF" -d "$(readlink -f "$sdl2_lib")" | grep "NEEDED" || true
@@ -270,6 +278,7 @@ download_checked "$SDL3_URL" "$SDL3_TARBALL" "$SDL3_SHA256"
 download_checked "$SDL2_COMPAT_URL" "$SDL2_COMPAT_TARBALL" "$SDL2_COMPAT_SHA256"
 prepare_source "$SDL3_TARBALL" "$SDL3_SRC_DIR"
 prepare_source "$SDL2_COMPAT_TARBALL" "$SDL2_COMPAT_SRC_DIR"
+apply_sdl3_patches
 build_sdl3
 build_sdl2_compat
 assemble_package

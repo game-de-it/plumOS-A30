@@ -1,0 +1,348 @@
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index 5c0b89e..c47db41 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -544,6 +544,7 @@ extern VideoBootStrap Wayland_preferred_bootstrap;
+ extern VideoBootStrap Wayland_bootstrap;
+ extern VideoBootStrap VIVANTE_bootstrap;
+ extern VideoBootStrap Emscripten_bootstrap;
++extern VideoBootStrap A30MALI_bootstrap;
+ extern VideoBootStrap OFFSCREEN_bootstrap;
+ extern VideoBootStrap QNX_bootstrap;
+ extern VideoBootStrap OPENVR_bootstrap;
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 17a0e98..a00e90d 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -135,6 +135,7 @@ static VideoBootStrap *bootstrap[] = {
+     &QNX_bootstrap,
+ #endif
+ #ifdef SDL_VIDEO_DRIVER_OFFSCREEN
++    &A30MALI_bootstrap,
+     &OFFSCREEN_bootstrap,
+ #endif
+ #ifdef SDL_VIDEO_DRIVER_DUMMY
+diff --git a/src/video/offscreen/SDL_a30mali_video.c b/src/video/offscreen/SDL_a30mali_video.c
+new file mode 100644
+index 0000000..c0a0f7c
+--- /dev/null
++++ b/src/video/offscreen/SDL_a30mali_video.c
+@@ -0,0 +1,318 @@
++/*
++  Simple DirectMedia Layer
++  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
++
++  This software is provided 'as-is', without any express or implied
++  warranty.  In no event will the authors be held liable for any damages
++  arising from the use of this software.
++
++  Permission is granted to anyone to use this software for any purpose,
++  including commercial applications, and to alter it and redistribute it
++  freely, subject to the following restrictions:
++
++  1. The origin of this software must not be misrepresented; you must not
++     claim that you wrote the original software. If you use this software
++     in a product, an acknowledgment in the product documentation would be
++     appreciated but is not required.
++  2. Altered source versions must be plainly marked as such, and must not be
++     misrepresented as being the original software.
++  3. This notice may not be removed or altered from any source distribution.
++*/
++#include "SDL_internal.h"
++
++#ifdef SDL_VIDEO_DRIVER_OFFSCREEN
++
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fb.h>
++#include <string.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++
++#include "../SDL_egl_c.h"
++#include "../SDL_sysvideo.h"
++#include "../../events/SDL_windowevents_c.h"
++#include "SDL_offscreenevents_c.h"
++#include "SDL_offscreenframebuffer_c.h"
++
++#define A30MALIVID_DRIVER_NAME "a30mali"
++#define A30MALI_DEFAULT_FB "/dev/fb0"
++#define A30MALI_DEFAULT_WIDTH 480
++#define A30MALI_DEFAULT_HEIGHT 640
++
++typedef struct SDL_VideoData
++{
++    char fb_path[128];
++    int width;
++    int height;
++} SDL_VideoData;
++
++typedef struct A30MALI_NativeWindow
++{
++    Uint16 width;
++    Uint16 height;
++} A30MALI_NativeWindow;
++
++typedef struct SDL_WindowData
++{
++    SDL_Window *sdl_window;
++#ifdef SDL_VIDEO_OPENGL_EGL
++    EGLSurface egl_surface;
++    A30MALI_NativeWindow native_window;
++    bool native_window_used;
++#endif
++} SDL_WindowData;
++
++static bool A30MALI_VideoInit(SDL_VideoDevice *_this);
++static bool A30MALI_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
++static void A30MALI_VideoQuit(SDL_VideoDevice *_this);
++static bool A30MALI_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID create_props);
++static void A30MALI_DestroyWindow(SDL_VideoDevice *_this, SDL_Window *window);
++static void A30MALI_SetWindowSize(SDL_VideoDevice *_this, SDL_Window *window);
++
++#ifdef SDL_VIDEO_OPENGL_EGL
++static bool A30MALI_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path);
++static SDL_GLContext A30MALI_GLES_CreateContext(SDL_VideoDevice *_this, SDL_Window *window);
++static bool A30MALI_GLES_MakeCurrent(SDL_VideoDevice *_this, SDL_Window *window, SDL_GLContext context);
++static bool A30MALI_GLES_SwapWindow(SDL_VideoDevice *_this, SDL_Window *window);
++static SDL_EGLSurface A30MALI_GLES_GetEGLSurface(SDL_VideoDevice *_this, SDL_Window *window);
++static void A30MALI_GLES_DefaultProfileConfig(SDL_VideoDevice *_this, int *mask, int *major, int *minor);
++#endif
++
++static const char *A30MALI_GetFBPath(void)
++{
++    const char *path = SDL_getenv("PLUMOS_A30_FB");
++    return (path && *path) ? path : A30MALI_DEFAULT_FB;
++}
++
++static bool A30MALI_ProbeFB(const char *path, int *width, int *height)
++{
++    struct fb_var_screeninfo var;
++    int fd = open(path, O_RDWR | O_CLOEXEC);
++
++    if (fd < 0) {
++        return false;
++    }
++    if (ioctl(fd, FBIOGET_VSCREENINFO, &var) != 0) {
++        close(fd);
++        return false;
++    }
++    close(fd);
++
++    if (var.xres > 0 && var.yres > 0) {
++        *width = (int)var.xres;
++        *height = (int)var.yres;
++    } else {
++        *width = A30MALI_DEFAULT_WIDTH;
++        *height = A30MALI_DEFAULT_HEIGHT;
++    }
++    return true;
++}
++
++static void A30MALI_DeleteDevice(SDL_VideoDevice *device)
++{
++    if (device) {
++        SDL_free(device->internal);
++        SDL_free(device);
++    }
++}
++
++static bool A30MALI_Available(const char *drivername)
++{
++    return true;
++}
++
++static SDL_VideoDevice *A30MALI_CreateDevice(void)
++{
++    SDL_VideoDevice *device;
++    SDL_VideoData *data;
++
++    if (!A30MALI_Available(A30MALIVID_DRIVER_NAME)) {
++        return NULL;
++    }
++
++    device = (SDL_VideoDevice *)SDL_calloc(1, sizeof(SDL_VideoDevice));
++    if (!device) {
++        return NULL;
++    }
++    data = (SDL_VideoData *)SDL_calloc(1, sizeof(SDL_VideoData));
++    if (!data) {
++        SDL_free(device);
++        return NULL;
++    }
++
++    SDL_strlcpy(data->fb_path, A30MALI_GetFBPath(), sizeof(data->fb_path));
++    data->width = A30MALI_DEFAULT_WIDTH;
++    data->height = A30MALI_DEFAULT_HEIGHT;
++    device->internal = data;
++
++    device->VideoInit = A30MALI_VideoInit;
++    device->VideoQuit = A30MALI_VideoQuit;
++    device->SetDisplayMode = A30MALI_SetDisplayMode;
++    device->PumpEvents = OFFSCREEN_PumpEvents;
++    device->CreateWindowFramebuffer = SDL_OFFSCREEN_CreateWindowFramebuffer;
++    device->UpdateWindowFramebuffer = SDL_OFFSCREEN_UpdateWindowFramebuffer;
++    device->DestroyWindowFramebuffer = SDL_OFFSCREEN_DestroyWindowFramebuffer;
++    device->CreateSDLWindow = A30MALI_CreateWindow;
++    device->DestroyWindow = A30MALI_DestroyWindow;
++    device->SetWindowSize = A30MALI_SetWindowSize;
++    device->free = A30MALI_DeleteDevice;
++
++#ifdef SDL_VIDEO_OPENGL_EGL
++    device->GL_LoadLibrary = A30MALI_GLES_LoadLibrary;
++    device->GL_UnloadLibrary = SDL_EGL_UnloadLibrary;
++    device->GL_GetProcAddress = SDL_EGL_GetProcAddressInternal;
++    device->GL_CreateContext = A30MALI_GLES_CreateContext;
++    device->GL_DestroyContext = SDL_EGL_DestroyContext;
++    device->GL_MakeCurrent = A30MALI_GLES_MakeCurrent;
++    device->GL_GetEGLSurface = A30MALI_GLES_GetEGLSurface;
++    device->GL_SetSwapInterval = SDL_EGL_SetSwapInterval;
++    device->GL_GetSwapInterval = SDL_EGL_GetSwapInterval;
++    device->GL_SwapWindow = A30MALI_GLES_SwapWindow;
++    device->GL_DefaultProfileConfig = A30MALI_GLES_DefaultProfileConfig;
++#endif
++
++    return device;
++}
++
++VideoBootStrap A30MALI_bootstrap = {
++    A30MALIVID_DRIVER_NAME, "plumOS A30 fbdev + Mali EGL video driver",
++    A30MALI_CreateDevice,
++    NULL,
++    false
++};
++
++static bool A30MALI_VideoInit(SDL_VideoDevice *_this)
++{
++    SDL_VideoData *data = _this->internal;
++    SDL_DisplayMode mode;
++
++    if (!A30MALI_ProbeFB(data->fb_path, &data->width, &data->height)) {
++        return SDL_SetError("a30mali: failed to read framebuffer %s: %s", data->fb_path, strerror(errno));
++    }
++
++    SDL_zero(mode);
++    mode.format = SDL_PIXELFORMAT_XRGB8888;
++    mode.w = data->width;
++    mode.h = data->height;
++    if (SDL_AddBasicVideoDisplay(&mode) == 0) {
++        return false;
++    }
++    return true;
++}
++
++static bool A30MALI_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
++{
++    return true;
++}
++
++static void A30MALI_VideoQuit(SDL_VideoDevice *_this)
++{
++}
++
++static bool A30MALI_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID create_props)
++{
++    SDL_WindowData *windata = (SDL_WindowData *)SDL_calloc(1, sizeof(SDL_WindowData));
++
++    if (!windata) {
++        return false;
++    }
++    window->internal = windata;
++    windata->sdl_window = window;
++
++    if (window->x == SDL_WINDOWPOS_UNDEFINED) {
++        window->x = 0;
++    }
++    if (window->y == SDL_WINDOWPOS_UNDEFINED) {
++        window->y = 0;
++    }
++
++#ifdef SDL_VIDEO_OPENGL_EGL
++    windata->egl_surface = EGL_NO_SURFACE;
++    if (window->flags & SDL_WINDOW_OPENGL) {
++        if (!_this->egl_data) {
++            return SDL_SetError("a30mali: cannot create an OpenGL window without EGL data");
++        }
++
++        windata->native_window.width = (Uint16)window->w;
++        windata->native_window.height = (Uint16)window->h;
++        windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)0);
++        if (windata->egl_surface == EGL_NO_SURFACE) {
++            SDL_ClearError();
++            windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->native_window);
++            windata->native_window_used = true;
++        }
++        if (windata->egl_surface == EGL_NO_SURFACE) {
++            return SDL_SetError("a30mali: failed to create EGL window surface");
++        }
++    }
++#endif
++    return true;
++}
++
++static void A30MALI_DestroyWindow(SDL_VideoDevice *_this, SDL_Window *window)
++{
++    SDL_WindowData *windata = window->internal;
++
++    if (windata) {
++#ifdef SDL_VIDEO_OPENGL_EGL
++        SDL_EGL_DestroySurface(_this, windata->egl_surface);
++#endif
++        SDL_free(windata);
++    }
++    window->internal = NULL;
++}
++
++static void A30MALI_SetWindowSize(SDL_VideoDevice *_this, SDL_Window *window)
++{
++    SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_RESIZED, window->pending.w, window->pending.h);
++}
++
++#ifdef SDL_VIDEO_OPENGL_EGL
++static bool A30MALI_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
++{
++    if (!SDL_EGL_LoadLibrary(_this, path, EGL_DEFAULT_DISPLAY, 0)) {
++        return false;
++    }
++
++    _this->gl_config.alpha_size = 0;
++    _this->egl_data->egl_surfacetype = EGL_WINDOW_BIT;
++    return true;
++}
++
++static SDL_GLContext A30MALI_GLES_CreateContext(SDL_VideoDevice *_this, SDL_Window *window)
++{
++    SDL_WindowData *windata = window->internal;
++    return SDL_EGL_CreateContext(_this, windata ? windata->egl_surface : EGL_NO_SURFACE);
++}
++
++static bool A30MALI_GLES_MakeCurrent(SDL_VideoDevice *_this, SDL_Window *window, SDL_GLContext context)
++{
++    if (window) {
++        SDL_WindowData *windata = window->internal;
++        return SDL_EGL_MakeCurrent(_this, windata ? windata->egl_surface : EGL_NO_SURFACE, context);
++    }
++    return SDL_EGL_MakeCurrent(_this, EGL_NO_SURFACE, context);
++}
++
++static bool A30MALI_GLES_SwapWindow(SDL_VideoDevice *_this, SDL_Window *window)
++{
++    SDL_WindowData *windata = window->internal;
++    return SDL_EGL_SwapBuffers(_this, windata ? windata->egl_surface : EGL_NO_SURFACE);
++}
++
++static SDL_EGLSurface A30MALI_GLES_GetEGLSurface(SDL_VideoDevice *_this, SDL_Window *window)
++{
++    SDL_WindowData *windata = window->internal;
++    return windata ? (SDL_EGLSurface)windata->egl_surface : (SDL_EGLSurface)EGL_NO_SURFACE;
++}
++
++static void A30MALI_GLES_DefaultProfileConfig(SDL_VideoDevice *_this, int *mask, int *major, int *minor)
++{
++    *mask = SDL_GL_CONTEXT_PROFILE_ES;
++    *major = 2;
++    *minor = 0;
++}
++#endif
++
++#endif // SDL_VIDEO_DRIVER_OFFSCREEN

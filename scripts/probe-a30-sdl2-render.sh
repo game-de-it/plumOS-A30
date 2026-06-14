@@ -5,15 +5,16 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 TARGET="${A30_TARGET:-root@192.168.10.165}"
 DEPLOY="${PLUMOS_DEPLOY_SDL2_PROBE:-0}"
 RUN_MS="${PLUMOS_SDL2_RENDER_PROBE_MS:-0}"
-CASES="${PLUMOS_SDL2_RENDER_CASES:-auto dummy offscreen evdev kmsdrm}"
+CASES="${PLUMOS_SDL2_RENDER_CASES:-auto a30mali dummy offscreen evdev kmsdrm}"
 
 usage() {
   cat <<EOF
-Usage: A30_TARGET=root@A30_IP $0 [--deploy] [--run-ms MS] [--cases "auto dummy offscreen evdev kmsdrm"]
+Usage: A30_TARGET=root@A30_IP $0 [--deploy] [--run-ms MS] [--cases "auto a30mali dummy offscreen evdev kmsdrm"]
 
-Checks whether the bundled SDL2 API runtime has a real video/render backend on
-the A30. The "auto" case runs without SDL_VIDEODRIVER; other cases force that
-driver name.
+Checks whether the bundled SDL2 API runtime has a real video/render/GLES backend
+on the A30. The "auto" case runs without SDL_VIDEODRIVER; other cases force that
+driver name. a30mali and auto use an SDL_GL probe; the software/offscreen cases
+use the SDL_Renderer probe.
 
 Environment:
   PLUMOS_DEPLOY_SDL2_PROBE    Deploy dist/plumos-sdl2-probe first. Default: ${DEPLOY}
@@ -92,20 +93,24 @@ any_render_ok=0
 for driver in \$PLUMOS_SDL2_RENDER_CASES; do
   log=\"\$TMPDIR/\$driver.log\"
   echo \"== case: \$driver ==\"
+  case \"\$driver\" in
+    auto|a30mali) probe_flags='--graphics-only --gl-test --window-visible' ;;
+    *) probe_flags='--graphics-only --render-test --window-visible' ;;
+  esac
   set +e
   if [ \"\$driver\" = auto ]; then
     unset SDL_VIDEODRIVER
     PLUMOS_SDL2_DEFAULT_DUMMY=0 \
       SDL_AUDIODRIVER=dummy \
       PLUMOS_ROOT=/mnt/SDCARD/plumos \
-      \"\$PROBE\" --graphics-only --render-test --window-visible \
+      \"\$PROBE\" \$probe_flags \
         --timeout-ms \"\$PLUMOS_SDL2_RENDER_PROBE_MS\" >\"\$log\" 2>&1
   else
     SDL_VIDEODRIVER=\"\$driver\" \
       PLUMOS_SDL2_DEFAULT_DUMMY=0 \
       SDL_AUDIODRIVER=dummy \
       PLUMOS_ROOT=/mnt/SDCARD/plumos \
-      \"\$PROBE\" --graphics-only --render-test --window-visible \
+      \"\$PROBE\" \$probe_flags \
         --timeout-ms \"\$PLUMOS_SDL2_RENDER_PROBE_MS\" >\"\$log\" 2>&1
   fi
   rc=\$?
@@ -114,7 +119,7 @@ for driver in \$PLUMOS_SDL2_RENDER_CASES; do
   echo \"case_rc=\$rc\"
 
   current_driver=\$(sed -n 's/.*current_video_driver=\\([^ ]*\\).*/\\1/p' \"\$log\" | tail -n 1)
-  if [ \"\$rc\" -eq 0 ] && grep -q 'render create=.*yes' \"\$log\"; then
+  if [ \"\$rc\" -eq 0 ] && grep -Eq 'render create=.*yes|gl swap=yes' \"\$log\"; then
     any_render_ok=1
     case \"\$current_driver\" in
       ''|-|dummy|offscreen|evdev) ;;

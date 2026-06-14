@@ -171,3 +171,25 @@ stock SDL2 probe と同じ `0x20000001` です。
   各 upstream の EGL/GLES backend を A30 の `/usr/lib/libMali.so` に合わせて検証する。
 
 stock binary/source を plumOS runtime に流用する場合は、方針メモ通り事前確認が必要です。
+
+## plumOS `a30mali` backend first pass
+
+2026-06-14 に、SDL3+sdl2-compat runtime へ clean-room の A30 用 video backend
+`a30mali` を追加しました。stock SDL2 binary は使わず、SDL3 の EGL helper から
+`EGL_DEFAULT_DISPLAY`、rootfs の `/usr/lib/libEGL.so` / `/usr/lib/libGLESv2.so`、
+`/dev/fb0`、`/dev/mali` を使います。
+
+実機の `plumos-sdl2-probe --gl-test` では以下を確認しました。
+
+```text
+video_driver index=0 name="a30mali"
+sdl init=yes current_video_driver=a30mali
+video_display index=0 name="1" bounds=0,0 480x640
+gl vendor="ARM" renderer="Mali-400 MP"
+gl swap=yes
+```
+
+この first pass は SDL window + GLES2 context + swap を優先した最小実装です。
+Pyxel のように SDL2 window から `SDL_GL_CreateContext` へ進む app はこの経路に乗せられます。
+一方、SDL_Renderer や汎用 window 管理を強く使う app は、必要に応じて backend 側の追加実装を
+行います。

@@ -6,6 +6,24 @@
 
 #define DEFAULT_TIMEOUT_MS 3000
 
+typedef unsigned int ProbeGLenum;
+typedef unsigned int ProbeGLbitfield;
+typedef unsigned char ProbeGLubyte;
+
+#define PROBE_GL_COLOR_BUFFER_BIT 0x00004000
+#define PROBE_GL_VENDOR 0x1F00
+#define PROBE_GL_RENDERER 0x1F01
+#define PROBE_GL_VERSION 0x1F02
+#define PROBE_GL_RGBA 0x1908
+#define PROBE_GL_UNSIGNED_BYTE 0x1401
+
+typedef const ProbeGLubyte *(*ProbeGLGetStringFn)(ProbeGLenum name);
+typedef void (*ProbeGLViewportFn)(int x, int y, int width, int height);
+typedef void (*ProbeGLClearColorFn)(float red, float green, float blue, float alpha);
+typedef void (*ProbeGLClearFn)(ProbeGLbitfield mask);
+typedef void (*ProbeGLReadPixelsFn)(int x, int y, int width, int height, ProbeGLenum format,
+                                    ProbeGLenum type, void *pixels);
+
 static void print_video_drivers(void) {
   int count = SDL_GetNumVideoDrivers();
 
@@ -129,7 +147,7 @@ static void print_guid(SDL_JoystickGUID guid) {
 }
 
 static void usage(const char *argv0) {
-  printf("Usage: %s [--timeout-ms MS] [--no-video] [--graphics-only] [--render-test] [--window-visible]\n", argv0);
+  printf("Usage: %s [--timeout-ms MS] [--no-video] [--graphics-only] [--render-test] [--gl-test] [--window-visible]\n", argv0);
   printf("Probe SDL2 joystick and GameController visibility for plumOS.\n");
 }
 
@@ -138,13 +156,16 @@ int main(int argc, char **argv) {
   int no_video = 0;
   int graphics_only = 0;
   int render_test = 0;
+  int gl_test = 0;
   int window_visible = 0;
   int render_ok = 0;
+  int gl_ok = 0;
   Uint32 init_flags;
   SDL_version compiled;
   SDL_version linked;
   SDL_Window *window = NULL;
   SDL_Renderer *renderer = NULL;
+  SDL_GLContext gl_context = NULL;
   int joystick_count;
   SDL_GameController *controllers[8];
   SDL_Joystick *joysticks[8];
@@ -169,6 +190,8 @@ int main(int argc, char **argv) {
       timeout_ms = 0;
     } else if (strcmp(argv[i], "--render-test") == 0) {
       render_test = 1;
+    } else if (strcmp(argv[i], "--gl-test") == 0) {
+      gl_test = 1;
     } else if (strcmp(argv[i], "--window-visible") == 0) {
       window_visible = 1;
     } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -183,10 +206,10 @@ int main(int argc, char **argv) {
   SDL_VERSION(&compiled);
   SDL_GetVersion(&linked);
   printf("plumOS SDL2 probe\n");
-  printf("compiled_sdl=%u.%u.%u linked_sdl=%u.%u.%u timeout_ms=%d no_video=%s graphics_only=%s render_test=%s window_visible=%s\n",
+  printf("compiled_sdl=%u.%u.%u linked_sdl=%u.%u.%u timeout_ms=%d no_video=%s graphics_only=%s render_test=%s gl_test=%s window_visible=%s\n",
          compiled.major, compiled.minor, compiled.patch, linked.major, linked.minor,
          linked.patch, timeout_ms, no_video ? "yes" : "no", graphics_only ? "yes" : "no",
-         render_test ? "yes" : "no", window_visible ? "yes" : "no");
+         render_test ? "yes" : "no", gl_test ? "yes" : "no", window_visible ? "yes" : "no");
   printf("env SDL_VIDEODRIVER=%s SDL_AUDIODRIVER=%s SDL_JOYSTICK_DEVICE=%s\n",
          getenv("SDL_VIDEODRIVER") ? getenv("SDL_VIDEODRIVER") : "-",
          getenv("SDL_AUDIODRIVER") ? getenv("SDL_AUDIODRIVER") : "-",
@@ -213,11 +236,70 @@ int main(int argc, char **argv) {
   }
 
   if (!no_video) {
+    Uint32 window_flags = window_visible ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN;
+
+    if (gl_test) {
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+      SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+      window_flags |= SDL_WINDOW_OPENGL;
+    }
+
     window = SDL_CreateWindow("plumOS SDL2 probe", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, 64, 64,
-                              window_visible ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN);
+                              SDL_WINDOWPOS_UNDEFINED, 64, 64, window_flags);
     printf("window create=%s visible=%s size=64x64 error=\"%s\"\n", window ? "yes" : "no",
            window_visible ? "yes" : "no", window ? "" : SDL_GetError());
+  }
+
+  if (gl_test && window) {
+    ProbeGLGetStringFn gl_get_string;
+    ProbeGLViewportFn gl_viewport;
+    ProbeGLClearColorFn gl_clear_color;
+    ProbeGLClearFn gl_clear;
+    ProbeGLReadPixelsFn gl_read_pixels;
+    unsigned char pixel[4] = { 0, 0, 0, 0 };
+
+    gl_context = SDL_GL_CreateContext(window);
+    printf("gl context create=%s error=\"%s\"\n", gl_context ? "yes" : "no",
+           gl_context ? "" : SDL_GetError());
+    if (gl_context) {
+      int make_current = SDL_GL_MakeCurrent(window, gl_context) == 0;
+      printf("gl make_current=%s error=\"%s\"\n", make_current ? "yes" : "no",
+             make_current ? "" : SDL_GetError());
+      gl_get_string = (ProbeGLGetStringFn)SDL_GL_GetProcAddress("glGetString");
+      gl_viewport = (ProbeGLViewportFn)SDL_GL_GetProcAddress("glViewport");
+      gl_clear_color = (ProbeGLClearColorFn)SDL_GL_GetProcAddress("glClearColor");
+      gl_clear = (ProbeGLClearFn)SDL_GL_GetProcAddress("glClear");
+      gl_read_pixels = (ProbeGLReadPixelsFn)SDL_GL_GetProcAddress("glReadPixels");
+      printf("gl proc glGetString=%s glViewport=%s glClearColor=%s glClear=%s glReadPixels=%s\n",
+             gl_get_string ? "yes" : "no", gl_viewport ? "yes" : "no",
+             gl_clear_color ? "yes" : "no", gl_clear ? "yes" : "no",
+             gl_read_pixels ? "yes" : "no");
+      if (make_current && gl_get_string && gl_viewport && gl_clear_color && gl_clear) {
+        const ProbeGLubyte *vendor = gl_get_string(PROBE_GL_VENDOR);
+        const ProbeGLubyte *renderer_name = gl_get_string(PROBE_GL_RENDERER);
+        const ProbeGLubyte *version = gl_get_string(PROBE_GL_VERSION);
+
+        printf("gl vendor=\"%s\" renderer=\"%s\" version=\"%s\"\n",
+               vendor ? (const char *)vendor : "-",
+               renderer_name ? (const char *)renderer_name : "-",
+               version ? (const char *)version : "-");
+        gl_viewport(0, 0, 64, 64);
+        gl_clear_color(0.20f, 0.55f, 0.85f, 1.0f);
+        gl_clear(PROBE_GL_COLOR_BUFFER_BIT);
+        if (gl_read_pixels) {
+          gl_read_pixels(0, 0, 1, 1, PROBE_GL_RGBA, PROBE_GL_UNSIGNED_BYTE, pixel);
+        }
+        SDL_ClearError();
+        SDL_GL_SwapWindow(window);
+        printf("gl swap=yes pixel_rgba=%02x%02x%02x%02x error=\"%s\"\n",
+               pixel[0], pixel[1], pixel[2], pixel[3], SDL_GetError());
+        gl_ok = 1;
+      }
+    }
+  } else if (gl_test) {
+    printf("gl context create=skipped reason=\"no window\"\n");
   }
 
   if (render_test && window) {
@@ -365,6 +447,9 @@ int main(int argc, char **argv) {
   if (renderer) {
     SDL_DestroyRenderer(renderer);
   }
+  if (gl_context) {
+    SDL_GL_DeleteContext(gl_context);
+  }
   if (window) {
     SDL_DestroyWindow(window);
   }
@@ -374,6 +459,9 @@ int main(int argc, char **argv) {
          joystick_count, controller_count, open_joystick_count, controller_events,
          joystick_events);
   if (graphics_only) {
+    if (gl_test) {
+      return gl_ok ? 0 : 1;
+    }
     return render_test ? (render_ok ? 0 : 1) : 0;
   }
   return joystick_count > 0 ? 0 : 1;
