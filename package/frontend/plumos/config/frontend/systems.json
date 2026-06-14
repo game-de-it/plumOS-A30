@@ -1483,6 +1483,31 @@
       }
     },
     {
+      "id": "pyxel",
+      "display_name": "Pyxel",
+      "short_name": "Pyxel",
+      "sort_order": 485,
+      "hardware": "app",
+      "enabled": true,
+      "pinned": true,
+      "directory_aliases": [
+        {"name": "pyxel", "source": "plumos", "priority": 10},
+        {"name": "PYXEL", "source": "plumos", "priority": 20}
+      ],
+      "extensions": ["pyxapp", "py"],
+      "artwork": {
+        "lookup": [
+          {"root": "sdcard", "path": "Images/pyxel"}
+        ]
+      },
+      "launch_profiles": ["pyxel:a30"],
+      "default_launch_profile": "pyxel:a30",
+      "scraper": {
+        "enabled": false,
+        "reason": "app_runtime"
+      }
+    },
+    {
       "id": "2048",
       "display_name": "2048",
       "short_name": "2048",

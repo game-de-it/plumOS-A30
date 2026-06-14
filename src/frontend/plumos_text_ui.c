@@ -174,6 +174,7 @@ struct launch_plan {
   long cpu_cores;
   char retroarch_path[TEXT_PATH_MAX];
   char standalone_launcher_path[TEXT_PATH_MAX];
+  char pyxel_launcher_path[TEXT_PATH_MAX];
   char core_path[TEXT_PATH_MAX];
   char config_path[TEXT_PATH_MAX];
   char safe_state_slot[16];
@@ -512,6 +513,32 @@ static int valid_relative_rom_path(const char *s) {
     return 0;
   }
   return 1;
+}
+
+static int path_extension_lower(const char *path, char *out, size_t out_size) {
+  const char *slash;
+  const char *dot;
+  size_t i;
+
+  if (!path || !path[0] || !out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  slash = strrchr(path, '/');
+  dot = strrchr(path, '.');
+  if (!dot || (slash && dot < slash) || !dot[1]) {
+    return 0;
+  }
+  dot++;
+  for (i = 0; dot[i]; i++) {
+    if (i + 1 >= out_size) {
+      out[0] = '\0';
+      return 0;
+    }
+    out[i] = (char)tolower((unsigned char)dot[i]);
+  }
+  out[i] = '\0';
+  return i > 0;
 }
 
 static void current_utc_timestamp(char *out, size_t out_size) {
@@ -2737,6 +2764,45 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
     return 1;
   }
 
+  if (strncmp(launch_profile, "pyxel:", 6) == 0) {
+    char launcher_dir[PATH_MAX];
+    char extension[32];
+    const char *pyxel_command = NULL;
+
+    copy_string(plan->kind, sizeof(plan->kind), "pyxel");
+    if (!join_path(launcher_dir, sizeof(launcher_dir), plumos_root, "bin") ||
+        !join_path(plan->pyxel_launcher_path, sizeof(plan->pyxel_launcher_path),
+                   launcher_dir, "plumos-pyxel-a30-launch")) {
+      return 0;
+    }
+    plan->runtime_exists = file_exists(plan->pyxel_launcher_path);
+    plan->core_exists = 1;
+    if (path_extension_lower(plan->rom_path, extension, sizeof(extension))) {
+      if (strcmp(extension, "pyxapp") == 0) {
+        pyxel_command = "play";
+      } else if (strcmp(extension, "py") == 0) {
+        pyxel_command = "run";
+      }
+    }
+    if (!pyxel_command) {
+      plan->can_execute = 0;
+      return 1;
+    }
+    if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                             plan->pyxel_launcher_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos,
+                       " -m pyxel ") ||
+        !append_string(plan->command, sizeof(plan->command), &pos,
+                       pyxel_command) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                             plan->rom_path)) {
+      return 0;
+    }
+    plan->can_execute = plan->runtime_exists && plan->rom_exists;
+    return 1;
+  }
+
   if (strncmp(launch_profile, "standalone:", 11) == 0) {
     const char *emulator_id = launch_profile + 11;
     char launcher_dir[PATH_MAX];
@@ -2855,6 +2921,10 @@ static void print_launch_plan(const struct launch_plan *plan) {
   }
   if (plan->standalone_launcher_path[0]) {
     printf("standalone_launcher: %s (%s)\n", plan->standalone_launcher_path,
+           plan->runtime_exists ? "exists" : "missing");
+  }
+  if (plan->pyxel_launcher_path[0]) {
+    printf("pyxel_launcher: %s (%s)\n", plan->pyxel_launcher_path,
            plan->runtime_exists ? "exists" : "missing");
   }
   if (plan->core_path[0]) {

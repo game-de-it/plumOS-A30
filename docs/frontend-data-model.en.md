@@ -165,6 +165,19 @@ Generated scan result. It is not hand-written.
 Initial IDs can be hashes of normalized absolute paths. Later they can include
 file hash, mtime, and size.
 
+### ROM List Directory Browsing
+
+The scanner cache remains a flat per-system `RomEntry` array. The FE ROM list
+projects that cache at display time to show only ROM files and subdirectories
+directly under the current directory.
+
+- A enters a subdirectory, or launches a ROM file
+- B returns to the parent directory inside subdirectories, or TOP at the alias root
+- Directory ROM entries created by `scan_directories=true` systems are launch
+  targets and are distinct from FE-only navigation directory entries
+- The scanner cache format does not change; navigation entries are created only
+  while rendering the FE ROM list
+
 ### Artwork Lookup
 
 Thumbnails are resolved from the representative ROM path stored in `RomEntry`

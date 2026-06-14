@@ -232,7 +232,9 @@ struct rom_entry {
   char thumbnail[UI_PATH_MAX];
   char launch_profile[128];
   char detail[256];
+  char extension[32];
   int resume_available;
+  int is_navigation_directory;
 };
 
 static int dirname_path(char *out, size_t out_size, const char *path);
@@ -593,6 +595,7 @@ struct ui_state {
 #endif
   char current_system_id[64];
   char current_system_name[128];
+  char rom_directory[UI_PATH_MAX];
   char fb_path[PATH_MAX];
   char egl_path[PATH_MAX];
   char gles_path[PATH_MAX];
@@ -3618,6 +3621,9 @@ static int cmp_rom_entry_name(const void *a, const void *b) {
   const struct rom_entry *eb = (const struct rom_entry *)b;
   int cmp = compare_text_ci(ea->title, eb->title);
 
+  if (ea->is_navigation_directory != eb->is_navigation_directory) {
+    return eb->is_navigation_directory - ea->is_navigation_directory;
+  }
   if (cmp != 0) {
     return cmp;
   }
@@ -3629,6 +3635,9 @@ static int cmp_rom_entry_path(const void *a, const void *b) {
   const struct rom_entry *eb = (const struct rom_entry *)b;
   int cmp = compare_text_ci(ea->relative_path, eb->relative_path);
 
+  if (ea->is_navigation_directory != eb->is_navigation_directory) {
+    return eb->is_navigation_directory - ea->is_navigation_directory;
+  }
   if (cmp != 0) {
     return cmp;
   }
@@ -5210,6 +5219,153 @@ static int build_system_cache_path(char *out, size_t out_size, const char *plumo
   return join_path(out, out_size, dir, name);
 }
 
+static int rom_browser_child_for_path(const char *relative_path, const char *current_dir,
+                                      char *dir_relative_path, size_t dir_relative_path_size,
+                                      char *child_name, size_t child_name_size,
+                                      int *is_directory) {
+  const char *tail;
+  const char *slash;
+  size_t base_len = 0;
+  size_t segment_len;
+  int written;
+
+  if (!relative_path || !relative_path[0] || !dir_relative_path ||
+      dir_relative_path_size == 0 || !child_name || child_name_size == 0 ||
+      !is_directory) {
+    return 0;
+  }
+  dir_relative_path[0] = '\0';
+  child_name[0] = '\0';
+  *is_directory = 0;
+
+  if (current_dir && current_dir[0]) {
+    size_t prefix_len = strlen(current_dir);
+    if (strncmp(relative_path, current_dir, prefix_len) != 0 ||
+        relative_path[prefix_len] != '/') {
+      return 0;
+    }
+    base_len = prefix_len;
+    tail = relative_path + prefix_len + 1;
+  } else {
+    slash = strchr(relative_path, '/');
+    if (slash && slash[1]) {
+      base_len = (size_t)(slash - relative_path);
+      tail = slash + 1;
+    } else {
+      tail = relative_path;
+    }
+  }
+  if (!tail[0]) {
+    return 0;
+  }
+
+  slash = strchr(tail, '/');
+  if (!slash) {
+    return 1;
+  }
+  segment_len = (size_t)(slash - tail);
+  if (segment_len == 0 || segment_len >= child_name_size) {
+    return 0;
+  }
+  if ((segment_len == 1 && tail[0] == '.') ||
+      (segment_len == 2 && tail[0] == '.' && tail[1] == '.')) {
+    return 0;
+  }
+  memcpy(child_name, tail, segment_len);
+  child_name[segment_len] = '\0';
+  if (base_len > 0) {
+    written = snprintf(dir_relative_path, dir_relative_path_size, "%.*s/%s",
+                       (int)base_len, relative_path, child_name);
+  } else {
+    written = snprintf(dir_relative_path, dir_relative_path_size, "%s",
+                       child_name);
+  }
+  if (written <= 0 || (size_t)written >= dir_relative_path_size) {
+    dir_relative_path[0] = '\0';
+    child_name[0] = '\0';
+    return 0;
+  }
+  *is_directory = 1;
+  return 1;
+}
+
+static int rom_navigation_directory_exists(const struct ui_state *ui,
+                                           const char *relative_path) {
+  size_t i;
+
+  if (!ui || !relative_path || !relative_path[0]) {
+    return 0;
+  }
+  for (i = 0; i < ui->rom_count; i++) {
+    if (ui->rom_entries[i].is_navigation_directory &&
+        strcmp(ui->rom_entries[i].relative_path, relative_path) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int build_navigation_directory_path(char *out, size_t out_size,
+                                           const struct rom_entry *source,
+                                           const char *dir_relative_path) {
+  size_t rel_len;
+  size_t path_len;
+  size_t dir_len;
+  size_t prefix_len;
+
+  if (!out || out_size == 0 || !source || !source->path[0] ||
+      !source->relative_path[0] || !dir_relative_path ||
+      !dir_relative_path[0]) {
+    return 0;
+  }
+  out[0] = '\0';
+  rel_len = strlen(source->relative_path);
+  path_len = strlen(source->path);
+  dir_len = strlen(dir_relative_path);
+  if (path_len >= rel_len &&
+      strcmp(source->path + path_len - rel_len, source->relative_path) == 0) {
+    prefix_len = path_len - rel_len;
+    if (prefix_len + dir_len + 1 > out_size) {
+      return 0;
+    }
+    memcpy(out, source->path, prefix_len);
+    memcpy(out + prefix_len, dir_relative_path, dir_len);
+    out[prefix_len + dir_len] = '\0';
+    return 1;
+  }
+  return dirname_path(out, out_size, source->path);
+}
+
+static int add_navigation_directory_entry(struct ui_state *ui,
+                                          const struct rom_entry *source,
+                                          const char *relative_path,
+                                          const char *display_name) {
+  struct rom_entry entry;
+  int written;
+
+  if (!ui || !source || !relative_path || !relative_path[0] ||
+      !display_name || !display_name[0] ||
+      rom_navigation_directory_exists(ui, relative_path)) {
+    return 1;
+  }
+  if (ui->rom_count >= UI_MAX_ROMS) {
+    return 0;
+  }
+  memset(&entry, 0, sizeof(entry));
+  copy_string(entry.system_id, sizeof(entry.system_id), source->system_id);
+  written = snprintf(entry.title, sizeof(entry.title), "[DIR] %s", display_name);
+  if (written <= 0 || (size_t)written >= sizeof(entry.title)) {
+    copy_string(entry.title, sizeof(entry.title), "[DIR]");
+  }
+  copy_string(entry.relative_path, sizeof(entry.relative_path), relative_path);
+  build_navigation_directory_path(entry.path, sizeof(entry.path), source, relative_path);
+  copy_string(entry.detail, sizeof(entry.detail), "Directory");
+  copy_string(entry.extension, sizeof(entry.extension), "dir");
+  entry.is_navigation_directory = 1;
+  ui->rom_entries[ui->rom_count++] = entry;
+  return 1;
+}
+
 static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   char path[PATH_MAX];
   char *json;
@@ -5267,12 +5423,15 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   }
 
   cursor = start;
-  while (ui->rom_count < UI_MAX_ROMS) {
+  while (1) {
     const char *obj_start;
     const char *obj_end;
     const char *media_start;
     const char *media_end;
     struct rom_entry entry;
+    char dir_relative_path[UI_PATH_MAX];
+    char child_name[256];
+    int child_is_directory = 0;
 
     if (!json_next_object(&cursor, end, &obj_start, &obj_end)) {
       break;
@@ -5290,7 +5449,21 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
     if (!entry.title[0]) {
       copy_string(entry.title, sizeof(entry.title), entry.relative_path);
     }
-    ui->rom_entries[ui->rom_count++] = entry;
+    json_get_string(obj_start, obj_end, "extension", entry.extension,
+                    sizeof(entry.extension));
+    if (!rom_browser_child_for_path(entry.relative_path, ui->rom_directory,
+                                    dir_relative_path, sizeof(dir_relative_path),
+                                    child_name, sizeof(child_name),
+                                    &child_is_directory)) {
+      continue;
+    }
+    if (child_is_directory) {
+      add_navigation_directory_entry(ui, &entry, dir_relative_path, child_name);
+      continue;
+    }
+    if (ui->rom_count < UI_MAX_ROMS) {
+      ui->rom_entries[ui->rom_count++] = entry;
+    }
   }
   free(json);
   if (ui->rom_count > 1) {
@@ -6206,6 +6379,12 @@ static void render_roms(struct ui_state *ui) {
     title = "RECENT";
     subtitle =
         "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+  } else if (ui->rom_directory[0]) {
+    subtitle =
+        "A: open/launch  B: parent  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+  } else {
+    subtitle =
+        "A: open/launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
   }
 
   if (ui_uses_graphic_mode(ui)) {
@@ -6216,8 +6395,9 @@ static void render_roms(struct ui_state *ui) {
   ui_printf(ui, "plumOS controller UI - %s\n", title);
   if (ui->screen == SCREEN_ROMS) {
     char prompt_path[PATH_MAX];
-    ui_printf(ui, "system=%s ROMs=%zu (%s)\n", ui->current_system_id,
-              ui->rom_count, ui->current_system_name);
+    ui_printf(ui, "system=%s ROMs=%zu (%s) dir=%s\n", ui->current_system_id,
+              ui->rom_count, ui->current_system_name,
+              ui->rom_directory[0] ? ui->rom_directory : "/");
     if (ui->renderer_mali && ui->rom_count > 0 &&
         rom_entry_alias_root_path(&ui->rom_entries[ui->rom_cursor],
                                   prompt_path, sizeof(prompt_path))) {
@@ -7237,9 +7417,12 @@ static void capture_safe_target(struct ui_state *ui) {
   ui->safe_target_launch_profile[0] = '\0';
 
   if ((ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
-       ui->screen == SCREEN_RECENT) &&
+      ui->screen == SCREEN_RECENT) &&
       ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+    if (entry->is_navigation_directory) {
+      return;
+    }
     copy_string(ui->safe_target_system_id, sizeof(ui->safe_target_system_id),
                 entry->system_id[0] ? entry->system_id : ui->current_system_id);
     copy_string(ui->safe_target_relative_path, sizeof(ui->safe_target_relative_path),
@@ -7264,6 +7447,7 @@ static void open_safe_menu(struct ui_state *ui) {
 
 static void open_favorites_screen(struct ui_state *ui) {
   ui->screen = SCREEN_FAVORITES;
+  ui->rom_directory[0] = '\0';
   copy_string(ui->current_system_id, sizeof(ui->current_system_id), "favorites");
   copy_string(ui->current_system_name, sizeof(ui->current_system_name), "Favorites");
   if (!load_favorite_entries(ui)) {
@@ -7276,6 +7460,7 @@ static void open_favorites_screen(struct ui_state *ui) {
 
 static void open_recent_screen(struct ui_state *ui) {
   ui->screen = SCREEN_RECENT;
+  ui->rom_directory[0] = '\0';
   copy_string(ui->current_system_id, sizeof(ui->current_system_id), "recent");
   copy_string(ui->current_system_name, sizeof(ui->current_system_name), "Recent");
   if (!load_recent_entries(ui)) {
@@ -7671,6 +7856,7 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
     return;
   }
   ui->screen = SCREEN_ROMS;
+  ui->rom_directory[0] = '\0';
   set_status(ui, "loading ROM list");
   if (!load_rom_entries(ui, entry->id)) {
     set_status(ui, "cannot load ROM list");
@@ -7703,6 +7889,68 @@ static void open_gallery_screen(struct ui_state *ui) {
   ui->gallery_pending_active = 0;
   set_status(ui, "Gallery ready");
   reset_marquee(ui);
+}
+
+static int reload_rom_directory_no_scan(struct ui_state *ui, const char *status) {
+  int saved_suppressed;
+  int ok;
+
+  if (!ui || !ui->current_system_id[0]) {
+    return 0;
+  }
+  saved_suppressed = ui->rom_scan_refresh_suppressed;
+  ui->rom_scan_refresh_suppressed = 1;
+  ok = load_rom_entries(ui, ui->current_system_id);
+  ui->rom_scan_refresh_suppressed = saved_suppressed;
+  if (!ok) {
+    set_status(ui, "cannot load ROM directory");
+    return 0;
+  }
+  set_status(ui, status ? status : "ROM directory ready");
+  reset_marquee(ui);
+  return 1;
+}
+
+static int open_rom_directory_entry(struct ui_state *ui,
+                                    const struct rom_entry *entry) {
+  char old_directory[UI_PATH_MAX];
+
+  if (!ui || !entry || !entry->is_navigation_directory ||
+      !entry->relative_path[0]) {
+    return 0;
+  }
+  copy_string(old_directory, sizeof(old_directory), ui->rom_directory);
+  copy_string(ui->rom_directory, sizeof(ui->rom_directory), entry->relative_path);
+  if (reload_rom_directory_no_scan(ui, "ROM directory ready")) {
+    return 1;
+  }
+  copy_string(ui->rom_directory, sizeof(ui->rom_directory), old_directory);
+  return 0;
+}
+
+static int open_parent_rom_directory(struct ui_state *ui) {
+  char old_directory[UI_PATH_MAX];
+  char *slash;
+  char *first_slash;
+
+  if (!ui || !ui->rom_directory[0]) {
+    return 0;
+  }
+  copy_string(old_directory, sizeof(old_directory), ui->rom_directory);
+  slash = strrchr(ui->rom_directory, '/');
+  first_slash = strchr(ui->rom_directory, '/');
+  if (!slash || slash == first_slash) {
+    ui->rom_directory[0] = '\0';
+  } else {
+    *slash = '\0';
+  }
+  if (reload_rom_directory_no_scan(ui, ui->rom_directory[0]
+                                           ? "parent directory ready"
+                                           : "ROM list ready")) {
+    return 1;
+  }
+  copy_string(ui->rom_directory, sizeof(ui->rom_directory), old_directory);
+  return 0;
 }
 
 static int update_settings_entries_after_save(struct ui_state *ui);
@@ -8263,6 +8511,9 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
   if (!entry || !entry->relative_path[0]) {
     set_status(ui, "launch target is empty");
     return 0;
+  }
+  if (entry->is_navigation_directory) {
+    return open_rom_directory_entry(ui, entry);
   }
   system_id = entry->system_id[0] ? entry->system_id : ui->current_system_id;
   if (!valid_system_id(system_id)) {
@@ -10136,6 +10387,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       return;
     }
     if (action == ACTION_B) {
+      if (ui->rom_directory[0] && open_parent_rom_directory(ui)) {
+        return;
+      }
       ui->rom_entry_screen = SCREEN_GALLERY;
       ui->screen = SCREEN_TOP;
       ui->gallery_transition_active = 0;
@@ -10167,6 +10421,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     if (action == ACTION_SELECT && ui->rom_count > 0) {
       const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+      if (entry->is_navigation_directory) {
+        set_status(ui, "directory has no core menu");
+        return;
+      }
       open_core_select_screen(ui, entry->system_id[0] ? entry->system_id
                                                       : ui->current_system_id,
                               entry->relative_path);
@@ -10498,6 +10756,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     return;
   }
   if (action == ACTION_B) {
+    if (ui->screen == SCREEN_ROMS && ui->rom_directory[0] &&
+        open_parent_rom_directory(ui)) {
+      return;
+    }
     ui->rom_entry_screen = SCREEN_ROMS;
     ui->screen = SCREEN_TOP;
     set_status(ui, "back to TOP");
@@ -10514,6 +10776,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (action == ACTION_SELECT && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
+    if (entry->is_navigation_directory) {
+      set_status(ui, "directory has no core menu");
+      return;
+    }
     open_core_select_screen(ui, entry->system_id[0] ? entry->system_id : ui->current_system_id,
                             entry->relative_path);
     return;

@@ -242,6 +242,17 @@ patched Pyxel は通常の pip site-packages ではなく、以下の分離 site
 使うと pip 側の通常 Pyxel を読む可能性があるため、A30 画面出力が必要な Pyxel app は
 `plumos-pyxel-a30-launch` 経由に固定する。
 
+### FE からの起動
+
+frontend の `systems.json` には `pyxel` system を追加する。ROM directory は
+`/mnt/SDCARD/Roms/pyxel`、対応拡張子は `.pyxapp` と `.py` とする。
+
+- `.pyxapp`: `plumos-pyxel-a30-launch -m pyxel play <path>`
+- `.py`: `plumos-pyxel-a30-launch -m pyxel run <path>`
+
+launch profile は `pyxel:a30` とし、`plumos-text-ui launch` が拡張子で上記の command へ
+振り分ける。
+
 実機確認では plumOS SDL runtime の `a30mali` を明示して、SDL2 API から GLES2 context と
 swap が成立することを確認した。
 

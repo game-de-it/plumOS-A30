@@ -160,6 +160,18 @@ scan 結果として生成される ROM 単位の entry です。手書きしま
 `id` は path だけに依存させず、将来的には file hash や mtime/size を使える形にします。
 初期実装は normalized absolute path の hash で十分です。
 
+### ROM list directory browsing
+
+scanner cache は従来どおり system ごとの flat な `RomEntry` 配列として保持します。
+FE の ROM list は cache を表示する時点で、現在の directory 直下にある ROM file と
+subdirectory だけに投影します。
+
+- A は subdirectory ではその directory へ移動し、ROM file では起動する
+- B は subdirectory 内では親 directory へ戻り、alias root では TOP へ戻る
+- `scan_directories=true` の system で生成される directory ROM entry は起動対象であり、
+  ROM list navigation 用の仮想 directory entry とは区別する
+- scanner cache format は変更しない。directory navigation entry は FE 表示時だけ作る
+
 ### Artwork lookup
 
 thumbnail は `RomEntry` の代表 ROM path から、system ごとの canonical thumbnail root
