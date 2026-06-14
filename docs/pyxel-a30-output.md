@@ -169,6 +169,7 @@ plumOS SDL runtime 側で維持される。
 
 - `docker/plumos-toolchain/patches/sdl3-3.4.10-a30mali-video-driver.patch`
 - `docker/plumos-toolchain/patches/pyxel-2.9.6-a30-fbo-present.patch` fallback 用
+- `docker/plumos-toolchain/pyxel-a30-shim/plumos_pyxel_a30_shim.py`
 - `docker/plumos-toolchain/scripts/build-sdl2-runtime.sh` の `a30mali` patch 適用
 - `docker/plumos-toolchain/scripts/build-pyxel-a30.sh`
 - `scripts/docker-build.sh pyxel-a30`
@@ -191,6 +192,7 @@ A30 へ deploy すると以下が追加される。
 /mnt/SDCARD/plumos/experiments/pyxel-a30-site/
 /mnt/SDCARD/plumos/bin/plumos-pyxel-a30
 /mnt/SDCARD/plumos/bin/plumos-pyxel-a30-launch
+/mnt/SDCARD/plumos/share/pyxel-a30/plumos_pyxel_a30_shim.py
 /mnt/SDCARD/plumos/share/doc/plumos-pyxel-a30/manifest.txt
 ```
 
@@ -208,6 +210,10 @@ SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 
 通常経路では `PYTHONPATH` に `experiments/pyxel-a30-site` を追加しない。そのため
 `/mnt/SDCARD/plumos/python/lib/python3.14/site-packages` に pip で入っている Pyxel が使われる。
+ただし `plumos-pyxel-a30` は `plumos_pyxel_a30_shim` 経由で実行し、公開 API の
+`pyxel.init()` だけを薄く wrap する。この shim は Pyxel 本体を変更せず、`width` / `height` /
+`display_scale` から `PLUMOS_A30MALI_LOGICAL_SIZE` を設定して SDL `a30mali` backend へ
+論理表示サイズを渡す。
 古い検証で使った stock SDL2 `mali` driver は参照用に残すが、通常の Pyxel launcher では
 `/mnt/SDCARD/miyoo/lib` を library path に入れない。
 
@@ -216,9 +222,12 @@ SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 
 `PLUMOS_A30MALI_ROTATION=cw` は、標準 Pyxel の GLES 描画先を `a30mali` backend 側の
 offscreen pbuffer にし、`SDL_GL_SwapWindow` 直前で backbuffer を texture にコピーする。
-その後、物理 fb 用 EGL surface に切り替えて GPU 上で A30 の画面向きへ回転してから
-swap する。Pyxel package 自体は patch しないため、`pip install --upgrade pyxel` 後も
-この表示経路を維持できる。
+その後、物理 fb 用 EGL surface に切り替えて GPU 上でアスペクト比を維持したまま
+A30 の画面向きへ回転してから swap する。コピー元は Swap 時点で bind されている
+framebuffer とし、Pyxel が内部 FBO を使っていても default framebuffer 前提で諦めない。
+present 側では明示的に default framebuffer へ戻して回転 quad を描く。表示サイズは
+shim が渡す `PLUMOS_A30MALI_LOGICAL_SIZE` を優先する。Pyxel package 自体は patch しないため、
+`pip install --upgrade pyxel` 後もこの表示経路を維持しやすい。
 
 `plumos-pyxel-a30-launch` は FE/ユーザー向けの wrapper で、Pyxel 実行前後に以下を行う。
 
@@ -311,6 +320,8 @@ capture:
 artifacts/pyxel-demo/a30-present-captures/20260614-085325.visible.cw.png
 artifacts/pyxel-demo/a30mali-captures/20260614-115752.visible.cw.png
 artifacts/pyxel-demo/a30mali-lastemulator-captures/20260614-120249.visible.cw.png
+artifacts/pyxel-demo/shim-fit-probe2/20260614-155501.visible.cw.png
+artifacts/pyxel-demo/shim-lastemulator-final/20260614-155612.visible.cw.png
 ```
 
 この capture で Pyxel の 640x480 landscape 画面が正しい向きに表示されることを確認した。
@@ -319,6 +330,19 @@ artifacts/pyxel-demo/a30mali-lastemulator-captures/20260614-120249.visible.cw.pn
 `plumos-pyxel-a30-launch -m pyxel play /mnt/SDCARD/Roms/pyxel/LastEmulator.pyxapp`
 で起動する。`LastEmulator.pyxapp` はタイトル表示まで時間がかかるため、画面 capture は
 起動後 45 秒以上待ってから行う。
+
+2026-06-14 の shim 検証では、標準 pip Pyxel 2.9.6 のまま `pyxel.init()` を wrap し、
+LastEmulator 起動時に以下を取得した。
+
+```text
+plumOS Pyxel init shim canvas=720x480 display_scale=auto logical=720x480
+```
+
+SDL `a30mali` 側は `PLUMOS_A30MALI_LOGICAL_SIZE=720x480` を offscreen surface と present
+source に使う。さらに Swap 時に Pyxel 内部 FBO が bind されている場合でも、その FBO から
+texture へコピーし、present surface 側では default framebuffer へ戻して回転 quad を描く。
+`shim-fit-probe2` では 720x480 の四隅と枠が 640x480 landscape へアスペクト維持で収まること、
+`shim-lastemulator-final` では LastEmulator のタイトル画面が左右欠けなしで表示されることを確認した。
 
 ## 音声・入力・hotkey 検証
 

@@ -18,6 +18,7 @@ SITE_DIR="${DIST_DIR}/plumos/experiments/pyxel-a30-site"
 BIN_DIR="${DIST_DIR}/plumos/bin"
 DOC_DIR="${DIST_DIR}/plumos/share/doc/plumos-pyxel-a30"
 WHEEL_COPY_DIR="${DIST_DIR}/plumos/share/pyxel-a30"
+SHIM_SOURCE="${ROOT_DIR}/docker/plumos-toolchain/pyxel-a30-shim/plumos_pyxel_a30_shim.py"
 
 log() {
   printf '%s\n' "==> $*"
@@ -88,6 +89,7 @@ stage_runtime() {
   rm -rf "$DIST_DIR"
   mkdir -p "$SITE_DIR" "$BIN_DIR" "$DOC_DIR" "$WHEEL_COPY_DIR"
   cp "$wheel" "$WHEEL_COPY_DIR/"
+  install -m 0644 "$SHIM_SOURCE" "$WHEEL_COPY_DIR/"
 
   WHEEL_PATH="$wheel" SITE_DIR="$SITE_DIR" python3 - <<'PY'
 import os
@@ -101,6 +103,7 @@ PY
 #!/bin/sh
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 PYXEL_SITE="${PLUMOS_PYXEL_A30_SITE:-${PLUMOS_ROOT}/experiments/pyxel-a30-site}"
+PYXEL_SHIM_SITE="${PLUMOS_PYXEL_A30_SHIM_SITE:-${PLUMOS_ROOT}/share/pyxel-a30}"
 export HOME="${PLUMOS_PYXEL_HOME:-/mnt/SDCARD}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-a30mali}"
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
@@ -108,6 +111,7 @@ export SDL_OPENGL_LIBRARY="${SDL_OPENGL_LIBRARY:-/usr/lib/libGLESv2.so}"
 export SDL_EGL_LIBRARY="${SDL_EGL_LIBRARY:-/usr/lib/libEGL.so}"
 export PLUMOS_A30MALI_ROTATION="${PLUMOS_A30MALI_ROTATION:-cw}"
 export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,lefttrigger:b6,righttrigger:b7,back:b8,start:b9,guide:b10,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
+export PYTHONPATH="${PYXEL_SHIM_SITE}${PYTHONPATH:+:${PYTHONPATH}}"
 
 case "${PLUMOS_PYXEL_USE_PATCHED:-0}" in
   1|yes|YES|true|TRUE|on|ON)
@@ -115,6 +119,11 @@ case "${PLUMOS_PYXEL_USE_PATCHED:-0}" in
     export PLUMOS_PYXEL_A30_PRESENT="${PLUMOS_PYXEL_A30_PRESENT:-1}"
     export PLUMOS_PYXEL_A30_ROTATION="${PLUMOS_PYXEL_A30_ROTATION:-cw}"
     ;;
+esac
+
+case "${PLUMOS_PYXEL_INIT_SHIM:-1}" in
+  0|no|NO|false|FALSE|off|OFF|none|NONE) ;;
+  *) set -- -m plumos_pyxel_a30_shim "$@" ;;
 esac
 
 exec "${PLUMOS_ROOT}/lib/ld-linux-armhf.so.3" \
@@ -375,6 +384,7 @@ EOF
     echo
     sha256sum "$wheel"
     sha256sum "${BIN_DIR}/plumos-pyxel-a30" "${BIN_DIR}/plumos-pyxel-a30-launch"
+    sha256sum "$SHIM_SOURCE"
     echo
     find "$SITE_DIR/pyxel" -maxdepth 1 -type f | sort | xargs -r sha256sum
   } >"${DOC_DIR}/manifest.txt"

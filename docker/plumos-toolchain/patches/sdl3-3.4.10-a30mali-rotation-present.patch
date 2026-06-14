@@ -1,18 +1,9 @@
 --- a/src/video/offscreen/SDL_a30mali_video.c
 +++ b/src/video/offscreen/SDL_a30mali_video.c
-@@ -25,6 +25,8 @@
- #include <errno.h>
- #include <fcntl.h>
- #include <linux/fb.h>
+@@ -27,0 +28,2 @@
 +#include <stddef.h>
 +#include <stdint.h>
- #include <string.h>
- #include <sys/ioctl.h>
- #include <unistd.h>
-@@ -40,11 +42,111 @@
- #define A30MALI_DEFAULT_WIDTH 480
- #define A30MALI_DEFAULT_HEIGHT 640
-
+@@ -42,0 +45,97 @@
 +#ifdef SDL_VIDEO_OPENGL_EGL
 +#define A30MALI_GL_FALSE 0
 +#define A30MALI_GL_TRUE 1
@@ -110,25 +101,15 @@
 +} A30MALI_GL;
 +#endif
 +
- typedef struct SDL_VideoData
- {
-     char fb_path[128];
-     int width;
-     int height;
+@@ -47,0 +147,3 @@
 +#ifdef SDL_VIDEO_OPENGL_EGL
 +    A30MALI_GL gl;
 +#endif
- } SDL_VideoData;
-
- typedef struct A30MALI_NativeWindow
-@@ -58,8 +160,17 @@
-     SDL_Window *sdl_window;
- #ifdef SDL_VIDEO_OPENGL_EGL
-     EGLSurface egl_surface;
+@@ -60,0 +163 @@
 +    EGLSurface present_surface;
-     A30MALI_NativeWindow native_window;
+@@ -61,0 +165 @@
 +    A30MALI_NativeWindow present_native_window;
-     bool native_window_used;
+@@ -62,0 +167,7 @@
 +    bool use_offscreen_present;
 +    A30MALI_GLuint present_texture;
 +    A30MALI_GLuint present_program;
@@ -136,13 +117,8 @@
 +    int present_texture_width;
 +    int present_texture_height;
 +    A30MALI_GLint present_sampler_location;
- #endif
- } SDL_WindowData;
-
-@@ -79,6 +190,18 @@
- static void A30MALI_GLES_DefaultProfileConfig(SDL_VideoDevice *_this, int *mask, int *major, int *minor);
- #endif
-
+@@ -80,0 +192,41 @@
++
 +#ifdef SDL_VIDEO_OPENGL_EGL
 +static A30MALI_Rotation A30MALI_GetRotation(void);
 +static void A30MALI_DeletePresent(SDL_VideoData *data, SDL_WindowData *windata);
@@ -155,20 +131,39 @@
 +           SDL_strcasecmp(value, "false") != 0 && SDL_strcasecmp(value, "off") != 0 && SDL_strcasecmp(value, "none") != 0;
 +}
 +
- static const char *A30MALI_GetFBPath(void)
- {
-     const char *path = SDL_getenv("PLUMOS_A30_FB");
-@@ -229,18 +352,35 @@
-
- #ifdef SDL_VIDEO_OPENGL_EGL
-     windata->egl_surface = EGL_NO_SURFACE;
++static bool A30MALI_GetEnvSize(const char *name, int *width, int *height)
++{
++    const char *value = SDL_getenv(name);
++    const char *separator;
++    int parsed_width;
++    int parsed_height;
++
++    if (!value || !*value) {
++        return false;
++    }
++    separator = SDL_strchr(value, 'x');
++    if (!separator) {
++        separator = SDL_strchr(value, 'X');
++    }
++    if (!separator) {
++        return false;
++    }
++
++    parsed_width = SDL_atoi(value);
++    parsed_height = SDL_atoi(separator + 1);
++    if (parsed_width <= 0 || parsed_height <= 0 || parsed_width > 4096 || parsed_height > 4096) {
++        return false;
++    }
++
++    *width = parsed_width;
++    *height = parsed_height;
++    return true;
++}
+@@ -231,0 +384 @@
 +    windata->present_surface = EGL_NO_SURFACE;
-     if (window->flags & SDL_WINDOW_OPENGL) {
+@@ -232,0 +386 @@
 +        SDL_VideoData *data = (SDL_VideoData *)_this->internal;
-         if (!_this->egl_data) {
-             return SDL_SetError("a30mali: cannot create an OpenGL window without EGL data");
-         }
-
+@@ -237,7 +391,27 @@
 -        windata->native_window.width = (Uint16)window->w;
 -        windata->native_window.height = (Uint16)window->h;
 -        windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)0);
@@ -177,6 +172,11 @@
 -            windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->native_window);
 -            windata->native_window_used = true;
 +        if (A30MALI_GetRotation() != A30MALI_ROTATION_NONE && data) {
++            int offscreen_width = window->w;
++            int offscreen_height = window->h;
++
++            A30MALI_GetEnvSize("PLUMOS_A30MALI_LOGICAL_SIZE", &offscreen_width, &offscreen_height);
++
 +            windata->use_offscreen_present = true;
 +            windata->present_native_window.width = (Uint16)data->width;
 +            windata->present_native_window.height = (Uint16)data->height;
@@ -188,7 +188,7 @@
 +            if (windata->present_surface == EGL_NO_SURFACE) {
 +                return SDL_SetError("a30mali: failed to create EGL present surface");
 +            }
-+            windata->egl_surface = SDL_EGL_CreateOffscreenSurface(_this, window->w, window->h);
++            windata->egl_surface = SDL_EGL_CreateOffscreenSurface(_this, offscreen_width, offscreen_height);
 +        } else {
 +            windata->native_window.width = (Uint16)window->w;
 +            windata->native_window.height = (Uint16)window->h;
@@ -198,22 +198,10 @@
 +                windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->native_window);
 +                windata->native_window_used = true;
 +            }
-         }
-         if (windata->egl_surface == EGL_NO_SURFACE) {
-             return SDL_SetError("a30mali: failed to create EGL window surface");
-@@ -257,6 +397,8 @@
-     if (windata) {
- #ifdef SDL_VIDEO_OPENGL_EGL
-         SDL_EGL_DestroySurface(_this, windata->egl_surface);
+@@ -259,0 +434,2 @@
 +        SDL_EGL_DestroySurface(_this, windata->present_surface);
 +        A30MALI_DeletePresent((SDL_VideoData *)_this->internal, windata);
- #endif
-         SDL_free(windata);
-     }
-@@ -269,6 +411,402 @@
- }
-
- #ifdef SDL_VIDEO_OPENGL_EGL
+@@ -271,0 +448,398 @@
 +static A30MALI_Rotation A30MALI_GetRotation(void)
 +{
 +    const char *value = SDL_getenv("PLUMOS_A30MALI_ROTATION");
@@ -512,9 +500,6 @@
 +    gl = &data->gl;
 +    gl->GetIntegerv(A30MALI_GL_VIEWPORT, old_viewport);
 +    gl->GetIntegerv(A30MALI_GL_FRAMEBUFFER_BINDING, &old_framebuffer);
-+    if (old_framebuffer != 0) {
-+        return true;
-+    }
 +
 +    copy_full_framebuffer = !windata->use_offscreen_present &&
 +                            (old_viewport[0] < 0 || old_viewport[1] < 0 ||
@@ -524,6 +509,10 @@
 +        copy_y = 0;
 +        source_width = data->width;
 +        source_height = data->height;
++    } else if (windata->use_offscreen_present &&
++               A30MALI_GetEnvSize("PLUMOS_A30MALI_LOGICAL_SIZE", &source_width, &source_height)) {
++        copy_x = 0;
++        copy_y = 0;
 +    } else {
 +        copy_x = old_viewport[0];
 +        copy_y = old_viewport[1];
@@ -563,6 +552,7 @@
 +
 +    A30MALI_FillVertices(rotation, source_width, source_height, data->width, data->height,
 +                         copy_full_framebuffer, vertices);
++    gl->BindFramebuffer(A30MALI_GL_FRAMEBUFFER, 0);
 +    gl->Viewport(0, 0, data->width, data->height);
 +    gl->Disable(A30MALI_GL_BLEND);
 +    gl->Disable(A30MALI_GL_CULL_FACE);
@@ -610,22 +600,10 @@
 +    return true;
 +}
 +
- static bool A30MALI_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
- {
-     if (!SDL_EGL_LoadLibrary(_this, path, EGL_DEFAULT_DISPLAY, 0)) {
-@@ -276,7 +814,7 @@
-     }
-
-     _this->gl_config.alpha_size = 0;
+@@ -279 +853 @@
 -    _this->egl_data->egl_surfacetype = EGL_WINDOW_BIT;
 +    _this->egl_data->egl_surfacetype = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
-     return true;
- }
-
-@@ -298,6 +836,17 @@
- static bool A30MALI_GLES_SwapWindow(SDL_VideoDevice *_this, SDL_Window *window)
- {
-     SDL_WindowData *windata = window->internal;
+@@ -300,0 +875,11 @@
 +    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
 +    bool result;
 +
@@ -637,5 +615,3 @@
 +        SDL_EGL_MakeCurrent(_this, windata->egl_surface, _this->current_glctx);
 +        return result;
 +    }
-     return SDL_EGL_SwapBuffers(_this, windata ? windata->egl_surface : EGL_NO_SURFACE);
- }
