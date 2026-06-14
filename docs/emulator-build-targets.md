@@ -165,6 +165,8 @@ presenter 初期化失敗時は通常失敗扱いにし、明示的に
 GPU 側の矩形で処理します。`Screen effect` は `None`、`Scanline`、`DMG`、`LCD` を
 GPU 側で処理します。`DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風の
 周期パターンとして shader で近似し、PicoArch の software scaler へ戻らないようにします。
+古い/ユーザー編集済み `picoarch.cfg` で Gamepad 側の Function menu bind が欠落していても、
+起動時に全 SDL input device へ既定の menu bind を再付与します。
 
 `fceumm_libretro.so` と `/mnt/SDCARD/Roms/FC/いっき.zip` の手動起動では、ログに
 `picoarch-a30: mali presenter logical=640x480 physical=480x640 rotation=2 vsync=1` が出て、

@@ -98,6 +98,59 @@ index aa1f155..109e5be 100644
  
  	/* wait until either key repeat or a new key has been pressed */
  	do {
+diff --git a/main.c b/main.c
+index a2b5095..705121b 100644
+--- a/main.c
++++ b/main.c
+@@ -285,0 +286,34 @@
++}
++
++static void force_default_menu_binds(void)
++{
++	int menu_mask = 1 << EACTION_MENU;
++	int dev_id;
++
++	for (dev_id = 0; dev_id < IN_MAX_DEVS; dev_id++) {
++		const int *binds;
++		const int *defbinds;
++		int kcount = 0;
++		int i;
++
++		if (in_get_config(dev_id, IN_CFG_BIND_COUNT, &kcount) != 0 || kcount <= 0)
++			continue;
++
++		binds = in_get_dev_binds(dev_id);
++		defbinds = in_get_dev_def_binds(dev_id);
++		if (!defbinds)
++			continue;
++
++		for (i = 0; i < kcount; i++) {
++			const char *key_name;
++
++			if (defbinds[IN_BIND_OFFS(i, IN_BINDTYPE_EMU)] != menu_mask)
++				continue;
++			if (binds && (binds[IN_BIND_OFFS(i, IN_BINDTYPE_EMU)] & menu_mask))
++				continue;
++			key_name = in_get_key_name(dev_id, i);
++			if (key_name && key_name[0])
++				in_config_bind_key(dev_id, key_name, menu_mask, IN_BINDTYPE_EMU);
++		}
++	}
++	in_clean_binds();
+@@ -291,2 +324,0 @@
+-	int kcount = 0;
+-	const int *defbinds = NULL;
+@@ -300,9 +332 @@
+-		/* Force input device 0 menu to be bound to the default key */
+-		in_get_config(0, IN_CFG_BIND_COUNT, &kcount);
+-		defbinds = in_get_dev_def_binds(0);
+-
+-		for(int i = 0; i < kcount; i++) {
+-			if (defbinds[IN_BIND_OFFS(i, IN_BINDTYPE_EMU)] == 1 << EACTION_MENU) {
+-				in_bind_key(0, i, 1 << EACTION_MENU, IN_BINDTYPE_EMU, 0);
+-			}
+-		}
++		force_default_menu_binds();
 diff --git a/plat_linux.c b/plat_linux.c
 index bc57f3c..bd16c0f 100644
 --- a/plat_linux.c

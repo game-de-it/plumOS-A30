@@ -194,6 +194,8 @@ The direct path handles PicoArch `Screen size` values `Native`, `Aspect`, and
 and `LCD` stay on the GPU path. `DMG` approximates the original white-biased LCD
 blend and `LCD` approximates the RGB subpixel pattern in the fragment shader, so
 these effects do not return to PicoArch's software scaler on A30.
+When an old or user-edited `picoarch.cfg` lacks the Gamepad-side Function menu
+binding, startup restores the default menu binding across all SDL input devices.
 
 A manual `fceumm_libretro.so` launch with `/mnt/SDCARD/Roms/FC/いっき.zip`
 logged `picoarch-a30: mali presenter logical=640x480 physical=480x640 rotation=2 vsync=1`,
