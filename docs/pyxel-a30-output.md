@@ -197,10 +197,12 @@ A30 へ deploy すると以下が追加される。
 `plumos-pyxel-a30` は Pyxel 用 Python 実行入口で、以下を既定値にする。
 
 ```text
+HOME=/mnt/SDCARD
 SDL_VIDEODRIVER=a30mali
 SDL_AUDIODRIVER=alsa
 SDL_OPENGL_LIBRARY=/usr/lib/libGLESv2.so
 SDL_EGL_LIBRARY=/usr/lib/libEGL.so
+PLUMOS_A30MALI_ROTATION=cw
 SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 ```
 
@@ -208,6 +210,15 @@ SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 `/mnt/SDCARD/plumos/python/lib/python3.14/site-packages` に pip で入っている Pyxel が使われる。
 古い検証で使った stock SDL2 `mali` driver は参照用に残すが、通常の Pyxel launcher では
 `/mnt/SDCARD/miyoo/lib` を library path に入れない。
+
+`HOME` は Pyxel app のユーザーデータ保存先が rootfs 側へ逃げないよう `/mnt/SDCARD`
+を既定にする。必要な場合だけ `PLUMOS_PYXEL_HOME` で上書きできる。
+
+`PLUMOS_A30MALI_ROTATION=cw` は、標準 Pyxel の GLES 描画先を `a30mali` backend 側の
+offscreen pbuffer にし、`SDL_GL_SwapWindow` 直前で backbuffer を texture にコピーする。
+その後、物理 fb 用 EGL surface に切り替えて GPU 上で A30 の画面向きへ回転してから
+swap する。Pyxel package 自体は patch しないため、`pip install --upgrade pyxel` 後も
+この表示経路を維持できる。
 
 `plumos-pyxel-a30-launch` は FE/ユーザー向けの wrapper で、Pyxel 実行前後に以下を行う。
 

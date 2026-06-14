@@ -127,6 +127,7 @@ prepare_source() {
 apply_sdl3_patches() {
   log "Applying SDL3 A30 Mali video backend patch"
   patch -d "$SDL3_SRC_DIR" -p1 < "${PATCH_DIR}/sdl3-3.4.10-a30mali-video-driver.patch"
+  patch -d "$SDL3_SRC_DIR" -p1 < "${PATCH_DIR}/sdl3-3.4.10-a30mali-rotation-present.patch"
 }
 
 build_sdl3() {

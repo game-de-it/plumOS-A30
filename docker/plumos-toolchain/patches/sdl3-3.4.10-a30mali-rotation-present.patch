@@ -1,0 +1,641 @@
+--- a/src/video/offscreen/SDL_a30mali_video.c
++++ b/src/video/offscreen/SDL_a30mali_video.c
+@@ -25,6 +25,8 @@
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <linux/fb.h>
++#include <stddef.h>
++#include <stdint.h>
+ #include <string.h>
+ #include <sys/ioctl.h>
+ #include <unistd.h>
+@@ -40,11 +42,111 @@
+ #define A30MALI_DEFAULT_WIDTH 480
+ #define A30MALI_DEFAULT_HEIGHT 640
+
++#ifdef SDL_VIDEO_OPENGL_EGL
++#define A30MALI_GL_FALSE 0
++#define A30MALI_GL_TRUE 1
++#define A30MALI_GL_FLOAT 0x1406
++#define A30MALI_GL_UNSIGNED_BYTE 0x1401
++#define A30MALI_GL_TRIANGLE_STRIP 0x0005
++#define A30MALI_GL_COLOR_BUFFER_BIT 0x00004000
++#define A30MALI_GL_TEXTURE_2D 0x0DE1
++#define A30MALI_GL_TEXTURE0 0x84C0
++#define A30MALI_GL_RGBA 0x1908
++#define A30MALI_GL_VERTEX_SHADER 0x8B31
++#define A30MALI_GL_FRAGMENT_SHADER 0x8B30
++#define A30MALI_GL_COMPILE_STATUS 0x8B81
++#define A30MALI_GL_LINK_STATUS 0x8B82
++#define A30MALI_GL_ARRAY_BUFFER 0x8892
++#define A30MALI_GL_STATIC_DRAW 0x88E4
++#define A30MALI_GL_TEXTURE_MIN_FILTER 0x2801
++#define A30MALI_GL_TEXTURE_MAG_FILTER 0x2800
++#define A30MALI_GL_TEXTURE_WRAP_S 0x2802
++#define A30MALI_GL_TEXTURE_WRAP_T 0x2803
++#define A30MALI_GL_CLAMP_TO_EDGE 0x812F
++#define A30MALI_GL_LINEAR 0x2601
++#define A30MALI_GL_FRAMEBUFFER 0x8D40
++#define A30MALI_GL_FRAMEBUFFER_BINDING 0x8CA6
++#define A30MALI_GL_VIEWPORT 0x0BA2
++#define A30MALI_GL_CURRENT_PROGRAM 0x8B8D
++#define A30MALI_GL_ACTIVE_TEXTURE 0x84E0
++#define A30MALI_GL_TEXTURE_BINDING_2D 0x8069
++#define A30MALI_GL_ARRAY_BUFFER_BINDING 0x8894
++#define A30MALI_GL_VERTEX_ATTRIB_ARRAY_ENABLED 0x8622
++#define A30MALI_GL_BLEND 0x0BE2
++#define A30MALI_GL_CULL_FACE 0x0B44
++#define A30MALI_GL_DEPTH_TEST 0x0B71
++#define A30MALI_GL_SCISSOR_TEST 0x0C11
++#define A30MALI_GL_COLOR_WRITEMASK 0x0C23
++
++typedef unsigned int A30MALI_GLuint;
++typedef unsigned int A30MALI_GLenum;
++typedef int A30MALI_GLint;
++typedef int A30MALI_GLsizei;
++typedef unsigned char A30MALI_GLboolean;
++typedef float A30MALI_GLfloat;
++typedef ptrdiff_t A30MALI_GLsizeiptr;
++
++typedef enum A30MALI_Rotation
++{
++    A30MALI_ROTATION_NONE,
++    A30MALI_ROTATION_CW,
++    A30MALI_ROTATION_CCW
++} A30MALI_Rotation;
++
++typedef struct A30MALI_GL
++{
++    bool loaded;
++    void (*ActiveTexture)(A30MALI_GLenum texture);
++    void (*AttachShader)(A30MALI_GLuint program, A30MALI_GLuint shader);
++    void (*BindAttribLocation)(A30MALI_GLuint program, A30MALI_GLuint index, const char *name);
++    void (*BindBuffer)(A30MALI_GLenum target, A30MALI_GLuint buffer);
++    void (*BindFramebuffer)(A30MALI_GLenum target, A30MALI_GLuint framebuffer);
++    void (*BindTexture)(A30MALI_GLenum target, A30MALI_GLuint texture);
++    void (*BufferData)(A30MALI_GLenum target, A30MALI_GLsizeiptr size, const void *data, A30MALI_GLenum usage);
++    void (*Clear)(A30MALI_GLenum mask);
++    void (*ClearColor)(A30MALI_GLfloat red, A30MALI_GLfloat green, A30MALI_GLfloat blue, A30MALI_GLfloat alpha);
++    void (*ColorMask)(A30MALI_GLboolean red, A30MALI_GLboolean green, A30MALI_GLboolean blue, A30MALI_GLboolean alpha);
++    void (*CompileShader)(A30MALI_GLuint shader);
++    void (*CopyTexSubImage2D)(A30MALI_GLenum target, A30MALI_GLint level, A30MALI_GLint xoffset, A30MALI_GLint yoffset, A30MALI_GLint x, A30MALI_GLint y, A30MALI_GLsizei width, A30MALI_GLsizei height);
++    A30MALI_GLuint (*CreateProgram)(void);
++    A30MALI_GLuint (*CreateShader)(A30MALI_GLenum type);
++    void (*DeleteBuffers)(A30MALI_GLsizei n, const A30MALI_GLuint *buffers);
++    void (*DeleteProgram)(A30MALI_GLuint program);
++    void (*DeleteShader)(A30MALI_GLuint shader);
++    void (*DeleteTextures)(A30MALI_GLsizei n, const A30MALI_GLuint *textures);
++    void (*Disable)(A30MALI_GLenum cap);
++    void (*DisableVertexAttribArray)(A30MALI_GLuint index);
++    void (*DrawArrays)(A30MALI_GLenum mode, A30MALI_GLint first, A30MALI_GLsizei count);
++    void (*Enable)(A30MALI_GLenum cap);
++    void (*EnableVertexAttribArray)(A30MALI_GLuint index);
++    void (*GenBuffers)(A30MALI_GLsizei n, A30MALI_GLuint *buffers);
++    void (*GenTextures)(A30MALI_GLsizei n, A30MALI_GLuint *textures);
++    void (*GetBooleanv)(A30MALI_GLenum pname, A30MALI_GLboolean *data);
++    void (*GetIntegerv)(A30MALI_GLenum pname, A30MALI_GLint *data);
++    void (*GetProgramiv)(A30MALI_GLuint program, A30MALI_GLenum pname, A30MALI_GLint *params);
++    void (*GetShaderiv)(A30MALI_GLuint shader, A30MALI_GLenum pname, A30MALI_GLint *params);
++    void (*GetVertexAttribiv)(A30MALI_GLuint index, A30MALI_GLenum pname, A30MALI_GLint *params);
++    A30MALI_GLint (*GetUniformLocation)(A30MALI_GLuint program, const char *name);
++    A30MALI_GLboolean (*IsEnabled)(A30MALI_GLenum cap);
++    void (*LinkProgram)(A30MALI_GLuint program);
++    void (*ShaderSource)(A30MALI_GLuint shader, A30MALI_GLsizei count, const char *const *string, const A30MALI_GLint *length);
++    void (*TexImage2D)(A30MALI_GLenum target, A30MALI_GLint level, A30MALI_GLint internalformat, A30MALI_GLsizei width, A30MALI_GLsizei height, A30MALI_GLint border, A30MALI_GLenum format, A30MALI_GLenum type, const void *pixels);
++    void (*TexParameteri)(A30MALI_GLenum target, A30MALI_GLenum pname, A30MALI_GLint param);
++    void (*Uniform1i)(A30MALI_GLint location, A30MALI_GLint v0);
++    void (*UseProgram)(A30MALI_GLuint program);
++    void (*VertexAttribPointer)(A30MALI_GLuint index, A30MALI_GLint size, A30MALI_GLenum type, A30MALI_GLboolean normalized, A30MALI_GLsizei stride, const void *pointer);
++    void (*Viewport)(A30MALI_GLint x, A30MALI_GLint y, A30MALI_GLsizei width, A30MALI_GLsizei height);
++} A30MALI_GL;
++#endif
++
+ typedef struct SDL_VideoData
+ {
+     char fb_path[128];
+     int width;
+     int height;
++#ifdef SDL_VIDEO_OPENGL_EGL
++    A30MALI_GL gl;
++#endif
+ } SDL_VideoData;
+
+ typedef struct A30MALI_NativeWindow
+@@ -58,8 +160,17 @@
+     SDL_Window *sdl_window;
+ #ifdef SDL_VIDEO_OPENGL_EGL
+     EGLSurface egl_surface;
++    EGLSurface present_surface;
+     A30MALI_NativeWindow native_window;
++    A30MALI_NativeWindow present_native_window;
+     bool native_window_used;
++    bool use_offscreen_present;
++    A30MALI_GLuint present_texture;
++    A30MALI_GLuint present_program;
++    A30MALI_GLuint present_buffer;
++    int present_texture_width;
++    int present_texture_height;
++    A30MALI_GLint present_sampler_location;
+ #endif
+ } SDL_WindowData;
+
+@@ -79,6 +190,18 @@
+ static void A30MALI_GLES_DefaultProfileConfig(SDL_VideoDevice *_this, int *mask, int *major, int *minor);
+ #endif
+
++#ifdef SDL_VIDEO_OPENGL_EGL
++static A30MALI_Rotation A30MALI_GetRotation(void);
++static void A30MALI_DeletePresent(SDL_VideoData *data, SDL_WindowData *windata);
++static bool A30MALI_PresentRotated(SDL_VideoDevice *_this, SDL_VideoData *data, SDL_WindowData *windata, SDL_Window *window);
++#endif
++
++static bool A30MALI_StringEnabled(const char *value)
++{
++    return value && *value && SDL_strcasecmp(value, "0") != 0 && SDL_strcasecmp(value, "no") != 0 &&
++           SDL_strcasecmp(value, "false") != 0 && SDL_strcasecmp(value, "off") != 0 && SDL_strcasecmp(value, "none") != 0;
++}
++
+ static const char *A30MALI_GetFBPath(void)
+ {
+     const char *path = SDL_getenv("PLUMOS_A30_FB");
+@@ -229,18 +352,35 @@
+
+ #ifdef SDL_VIDEO_OPENGL_EGL
+     windata->egl_surface = EGL_NO_SURFACE;
++    windata->present_surface = EGL_NO_SURFACE;
+     if (window->flags & SDL_WINDOW_OPENGL) {
++        SDL_VideoData *data = (SDL_VideoData *)_this->internal;
+         if (!_this->egl_data) {
+             return SDL_SetError("a30mali: cannot create an OpenGL window without EGL data");
+         }
+
+-        windata->native_window.width = (Uint16)window->w;
+-        windata->native_window.height = (Uint16)window->h;
+-        windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)0);
+-        if (windata->egl_surface == EGL_NO_SURFACE) {
+-            SDL_ClearError();
+-            windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->native_window);
+-            windata->native_window_used = true;
++        if (A30MALI_GetRotation() != A30MALI_ROTATION_NONE && data) {
++            windata->use_offscreen_present = true;
++            windata->present_native_window.width = (Uint16)data->width;
++            windata->present_native_window.height = (Uint16)data->height;
++            windata->present_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)0);
++            if (windata->present_surface == EGL_NO_SURFACE) {
++                SDL_ClearError();
++                windata->present_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->present_native_window);
++            }
++            if (windata->present_surface == EGL_NO_SURFACE) {
++                return SDL_SetError("a30mali: failed to create EGL present surface");
++            }
++            windata->egl_surface = SDL_EGL_CreateOffscreenSurface(_this, window->w, window->h);
++        } else {
++            windata->native_window.width = (Uint16)window->w;
++            windata->native_window.height = (Uint16)window->h;
++            windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)0);
++            if (windata->egl_surface == EGL_NO_SURFACE) {
++                SDL_ClearError();
++                windata->egl_surface = SDL_EGL_CreateSurface(_this, window, (NativeWindowType)&windata->native_window);
++                windata->native_window_used = true;
++            }
+         }
+         if (windata->egl_surface == EGL_NO_SURFACE) {
+             return SDL_SetError("a30mali: failed to create EGL window surface");
+@@ -257,6 +397,8 @@
+     if (windata) {
+ #ifdef SDL_VIDEO_OPENGL_EGL
+         SDL_EGL_DestroySurface(_this, windata->egl_surface);
++        SDL_EGL_DestroySurface(_this, windata->present_surface);
++        A30MALI_DeletePresent((SDL_VideoData *)_this->internal, windata);
+ #endif
+         SDL_free(windata);
+     }
+@@ -269,6 +411,402 @@
+ }
+
+ #ifdef SDL_VIDEO_OPENGL_EGL
++static A30MALI_Rotation A30MALI_GetRotation(void)
++{
++    const char *value = SDL_getenv("PLUMOS_A30MALI_ROTATION");
++
++    if (!value || !*value) {
++        value = SDL_getenv("PLUMOS_A30_DISPLAY_ROTATION");
++    }
++    if (!A30MALI_StringEnabled(value)) {
++        return A30MALI_ROTATION_NONE;
++    }
++    if (SDL_strcasecmp(value, "cw") == 0 || SDL_strcasecmp(value, "90") == 0) {
++        return A30MALI_ROTATION_CW;
++    }
++    if (SDL_strcasecmp(value, "ccw") == 0 || SDL_strcasecmp(value, "270") == 0) {
++        return A30MALI_ROTATION_CCW;
++    }
++    return A30MALI_ROTATION_NONE;
++}
++
++static bool A30MALI_RotationSwapsAxes(A30MALI_Rotation rotation)
++{
++    return rotation == A30MALI_ROTATION_CW || rotation == A30MALI_ROTATION_CCW;
++}
++
++static bool A30MALI_LoadGLFunction(void *field, const char *name)
++{
++    SDL_FunctionPointer fn = SDL_GL_GetProcAddress(name);
++
++    if (!fn) {
++        return false;
++    }
++    SDL_memcpy(field, &fn, sizeof(fn));
++    return true;
++}
++
++#define A30MALI_LOAD_GL(data, field, name)                      \
++    do {                                                        \
++        if (!A30MALI_LoadGLFunction(&(data)->gl.field, name)) { \
++            return false;                                       \
++        }                                                       \
++    } while (0)
++
++static bool A30MALI_LoadGL(SDL_VideoData *data)
++{
++    if (data->gl.loaded) {
++        return true;
++    }
++
++    A30MALI_LOAD_GL(data, ActiveTexture, "glActiveTexture");
++    A30MALI_LOAD_GL(data, AttachShader, "glAttachShader");
++    A30MALI_LOAD_GL(data, BindAttribLocation, "glBindAttribLocation");
++    A30MALI_LOAD_GL(data, BindBuffer, "glBindBuffer");
++    A30MALI_LOAD_GL(data, BindFramebuffer, "glBindFramebuffer");
++    A30MALI_LOAD_GL(data, BindTexture, "glBindTexture");
++    A30MALI_LOAD_GL(data, BufferData, "glBufferData");
++    A30MALI_LOAD_GL(data, Clear, "glClear");
++    A30MALI_LOAD_GL(data, ClearColor, "glClearColor");
++    A30MALI_LOAD_GL(data, ColorMask, "glColorMask");
++    A30MALI_LOAD_GL(data, CompileShader, "glCompileShader");
++    A30MALI_LOAD_GL(data, CopyTexSubImage2D, "glCopyTexSubImage2D");
++    A30MALI_LOAD_GL(data, CreateProgram, "glCreateProgram");
++    A30MALI_LOAD_GL(data, CreateShader, "glCreateShader");
++    A30MALI_LOAD_GL(data, DeleteBuffers, "glDeleteBuffers");
++    A30MALI_LOAD_GL(data, DeleteProgram, "glDeleteProgram");
++    A30MALI_LOAD_GL(data, DeleteShader, "glDeleteShader");
++    A30MALI_LOAD_GL(data, DeleteTextures, "glDeleteTextures");
++    A30MALI_LOAD_GL(data, Disable, "glDisable");
++    A30MALI_LOAD_GL(data, DisableVertexAttribArray, "glDisableVertexAttribArray");
++    A30MALI_LOAD_GL(data, DrawArrays, "glDrawArrays");
++    A30MALI_LOAD_GL(data, Enable, "glEnable");
++    A30MALI_LOAD_GL(data, EnableVertexAttribArray, "glEnableVertexAttribArray");
++    A30MALI_LOAD_GL(data, GenBuffers, "glGenBuffers");
++    A30MALI_LOAD_GL(data, GenTextures, "glGenTextures");
++    A30MALI_LOAD_GL(data, GetBooleanv, "glGetBooleanv");
++    A30MALI_LOAD_GL(data, GetIntegerv, "glGetIntegerv");
++    A30MALI_LOAD_GL(data, GetProgramiv, "glGetProgramiv");
++    A30MALI_LOAD_GL(data, GetShaderiv, "glGetShaderiv");
++    A30MALI_LOAD_GL(data, GetVertexAttribiv, "glGetVertexAttribiv");
++    A30MALI_LOAD_GL(data, GetUniformLocation, "glGetUniformLocation");
++    A30MALI_LOAD_GL(data, IsEnabled, "glIsEnabled");
++    A30MALI_LOAD_GL(data, LinkProgram, "glLinkProgram");
++    A30MALI_LOAD_GL(data, ShaderSource, "glShaderSource");
++    A30MALI_LOAD_GL(data, TexImage2D, "glTexImage2D");
++    A30MALI_LOAD_GL(data, TexParameteri, "glTexParameteri");
++    A30MALI_LOAD_GL(data, Uniform1i, "glUniform1i");
++    A30MALI_LOAD_GL(data, UseProgram, "glUseProgram");
++    A30MALI_LOAD_GL(data, VertexAttribPointer, "glVertexAttribPointer");
++    A30MALI_LOAD_GL(data, Viewport, "glViewport");
++
++    data->gl.loaded = true;
++    return true;
++}
++
++static A30MALI_GLuint A30MALI_CreateShader(A30MALI_GL *gl, A30MALI_GLenum type, const char *source)
++{
++    A30MALI_GLuint shader = gl->CreateShader(type);
++    A30MALI_GLint ok = 0;
++
++    if (!shader) {
++        return 0;
++    }
++    gl->ShaderSource(shader, 1, &source, NULL);
++    gl->CompileShader(shader);
++    gl->GetShaderiv(shader, A30MALI_GL_COMPILE_STATUS, &ok);
++    if (!ok) {
++        gl->DeleteShader(shader);
++        return 0;
++    }
++    return shader;
++}
++
++static bool A30MALI_EnsurePresent(SDL_VideoData *data, SDL_WindowData *windata)
++{
++    static const char vertex_shader[] =
++        "attribute vec2 a_position;\n"
++        "attribute vec2 a_texcoord;\n"
++        "varying vec2 v_texcoord;\n"
++        "void main() {\n"
++        "  gl_Position = vec4(a_position, 0.0, 1.0);\n"
++        "  v_texcoord = a_texcoord;\n"
++        "}\n";
++    static const char fragment_shader[] =
++        "precision mediump float;\n"
++        "varying vec2 v_texcoord;\n"
++        "uniform sampler2D u_texture;\n"
++        "void main() {\n"
++        "  gl_FragColor = texture2D(u_texture, v_texcoord);\n"
++        "}\n";
++    A30MALI_GL *gl = &data->gl;
++    A30MALI_GLuint vertex = 0;
++    A30MALI_GLuint fragment = 0;
++    A30MALI_GLint ok = 0;
++
++    if (windata->present_texture && windata->present_program && windata->present_buffer) {
++        return true;
++    }
++    if (!A30MALI_LoadGL(data)) {
++        return false;
++    }
++
++    gl->GenTextures(1, &windata->present_texture);
++    gl->BindTexture(A30MALI_GL_TEXTURE_2D, windata->present_texture);
++    gl->TexParameteri(A30MALI_GL_TEXTURE_2D, A30MALI_GL_TEXTURE_MIN_FILTER, A30MALI_GL_LINEAR);
++    gl->TexParameteri(A30MALI_GL_TEXTURE_2D, A30MALI_GL_TEXTURE_MAG_FILTER, A30MALI_GL_LINEAR);
++    gl->TexParameteri(A30MALI_GL_TEXTURE_2D, A30MALI_GL_TEXTURE_WRAP_S, A30MALI_GL_CLAMP_TO_EDGE);
++    gl->TexParameteri(A30MALI_GL_TEXTURE_2D, A30MALI_GL_TEXTURE_WRAP_T, A30MALI_GL_CLAMP_TO_EDGE);
++
++    gl->GenBuffers(1, &windata->present_buffer);
++
++    vertex = A30MALI_CreateShader(gl, A30MALI_GL_VERTEX_SHADER, vertex_shader);
++    fragment = A30MALI_CreateShader(gl, A30MALI_GL_FRAGMENT_SHADER, fragment_shader);
++    if (!vertex || !fragment) {
++        A30MALI_DeletePresent(data, windata);
++        return false;
++    }
++
++    windata->present_program = gl->CreateProgram();
++    if (!windata->present_program) {
++        A30MALI_DeletePresent(data, windata);
++        return false;
++    }
++    gl->AttachShader(windata->present_program, vertex);
++    gl->AttachShader(windata->present_program, fragment);
++    gl->BindAttribLocation(windata->present_program, 0, "a_position");
++    gl->BindAttribLocation(windata->present_program, 1, "a_texcoord");
++    gl->LinkProgram(windata->present_program);
++    gl->GetProgramiv(windata->present_program, A30MALI_GL_LINK_STATUS, &ok);
++    gl->DeleteShader(vertex);
++    gl->DeleteShader(fragment);
++    if (!ok) {
++        A30MALI_DeletePresent(data, windata);
++        return false;
++    }
++    windata->present_sampler_location = gl->GetUniformLocation(windata->present_program, "u_texture");
++    return true;
++}
++
++static void A30MALI_DeletePresent(SDL_VideoData *data, SDL_WindowData *windata)
++{
++    A30MALI_GL *gl;
++
++    if (!data || !windata || !data->gl.loaded) {
++        return;
++    }
++    gl = &data->gl;
++    if (windata->present_texture) {
++        gl->DeleteTextures(1, &windata->present_texture);
++        windata->present_texture = 0;
++    }
++    if (windata->present_buffer) {
++        gl->DeleteBuffers(1, &windata->present_buffer);
++        windata->present_buffer = 0;
++    }
++    if (windata->present_program) {
++        gl->DeleteProgram(windata->present_program);
++        windata->present_program = 0;
++    }
++    windata->present_texture_width = 0;
++    windata->present_texture_height = 0;
++}
++
++static void A30MALI_FillVertices(A30MALI_Rotation rotation, int logical_width, int logical_height,
++                                 int physical_width, int physical_height, bool full_output,
++                                 A30MALI_GLfloat out[16])
++{
++    float display_width = A30MALI_RotationSwapsAxes(rotation) ? (float)physical_height : (float)physical_width;
++    float display_height = A30MALI_RotationSwapsAxes(rotation) ? (float)physical_width : (float)physical_height;
++    float scale_x = display_width / (float)logical_width;
++    float scale_y = display_height / (float)logical_height;
++    float scale = scale_x < scale_y ? scale_x : scale_y;
++    float output_width;
++    float output_height;
++    float x;
++    float y;
++    static const A30MALI_GLfloat cw_uv[8] = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};
++    static const A30MALI_GLfloat ccw_uv[8] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
++    static const A30MALI_GLfloat none_uv[8] = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f};
++    const A30MALI_GLfloat *uv;
++    const A30MALI_GLfloat pos[8] = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f};
++
++    if (full_output) {
++        x = 1.0f;
++        y = 1.0f;
++    } else {
++        if (scale > 1.0f) {
++            scale = 1.0f;
++        }
++        output_width = (float)logical_width * scale;
++        output_height = (float)logical_height * scale;
++        if (A30MALI_RotationSwapsAxes(rotation)) {
++            x = output_height / (float)physical_width;
++            y = output_width / (float)physical_height;
++        } else {
++            x = output_width / (float)physical_width;
++            y = output_height / (float)physical_height;
++        }
++        if (x > 1.0f) {
++            x = 1.0f;
++        }
++        if (y > 1.0f) {
++            y = 1.0f;
++        }
++    }
++
++    switch (rotation) {
++    case A30MALI_ROTATION_CW:
++        uv = cw_uv;
++        break;
++    case A30MALI_ROTATION_CCW:
++        uv = ccw_uv;
++        break;
++    default:
++        uv = none_uv;
++        break;
++    }
++
++    for (int i = 0; i < 4; i++) {
++        out[i * 4 + 0] = pos[i * 2 + 0] * x;
++        out[i * 4 + 1] = pos[i * 2 + 1] * y;
++        out[i * 4 + 2] = uv[i * 2 + 0];
++        out[i * 4 + 3] = uv[i * 2 + 1];
++    }
++}
++
++static bool A30MALI_PresentRotated(SDL_VideoDevice *_this, SDL_VideoData *data, SDL_WindowData *windata, SDL_Window *window)
++{
++    A30MALI_Rotation rotation = A30MALI_GetRotation();
++    A30MALI_GL *gl;
++    A30MALI_GLint old_viewport[4] = {0, 0, 0, 0};
++    A30MALI_GLint old_framebuffer = 0;
++    A30MALI_GLint old_program = 0;
++    A30MALI_GLint old_active_texture = A30MALI_GL_TEXTURE0;
++    A30MALI_GLint old_texture = 0;
++    A30MALI_GLint old_array_buffer = 0;
++    A30MALI_GLint old_attr0 = 0;
++    A30MALI_GLint old_attr1 = 0;
++    A30MALI_GLboolean old_color_mask[4] = {A30MALI_GL_TRUE, A30MALI_GL_TRUE, A30MALI_GL_TRUE, A30MALI_GL_TRUE};
++    A30MALI_GLboolean old_blend;
++    A30MALI_GLboolean old_cull;
++    A30MALI_GLboolean old_depth;
++    A30MALI_GLboolean old_scissor;
++    int source_width;
++    int source_height;
++    int copy_x;
++    int copy_y;
++    bool copy_full_framebuffer;
++    A30MALI_GLfloat vertices[16];
++
++    if (rotation == A30MALI_ROTATION_NONE) {
++        return true;
++    }
++    if (!A30MALI_EnsurePresent(data, windata)) {
++        return true;
++    }
++
++    gl = &data->gl;
++    gl->GetIntegerv(A30MALI_GL_VIEWPORT, old_viewport);
++    gl->GetIntegerv(A30MALI_GL_FRAMEBUFFER_BINDING, &old_framebuffer);
++    if (old_framebuffer != 0) {
++        return true;
++    }
++
++    copy_full_framebuffer = !windata->use_offscreen_present &&
++                            (old_viewport[0] < 0 || old_viewport[1] < 0 ||
++                             old_viewport[2] > data->width || old_viewport[3] > data->height);
++    if (copy_full_framebuffer) {
++        copy_x = 0;
++        copy_y = 0;
++        source_width = data->width;
++        source_height = data->height;
++    } else {
++        copy_x = old_viewport[0];
++        copy_y = old_viewport[1];
++        source_width = old_viewport[2] > 0 ? old_viewport[2] : window->w;
++        source_height = old_viewport[3] > 0 ? old_viewport[3] : window->h;
++    }
++    if (source_width <= 0 || source_height <= 0) {
++        return true;
++    }
++
++    gl->GetIntegerv(A30MALI_GL_CURRENT_PROGRAM, &old_program);
++    gl->GetIntegerv(A30MALI_GL_ACTIVE_TEXTURE, &old_active_texture);
++    gl->GetIntegerv(A30MALI_GL_TEXTURE_BINDING_2D, &old_texture);
++    gl->GetIntegerv(A30MALI_GL_ARRAY_BUFFER_BINDING, &old_array_buffer);
++    gl->GetVertexAttribiv(0, A30MALI_GL_VERTEX_ATTRIB_ARRAY_ENABLED, &old_attr0);
++    gl->GetVertexAttribiv(1, A30MALI_GL_VERTEX_ATTRIB_ARRAY_ENABLED, &old_attr1);
++    gl->GetBooleanv(A30MALI_GL_COLOR_WRITEMASK, old_color_mask);
++    old_blend = gl->IsEnabled(A30MALI_GL_BLEND);
++    old_cull = gl->IsEnabled(A30MALI_GL_CULL_FACE);
++    old_depth = gl->IsEnabled(A30MALI_GL_DEPTH_TEST);
++    old_scissor = gl->IsEnabled(A30MALI_GL_SCISSOR_TEST);
++
++    gl->ActiveTexture(A30MALI_GL_TEXTURE0);
++    gl->BindTexture(A30MALI_GL_TEXTURE_2D, windata->present_texture);
++    if (windata->present_texture_width != source_width || windata->present_texture_height != source_height) {
++        gl->TexImage2D(A30MALI_GL_TEXTURE_2D, 0, A30MALI_GL_RGBA, source_width, source_height, 0,
++                       A30MALI_GL_RGBA, A30MALI_GL_UNSIGNED_BYTE, NULL);
++        windata->present_texture_width = source_width;
++        windata->present_texture_height = source_height;
++    }
++    gl->CopyTexSubImage2D(A30MALI_GL_TEXTURE_2D, 0, 0, 0, copy_x, copy_y, source_width, source_height);
++
++    if (windata->use_offscreen_present &&
++        !SDL_EGL_MakeCurrent(_this, windata->present_surface, _this->current_glctx)) {
++        return true;
++    }
++
++    A30MALI_FillVertices(rotation, source_width, source_height, data->width, data->height,
++                         copy_full_framebuffer, vertices);
++    gl->Viewport(0, 0, data->width, data->height);
++    gl->Disable(A30MALI_GL_BLEND);
++    gl->Disable(A30MALI_GL_CULL_FACE);
++    gl->Disable(A30MALI_GL_DEPTH_TEST);
++    gl->Disable(A30MALI_GL_SCISSOR_TEST);
++    gl->ColorMask(A30MALI_GL_TRUE, A30MALI_GL_TRUE, A30MALI_GL_TRUE, A30MALI_GL_TRUE);
++    gl->ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++    gl->Clear(A30MALI_GL_COLOR_BUFFER_BIT);
++    gl->UseProgram(windata->present_program);
++    gl->Uniform1i(windata->present_sampler_location, 0);
++    gl->BindBuffer(A30MALI_GL_ARRAY_BUFFER, windata->present_buffer);
++    gl->BufferData(A30MALI_GL_ARRAY_BUFFER, (A30MALI_GLsizeiptr)sizeof(vertices), vertices, A30MALI_GL_STATIC_DRAW);
++    gl->EnableVertexAttribArray(0);
++    gl->EnableVertexAttribArray(1);
++    gl->VertexAttribPointer(0, 2, A30MALI_GL_FLOAT, A30MALI_GL_FALSE, 4 * (A30MALI_GLsizei)sizeof(A30MALI_GLfloat), NULL);
++    gl->VertexAttribPointer(1, 2, A30MALI_GL_FLOAT, A30MALI_GL_FALSE, 4 * (A30MALI_GLsizei)sizeof(A30MALI_GLfloat),
++                            (const void *)(uintptr_t)(2 * sizeof(A30MALI_GLfloat)));
++    gl->DrawArrays(A30MALI_GL_TRIANGLE_STRIP, 0, 4);
++
++    if (!old_attr0) {
++        gl->DisableVertexAttribArray(0);
++    }
++    if (!old_attr1) {
++        gl->DisableVertexAttribArray(1);
++    }
++    if (old_blend) {
++        gl->Enable(A30MALI_GL_BLEND);
++    }
++    if (old_cull) {
++        gl->Enable(A30MALI_GL_CULL_FACE);
++    }
++    if (old_depth) {
++        gl->Enable(A30MALI_GL_DEPTH_TEST);
++    }
++    if (old_scissor) {
++        gl->Enable(A30MALI_GL_SCISSOR_TEST);
++    }
++    gl->ColorMask(old_color_mask[0], old_color_mask[1], old_color_mask[2], old_color_mask[3]);
++    gl->BindBuffer(A30MALI_GL_ARRAY_BUFFER, (A30MALI_GLuint)old_array_buffer);
++    gl->BindTexture(A30MALI_GL_TEXTURE_2D, (A30MALI_GLuint)old_texture);
++    gl->ActiveTexture((A30MALI_GLenum)old_active_texture);
++    gl->UseProgram((A30MALI_GLuint)old_program);
++    gl->BindFramebuffer(A30MALI_GL_FRAMEBUFFER, (A30MALI_GLuint)old_framebuffer);
++    gl->Viewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
++    return true;
++}
++
+ static bool A30MALI_GLES_LoadLibrary(SDL_VideoDevice *_this, const char *path)
+ {
+     if (!SDL_EGL_LoadLibrary(_this, path, EGL_DEFAULT_DISPLAY, 0)) {
+@@ -276,7 +814,7 @@
+     }
+
+     _this->gl_config.alpha_size = 0;
+-    _this->egl_data->egl_surfacetype = EGL_WINDOW_BIT;
++    _this->egl_data->egl_surfacetype = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
+     return true;
+ }
+
+@@ -298,6 +836,17 @@
+ static bool A30MALI_GLES_SwapWindow(SDL_VideoDevice *_this, SDL_Window *window)
+ {
+     SDL_WindowData *windata = window->internal;
++    SDL_VideoData *data = (SDL_VideoData *)_this->internal;
++    bool result;
++
++    if (windata && data) {
++        A30MALI_PresentRotated(_this, data, windata, window);
++    }
++    if (windata && windata->use_offscreen_present) {
++        result = SDL_EGL_SwapBuffers(_this, windata->present_surface);
++        SDL_EGL_MakeCurrent(_this, windata->egl_surface, _this->current_glctx);
++        return result;
++    }
+     return SDL_EGL_SwapBuffers(_this, windata ? windata->egl_surface : EGL_NO_SURFACE);
+ }

@@ -101,10 +101,12 @@ PY
 #!/bin/sh
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 PYXEL_SITE="${PLUMOS_PYXEL_A30_SITE:-${PLUMOS_ROOT}/experiments/pyxel-a30-site}"
+export HOME="${PLUMOS_PYXEL_HOME:-/mnt/SDCARD}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-a30mali}"
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
 export SDL_OPENGL_LIBRARY="${SDL_OPENGL_LIBRARY:-/usr/lib/libGLESv2.so}"
 export SDL_EGL_LIBRARY="${SDL_EGL_LIBRARY:-/usr/lib/libEGL.so}"
+export PLUMOS_A30MALI_ROTATION="${PLUMOS_A30MALI_ROTATION:-cw}"
 export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,lefttrigger:b6,righttrigger:b7,back:b8,start:b9,guide:b10,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
 
 case "${PLUMOS_PYXEL_USE_PATCHED:-0}" in
