@@ -4674,6 +4674,7 @@ int main(int argc, char **argv) {
     const char *cpu_source = NULL;
     const char *cpu_cores_source = NULL;
     struct retroarch_runtime_options retroarch_options;
+    char launch_profile[128];
     char session_launch_path[TEXT_PATH_MAX];
     int execute = 0;
     int has_pending_resume = 0;
@@ -4726,8 +4727,15 @@ int main(int argc, char **argv) {
       }
       resolve_retroarch_runtime_options(&system, &overrides, session.relative_path,
                                         &retroarch_options);
+      if (core_profile_is_listed(&system, session.launch_profile)) {
+        copy_string(launch_profile, sizeof(launch_profile), session.launch_profile);
+      } else if (!resolve_launch_profile(&system, &overrides, session.relative_path,
+                                         launch_profile, sizeof(launch_profile))) {
+        fprintf(stderr, "error: cannot resolve launch profile for %s\n", session.system_id);
+        return 1;
+      }
       if (!build_launch_plan(&plan, plumos_root, session.system_id, session.relative_path,
-                             session.title, session_launch_path, session.launch_profile,
+                             session.title, session_launch_path, launch_profile,
                              cpu_policy, cpu_freq_khz, cpu_cores, &retroarch_options,
                              session.auto_state_load)) {
         fprintf(stderr, "error: cannot build launch plan\n");

@@ -226,6 +226,10 @@ PicoArch package を build します。PicoArch 本体だけを build し、libr
 `dist/plumos-libretro-cores` ではなく実機の `/mnt/SDCARD/plumos/retroarch/cores` を共有します。
 SDL1 は A30 stockOS 側の fbcon 実装を使うため、package には Docker 由来の
 `libSDL-1.2.so.0` を入れません。plumOS glibc/libpng/zlib は picoarch 専用 libdir に stage します。
+2026-06-15 時点では A30 の通常 FE profile には入れません。stock SDL1 の `640x480` 出力は
+実機 LCD 上で走査方向が崩れ、CPU 回転補正は黒画面/数fps級の音切れになったためです。
+PicoArch 側 patch 済み `fceumm` core を別途 build しても `/dev/fb0` capture だけ正常で
+物理 LCD は灰色に崩れたため、原因は core ではなく表示経路側と判断します。
 
 ```sh
 ./scripts/docker-build.sh picoarch

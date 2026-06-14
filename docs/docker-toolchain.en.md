@@ -230,7 +230,12 @@ cores are shared from the device path `/mnt/SDCARD/plumos/retroarch/cores`,
 not bundled from `dist/plumos-libretro-cores`. SDL1 comes from the A30 stockOS
 fbcon runtime, so the package does not include Docker's generic
 `libSDL-1.2.so.0`. plumOS glibc/libpng/zlib are staged into a PicoArch-specific
-libdir.
+libdir. As of 2026-06-15, PicoArch is not exposed as a normal A30 FE profile:
+stock SDL1 `640x480` output breaks on the physical LCD, and CPU-side rotation
+produced a black screen with audio behaving like only a few fps.
+Building the PicoArch-side patched `fceumm` core separately still produced a
+correct `/dev/fb0` capture but a gray/broken physical LCD, so the failure is in
+the presentation path rather than the core.
 
 ```sh
 ./scripts/docker-build.sh picoarch

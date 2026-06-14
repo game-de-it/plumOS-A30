@@ -38,7 +38,7 @@ Inventory date: 2026-06-07
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The current recipes are the union of Onion-adopted cores and plumOS-only cores, keeping the plumOS-default 41 Class A/B cores plus Onion-catalog Class O entries in `docker/plumos-toolchain/libretro-core-recipes.tsv`. On real A30 hardware, `fceumm` and `gambatte` have screen-smoke confirmation, and the Onion-proven `mednafen_vb` commit has confirmed performance recovery plus working Bad Apple gameplay; the rest still need per-system boot, performance, input, and audio/video validation. |
-| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. It shares libretro cores with RetroArch and appears in the FE as `picoarch:<core_id>` launch profiles. On A30, NES + `fceumm` is confirmed through the FE with 640x480/16bpp fbcon output, the stock SDL1 runtime, and the `plumos-joystickd` keyboard profile. |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`, but it is not exposed as a normal A30 FE profile. With stock SDL1 fbcon, `640x480` mode can look correct in `/dev/fb0` captures while the physical LCD scanout is broken; a CPU-rotated `480x640` raw-output prototype produced a black screen and audio that behaved like only a few fps. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -165,7 +165,18 @@ binary; it references existing libretro cores under
 `libSDL-1.2.so.0` is loaded first, SDL can block in `VT_WAITACTIVE`, so the
 PicoArch package stages only glibc/libpng/zlib into an emulator-specific libdir
 and the launcher searches `picoarch/lib -> stockOS /usr/lib,/lib,/mnt/SDCARD/miyoo/lib -> plumOS lib`.
-This setup was confirmed on hardware with NES `picoarch:fceumm` on 2026-06-15.
+On 2026-06-15, the PicoArch-side patched `fceumm` core was also built with
+`Makefile.libretro platform=miyoomini`. The generated core used `fceumm` commit
+`3f23e2b98f883be9c62a3fdb65c015d376dcd135` and SHA-256
+`5fb03352668ac34a86ce341caffe011c728d7f4a03f4d17a4b417d59ef8d591f`; launching it
+by full path from `/mnt/SDCARD/plumos/emulators/picoarch/cores/fceumm_libretro.so`
+worked. The `/dev/fb0` capture showed the `Ikki` title screen correctly, but the
+physical LCD still showed a gray/broken scanout. This confirms the remaining
+failure is the stock SDL1 `640x480` fbcon mode set versus A30 LCD scanout, not the
+libretro core build. CPU-side rotation was also not performant enough, so as of
+2026-06-15 PicoArch is removed from normal FE profiles. If this is revisited,
+route PicoArch's final frame into an A30 Mali/EGL presenter instead of rotating
+the SDL1 surface on the CPU.
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and
