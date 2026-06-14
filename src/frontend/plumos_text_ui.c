@@ -2767,6 +2767,8 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
   if (strncmp(launch_profile, "pyxel:", 6) == 0) {
     char launcher_dir[PATH_MAX];
     char extension[32];
+    char freq_buf[32];
+    char cores_buf[16];
     const char *pyxel_command = NULL;
 
     copy_string(plan->kind, sizeof(plan->kind), "pyxel");
@@ -2787,6 +2789,34 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
     if (!pyxel_command) {
       plan->can_execute = 0;
       return 1;
+    }
+    if (plan->cpu_policy[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_PYXEL_CPU_POLICY=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->cpu_policy) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
+      if (strcmp(plan->cpu_policy, "fixed") == 0) {
+        snprintf(freq_buf, sizeof(freq_buf), "%ld", plan->cpu_freq_khz);
+        if (!append_string(plan->command, sizeof(plan->command), &pos,
+                           "PLUMOS_PYXEL_CPU_FREQ=") ||
+            !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                                 freq_buf) ||
+            !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+          return 0;
+        }
+      }
+    }
+    if (plan->cpu_cores > 0) {
+      snprintf(cores_buf, sizeof(cores_buf), "%ld", plan->cpu_cores);
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_PYXEL_CPU_CORES=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, cores_buf) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
     }
     if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos,
                              plan->pyxel_launcher_path) ||

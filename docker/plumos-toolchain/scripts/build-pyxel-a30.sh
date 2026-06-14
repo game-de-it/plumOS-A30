@@ -122,12 +122,131 @@ PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_PYXEL_LOG_DIR:-${PLUMOS_ROOT}/logs/pyxel}"
 RUN_ID="$(date +%Y%m%d-%H%M%S 2>/dev/null || echo "run-$$")"
 JOYSTICKD_OPTS="${PLUMOS_PYXEL_JOYSTICKD_OPTS:---device-mode xbox --trigger-mode buttons --shoulder-layout user}"
+CPU_STATE="/tmp/plumos-pyxel-a30-cpustate-$$"
 joystickd_pid=
 hotkeyd_pid=
 app_pid=
 cleanup_done=0
+cpu_policy_applied=0
 
 mkdir -p "${LOG_DIR}" 2>/dev/null || true
+
+cpu_freq_dir() {
+  printf '%s\n' /sys/devices/system/cpu/cpu0/cpufreq
+}
+
+save_cpu_policy() {
+  p=$(cpu_freq_dir)
+  {
+    printf "governor=%s\n" "$(cat "$p/scaling_governor" 2>/dev/null || true)"
+    printf "min_freq=%s\n" "$(cat "$p/scaling_min_freq" 2>/dev/null || true)"
+    printf "max_freq=%s\n" "$(cat "$p/scaling_max_freq" 2>/dev/null || true)"
+    for cpu in 1 2 3; do
+      if [ -r "/sys/devices/system/cpu/cpu${cpu}/online" ]; then
+        printf "cpu%s_online=%s\n" "$cpu" "$(cat "/sys/devices/system/cpu/cpu${cpu}/online" 2>/dev/null || true)"
+      fi
+    done
+  } >"${CPU_STATE}"
+}
+
+restore_cpu_policy() {
+  [ "${cpu_policy_applied}" = 1 ] || return 0
+  [ -f "${CPU_STATE}" ] || return 0
+  . "${CPU_STATE}" 2>/dev/null || true
+
+  for cpu in 1 2 3; do
+    eval value="\${cpu${cpu}_online:-}"
+    if [ -n "${value}" ] && [ -w "/sys/devices/system/cpu/cpu${cpu}/online" ]; then
+      echo "${value}" >"/sys/devices/system/cpu/cpu${cpu}/online" 2>/dev/null || true
+    fi
+  done
+
+  p=$(cpu_freq_dir)
+  if [ -n "${governor:-}" ] && [ -w "$p/scaling_governor" ]; then
+    echo "${governor}" >"$p/scaling_governor" 2>/dev/null || true
+  fi
+  if [ -n "${min_freq:-}" ] && [ -w "$p/scaling_min_freq" ]; then
+    echo "${min_freq}" >"$p/scaling_min_freq" 2>/dev/null || true
+  fi
+  if [ -n "${max_freq:-}" ] && [ -w "$p/scaling_max_freq" ]; then
+    echo "${max_freq}" >"$p/scaling_max_freq" 2>/dev/null || true
+  fi
+  rm -f "${CPU_STATE}"
+  cpu_policy_applied=0
+}
+
+apply_cpu_policy() {
+  policy="${1:-keep}"
+  freq="${2:-}"
+  cores="${3:-keep}"
+
+  case "${policy}" in
+    keep|performance|fixed) ;;
+    *) echo "error: invalid Pyxel CPU policy: ${policy}" >&2; exit 2 ;;
+  esac
+  case "${cores}" in
+    keep|2|4) ;;
+    *) echo "error: invalid Pyxel CPU cores: ${cores}" >&2; exit 2 ;;
+  esac
+  if [ "${policy}" = fixed ]; then
+    case "${freq}" in
+      ''|*[!0-9]*) echo "error: invalid Pyxel CPU frequency: ${freq}" >&2; exit 2 ;;
+    esac
+  fi
+  if [ "${policy}" = keep ] && [ "${cores}" = keep ]; then
+    return 0
+  fi
+
+  save_cpu_policy
+  cpu_policy_applied=1
+
+  case "${cores}" in
+    2)
+      [ -w /sys/devices/system/cpu/cpu1/online ] &&
+        echo 1 >/sys/devices/system/cpu/cpu1/online 2>/dev/null || true
+      [ -w /sys/devices/system/cpu/cpu2/online ] &&
+        echo 0 >/sys/devices/system/cpu/cpu2/online 2>/dev/null || true
+      [ -w /sys/devices/system/cpu/cpu3/online ] &&
+        echo 0 >/sys/devices/system/cpu/cpu3/online 2>/dev/null || true
+      ;;
+    4)
+      for cpu in 1 2 3; do
+        [ -w "/sys/devices/system/cpu/cpu${cpu}/online" ] &&
+          echo 1 >"/sys/devices/system/cpu/cpu${cpu}/online" 2>/dev/null || true
+      done
+      ;;
+  esac
+
+  p=$(cpu_freq_dir)
+  case "${policy}" in
+    performance)
+      if [ -w "$p/scaling_max_freq" ]; then
+        max_freq=$(cat "$p/cpuinfo_max_freq" 2>/dev/null || true)
+        [ -n "${max_freq}" ] || max_freq="${freq:-1344000}"
+        echo "${max_freq}" >"$p/scaling_max_freq" 2>/dev/null || true
+      fi
+      echo performance >"$p/scaling_governor" 2>/dev/null || true
+      ;;
+    fixed)
+      echo "${freq}" >"$p/scaling_max_freq" 2>/dev/null || true
+      echo "${freq}" >"$p/scaling_min_freq" 2>/dev/null || true
+      echo userspace >"$p/scaling_governor" 2>/dev/null || true
+      [ -w "$p/scaling_setspeed" ] &&
+        echo "${freq}" >"$p/scaling_setspeed" 2>/dev/null || true
+      ;;
+  esac
+
+  {
+    printf 'policy=%s\n' "${policy}"
+    printf 'freq=%s\n' "${freq:-keep}"
+    printf 'cores=%s\n' "${cores}"
+    printf 'online=%s\n' "$(cat /sys/devices/system/cpu/online 2>/dev/null || true)"
+    printf 'governor=%s\n' "$(cat "$p/scaling_governor" 2>/dev/null || true)"
+    printf 'cur_freq=%s\n' "$(cat "$p/scaling_cur_freq" 2>/dev/null || true)"
+    printf 'min_freq=%s\n' "$(cat "$p/scaling_min_freq" 2>/dev/null || true)"
+    printf 'max_freq=%s\n' "$(cat "$p/scaling_max_freq" 2>/dev/null || true)"
+  } >"${LOG_DIR}/${RUN_ID}-cpu.log" 2>&1 || true
+}
 
 stop_resident_joystickd() {
   for d in /proc/[0-9]*; do
@@ -176,6 +295,7 @@ cleanup() {
   if [ -n "${joystickd_pid:-}" ] && kill -0 "$joystickd_pid" >/dev/null 2>&1; then
     kill -KILL "$joystickd_pid" >/dev/null 2>&1 || true
   fi
+  restore_cpu_policy
 
   if [ -x "${PLUMOS_ROOT}/bin/plumos-volume-control" ]; then
     "${PLUMOS_ROOT}/bin/plumos-volume-control" persist-runtime \
@@ -191,6 +311,10 @@ if [ -x "${PLUMOS_ROOT}/bin/plumos-volume-control" ]; then
   "${PLUMOS_ROOT}/bin/plumos-volume-control" apply \
     >>"${LOG_DIR}/${RUN_ID}-volume.log" 2>&1 || true
 fi
+
+apply_cpu_policy "${PLUMOS_PYXEL_CPU_POLICY:-keep}" \
+  "${PLUMOS_PYXEL_CPU_FREQ:-}" \
+  "${PLUMOS_PYXEL_CPU_CORES:-keep}"
 
 case "${PLUMOS_PYXEL_JOYSTICKD:-auto}" in
   0|no|NO|false|FALSE|none) ;;

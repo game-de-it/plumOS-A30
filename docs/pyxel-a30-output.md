@@ -210,10 +210,24 @@ library path に入れない。
 
 `plumos-pyxel-a30-launch` は FE/ユーザー向けの wrapper で、Pyxel 実行前後に以下を行う。
 
+- `PLUMOS_PYXEL_CPU_POLICY` / `PLUMOS_PYXEL_CPU_FREQ` / `PLUMOS_PYXEL_CPU_CORES` が指定された場合の CPU policy 適用と終了時復元
 - `plumos-volume-control apply` / `persist-runtime`
 - `plumos-joystickd --device-mode xbox --trigger-mode buttons --shoulder-layout user`
 - `plumos-safe-hotkeyd --volume-only`
 - 終了時の `joystickd` / `safe-hotkeyd` cleanup
+
+CPU 設定は `keep|performance|fixed` と `keep|2|4` を独立して扱う。FE の Core menu から
+Pyxel system/ROM に CPU 周波数や core 数を保存すると、`plumos-text-ui launch` が以下の
+環境変数を command の前に付ける。
+
+```text
+PLUMOS_PYXEL_CPU_POLICY=fixed
+PLUMOS_PYXEL_CPU_FREQ=1344000
+PLUMOS_PYXEL_CPU_CORES=4
+```
+
+launcher は適用後の `online`、governor、current/min/max frequency を
+`/mnt/SDCARD/plumos/logs/pyxel/<run>-cpu.log` に記録する。
 
 Pyxel 用の `SDL_GAMECONTROLLERCONFIG` は、`plumos-joystickd` の virtual pad を以下のように
 SDL2 GameController へ見せる。
