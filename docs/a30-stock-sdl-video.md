@@ -25,6 +25,10 @@
   を map し、fd として `/dev/mali` と `/dev/fb0` を開いています。
 - stock SDL1 は `fbcon` と `dummy` video を持ち、`/dev/fb0`, `FBIOPAN_DISPLAY`,
   `FBIOPUT_VSCREENINFO`, `SDL_VIDEO_FBCON_ROTATION` などの fbdev 経路を含みます。
+- stock SDL1 の汎用 `fbcon` へ 640x480/16bpp をそのまま出すと、
+  `/dev/fb0` capture は正常でも物理 LCD の走査が崩れます。StockOS の SDL1 利用
+  binary は、純粋な SDL1 surface 表示だけではなく、fbdev 直接操作や GL/EGL 併用で
+  A30 の 480x640 raw panel に合わせていると見ます。
 
 ## stock SDL2 probe
 
@@ -115,7 +119,13 @@ rootfs 側の GPU library は以下の構造です。
 `sdlloading`:
 
 - SDL1 を使い、`SDL_SetVideoMode`, `SDL_Flip` と `/dev/fb0` 文字列を持つ。
-- loading 表示は SDL1 fbcon 経路の可能性が高いです。
+- `lcd_fb_init`, `sdl_flip`, `make_zoom_rotate_table90`, `orig: %dx%d -> %dx%d`,
+  `set : %dx%d -> %dx%d` などの文字列を持つ。
+- `./testm.bmp`, `./testr.bmp` を SDL surface として読み、90度回転/拡大縮小 table を
+  作ってから `/dev/fb0` へ直接 mmap/pan する loading 専用処理に見えます。
+- したがって、`sdlloading` が stock SDL1 を使うことは確認できますが、
+  「汎用 SDL1 fbcon に 640x480 を渡せば A30 LCD で正しく見える」という証拠には
+  なりません。
 
 `RetroArch`:
 
@@ -125,6 +135,17 @@ rootfs 側の GPU library は以下の構造です。
   `sdl_dingux`, `sunxi`, `/dev/fb0` 文字列を持ちます。
 - 入力は SDL1 ですが、画面は単純な SDL1 fbcon だけではなく GL/EGL/Mali 経路も
   使う構成です。
+- stock launch script は主に `HOME=/mnt/SDCARD/RetroArch ra32.miyoo -L core rom`
+  形式で、`SDL_VIDEO_FBCON_ROTATION` や `SDL_FBDEV` は明示していません。
+- 一部 core config には `video_driver = "sdl"` が残っていますが、主要 global config は
+  `video_driver = "gl"` です。RetroArch binary 自体にも EGL/OpenGLES 経路が含まれます。
+
+`pcsx`, `sms.elf`:
+
+- `libSDL-1.2.so.0` にリンクし、`SDL_SetVideoMode`, `SDL_UpperBlit`,
+  `SDL_Flip` などを持ちます。
+- どちらも `FBIOPAN_DISPLAY` 失敗時の文字列や `cat /dev/zero > /dev/fb0` を持ち、
+  SDL1 surface だけで完結せず fbdev を直接扱う設計に見えます。
 
 `PPSSPPSDL`:
 
@@ -171,6 +192,40 @@ stock SDL2 probe と同じ `0x20000001` です。
   各 upstream の EGL/GLES backend を A30 の `/usr/lib/libMali.so` に合わせて検証する。
 
 stock binary/source を plumOS runtime に流用する場合は、方針メモ通り事前確認が必要です。
+
+## stock SDL1 fbcon probe
+
+2026-06-15 に、stock `libSDL-1.2.so.0` を使う最小描画 probe
+`plumos-sdl1-fbcon-probe` を作りました。package には Docker 由来の SDL1 を入れず、
+runtime では `/mnt/SDCARD/miyoo/lib/libSDL-1.2.so.0` を先に解決します。
+
+640x480/16bpp:
+
+```text
+SDL_GetVideoMode 640x480 16 -> 640x480 16
+before fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+Using VESA timings for 640x480
+after_set_video fb xres=640 yres=480 virtual=640x480 offset=0,0 bpp=16
+```
+
+この状態の `/dev/fb0` capture は probe の絵として正常でしたが、実機 LCD では PicoArch と
+同じように崩れて見えることを目視確認しました。A30 の物理 panel は 480x640 raw で、
+SDL1 fbcon が VESA 640x480 mode set へ進むと scanout と合わないと判断します。
+
+480x640/32bpp:
+
+```text
+SDL_GetVideoMode 480x640 32 -> 480x640 32
+before fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+after_set_video fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+surface w=480 h=640 pitch=1920 bytespp=4
+frames=603 elapsed_ms=20002 result=ok
+```
+
+こちらは VESA 640x480 path へ入らず native panel 相当の mode を維持します。PicoArch を
+stock SDL1 で続ける場合の検証対象は、640x480 surface ではなく 480x640/32bpp surface へ
+NES 画面を CPU または NEON で回転/scale して書く経路です。ただし、最終的には SDL1 fbcon
+ではなく、既に plumOS で確認済みの fbdev + Mali EGL presenter へ接続する方が将来性が高いです。
 
 ## plumOS `a30mali` backend first pass
 

@@ -24,6 +24,8 @@ Commands:
   picoarch       Build picoarch frontend into dist/plumos-picoarch.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
+  sdl1-fbcon-probe
+                 Build the stock SDL1 fbcon draw probe into dist/plumos-sdl1-fbcon-probe.
   sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
   sdl2-probe     Build the SDL2 joystick/GameController probe into dist/plumos-sdl2-probe.
   retroarch-minimal
@@ -198,6 +200,10 @@ case "$cmd" in
   mali-egl-probe|mali-egl|egl-probe)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-mali-egl-probe.sh
+    ;;
+  sdl1-fbcon-probe|sdl1-fbcon|sdl1)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-sdl1-fbcon-probe.sh
     ;;
   sdl2-runtime|sdl2rt)
     ensure_image

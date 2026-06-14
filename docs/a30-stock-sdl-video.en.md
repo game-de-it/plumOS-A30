@@ -25,6 +25,11 @@ are reference material only. Reusing them in plumOS requires prior confirmation.
 - Stock SDL1 contains `fbcon` and `dummy` video drivers and includes fbdev
   strings such as `/dev/fb0`, `FBIOPAN_DISPLAY`, `FBIOPUT_VSCREENINFO`, and
   `SDL_VIDEO_FBCON_ROTATION`.
+- Sending a plain 640x480/16bpp surface through stock SDL1 `fbcon` produces a
+  correct `/dev/fb0` capture but broken physical LCD scanout. Stock SDL1 users on
+  the stock image appear to adapt to the A30's 480x640 raw panel with direct
+  fbdev handling or by combining SDL1 with GL/EGL, not by relying on a generic
+  SDL1 surface path alone.
 
 ## Stock SDL2 Probe
 
@@ -118,7 +123,13 @@ successful `NULL` native-window path below.
 `sdlloading`:
 
 - Uses SDL1 and contains `SDL_SetVideoMode`, `SDL_Flip`, and `/dev/fb0`.
-- The loading screen is probably using the SDL1 fbcon path.
+- Contains `lcd_fb_init`, `sdl_flip`, `make_zoom_rotate_table90`,
+  `orig: %dx%d -> %dx%d`, and `set : %dx%d -> %dx%d` strings.
+- It appears to load `./testm.bmp` and `./testr.bmp` as SDL surfaces, build a
+  90-degree rotate/scale table, and then mmap/pan `/dev/fb0` directly for its
+  loading animation.
+- This confirms that `sdlloading` uses stock SDL1, but it does not prove that a
+  generic SDL1 `fbcon` 640x480 surface is enough for correct A30 LCD output.
 
 `RetroArch`:
 
@@ -128,6 +139,20 @@ successful `NULL` native-window path below.
   `egl*`, `SDL_GL*`, `sdl_dingux`, `sunxi`, and `/dev/fb0` strings.
 - Input is SDL1, but video is not just plain SDL1 fbcon; it also uses a
   GL/EGL/Mali path.
+- Stock launch scripts mostly use the form
+  `HOME=/mnt/SDCARD/RetroArch ra32.miyoo -L core rom`; they do not explicitly set
+  `SDL_VIDEO_FBCON_ROTATION` or `SDL_FBDEV`.
+- Some per-core configs still contain `video_driver = "sdl"`, but the main
+  global config uses `video_driver = "gl"`, and the RetroArch binary includes
+  EGL/OpenGLES paths.
+
+`pcsx`, `sms.elf`:
+
+- Both link against `libSDL-1.2.so.0` and contain `SDL_SetVideoMode`,
+  `SDL_UpperBlit`, and `SDL_Flip`.
+- Both also contain `FBIOPAN_DISPLAY` failure strings and
+  `cat /dev/zero > /dev/fb0`, so they appear to touch fbdev directly instead of
+  relying only on SDL1 surfaces.
 
 `PPSSPPSDL`:
 
@@ -175,3 +200,38 @@ Real display output for plumOS therefore needs one of these paths:
   using the A30 `/usr/lib/libMali.so` stack.
 
 Using stock binaries or source in the plumOS runtime requires prior approval.
+
+## Stock SDL1 Fbcon Probe
+
+On 2026-06-15, `plumos-sdl1-fbcon-probe` was added as a minimal draw probe using
+the stock `libSDL-1.2.so.0`. The package does not bundle Docker's SDL1; at
+runtime it resolves `/mnt/SDCARD/miyoo/lib/libSDL-1.2.so.0` first.
+
+640x480/16bpp:
+
+```text
+SDL_GetVideoMode 640x480 16 -> 640x480 16
+before fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+Using VESA timings for 640x480
+after_set_video fb xres=640 yres=480 virtual=640x480 offset=0,0 bpp=16
+```
+
+The `/dev/fb0` capture looked correct, but the physical LCD showed the same kind
+of broken image as PicoArch. The A30 panel is a 480x640 raw panel, and SDL1
+`fbcon`'s VESA 640x480 mode path does not match the physical scanout.
+
+480x640/32bpp:
+
+```text
+SDL_GetVideoMode 480x640 32 -> 480x640 32
+before fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+after_set_video fb xres=480 yres=640 virtual=480x1280 offset=0,640 bpp=32
+surface w=480 h=640 pitch=1920 bytespp=4
+frames=603 elapsed_ms=20002 result=ok
+```
+
+This keeps the native-panel mode and avoids the VESA 640x480 path. If PicoArch
+work continues on stock SDL1, the useful experiment is a 480x640/32bpp surface
+with CPU or NEON rotate/scale into that raw panel layout, not a 640x480 SDL1
+surface. Long term, routing PicoArch or similar frontends into the already
+validated fbdev + Mali EGL presenter is the cleaner path.
