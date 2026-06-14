@@ -18,7 +18,7 @@
 #define MAX_ROM_ENTRIES 4096
 #define MAX_MENU_ENTRIES 64
 #define MAX_APP_ENTRIES 128
-#define MAX_CORE_PROFILES 16
+#define MAX_CORE_PROFILES 32
 #define MAX_SYSTEM_CORE_OVERRIDES 256
 #define MAX_ROM_CORE_OVERRIDES 1024
 #define MAX_FAVORITES 2048
@@ -1170,6 +1170,63 @@ static int add_core_profile(struct core_system_def *system, const char *profile)
   return 1;
 }
 
+static void add_picoarch_companion_profiles(struct core_system_def *system) {
+  size_t original_count;
+  size_t i;
+
+  if (!system) {
+    return;
+  }
+  original_count = system->launch_profile_count;
+  for (i = 0; i < original_count && system->launch_profile_count < MAX_CORE_PROFILES; i++) {
+    const char *profile = system->launch_profiles[i];
+    const char *core_id;
+    char pico_profile[128];
+
+    if (strncmp(profile, "retroarch:", 10) != 0) {
+      continue;
+    }
+    core_id = profile + 10;
+    if (!core_id[0]) {
+      continue;
+    }
+    if (snprintf(pico_profile, sizeof(pico_profile), "picoarch:%s", core_id) >=
+        (int)sizeof(pico_profile)) {
+      continue;
+    }
+    add_core_profile(system, pico_profile);
+  }
+}
+
+static void format_launch_profile_display(const char *profile, char *out, size_t out_size) {
+  const char *label = NULL;
+  const char *value = NULL;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  if (!profile || !profile[0] || strcmp(profile, "auto") == 0) {
+    copy_string(out, out_size, "auto");
+    return;
+  }
+  if (strncmp(profile, "retroarch:", 10) == 0) {
+    label = "RA";
+    value = profile + 10;
+  } else if (strncmp(profile, "picoarch:", 9) == 0) {
+    label = "PICO";
+    value = profile + 9;
+  } else if (strncmp(profile, "standalone:", 11) == 0) {
+    label = "SA";
+    value = profile + 11;
+  }
+  if (label && value && value[0]) {
+    snprintf(out, out_size, "%s: %s", label, value);
+    out[out_size - 1] = '\0';
+    return;
+  }
+  copy_string(out, out_size, profile);
+}
+
 static int parse_launch_profile_array(const char *json, const char *end,
                                       struct core_system_def *system) {
   const char *profiles_start;
@@ -1257,6 +1314,7 @@ static int load_core_system_def(const char *path, const char *system_id,
     if (system.default_launch_profile[0]) {
       add_core_profile(&system, system.default_launch_profile);
     }
+    add_picoarch_companion_profiles(&system);
     if (!system.display_name[0]) {
       copy_string(system.display_name, sizeof(system.display_name), system.id);
     }
@@ -3835,14 +3893,16 @@ static void print_core_selection(const char *scope, const struct core_system_def
   }
   printf("\n");
   printf("Launch profiles\n");
-  printf("%-4s %-30s %-8s %-8s %-8s %s\n", "No.", "Launch profile", "Default", "System",
-         "ROM", "Effective");
-  printf("%-4s %-30s %-8s %-8s %-8s %s\n", "---", "--------------", "-------", "------",
-         "---", "---------");
+  printf("%-4s %-30s %-24s %-8s %-8s %-8s %s\n", "No.", "Launch profile",
+         "Display", "Default", "System", "ROM", "Effective");
+  printf("%-4s %-30s %-24s %-8s %-8s %-8s %s\n", "---", "--------------",
+         "-------", "-------", "------", "---", "---------");
 
   for (i = 0; i < system->launch_profile_count; i++) {
     const char *profile = system->launch_profiles[i];
-    printf("%3zu. %-30s %-8s %-8s %-8s %s\n", i + 1, profile,
+    char display[128];
+    format_launch_profile_display(profile, display, sizeof(display));
+    printf("%3zu. %-30s %-24s %-8s %-8s %-8s %s\n", i + 1, profile, display,
            strcmp(profile, system->default_launch_profile) == 0 ? "yes" : "no",
            system_profile && strcmp(profile, system_profile) == 0 ? "yes" : "no",
            rom_profile && strcmp(profile, rom_profile) == 0 ? "yes" : (rom_relative_path ? "no" : "-"),

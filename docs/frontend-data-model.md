@@ -124,6 +124,9 @@ FE は以下を扱います。
 `picoarch:<core_id>` は libretro core を共有しますが、実行経路は RetroArch ではなく
 `/mnt/SDCARD/plumos/bin/plumos-picoarch-launch` です。CPU policy/core 数は system または
 override の値を `PLUMOS_PICOARCH_*` 環境変数として渡します。
+Core Settings では、`systems.json` にある各 `retroarch:<core_id>` から対応する
+`picoarch:<core_id>` を検証用候補として自動追加します。初期 default は
+`default_launch_profile` のままとし、PicoArch を使う場合はユーザーが明示的に選びます。
 
 ### `DirectoryAlias`
 
@@ -752,7 +755,8 @@ rules:
   ユーザー向け UI では予測しづらい `keep` を表示・保存しない
 - `cpu_cores` は `2|4`。A30では2コアは CPU0+CPU1、4コアは CPU0-CPU3 を online にする
 - SELECT core menu は TOP/ROM 共通の `SCREEN_CORE_SELECT` で、起動候補を
-  `Cores < core_name >` として表示し、区切り線の下に `CPU freq < value >` と
+  `Cores < RA: fceumm >` / `Cores < PICO: fceumm >` /
+  `Cores < SA: ppsspp >` のように実行経路の省略接頭辞付きで表示し、区切り線の下に `CPU freq < value >` と
   `CPU Cores < value >` を表示する。TOPではsystem override、ROM listではROM overrideを
   `plumos-text-ui core ... --set/--cpu --freq/--cores` の同じ保存経路へ書く。
 - `Performance Settings` も同じ `core-overrides.json` のsystem overrideを編集する。

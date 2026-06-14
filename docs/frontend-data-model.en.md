@@ -133,6 +133,9 @@ currently handles:
 `picoarch:<core_id>` shares libretro cores with RetroArch, but its runtime path
 is `/mnt/SDCARD/plumos/bin/plumos-picoarch-launch`. CPU policy and core count
 settings are passed as `PLUMOS_PICOARCH_*` environment variables.
+In Core Settings, the FE automatically adds a matching `picoarch:<core_id>`
+candidate for each `retroarch:<core_id>` listed in `systems.json`. The initial
+default remains `default_launch_profile`; users opt into PicoArch explicitly.
 
 ### `DirectoryAlias`
 
@@ -785,7 +788,8 @@ Rules:
 - `cpu_cores` is `2|4`. On the A30, 2 cores means CPU0+CPU1 online, while
   4 cores means CPU0-CPU3 online.
 - The SELECT core menu is the TOP/ROM shared `SCREEN_CORE_SELECT`; it shows the
-  launch candidate as `Cores < core_name >`, then below a separator shows
+  launch candidate with a runtime prefix, such as `Cores < RA: fceumm >`,
+  `Cores < PICO: fceumm >`, or `Cores < SA: ppsspp >`, then below a separator shows
   `CPU freq < value >` and `CPU Cores < value >`. On TOP it writes a system
   override; on a ROM list it writes a ROM override through the same
   `plumos-text-ui core ... --set/--cpu --freq/--cores` save path.

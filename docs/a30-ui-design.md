@@ -64,7 +64,8 @@
 - START、Apps サブメニュー、Settings の各サブ項目、HELP は左端アクセントバーをブルーにし、
   command prompt は表示しない。画面タイトルとリスト項目で現在位置を示す。
 - TOP/ROM の SELECT core menu も Text/Graphic 共通の list screen とし、操作説明promptは
-  表示しない。起動候補は `Cores < core_name >` として表示し、区切り線の下に
+  表示しない。起動候補は `Cores < RA: fceumm >`、`Cores < PICO: fceumm >`、
+  `Cores < SA: ppsspp >` のように実行経路の省略接頭辞を付けて表示し、区切り線の下に
   `CPU freq < value >` と `CPU Cores < value >` を置く。上下で項目を選び、
   十字キー左右で選択中の `launch_profile` / CPU frequency / CPU core count を変更する。
 - 決定/実行は必ず A、戻る/キャンセルは必ず B にする。十字キー左右はページ送りや

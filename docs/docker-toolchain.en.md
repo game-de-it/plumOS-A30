@@ -244,9 +244,10 @@ correct orientation without mirror flip. Direct present handles `Screen size`
 `Native`, `Aspect`, and `Full`, plus `Screen effect` `None`, `Scanline`, `DMG`,
 and `LCD`, on the GPU path. `DMG` approximates the white-biased LCD blend and
 `LCD` approximates the RGB subpixel pattern in the fragment shader, so these
-effects do not fall back to the existing software scaler. PicoArch is not
-exposed as a normal A30 FE profile until long-run, menu, exit, and multi-core
-stability are validated.
+effects do not fall back to the existing software scaler. In Core Settings, the
+FE automatically adds matching `picoarch:<core_id>` test candidates from existing
+`retroarch:<core_id>` entries, while each system keeps its existing
+`default_launch_profile` as the initial default.
 
 The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
 The config file is per core and ROM directory:
@@ -296,11 +297,12 @@ dist/plumos-standalone-emulators/docs/build-logs/
 ## Auditing Launch Profiles Against Artifacts
 
 To make a libretro core or standalone emulator selectable from the frontend,
-register `retroarch:<core_id>`, `picoarch:<core_id>`, or
-`standalone:<emulator_id>` in `package/frontend/plumos/config/frontend/systems.json`
-under `launch_profiles`.
-Deploying only the artifact is not enough; profiles that are absent from
-`systems.json` will not appear in Core Settings.
+register `retroarch:<core_id>` or `standalone:<emulator_id>` in
+`package/frontend/plumos/config/frontend/systems.json` under `launch_profiles`.
+Core Settings automatically adds a matching `picoarch:<core_id>` candidate for
+each `retroarch:<core_id>`. Deploying only the artifact is not enough; without a
+base `retroarch:<core_id>` or `standalone:<emulator_id>` in `systems.json`, the
+runtime will not appear in Core Settings.
 
 On the host, use `scripts/audit-launch-profiles.py` to compare `systems.json`
 with staged runtime artifacts.

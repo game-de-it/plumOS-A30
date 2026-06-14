@@ -238,8 +238,9 @@ dlopen するため、picoarch binary 自体の NEEDED には EGL/GLES を増や
 確認済みです。direct present は `Screen size` の `Native`、`Aspect`、`Full` と、
 `Screen effect` の `None`、`Scanline`、`DMG`、`LCD` を GPU 側で処理します。
 `DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風パターンとして shader で近似し、
-従来 software scaler へ fallback しません。継続動作、menu、終了処理、複数 core の安定性を見るまでは
-A30 の通常 FE profile には入れません。
+従来 software scaler へ fallback しません。Core Settings では既存の
+`retroarch:<core_id>` から対応する `picoarch:<core_id>` を検証用候補として自動追加しますが、
+各 system の初期 default は `default_launch_profile` のままにします。
 
 BIOS/system directory は PicoArch 側 config の `bios_dir = /path` で指定できます。
 config file は core と ROM directory ごとに
@@ -288,9 +289,11 @@ dist/plumos-standalone-emulators/docs/build-logs/
 
 libretro core や standalone emulator を FE から選べるようにするには、
 `package/frontend/plumos/config/frontend/systems.json` の `launch_profiles` に
-`retroarch:<core_id>`、`picoarch:<core_id>`、`standalone:<emulator_id>` のいずれかを
+`retroarch:<core_id>`、`standalone:<emulator_id>` のいずれかを
 登録する必要があります。
-逆に、生成物だけを deploy しても `systems.json` に無ければ Core Settings には出ません。
+Core Settings は各 `retroarch:<core_id>` から対応する `picoarch:<core_id>` も自動的に候補へ
+追加します。生成物だけを deploy しても、元になる `retroarch:<core_id>` または
+`standalone:<emulator_id>` が `systems.json` に無ければ Core Settings には出ません。
 
 host 側では `scripts/audit-launch-profiles.py` で、`systems.json` と staging 済み生成物を
 照合できます。

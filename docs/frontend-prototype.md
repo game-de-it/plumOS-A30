@@ -473,7 +473,8 @@ Performance Settings は既存の `plumos-text-ui core system ... --cpu --freq -
 固定値だけを見せ、予測しづらい `keep` は削除します。`Reset to Default` で
 `systems.json` の `648MHz` / `2 cores` plumOS default に戻します。
 TOP/ROM の SELECT core menu は共通画面で、操作説明promptは表示せず
-`Cores < core_name >` を左右で変更して `launch_profile` override を保存します。
+`Cores < RA: fceumm >` / `Cores < PICO: fceumm >` / `Cores < SA: ppsspp >` のように
+実行経路の省略接頭辞付き候補を左右で変更して `launch_profile` override を保存します。
 区切り線の下には `CPU freq < value >` と `CPU Cores < value >` を置き、
 TOPではsystem override、ROM listではROM overrideとして同じ `core-overrides.json` へ保存します。
 Theme は候補名と path の扱いが固まるまで read-only です。Mali renderer では Settings 先頭の `HELP` から操作説明画面へ入ります。
@@ -514,7 +515,7 @@ target=nes
 source=plumOS default
 entries=4 cursor=1
 
->   1  Cores < fceumm >
+>   1  Cores < RA: fceumm >
     2  ------------------------------
     3  CPU freq < 648 MHz >
     4  CPU Cores < 2 >

@@ -78,8 +78,9 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - START, Apps submenu, Settings subpages, and HELP use the blue left accent bar and do not
   show a command prompt. The screen title and list entries indicate location.
 - The TOP/ROM SELECT core menu is also a Text/Graphic shared list screen and
-  does not show an operation prompt. Launch candidates appear as
-  `Cores < core_name >`; below a separator, `CPU freq < value >` and
+  does not show an operation prompt. Launch candidates appear with runtime
+  prefixes such as `Cores < RA: fceumm >`, `Cores < PICO: fceumm >`, and
+  `Cores < SA: ppsspp >`; below a separator, `CPU freq < value >` and
   `CPU Cores < value >` appear. Up/Down selects a row, and Left/Right changes
   the selected `launch_profile`, CPU frequency, or CPU core count.
 - A is always confirm/run; B is always back/cancel. Left/Right may be used for

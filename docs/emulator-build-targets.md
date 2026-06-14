@@ -33,7 +33,7 @@ plumOS 独自採用 core は upstream latest/HEAD を採用候補にできます
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build で GLES/EGL + `fbdev_mali` の実画面表示を確認済み。A30 の横向き RGUI は GL2 menu MVP patch + CCW 90度で表示する。`fceumm`/`gambatte` の core-loaded game screen も確認済み。full runtime では audio/input の追加検証が必要。input は SDL2/evdev + `plumos-joystickd --device-mode xbox` を優先。 |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | stockOS の core 名は参考のみ。現在の recipe は Onion 採用 core と plumOS 独自採用 core の union として、plumOS default の Class A/B 41 core と Onion catalog 補完用 Class O を `docker/plumos-toolchain/libretro-core-recipes.tsv` で管理する。A30 実機では `fceumm` と `gambatte` の画面表示、Onion 由来 commit の `mednafen_vb` 性能改善と Bad Apple 実動作を確認済みで、残りは system ごとの起動/performance/input/audio 検証が必要。 |
-| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | `shauninman/picoarch` commit `802047c` を plumOS 用 `platform=plumos` で build し、SDL1 は入力/音声だけに使い、ゲーム中は libretro core の RGB565 frame を A30 Mali/EGL presenter へ直接渡す。2026-06-15 に `fceumm` + `いっき` で実機表示の向き/左右反転、Native/Aspect/Full、Scanline/DMG/LCD、60fps 音声安定を確認済み。ただし安定評価前のため、A30 の通常 FE profile にはまだ入れない。 |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | `shauninman/picoarch` commit `802047c` を plumOS 用 `platform=plumos` で build し、SDL1 は入力/音声だけに使い、ゲーム中は libretro core の RGB565 frame を A30 Mali/EGL presenter へ直接渡す。2026-06-15 に `fceumm` + `いっき` で実機表示の向き/左右反転、Native/Aspect/Full、Scanline/DMG/LCD、60fps 音声安定を確認済み。既存 `retroarch:<core>` に対応する検証用 `picoarch:<core>` 候補として Core Settings に出すが、初期 default にはしない。 |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | PPSSPP、ScummVM、EasyRPG Player、DOSBox Staging、PCSX-ReARMed の試作 build は `dist/plumos-standalone-emulators` に stage 済み。A30 実機検証後、PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed は standalone profile 候補へ昇格し、DOSBox Staging は通常対象外にする。 |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | stock の `Emu/ffplay` 相当。video player なので emulator 初期セットとは分ける。 |
 
@@ -175,8 +175,9 @@ GPU 側で処理します。`DMG` は白寄せの液晶ブレンド、`LCD` は 
 確認 capture と log は `artifacts/a30-probes/` 配下の `picoarch-native-none-*`、
 `picoarch-aspect-*`、`picoarch-scanline-*`、`picoarch-full-*`、
 `picoarch-dmg-*`、`picoarch-lcd-*` にあります。
-ただし継続動作、menu 操作、終了処理、複数 core の安定性をまだ十分に見ていないため、
-2026-06-15 時点では FE の通常 profile には入れません。
+Core Settings では、`systems.json` にある既存 `retroarch:<core>` 候補から対応する
+`picoarch:<core>` 候補を自動追加します。これは複数 system/core の動作確認用であり、
+2026-06-15 時点では各 system の初期 default は既存の `default_launch_profile` のままにします。
 
 BIOS/system directory は PicoArch config の `bios_dir = /path` で指定できます。
 未指定時は ROM directory 名を tag として `/mnt/SDCARD/Bios/<tag>` を返します。

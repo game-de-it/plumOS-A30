@@ -167,7 +167,7 @@ struct input_event {
 #define UI_MAX_MENU 64
 #define UI_MAX_SETTINGS 64
 #define UI_MAX_SCRAPING_CHOICES 64
-#define UI_MAX_CORE_PROFILES 16
+#define UI_MAX_CORE_PROFILES 32
 #define UI_COMMAND_MAX 8192
 #define UI_PATH_MAX 1024
 #define UI_RENDER_MAX_LINES 64
@@ -5506,8 +5506,27 @@ static void core_append_line(struct ui_state *ui, const char *line) {
 }
 
 static const char *core_profile_display_name(const char *profile) {
+  static char display[128];
+  const char *label = NULL;
+  const char *value = NULL;
+
   if (!profile || !profile[0]) {
     return "auto";
+  }
+  if (strncmp(profile, "retroarch:", 10) == 0) {
+    label = "RA";
+    value = profile + 10;
+  } else if (strncmp(profile, "picoarch:", 9) == 0) {
+    label = "PICO";
+    value = profile + 9;
+  } else if (strncmp(profile, "standalone:", 11) == 0) {
+    label = "SA";
+    value = profile + 11;
+  }
+  if (label && value && value[0]) {
+    snprintf(display, sizeof(display), "%s: %s", label, value);
+    display[sizeof(display) - 1] = '\0';
+    return display;
   }
   return profile;
 }
