@@ -155,15 +155,20 @@ plumOS としては優先度を下げる。
 `/dev/mali`、rootfs の `/usr/lib/libEGL.so` / `/usr/lib/libGLESv2.so` から Mali EGL
 surface と GLES2 context を作る。
 
-Pyxel 側は引き続き A30 専用 offscreen FBO presenter を使う。Pyxel の通常 renderer が app
-本来の logical FBO へ描画した後、A30 presenter が GLES2 shader で 480x640 physical
-framebuffer へ回転 present する。回転、拡大縮小、letterbox は GPU 側の texture sampling
-で行い、CPU で画素を回転コピーしない。
+2026-06-14 の後続実装で、Pyxel の標準経路は A30 専用 patched site 依存から外した。
+通常は pip で入る Pyxel package をそのまま読み、Pyxel の SDL2/GLES 呼び出しを
+plumOS 同梱 sdl2-compat -> SDL3 `a30mali` backend へ通す。これにより、将来
+`pip install --upgrade pyxel` で Pyxel を更新しても、A30 表示経路は Pyxel patch ではなく
+plumOS SDL runtime 側で維持される。
+
+過去に追加した A30 専用 offscreen FBO presenter は fallback として残す。明示的に
+`PLUMOS_PYXEL_USE_PATCHED=1` を指定した場合だけ、`/mnt/SDCARD/plumos/experiments/pyxel-a30-site`
+を `PYTHONPATH` の先頭に入れ、`PLUMOS_PYXEL_A30_PRESENT=1` を有効にする。
 
 追加した成果物:
 
 - `docker/plumos-toolchain/patches/sdl3-3.4.10-a30mali-video-driver.patch`
-- `docker/plumos-toolchain/patches/pyxel-2.9.6-a30-fbo-present.patch`
+- `docker/plumos-toolchain/patches/pyxel-2.9.6-a30-fbo-present.patch` fallback 用
 - `docker/plumos-toolchain/scripts/build-sdl2-runtime.sh` の `a30mali` patch 適用
 - `docker/plumos-toolchain/scripts/build-pyxel-a30.sh`
 - `scripts/docker-build.sh pyxel-a30`
@@ -196,17 +201,13 @@ SDL_VIDEODRIVER=a30mali
 SDL_AUDIODRIVER=alsa
 SDL_OPENGL_LIBRARY=/usr/lib/libGLESv2.so
 SDL_EGL_LIBRARY=/usr/lib/libEGL.so
-PLUMOS_PYXEL_A30_PRESENT=1
-PLUMOS_PYXEL_A30_ROTATION=cw
 SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 ```
 
-現在の既定 `SDL_VIDEODRIVER` は `a30mali` である。古い検証で使った stock SDL2 `mali`
-driver は参照用に残すが、通常の Pyxel launcher では `/mnt/SDCARD/miyoo/lib` を
-library path に入れない。
-
-`PLUMOS_PYXEL_A30_ROTATION` は `cw`、`ccw`、`none` を受け付ける。A30 の横持ち表示では
-`cw` が正しい向きだった。
+通常経路では `PYTHONPATH` に `experiments/pyxel-a30-site` を追加しない。そのため
+`/mnt/SDCARD/plumos/python/lib/python3.14/site-packages` に pip で入っている Pyxel が使われる。
+古い検証で使った stock SDL2 `mali` driver は参照用に残すが、通常の Pyxel launcher では
+`/mnt/SDCARD/miyoo/lib` を library path に入れない。
 
 `plumos-pyxel-a30-launch` は FE/ユーザー向けの wrapper で、Pyxel 実行前後に以下を行う。
 
@@ -244,17 +245,21 @@ left stick: a0/a1
 stock SDL2 の既定 GameController mapping だけに任せると、START/SELECT/FUNCTION や
 L/R/L2/R2 がずれる。このため Pyxel launcher では mapping override を必須とする。
 
-patched Pyxel は通常の pip site-packages ではなく、以下の分離 site に置く。
+fallback 用の patched Pyxel は通常の pip site-packages ではなく、以下の分離 site に置く。
 
 ```text
 /mnt/SDCARD/plumos/experiments/pyxel-a30-site/
 ```
 
-`plumos-pyxel-a30` / `plumos-pyxel-a30-launch` はこの site を `PYTHONPATH` の先頭に入れる。
-そのため、ユーザーが通常の `pip install --upgrade pyxel` を行っても、Pyxel app launcher 経由
-では patched Pyxel が優先される。反対に、`/mnt/SDCARD/plumos/bin/python3 -m pyxel` を直接
-使うと pip 側の通常 Pyxel を読む可能性があるため、A30 画面出力が必要な Pyxel app は
-`plumos-pyxel-a30-launch` 経由に固定する。
+標準ではこの site は読まない。旧 A30 presenter 経路へ戻したい場合だけ、以下のように
+明示する。
+
+```sh
+PLUMOS_PYXEL_USE_PATCHED=1 plumos-pyxel-a30-launch -m pyxel play <path>
+```
+
+`PLUMOS_PYXEL_USE_PATCHED=1` のときだけ、`plumos-pyxel-a30` はこの site を `PYTHONPATH`
+の先頭に入れ、`PLUMOS_PYXEL_A30_PRESENT=1` と `PLUMOS_PYXEL_A30_ROTATION=cw` を既定にする。
 
 ### FE からの起動
 
@@ -368,8 +373,9 @@ left stick        -> Pyxel LX/LY
 - plumOS SDL2 互換 runtime に `a30mali` backend を追加し、stock SDL2 binary なしで
   SDL2/GLES app が `/dev/fb0` + Mali EGL へ乗れる状態になった。
 - Pyxel の通常出力は GLES2 前提なので、A30 の Mali hardware 経路へ乗せられる。
-- 今回の Pyxel 専用 FBO presenter により、CPU software rotation なしで 640x480 logical
-  landscape から A30 physical framebuffer へ表示できることを確認した。
+- 標準 Pyxel 実行は pip site-packages の Pyxel を使い、sdl2-compat -> SDL3 `a30mali`
+  で表示する。Pyxel 更新時もこの経路を維持する。
+- Pyxel 専用 FBO presenter は `PLUMOS_PYXEL_USE_PATCHED=1` の fallback として残す。
 - Pyxel の音声、入力、volume hotkey、cleanup は plumOS SDL `a30mali` 経路でも成立する。
 - first pass の `a30mali` は SDL window + GLES context + swap を優先した最小 backend。
   SDL_Renderer や汎用window管理を要求するappは、追加実装が必要になる可能性がある。

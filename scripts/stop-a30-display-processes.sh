@@ -60,6 +60,8 @@ cmd_is_display_target() {
   case "$cmd" in
     *'/mnt/SDCARD/plumos/emulators/'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-controller-ui'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-pyxel-a30'*|\
+    *'/mnt/SDCARD/plumos/python/bin/python3.14 -m pyxel '*|\
     *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-standalone-launch'*|\
     *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*|*red-viper-a30*)

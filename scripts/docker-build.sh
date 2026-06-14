@@ -20,7 +20,7 @@ Commands:
   network-services
                  Build FTP/SFTP/Samba service package into dist/plumos-network-services.
   python-runtime Build Python 3 runtime with pip support into dist/plumos-python-runtime.
-  pyxel-a30      Build patched Pyxel runtime with A30 GLES FBO present into dist/plumos-pyxel-a30.
+  pyxel-a30      Build Pyxel A30 launcher and optional patched fallback into dist/plumos-pyxel-a30.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
   sdl2-runtime   Build upstream SDL3+sdl2-compat runtime into dist/plumos-sdl2-runtime.
