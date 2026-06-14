@@ -33,7 +33,7 @@ plumOS 独自採用 core は upstream latest/HEAD を採用候補にできます
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build で GLES/EGL + `fbdev_mali` の実画面表示を確認済み。A30 の横向き RGUI は GL2 menu MVP patch + CCW 90度で表示する。`fceumm`/`gambatte` の core-loaded game screen も確認済み。full runtime では audio/input の追加検証が必要。input は SDL2/evdev + `plumos-joystickd --device-mode xbox` を優先。 |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | stockOS の core 名は参考のみ。現在の recipe は Onion 採用 core と plumOS 独自採用 core の union として、plumOS default の Class A/B 41 core と Onion catalog 補完用 Class O を `docker/plumos-toolchain/libretro-core-recipes.tsv` で管理する。A30 実機では `fceumm` と `gambatte` の画面表示、Onion 由来 commit の `mednafen_vb` 性能改善と Bad Apple 実動作を確認済みで、残りは system ごとの起動/performance/input/audio 検証が必要。 |
-| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | `shauninman/picoarch` commit `802047c` を plumOS 用 `platform=plumos` で build し、SDL1 は入力/音声だけに使い、ゲーム中は libretro core の RGB565 frame を A30 Mali/EGL presenter へ直接渡す。2026-06-15 に `fceumm` + `いっき` で実機表示の向き/左右反転、Native/Aspect/Full、Scanline、60fps 音声安定を確認済み。ただし安定評価前のため、A30 の通常 FE profile にはまだ入れない。 |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | `shauninman/picoarch` commit `802047c` を plumOS 用 `platform=plumos` で build し、SDL1 は入力/音声だけに使い、ゲーム中は libretro core の RGB565 frame を A30 Mali/EGL presenter へ直接渡す。2026-06-15 に `fceumm` + `いっき` で実機表示の向き/左右反転、Native/Aspect/Full、Scanline/DMG/LCD、60fps 音声安定を確認済み。ただし安定評価前のため、A30 の通常 FE profile にはまだ入れない。 |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | PPSSPP、ScummVM、EasyRPG Player、DOSBox Staging、PCSX-ReARMed の試作 build は `dist/plumos-standalone-emulators` に stage 済み。A30 実機検証後、PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed は standalone profile 候補へ昇格し、DOSBox Staging は通常対象外にする。 |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | stock の `Emu/ffplay` 相当。video player なので emulator 初期セットとは分ける。 |
 
@@ -162,17 +162,19 @@ EGL surface を作り、RGB565 texture として表示します。SDL1 は引き
 presenter 初期化失敗時は通常失敗扱いにし、明示的に
 `PLUMOS_PICOARCH_A30_FALLBACK_SDL=1` を指定した場合だけ stock SDL video fallback を許可します。
 高速 direct present では PicoArch の `Screen size` の `Native`、`Aspect`、`Full` を
-GPU 側の矩形で処理します。`Screen effect` は `None` と `Scanline` を GPU 側で処理し、
-`DMG` と `LCD` は従来 software scaler へ fallback します。
+GPU 側の矩形で処理します。`Screen effect` は `None`、`Scanline`、`DMG`、`LCD` を
+GPU 側で処理します。`DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風の
+周期パターンとして shader で近似し、PicoArch の software scaler へ戻らないようにします。
 
 `fceumm_libretro.so` と `/mnt/SDCARD/Roms/FC/いっき.zip` の手動起動では、ログに
 `picoarch-a30: mali presenter logical=640x480 physical=480x640 rotation=2 vsync=1` が出て、
 `/dev/fb0` owner が PicoArch 1 process の状態で実機表示の向きと左右反転が解消しました。
 2026-06-15 の追加確認では、従来の software 640x480 scaling 経路で約 1 core 相当を使い
 音切れしていた `fceumm` + `いっき` が、direct present では `Native`/`None` で 59.9fps、
-`Scanline` でも 60.0fps 付近を維持し、継続 underrun は出ませんでした。確認 capture と log は
-`artifacts/a30-probes/` 配下の `picoarch-native-none-*`、`picoarch-aspect-*`、
-`picoarch-scanline-*`、`picoarch-full-*` にあります。
+`Scanline`、`DMG`、`LCD` でも 60.0fps 付近を維持し、継続 underrun は出ませんでした。
+確認 capture と log は `artifacts/a30-probes/` 配下の `picoarch-native-none-*`、
+`picoarch-aspect-*`、`picoarch-scanline-*`、`picoarch-full-*`、
+`picoarch-dmg-*`、`picoarch-lcd-*` にあります。
 ただし継続動作、menu 操作、終了処理、複数 core の安定性をまだ十分に見ていないため、
 2026-06-15 時点では FE の通常 profile には入れません。
 

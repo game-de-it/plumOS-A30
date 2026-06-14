@@ -9,14 +9,15 @@
  #include <dlfcn.h>
  #include <errno.h>
  #include <fcntl.h>
-@@ -160,7 +163,14 @@
+@@ -160,7 +163,15 @@
  	EGLContext context;
  	GLuint program;
  	GLuint texture;
 +	GLuint hud_texture;
- 	GLint sampler_location;
+	GLint sampler_location;
 +	GLint effect_location;
 +	GLint scan_axis_location;
++	GLint effect_period_location;
 +	int texture_w;
 +	int texture_h;
 +	int hud_texture_w;
@@ -41,30 +42,86 @@
  static enum a30_rotation parse_rotation(const char *value)
  {
  	if (!value || !value[0])
-@@ -357,8 +377,15 @@
+@@ -357,8 +377,70 @@
  		"precision mediump float;\n"
  		"varying vec2 v_texcoord;\n"
- 		"uniform sampler2D u_tex;\n"
+		"uniform sampler2D u_tex;\n"
 +		"uniform int u_effect;\n"
 +		"uniform int u_scan_axis;\n"
- 		"void main() {\n"
++		"uniform int u_effect_period;\n"
++		"vec3 dmg_pattern(vec3 color, float row, float col, float period) {\n"
++		"  float x = mod(floor(col), period);\n"
++		"  float y = mod(floor(row), period);\n"
++		"  float x3 = floor(x * 3.0 / period);\n"
++		"  float y3 = floor(y * 3.0 / period);\n"
++		"  float soft = (period > 4.5) ? 0.20 : 0.40;\n"
++		"  float strong = (period > 4.5) ? 0.25 : 0.60;\n"
++		"  if (period < 2.5) {\n"
++		"    if (y < 1.0 && x < 1.0) return mix(color, vec3(1.0), soft);\n"
++		"    if (y >= 1.0 && x < 1.0) return mix(color, vec3(1.0), strong);\n"
++		"    if (y >= 1.0) return mix(color, vec3(1.0), soft);\n"
++		"    return color;\n"
++		"  }\n"
++		"  if (y3 < 2.0 && x3 < 1.0) return mix(color, vec3(1.0), soft);\n"
++		"  if (y3 >= 2.0) {\n"
++		"    if (x3 < 1.0) return mix(color, vec3(1.0), strong);\n"
++		"    return mix(color, vec3(1.0), soft);\n"
++		"  }\n"
++		"  return color;\n"
++		"}\n"
++		"vec3 lcd_pattern(vec3 color, float row, float col, float period) {\n"
++		"  float x = mod(floor(col), period);\n"
++		"  float y = mod(floor(row), period);\n"
++		"  if (period < 2.5) {\n"
++		"    if (y < 1.0) {\n"
++		"      if (x < 1.0) return max(vec3(color.r, 0.0, 0.0), color * 0.10);\n"
++		"      return max(vec3(0.0, 0.0, color.b), color * 0.10);\n"
++		"    }\n"
++		"    if (x < 1.0) return max(vec3(0.0, color.g, 0.0), color * 0.10);\n"
++		"    return color * 0.05;\n"
++		"  }\n"
++		"  float x3 = floor(x * 3.0 / period);\n"
++		"  float y3 = floor(y * 3.0 / period);\n"
++		"  if (y3 < 1.0) {\n"
++		"    if (x3 >= 1.0 && x3 < 2.0) return max(vec3(0.0, color.g, 0.0), color * 0.10);\n"
++		"    return color * 0.05;\n"
++		"  }\n"
++		"  if (y3 < 2.0) {\n"
++		"    if (x3 < 1.0) return max(vec3(color.r, 0.0, 0.0), color * 0.10);\n"
++		"    if (x3 < 2.0) return max(vec3(0.0, color.g, 0.0), color * 0.10);\n"
++		"    return max(vec3(0.0, 0.0, color.b), color * 0.10);\n"
++		"  }\n"
++		"  if (x3 < 1.0) return max(vec3(color.r, 0.0, 0.0), color * 0.10);\n"
++		"  if (x3 < 2.0) return color * 0.05;\n"
++		"  return max(vec3(0.0, 0.0, color.b), color * 0.10);\n"
++		"}\n"
+		"void main() {\n"
 -		"  gl_FragColor = texture2D(u_tex, v_texcoord);\n"
 +		"  vec4 color = texture2D(u_tex, v_texcoord);\n"
-+		"  if (u_effect == 3) {\n"
-+		"    float c = (u_scan_axis == 1) ? gl_FragCoord.x : gl_FragCoord.y;\n"
++		"  float period = float(u_effect_period);\n"
++		"  float row = (u_scan_axis == 1) ? gl_FragCoord.x : gl_FragCoord.y;\n"
++		"  float col = (u_scan_axis == 1) ? gl_FragCoord.y : gl_FragCoord.x;\n"
++		"  if (period < 1.0) period = 1.0;\n"
++		"  if (u_effect == 1) {\n"
++		"    color.rgb = dmg_pattern(color.rgb, row, col, period);\n"
++		"  } else if (u_effect == 2) {\n"
++		"    color.rgb = lcd_pattern(color.rgb, row, col, period);\n"
++		"  } else if (u_effect == 3) {\n"
++		"    float c = row;\n"
 +		"    if (mod(floor(c), 2.0) < 1.0) color.rgb *= 0.45;\n"
 +		"  }\n"
 +		"  gl_FragColor = color;\n"
  		"}\n";
  	GLuint vshader = 0;
  	GLuint fshader = 0;
-@@ -381,6 +408,8 @@
+@@ -381,6 +408,9 @@
  		goto fail;
  	}
- 	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
+	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
 +	g_a30.effect_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_effect");
 +	g_a30.scan_axis_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_scan_axis");
- 	g_a30.gl.DeleteShader(vshader);
++	g_a30.effect_period_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_effect_period");
+	g_a30.gl.DeleteShader(vshader);
  	g_a30.gl.DeleteShader(fshader);
  	return 1;
 @@ -397,14 +426,8 @@
@@ -167,7 +224,7 @@
  
  	g_a30.initialized = 1;
  	fprintf(stderr,
-@@ -570,30 +626,104 @@
+@@ -570,30 +626,115 @@
  	return g_a30.tight_pixels;
  }
  
@@ -249,10 +306,13 @@
 +		      int logical_x, int logical_y, int logical_w, int logical_h,
 +		      int effect)
 +{
- 	GLfloat vertices[16];
- 	const void *pixels;
- 
- 	if (!g_a30.initialized || !rgb565)
+	GLfloat vertices[16];
+	const void *pixels;
++	int sx;
++	int sy;
++	int effect_period;
+
+	if (!g_a30.initialized || !rgb565)
  		return;
 -	if (width != g_a30.logical_w || height != g_a30.logical_h) {
 -		fprintf(stderr, "picoarch-a30: unexpected present size %dx%d\n", width, height);
@@ -265,9 +325,16 @@
 -	g_a30.gl.ActiveTexture(GL_TEXTURE0);
 -	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
 +	ensure_texture_size(texture, texture_w, texture_h, width, height);
- 	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
- 			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
- 
+	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
++	sx = width > 0 ? logical_w / width : 1;
++	sy = height > 0 ? logical_h / height : 1;
++	effect_period = sx < sy ? sx : sy;
++	if (effect_period < 1)
++		effect_period = 1;
++	if (effect_period > 6)
++		effect_period = 6;
+
 -	fill_vertices(vertices);
 -	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
 -	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -278,7 +345,8 @@
 +	g_a30.gl.Uniform1i(g_a30.effect_location, effect);
 +	g_a30.gl.Uniform1i(g_a30.scan_axis_location,
 +			   (g_a30.rotation == A30_ROT_CW || g_a30.rotation == A30_ROT_CCW) ? 1 : 0);
- 	g_a30.gl.EnableVertexAttribArray(0);
++	g_a30.gl.Uniform1i(g_a30.effect_period_location, effect_period);
+	g_a30.gl.EnableVertexAttribArray(0);
  	g_a30.gl.EnableVertexAttribArray(1);
  	g_a30.gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
 @@ -603,9 +733,57 @@
@@ -326,7 +394,7 @@
 +	begin_present();
 +	draw_rect(&g_a30.texture, &g_a30.texture_w, &g_a30.texture_h,
 +		  rgb565, pitch, width, height, x, y, w, h,
-+		  scale_effect == SCALE_EFFECT_SCANLINE ? SCALE_EFFECT_SCANLINE : SCALE_EFFECT_NONE);
++		  scale_effect);
 +	if (hud_rgb565 && hud_width > 0 && hud_height > 0) {
 +		draw_rect(&g_a30.hud_texture, &g_a30.hud_texture_w, &g_a30.hud_texture_h,
 +			  hud_rgb565, hud_pitch, hud_width, hud_height,
@@ -408,13 +476,12 @@
  		return screen->pixels;
  	}
  #endif
-@@ -582,6 +611,33 @@
+@@ -582,6 +611,32 @@
  	framebuffer = data;
  	
  	static int had_msg = 0;
 +#ifdef PICOARCH_A30_MALI
-+	if (a30_mali_active && data && width > 0 && height > 0 &&
-+	    (scale_effect == SCALE_EFFECT_NONE || scale_effect == SCALE_EFFECT_SCANLINE)) {
++	if (a30_mali_active && data && width > 0 && height > 0) {
 +		a30_direct.pixels = data;
 +		a30_direct.pitch = (int)pitch;
 +		a30_direct.width = (int)width;

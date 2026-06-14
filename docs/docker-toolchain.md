@@ -236,9 +236,10 @@ dlopen するため、picoarch binary 自体の NEEDED には EGL/GLES を増や
 `PLUMOS_PICOARCH_A30_ROTATION=ccw`、`PLUMOS_PICOARCH_A30_VSYNC=1`、
 `PLUMOS_PICOARCH_A30_LINEAR=0` です。実機では `fceumm` + `いっき` で向きと左右反転の修正を
 確認済みです。direct present は `Screen size` の `Native`、`Aspect`、`Full` と、
-`Screen effect` の `None`、`Scanline` を GPU 側で処理します。`DMG` と `LCD` は従来
-software scaler へ fallback します。継続動作、menu、終了処理、複数 core の安定性を見るまでは A30 の通常
-FE profile には入れません。
+`Screen effect` の `None`、`Scanline`、`DMG`、`LCD` を GPU 側で処理します。
+`DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風パターンとして shader で近似し、
+従来 software scaler へ fallback しません。継続動作、menu、終了処理、複数 core の安定性を見るまでは
+A30 の通常 FE profile には入れません。
 
 BIOS/system directory は PicoArch 側 config の `bios_dir = /path` で指定できます。
 config file は core と ROM directory ごとに

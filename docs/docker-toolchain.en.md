@@ -241,10 +241,12 @@ The default display environment is `PLUMOS_PICOARCH_A30_MALI=1`,
 `PLUMOS_PICOARCH_A30_ROTATION=ccw`, `PLUMOS_PICOARCH_A30_VSYNC=1`, and
 `PLUMOS_PICOARCH_A30_LINEAR=0`. A `fceumm` + `Ikki` hardware probe confirmed
 correct orientation without mirror flip. Direct present handles `Screen size`
-`Native`, `Aspect`, and `Full`, plus `Screen effect` `None` and `Scanline`, on
-the GPU path. `DMG` and `LCD` fall back to the existing software scaler. PicoArch
-is not exposed as a normal A30 FE profile until long-run, menu, exit, and
-multi-core stability are validated.
+`Native`, `Aspect`, and `Full`, plus `Screen effect` `None`, `Scanline`, `DMG`,
+and `LCD`, on the GPU path. `DMG` approximates the white-biased LCD blend and
+`LCD` approximates the RGB subpixel pattern in the fragment shader, so these
+effects do not fall back to the existing software scaler. PicoArch is not
+exposed as a normal A30 FE profile until long-run, menu, exit, and multi-core
+stability are validated.
 
 The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
 The config file is per core and ROM directory:
