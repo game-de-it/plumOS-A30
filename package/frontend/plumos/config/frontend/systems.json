@@ -393,8 +393,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["sgx", "pce", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -766,8 +769,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["lnx", "lyx", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -793,8 +799,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["vb", "vboy", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1287,8 +1296,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["a26", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1314,8 +1326,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["a78", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1341,8 +1356,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["vec", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1368,8 +1386,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["sv", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1396,8 +1417,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1425,7 +1449,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "not_single_rom_crc"
       }
     },
     {
@@ -1451,8 +1475,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["min", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1556,7 +1583,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "cd_media_crc_expensive"
       }
     },
     {
@@ -1582,7 +1609,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1607,8 +1634,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["a52", "bin", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1634,7 +1664,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1660,7 +1690,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1686,7 +1716,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1712,7 +1742,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1815,8 +1845,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["bin", "chf", "rom", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1841,8 +1874,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["rom", "ri", "mx1", "mx2", "col", "sg", "sc", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -1868,7 +1904,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -1971,8 +2007,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["int", "bin", "rom", "zip"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -2023,8 +2062,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["j64", "jag", "rom", "abs", "cof", "bin", "prg"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -2206,7 +2248,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "cd_media_crc_expensive"
       }
     },
     {
@@ -2283,8 +2325,11 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": false,
-        "reason": "scraper_source_pending"
+        "enabled": true,
+        "reason": "simple_rom_crc",
+        "extensions": ["sg", "mv", "bin", "rom", "sms", "gg"],
+        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
+        "download_workers": {"default": 2, "bulk": 3, "max": 4}
       }
     },
     {
@@ -2310,7 +2355,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -2336,7 +2381,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -2414,7 +2459,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -2492,7 +2537,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     },
     {
@@ -2518,7 +2563,7 @@
       "default_cpu_freq_khz": 648000,
       "scraper": {
         "enabled": false,
-        "reason": "scraper_source_pending"
+        "reason": "pc_disk_image_policy_pending"
       }
     }
   ]

@@ -94,6 +94,21 @@ ngpc
 wonderswan
 wonderswancolor
 msx
+supergrafx
+lynx
+virtualboy
+atari2600
+atari7800
+vectrex
+supervision
+odyssey2
+pokemini
+atari5200
+channelf
+colecovision
+intellivision
+jaguar
+sg1000
 ```
 
 CD-based systems are excluded from the initial scraper because even CRC checks
@@ -101,8 +116,10 @@ can be slow on the device and matching also needs track / CHD / ISO / cue / m3u
 / pbp representative-file policy.
 
 ```text
+3do
 segacd
 pcenginecd
+pcfx
 psx
 psp
 dreamcast
@@ -113,9 +130,20 @@ PC disk-image systems are excluded from the initial scraper because they need a
 representative-file policy for D88/HDI/DIM/XDF/m3u and a DAT-source policy.
 
 ```text
+amiga
+atari800
+atarist
+bk
+c64
+cpc
 pc88
 pc98
+sharpx1
+thomson
+vic20
 x68000
+zx81
+zxspectrum
 ```
 
 Arcade / romset systems are excluded from the initial scraper because matching
@@ -143,6 +171,7 @@ scummvm
 openbor
 ports
 tic80
+gameandwatch
 ```
 
 CRC miss handling:
