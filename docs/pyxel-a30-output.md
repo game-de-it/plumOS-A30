@@ -214,6 +214,10 @@ SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
 `pyxel.init()` だけを薄く wrap する。この shim は Pyxel 本体を変更せず、`width` / `height` /
 `display_scale` から `PLUMOS_A30MALI_LOGICAL_SIZE` を設定して SDL `a30mali` backend へ
 論理表示サイズを渡す。
+`.pyxapp` 実行時は、展開された startup script の親ディレクトリを `cwd` にして実行する。
+一部の Pyxel app は `fonts/...` や `assets.pyxres` を相対パスで読むため、`pyxel.init()` 後も
+shim が `cwd` を復元する。これにより、Pyxel package 自体を patch せずに packaged app の
+相対リソースを app directory 基準で読める。
 古い検証で使った stock SDL2 `mali` driver は参照用に残すが、通常の Pyxel launcher では
 `/mnt/SDCARD/miyoo/lib` を library path に入れない。
 

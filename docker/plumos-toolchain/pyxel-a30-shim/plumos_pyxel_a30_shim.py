@@ -86,13 +86,49 @@ def _patch_pyxel_init() -> None:
         return
 
     def init_wrapper(*args, **kwargs):
+        cwd = Path.cwd()
         _publish_pyxel_init_geometry(original_init, args, kwargs)
-        return original_init(*args, **kwargs)
+        result = original_init(*args, **kwargs)
+        if not _is_disabled(os.environ.get("PLUMOS_PYXEL_RESTORE_CWD_AFTER_INIT")):
+            os.chdir(cwd)
+        return result
 
     init_wrapper._plumos_a30_wrapped = True  # type: ignore[attr-defined]
     init_wrapper.__name__ = getattr(original_init, "__name__", "init")
     init_wrapper.__doc__ = getattr(original_init, "__doc__", None)
     pyxel.init = init_wrapper
+
+
+def _run_pyxel_play(argv: list[str]) -> None:
+    if not argv:
+        raise SystemExit("plumos_pyxel_a30_shim: pyxel play requires a .pyxapp path")
+
+    import pyxel  # type: ignore
+    import pyxel.cli as pyxel_cli  # type: ignore
+
+    pyxel_app_file = argv[0]
+    file_ext = Path(pyxel_app_file).suffix.lower()
+    if file_ext != ".zip":
+        pyxel_app_file = pyxel_cli._complete_extension(
+            pyxel_app_file, "play", pyxel.APP_FILE_EXTENSION
+        )
+    pyxel_cli._check_file_exists(pyxel_app_file)
+    pyxel_cli.print_pyxel_app_metadata(pyxel_app_file)
+    startup_script_file = pyxel_cli._extract_pyxel_app(pyxel_app_file)
+
+    if not startup_script_file:
+        pyxel_cli._exit_with_error(f"file not found: '{pyxel.APP_STARTUP_SCRIPT_FILE}'")
+
+    startup_script = Path(startup_script_file).absolute()
+    startup_dir = startup_script.parent
+    old_cwd = Path.cwd()
+
+    sys.path.insert(0, str(startup_dir))
+    try:
+        os.chdir(startup_dir)
+        runpy.run_path(str(startup_script), run_name="__main__")
+    finally:
+        os.chdir(old_cwd)
 
 
 def _run_python_command(argv: list[str]) -> None:
@@ -103,6 +139,10 @@ def _run_python_command(argv: list[str]) -> None:
         if len(argv) < 2:
             raise SystemExit("plumos_pyxel_a30_shim: -m requires a module name")
         module = argv[1]
+        if module == "pyxel" and len(argv) >= 3 and argv[2] == "play":
+            sys.argv = [module, *argv[2:]]
+            _run_pyxel_play(argv[3:])
+            return
         sys.argv = [module, *argv[2:]]
         runpy.run_module(module, run_name="__main__", alter_sys=True)
         return
