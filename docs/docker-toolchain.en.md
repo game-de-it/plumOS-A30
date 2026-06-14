@@ -225,6 +225,26 @@ PLUMOS_CORE_FILTER=onion \
 ./scripts/docker-build.sh libretro-cores
 ```
 
+Build the PicoArch package. This builds only the PicoArch frontend; libretro
+cores are shared from the device path `/mnt/SDCARD/plumos/retroarch/cores`,
+not bundled from `dist/plumos-libretro-cores`. SDL1 comes from the A30 stockOS
+fbcon runtime, so the package does not include Docker's generic
+`libSDL-1.2.so.0`. plumOS glibc/libpng/zlib are staged into a PicoArch-specific
+libdir.
+
+```sh
+./scripts/docker-build.sh picoarch
+```
+
+Outputs:
+
+```text
+dist/plumos-picoarch/plumos/bin/plumos-picoarch-launch
+dist/plumos-picoarch/plumos/emulators/picoarch/bin/picoarch
+dist/plumos-picoarch/plumos/emulators/picoarch/lib/
+dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
+```
+
 Build the standalone emulator package. The current target builds PPSSPP,
 ScummVM, EasyRPG Player, DOSBox Staging, PCSX-ReARMed, and Red Viper for the A30 armv7
 hard-float environment and records selected tags/commits, NEEDED entries, and
@@ -250,8 +270,9 @@ dist/plumos-standalone-emulators/docs/build-logs/
 ## Auditing Launch Profiles Against Artifacts
 
 To make a libretro core or standalone emulator selectable from the frontend,
-register `retroarch:<core_id>` or `standalone:<emulator_id>` in
-`package/frontend/plumos/config/frontend/systems.json` under `launch_profiles`.
+register `retroarch:<core_id>`, `picoarch:<core_id>`, or
+`standalone:<emulator_id>` in `package/frontend/plumos/config/frontend/systems.json`
+under `launch_profiles`.
 Deploying only the artifact is not enough; profiles that are absent from
 `systems.json` will not appear in Core Settings.
 

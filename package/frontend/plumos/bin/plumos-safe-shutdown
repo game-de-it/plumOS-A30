@@ -273,7 +273,9 @@ find_retroarch_launcher_pids() {
 }
 
 find_standalone_launcher_pids() {
-  find_pids_by_arg "${PLUMOS_ROOT}/bin/plumos-standalone-launch" "plumos-standalone-launch"
+  find_pids_by_arg \
+    "${PLUMOS_ROOT}/bin/plumos-standalone-launch" "plumos-standalone-launch" \
+    "${PLUMOS_ROOT}/bin/plumos-picoarch-launch" "plumos-picoarch-launch"
 }
 
 find_retroarch_pids() {
@@ -289,9 +291,10 @@ find_standalone_emulator_pids() {
     "${PLUMOS_ROOT}/emulators/easyrpg/bin/easyrpg-player" \
     "${PLUMOS_ROOT}/emulators/dosbox-staging/bin/dosbox" \
     "${PLUMOS_ROOT}/emulators/pcsx_rearmed/bin/pcsx" \
+    "${PLUMOS_ROOT}/emulators/picoarch/bin/picoarch" \
     "${PLUMOS_ROOT}/emulators/red_viper/bin/red-viper-a30" \
     "${PLUMOS_ROOT}/emulators/red_viper/bin/red-viper-sdlgl-a30" \
-    "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx" "red-viper-a30" "red-viper-sdlgl-a30"
+    "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx" "picoarch" "red-viper-a30" "red-viper-sdlgl-a30"
 }
 
 resume_session_pending() {

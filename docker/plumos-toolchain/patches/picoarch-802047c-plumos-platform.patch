@@ -1,0 +1,74 @@
+diff --git a/Makefile b/Makefile
+index 0eff6b6..3354ed3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -17 +17 @@ CFLAGS     += -I./ -I./libretro-common/include/ $(shell $(SYSROOT)/usr/bin/sdl-c
+-LDFLAGS    = -lc -ldl -lgcc -lm -lSDL -lpng12 -lz -Wl,--gc-sections -flto
++LDFLAGS    = -lc -ldl -lgcc -lm -lSDL -lpng -lz -Wl,--gc-sections -flto
+@@ -73,0 +74,4 @@ else ifeq ($(platform), miyoomini)
++else ifeq ($(platform), plumos)
++	OBJS += plat_linux.o
++	CFLAGS += -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -DCONTENT_DIR='"/mnt/SDCARD/Roms"'
++	LDFLAGS += -fPIE
+diff --git a/plat_sdl.c b/plat_sdl.c
+index 374d610..7227299 100644
+--- a/plat_sdl.c
++++ b/plat_sdl.c
+@@ -16,0 +17,2 @@ static SDL_Surface* screen;
++#define	pixelsPa	unused1
++#ifdef PICOARCH_MI_GFX
+@@ -19 +20,0 @@ static SDL_Surface* screen;
+-#define	pixelsPa	unused1
+@@ -20,0 +22,6 @@ static SDL_Surface* screen;
++#else
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#define ALIGN4K(val)	(val)
++#endif
+@@ -21,0 +29 @@ static SDL_Surface* screen;
++#ifdef PICOARCH_MI_GFX
+@@ -116,0 +125,9 @@ void GFX_BlitSurfaceExec(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst,
++#else
++void GFX_BlitSurfaceExec(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect,
++			 uint32_t rotate, uint32_t mirror, uint32_t nowait) {
++	(void)rotate;
++	(void)mirror;
++	(void)nowait;
++	SDL_BlitSurface(src, srcrect, dst, dstrect);
++}
++#endif
+@@ -118,0 +136 @@ struct GFX_Buffer {
++#ifdef PICOARCH_MI_GFX
+@@ -119,0 +138,3 @@ struct GFX_Buffer {
++#else
++	uintptr_t	phyAddr;
++#endif
+@@ -198,0 +220 @@ static void buffer_init(void) {
++#ifdef PICOARCH_MI_GFX
+@@ -201,0 +224,5 @@ static void buffer_init(void) {
++#else
++	buffer.virAddr = calloc(1, buffer.size);
++	buffer.phyAddr = buffer.virAddr ? 1 : 0;
++	if (!buffer.virAddr) return;
++#endif
+@@ -208,0 +236 @@ static void buffer_quit(void) {
++#ifdef PICOARCH_MI_GFX
+@@ -210,0 +239,5 @@ static void buffer_quit(void) {
++#else
++		free(buffer.virAddr);
++#endif
++		buffer.virAddr = NULL;
++		buffer.phyAddr = 0;
+@@ -221,0 +255 @@ static void buffer_clear(void) {
++#ifdef PICOARCH_MI_GFX
+@@ -223,0 +258,3 @@ static void buffer_clear(void) {
++#else
++	memset(buffer.virAddr, 0, buffer.size);
++#endif
+@@ -267,0 +305 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
++#ifdef PICOARCH_MI_GFX
+@@ -268,0 +307,3 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
++#else
++	if (scaled != NULL) scaled->pixelsPa = 0;
++#endif

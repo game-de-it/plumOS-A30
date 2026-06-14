@@ -116,6 +116,24 @@ Important fields:
 - `launch_profiles`: launcher-side candidates; the frontend does not execute
   cores directly.
 
+### Launch Profile
+
+`launch_profiles` and `default_launch_profile` use `kind:id` strings. The FE
+currently handles:
+
+- `retroarch:<core_id>`: launches
+  `/mnt/SDCARD/plumos/retroarch/cores/<core_id>_libretro.so` through the
+  RetroArch launcher.
+- `picoarch:<core_id>`: launches the same libretro core through the lightweight
+  PicoArch frontend.
+- `standalone:<emulator_id>`: launches a standalone runtime under
+  `/mnt/SDCARD/plumos/emulators/<emulator_id>/`.
+- `pyxel:a30`: launches `.pyxapp` / `.py` content through the Pyxel launcher.
+
+`picoarch:<core_id>` shares libretro cores with RetroArch, but its runtime path
+is `/mnt/SDCARD/plumos/bin/plumos-picoarch-launch`. CPU policy and core count
+settings are passed as `PLUMOS_PICOARCH_*` environment variables.
+
 ### `DirectoryAlias`
 
 ```json

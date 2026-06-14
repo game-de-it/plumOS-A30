@@ -175,6 +175,7 @@ struct launch_plan {
   char retroarch_path[TEXT_PATH_MAX];
   char standalone_launcher_path[TEXT_PATH_MAX];
   char pyxel_launcher_path[TEXT_PATH_MAX];
+  char picoarch_launcher_path[TEXT_PATH_MAX];
   char core_path[TEXT_PATH_MAX];
   char config_path[TEXT_PATH_MAX];
   char safe_state_slot[16];
@@ -1003,7 +1004,9 @@ static void redirect_stdio_to_devnull(void) {
 }
 
 static int launch_plan_uses_safe_hotkeyd(const struct launch_plan *plan) {
-  return plan && (strcmp(plan->kind, "retroarch") == 0 || strcmp(plan->kind, "standalone") == 0);
+  return plan && (strcmp(plan->kind, "retroarch") == 0 ||
+                  strcmp(plan->kind, "standalone") == 0 ||
+                  strcmp(plan->kind, "picoarch") == 0);
 }
 
 static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_plan *plan) {
@@ -1030,7 +1033,7 @@ static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_pla
   }
   if (pid == 0) {
     redirect_stdio_to_devnull();
-    if (strcmp(plan->kind, "standalone") == 0) {
+    if (strcmp(plan->kind, "standalone") == 0 || strcmp(plan->kind, "picoarch") == 0) {
       execl(hotkeyd_path, hotkeyd_path, "--volume-only", (char *)NULL);
     } else {
       execl(hotkeyd_path, hotkeyd_path, "--oneshot", (char *)NULL);
@@ -2833,6 +2836,63 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
     return 1;
   }
 
+  if (strncmp(launch_profile, "picoarch:", 9) == 0) {
+    const char *core_id = launch_profile + 9;
+    char launcher_dir[PATH_MAX];
+    char freq_buf[32];
+    char cores_buf[16];
+
+    copy_string(plan->kind, sizeof(plan->kind), "picoarch");
+    if (!core_id[0] ||
+        !join_path(launcher_dir, sizeof(launcher_dir), plumos_root, "bin") ||
+        !join_path(plan->picoarch_launcher_path, sizeof(plan->picoarch_launcher_path),
+                   launcher_dir, "plumos-picoarch-launch") ||
+        !build_retroarch_core_path(plan->core_path, sizeof(plan->core_path), plumos_root,
+                                   core_id)) {
+      return 0;
+    }
+    plan->runtime_exists = file_exists(plan->picoarch_launcher_path);
+    plan->core_exists = file_exists(plan->core_path);
+    if (plan->cpu_policy[0]) {
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_PICOARCH_CPU_POLICY=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                               plan->cpu_policy) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
+      if (strcmp(plan->cpu_policy, "fixed") == 0) {
+        snprintf(freq_buf, sizeof(freq_buf), "%ld", plan->cpu_freq_khz);
+        if (!append_string(plan->command, sizeof(plan->command), &pos,
+                           "PLUMOS_PICOARCH_CPU_FREQ=") ||
+            !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                                 freq_buf) ||
+            !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+          return 0;
+        }
+      }
+    }
+    if (plan->cpu_cores > 0) {
+      snprintf(cores_buf, sizeof(cores_buf), "%ld", plan->cpu_cores);
+      if (!append_string(plan->command, sizeof(plan->command), &pos,
+                         "PLUMOS_PICOARCH_CPU_CORES=") ||
+          !append_shell_quoted(plan->command, sizeof(plan->command), &pos, cores_buf) ||
+          !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+        return 0;
+      }
+    }
+    if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos,
+                             plan->picoarch_launcher_path) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, core_id) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, plan->rom_path)) {
+      return 0;
+    }
+    plan->can_execute = plan->runtime_exists && plan->core_exists && plan->rom_exists;
+    return 1;
+  }
+
   if (strncmp(launch_profile, "standalone:", 11) == 0) {
     const char *emulator_id = launch_profile + 11;
     char launcher_dir[PATH_MAX];
@@ -2955,6 +3015,10 @@ static void print_launch_plan(const struct launch_plan *plan) {
   }
   if (plan->pyxel_launcher_path[0]) {
     printf("pyxel_launcher: %s (%s)\n", plan->pyxel_launcher_path,
+           plan->runtime_exists ? "exists" : "missing");
+  }
+  if (plan->picoarch_launcher_path[0]) {
+    printf("picoarch_launcher: %s (%s)\n", plan->picoarch_launcher_path,
            plan->runtime_exists ? "exists" : "missing");
   }
   if (plan->core_path[0]) {

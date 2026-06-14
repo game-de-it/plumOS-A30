@@ -222,6 +222,24 @@ PLUMOS_CORE_FILTER=onion \
 ./scripts/docker-build.sh libretro-cores
 ```
 
+PicoArch package を build します。PicoArch 本体だけを build し、libretro core は
+`dist/plumos-libretro-cores` ではなく実機の `/mnt/SDCARD/plumos/retroarch/cores` を共有します。
+SDL1 は A30 stockOS 側の fbcon 実装を使うため、package には Docker 由来の
+`libSDL-1.2.so.0` を入れません。plumOS glibc/libpng/zlib は picoarch 専用 libdir に stage します。
+
+```sh
+./scripts/docker-build.sh picoarch
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-picoarch/plumos/bin/plumos-picoarch-launch
+dist/plumos-picoarch/plumos/emulators/picoarch/bin/picoarch
+dist/plumos-picoarch/plumos/emulators/picoarch/lib/
+dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
+```
+
 standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
 DOSBox Staging、PCSX-ReARMed、Red Viper を A30 armv7 hard-float 向けに build し、選んだ
 tag/commit、NEEDED、build log を manifest に残します。`PLUMOS_STANDALONE_FILTER=ppsspp`
@@ -247,7 +265,8 @@ dist/plumos-standalone-emulators/docs/build-logs/
 
 libretro core や standalone emulator を FE から選べるようにするには、
 `package/frontend/plumos/config/frontend/systems.json` の `launch_profiles` に
-`retroarch:<core_id>` または `standalone:<emulator_id>` を登録する必要があります。
+`retroarch:<core_id>`、`picoarch:<core_id>`、`standalone:<emulator_id>` のいずれかを
+登録する必要があります。
 逆に、生成物だけを deploy しても `systems.json` に無ければ Core Settings には出ません。
 
 host 側では `scripts/audit-launch-profiles.py` で、`systems.json` と staging 済み生成物を

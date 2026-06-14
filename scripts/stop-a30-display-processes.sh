@@ -64,6 +64,8 @@ cmd_is_display_target() {
     *'/mnt/SDCARD/plumos/python/bin/python3.14 -m pyxel '*|\
     *'/mnt/SDCARD/plumos/retroarch/bin/retroarch'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-standalone-launch'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-picoarch-launch'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-joystickd'*|\
     *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*|*red-viper-a30*)
       return 0
       ;;

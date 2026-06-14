@@ -38,6 +38,7 @@ Inventory date: 2026-06-07
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The current recipes are the union of Onion-adopted cores and plumOS-only cores, keeping the plumOS-default 41 Class A/B cores plus Onion-catalog Class O entries in `docker/plumos-toolchain/libretro-core-recipes.tsv`. On real A30 hardware, `fceumm` and `gambatte` have screen-smoke confirmation, and the Onion-proven `mednafen_vb` commit has confirmed performance recovery plus working Bad Apple gameplay; the rest still need per-system boot, performance, input, and audio/video validation. |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. It shares libretro cores with RetroArch and appears in the FE as `picoarch:<core_id>` launch profiles. On A30, NES + `fceumm` is confirmed through the FE with 640x480/16bpp fbcon output, the stock SDL1 runtime, and the `plumos-joystickd` keyboard profile. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -155,6 +156,16 @@ The Makefile optimization patch checks not only the top-level Makefile but also
 shallow `Makefile*`, `*.mk`, and `*.mak` files inside the core tree. This avoids
 cases like `gambatte`, where the wrapper `Makefile` includes `Makefile.libretro`
 and the included file appends upstream `-O2` after plumOS' `-O3`/`-Ofast`.
+
+PicoArch is treated as an alternative frontend to RetroArch, not as a libretro
+core recipe. `./scripts/docker-build.sh picoarch` builds only the PicoArch
+binary; it references existing libretro cores under
+`/mnt/SDCARD/plumos/retroarch/cores`. The PicoArch binary runs with plumOS glibc
+2.36, while SDL1 comes from the A30 stockOS fbcon runtime. If the generic Docker
+`libSDL-1.2.so.0` is loaded first, SDL can block in `VT_WAITACTIVE`, so the
+PicoArch package stages only glibc/libpng/zlib into an emulator-specific libdir
+and the launcher searches `picoarch/lib -> stockOS /usr/lib,/lib,/mnt/SDCARD/miyoo/lib -> plumOS lib`.
+This setup was confirmed on hardware with NES `picoarch:fceumm` on 2026-06-15.
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and

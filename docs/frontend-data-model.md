@@ -109,6 +109,22 @@ Field:
   policy を持つ。未指定の場合は scraper 対象外または global default として扱う
 - `launch_profiles`: 起動候補。実体は frontend ではなく launcher 側で解決する
 
+### Launch profile
+
+`launch_profiles` と `default_launch_profile` は `kind:id` の文字列で指定します。現時点の
+FE は以下を扱います。
+
+- `retroarch:<core_id>`: `/mnt/SDCARD/plumos/retroarch/cores/<core_id>_libretro.so`
+  を RetroArch launcher で起動する
+- `picoarch:<core_id>`: 同じ libretro core を軽量 frontend の PicoArch で起動する
+- `standalone:<emulator_id>`: `/mnt/SDCARD/plumos/emulators/<emulator_id>/` 配下の
+  standalone launcher で起動する
+- `pyxel:a30`: Pyxel launcher で `.pyxapp` / `.py` を起動する
+
+`picoarch:<core_id>` は libretro core を共有しますが、実行経路は RetroArch ではなく
+`/mnt/SDCARD/plumos/bin/plumos-picoarch-launch` です。CPU policy/core 数は system または
+override の値を `PLUMOS_PICOARCH_*` 環境変数として渡します。
+
 ### `DirectoryAlias`
 
 ROM directory 名の別名です。
