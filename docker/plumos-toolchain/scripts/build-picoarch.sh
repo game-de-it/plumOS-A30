@@ -13,6 +13,8 @@ JOBS=${JOBS:-$(nproc 2>/dev/null || echo 2)}
 PICOARCH_REPO=${PICOARCH_REPO:-https://github.com/shauninman/picoarch.git}
 PICOARCH_REF=${PICOARCH_REF:-802047c276a5a931b0bf837c4ea4b8e238bdeabe}
 PICOARCH_PATCH=${PICOARCH_PATCH:-"${PATCH_DIR}/picoarch-802047c-plumos-platform.patch"}
+PICOARCH_A30_INPUT_PATCH=${PICOARCH_A30_INPUT_PATCH:-"${PATCH_DIR}/picoarch-a30-input.patch"}
+PICOARCH_A30_DIRECT_PRESENT_PATCH=${PICOARCH_A30_DIRECT_PRESENT_PATCH:-"${PATCH_DIR}/picoarch-a30-direct-present.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -128,6 +130,10 @@ checkout_source() {
   git -C "${SRC_DIR}" submodule foreach --recursive 'git reset --hard >/dev/null && git clean -fdx >/dev/null'
   rm -f "${SRC_DIR}/libpicofe/.patched"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_PATCH}"
+  patch -d "${SRC_DIR}/libpicofe" -p1 <"${SRC_DIR}/patches/libpicofe/0001-key-combos.patch"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_INPUT_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_DIRECT_PRESENT_PATCH}"
+  touch "${SRC_DIR}/libpicofe/.patched"
 }
 
 build_picoarch() {
@@ -169,6 +175,9 @@ Environment:
   PLUMOS_PICOARCH_A30_LINEAR     1 enables GL_LINEAR texture filtering. Default: 0.
   PLUMOS_PICOARCH_A30_FALLBACK_SDL
                                 1 allows stock SDL video fallback if presenter init fails. Default: 0.
+  PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
+  PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
+  PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
 USAGE
 }
 
@@ -325,12 +334,27 @@ apply_cpu_policy() {
 start_joystickd() {
   [ "${PLUMOS_PICOARCH_JOYSTICKD:-1}" != 0 ] || return 0
   [ -x "${PLUMOS_ROOT}/bin/plumos-joystickd" ] || return 0
-  "${PLUMOS_ROOT}/bin/plumos-joystickd" \
-    --device-mode keyboard \
-    --keyboard-profile passthrough \
-    --trigger-mode buttons \
-    --shoulder-layout user \
-    >"${LOG_DIR}/joystickd-last.log" 2>&1 &
+  case "${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}" in
+    xbox)
+      "${PLUMOS_ROOT}/bin/plumos-joystickd" \
+        --device-mode xbox \
+        --trigger-mode buttons \
+        --shoulder-layout user \
+        >"${LOG_DIR}/joystickd-last.log" 2>&1 &
+      ;;
+    keyboard)
+      "${PLUMOS_ROOT}/bin/plumos-joystickd" \
+        --device-mode keyboard \
+        --keyboard-profile passthrough \
+        --trigger-mode buttons \
+        --shoulder-layout user \
+        >"${LOG_DIR}/joystickd-last.log" 2>&1 &
+      ;;
+    *)
+      echo "error: invalid joystickd mode: ${PLUMOS_PICOARCH_JOYSTICKD_MODE}" >&2
+      exit 2
+      ;;
+  esac
   joystickd_pid=$!
   sleep 1
 }
@@ -417,6 +441,8 @@ stage_outputs() {
     echo "repo=${PICOARCH_REPO}"
     echo "ref=${PICOARCH_REF}"
     echo "patch=$(basename "${PICOARCH_PATCH}")"
+    echo "a30_input_patch=$(basename "${PICOARCH_A30_INPUT_PATCH}")"
+    echo "a30_direct_present_patch=$(basename "${PICOARCH_A30_DIRECT_PRESENT_PATCH}")"
     echo "a30_mali_presenter=enabled"
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"

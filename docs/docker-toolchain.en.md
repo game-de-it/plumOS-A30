@@ -231,17 +231,20 @@ not bundled from `dist/plumos-libretro-cores`. SDL1 comes from the A30 stockOS
 fbcon runtime, so the package does not include Docker's generic
 `libSDL-1.2.so.0`. plumOS glibc/libpng/zlib are staged into a PicoArch-specific
 libdir. Stock SDL1 `640x480` video mode breaks physical LCD scanout, so the
-plumOS patch keeps SDL1 for input/audio while routing PicoArch's final 640x480
-RGB565 frame through an A30 Mali/EGL presenter. The presenter dlopens
-`/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, so the PicoArch binary does
-not gain EGL/GLES NEEDED entries.
+plumOS patch keeps SDL1 for input/audio while routing in-game libretro RGB565
+frames directly through an A30 Mali/EGL presenter. Menus still use the normal
+640x480 software surface and pass that surface to the presenter. The presenter
+dlopens `/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, so the PicoArch binary
+does not gain EGL/GLES NEEDED entries.
 
 The default display environment is `PLUMOS_PICOARCH_A30_MALI=1`,
 `PLUMOS_PICOARCH_A30_ROTATION=ccw`, `PLUMOS_PICOARCH_A30_VSYNC=1`, and
 `PLUMOS_PICOARCH_A30_LINEAR=0`. A `fceumm` + `Ikki` hardware probe confirmed
-correct orientation without mirror flip, but PicoArch is not exposed as a
-normal A30 FE profile until long-run, menu, exit, and multi-core stability are
-validated.
+correct orientation without mirror flip. Direct present handles `Screen size`
+`Native`, `Aspect`, and `Full`, plus `Screen effect` `None` and `Scanline`, on
+the GPU path. `DMG` and `LCD` fall back to the existing software scaler. PicoArch
+is not exposed as a normal A30 FE profile until long-run, menu, exit, and
+multi-core stability are validated.
 
 The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
 The config file is per core and ROM directory:

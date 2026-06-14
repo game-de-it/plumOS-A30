@@ -38,7 +38,7 @@ Inventory date: 2026-06-07
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The current recipes are the union of Onion-adopted cores and plumOS-only cores, keeping the plumOS-default 41 Class A/B cores plus Onion-catalog Class O entries in `docker/plumos-toolchain/libretro-core-recipes.tsv`. On real A30 hardware, `fceumm` and `gambatte` have screen-smoke confirmation, and the Onion-proven `mednafen_vb` commit has confirmed performance recovery plus working Bad Apple gameplay; the rest still need per-system boot, performance, input, and audio/video validation. |
-| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. SDL1 remains for input/audio, while PicoArch's final 640x480 RGB565 frame is uploaded through an A30 Mali/EGL presenter. On 2026-06-15, `fceumm` + `Ikki` confirmed correct physical orientation and no mirror flip. It is still kept out of normal A30 FE profiles until longer stability testing is done. |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. SDL1 remains for input/audio, while in-game libretro RGB565 frames are uploaded directly through an A30 Mali/EGL presenter. On 2026-06-15, `fceumm` + `Ikki` confirmed correct orientation, no mirror flip, Native/Aspect/Full sizing, Scanline, and stable 60fps audio. It is still kept out of normal A30 FE profiles until longer stability testing is done. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -177,22 +177,31 @@ libretro core build. CPU-side rotation was also not performant enough, so the
 2026-06-15 fix is to route PicoArch's final frame into a dedicated A30 Mali/EGL
 presenter instead of rotating the SDL1 surface on the CPU.
 
-The new `plat_a30_mali.c` path keeps PicoArch rendering into a software
-640x480 RGB565 surface, avoids `SDL_SetVideoMode(640x480)` for the physical LCD,
-dlopens stockOS `/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, creates a raw
-panel EGL surface, uploads the frame as a RGB565 texture, and presents it as a
-full-screen quad. SDL1 is still used for audio/input initialization. The default
+The new `plat_a30_mali.c` path keeps menu rendering on PicoArch's software
+640x480 RGB565 surface, but in-game frames bypass PicoArch's CPU scaler and go
+directly from the libretro core's RGB565 frame into the A30 Mali/EGL presenter.
+It avoids `SDL_SetVideoMode(640x480)` for the physical LCD, dlopens stockOS
+`/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, creates a raw panel EGL
+surface, uploads RGB565 textures, and presents them with rotated quads. SDL1 is
+still used for audio/input initialization. The default
 environment is `PLUMOS_PICOARCH_A30_MALI=1`,
 `PLUMOS_PICOARCH_A30_ROTATION=ccw`, `PLUMOS_PICOARCH_A30_VSYNC=1`, and
 `PLUMOS_PICOARCH_A30_LINEAR=0`. Presenter init failures normally abort; stock
 SDL video fallback is allowed only when `PLUMOS_PICOARCH_A30_FALLBACK_SDL=1` is
 set explicitly.
+The direct path handles PicoArch `Screen size` values `Native`, `Aspect`, and
+`Full` with GPU rectangles. `Screen effect` values `None` and `Scanline` stay on
+the GPU path; `DMG` and `LCD` fall back to the existing software scaler.
 
 A manual `fceumm_libretro.so` launch with `/mnt/SDCARD/Roms/FC/いっき.zip`
 logged `picoarch-a30: mali presenter logical=640x480 physical=480x640 rotation=2 vsync=1`,
 ran as the sole `/dev/fb0` owner, and the physical screen showed correct
-orientation without the mirror flip. Captures and logs are under
-`artifacts/a30-probes/picoarch-a30mali/20260615-031549-fixed/`. PicoArch remains
+orientation without the mirror flip. Follow-up tests showed that the former
+software 640x480 scaling path used about one CPU core and caused audio drops,
+while direct present held about 59.9fps with `Native`/`None` and about 60.0fps
+with `Scanline` without continuing underruns. Captures and logs are under
+`artifacts/a30-probes/` as `picoarch-native-none-*`, `picoarch-aspect-*`,
+`picoarch-scanline-*`, and `picoarch-full-*`. PicoArch remains
 outside normal FE profiles until menu, exit, long-run, and multi-core stability
 are validated.
 

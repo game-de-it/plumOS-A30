@@ -1,0 +1,444 @@
+--- a/plat_a30_mali.c
++++ b/plat_a30_mali.c
+@@ -1,5 +1,8 @@
+ #include "plat_a30_mali.h"
+ 
++#include "core.h"
++#include "options.h"
++
+ #include <dlfcn.h>
+ #include <errno.h>
+ #include <fcntl.h>
+@@ -160,7 +163,14 @@
+ 	EGLContext context;
+ 	GLuint program;
+ 	GLuint texture;
++	GLuint hud_texture;
+ 	GLint sampler_location;
++	GLint effect_location;
++	GLint scan_axis_location;
++	int texture_w;
++	int texture_h;
++	int hud_texture_w;
++	int hud_texture_h;
+ 	void *tight_pixels;
+ 	size_t tight_size;
+ };
+@@ -177,6 +187,16 @@
+ 	return 1;
+ }
+ 
++static void configure_bound_texture(void)
++{
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
++			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
++			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++}
++
+ static enum a30_rotation parse_rotation(const char *value)
+ {
+ 	if (!value || !value[0])
+@@ -357,8 +377,15 @@
+ 		"precision mediump float;\n"
+ 		"varying vec2 v_texcoord;\n"
+ 		"uniform sampler2D u_tex;\n"
++		"uniform int u_effect;\n"
++		"uniform int u_scan_axis;\n"
+ 		"void main() {\n"
+-		"  gl_FragColor = texture2D(u_tex, v_texcoord);\n"
++		"  vec4 color = texture2D(u_tex, v_texcoord);\n"
++		"  if (u_effect == 3) {\n"
++		"    float c = (u_scan_axis == 1) ? gl_FragCoord.x : gl_FragCoord.y;\n"
++		"    if (mod(floor(c), 2.0) < 1.0) color.rgb *= 0.45;\n"
++		"  }\n"
++		"  gl_FragColor = color;\n"
+ 		"}\n";
+ 	GLuint vshader = 0;
+ 	GLuint fshader = 0;
+@@ -381,6 +408,8 @@
+ 		goto fail;
+ 	}
+ 	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
++	g_a30.effect_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_effect");
++	g_a30.scan_axis_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_scan_axis");
+ 	g_a30.gl.DeleteShader(vshader);
+ 	g_a30.gl.DeleteShader(fshader);
+ 	return 1;
+@@ -397,14 +426,8 @@
+ 	return 0;
+ }
+ 
+-static void fill_vertices(GLfloat out[16])
++static void fill_vertices(GLfloat out[16], int logical_x, int logical_y, int logical_w, int logical_h)
+ {
+-	static const GLfloat pos[8] = {
+-		-1.0f, -1.0f,
+-		-1.0f,  1.0f,
+-		 1.0f, -1.0f,
+-		 1.0f,  1.0f
+-	};
+ 	static const GLfloat none_uv[8] = {
+ 		0.0f, 0.0f,
+ 		0.0f, 1.0f,
+@@ -429,6 +452,14 @@
+ 		0.0f, 1.0f,
+ 		0.0f, 0.0f
+ 	};
++	int px = logical_x;
++	int py = logical_y;
++	int pw = logical_w;
++	int ph = logical_h;
++	GLfloat left;
++	GLfloat right;
++	GLfloat top;
++	GLfloat bottom;
+ 	const GLfloat *uv = ccw_uv;
+ 	int i;
+ 
+@@ -438,19 +469,47 @@
+ 		break;
+ 	case A30_ROT_CCW:
+ 		uv = ccw_uv;
++		px = logical_y;
++		py = g_a30.logical_w - logical_x - logical_w;
++		pw = logical_h;
++		ph = logical_w;
+ 		break;
+ 	case A30_ROT_180:
+ 		uv = rot180_uv;
++		px = g_a30.logical_w - logical_x - logical_w;
++		py = g_a30.logical_h - logical_y - logical_h;
+ 		break;
+ 	case A30_ROT_CW:
+ 	default:
+ 		uv = cw_uv;
++		px = g_a30.logical_h - logical_y - logical_h;
++		py = logical_x;
++		pw = logical_h;
++		ph = logical_w;
+ 		break;
+ 	}
+ 
++	if (px < 0)
++		px = 0;
++	if (py < 0)
++		py = 0;
++	if (pw < 1)
++		pw = 1;
++	if (ph < 1)
++		ph = 1;
++	if (px + pw > g_a30.physical_w)
++		pw = g_a30.physical_w - px;
++	if (py + ph > g_a30.physical_h)
++		ph = g_a30.physical_h - py;
++
++	left = (2.0f * (GLfloat)px / (GLfloat)g_a30.physical_w) - 1.0f;
++	right = (2.0f * (GLfloat)(px + pw) / (GLfloat)g_a30.physical_w) - 1.0f;
++	top = 1.0f - (2.0f * (GLfloat)py / (GLfloat)g_a30.physical_h);
++	bottom = 1.0f - (2.0f * (GLfloat)(py + ph) / (GLfloat)g_a30.physical_h);
++
+ 	for (i = 0; i < 4; i++) {
+-		out[i * 4 + 0] = pos[i * 2 + 0];
+-		out[i * 4 + 1] = pos[i * 2 + 1];
++		out[i * 4 + 0] = (i < 2) ? left : right;
++		out[i * 4 + 1] = (i & 1) ? top : bottom;
+ 		out[i * 4 + 2] = uv[i * 2 + 0];
+ 		out[i * 4 + 3] = uv[i * 2 + 1];
+ 	}
+@@ -524,15 +583,12 @@
+ 	g_a30.gl.GenTextures(1, &g_a30.texture);
+ 	g_a30.gl.ActiveTexture(GL_TEXTURE0);
+ 	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
+-	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+-			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
+-	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+-			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
+-	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++	configure_bound_texture();
+ 	g_a30.gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+ 	g_a30.gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, g_a30.logical_w, g_a30.logical_h, 0,
+ 			    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
++	g_a30.texture_w = g_a30.logical_w;
++	g_a30.texture_h = g_a30.logical_h;
+ 
+ 	g_a30.initialized = 1;
+ 	fprintf(stderr,
+@@ -570,30 +626,104 @@
+ 	return g_a30.tight_pixels;
+ }
+ 
+-void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height)
++static void ensure_texture_size(GLuint *texture, int *texture_w, int *texture_h, int width, int height)
++{
++	if (!*texture) {
++		g_a30.gl.GenTextures(1, texture);
++		g_a30.gl.ActiveTexture(GL_TEXTURE0);
++		g_a30.gl.BindTexture(GL_TEXTURE_2D, *texture);
++		configure_bound_texture();
++		*texture_w = 0;
++		*texture_h = 0;
++	} else {
++		g_a30.gl.ActiveTexture(GL_TEXTURE0);
++		g_a30.gl.BindTexture(GL_TEXTURE_2D, *texture);
++	}
++	if (*texture_w == width && *texture_h == height)
++		return;
++	g_a30.gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
++			    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
++	*texture_w = width;
++	*texture_h = height;
++}
++
++static void compute_integer_rect(int width, int height, int *x, int *y, int *w, int *h)
++{
++	int sx = width > 0 ? g_a30.logical_w / width : 1;
++	int sy = height > 0 ? g_a30.logical_h / height : 1;
++	int scale = sx < sy ? sx : sy;
++
++	if (scale < 1)
++		scale = 1;
++	*w = width * scale;
++	*h = height * scale;
++	if (*w > g_a30.logical_w)
++		*w = g_a30.logical_w;
++	if (*h > g_a30.logical_h)
++		*h = g_a30.logical_h;
++	*x = (g_a30.logical_w - *w) / 2;
++	*y = (g_a30.logical_h - *h) / 2;
++}
++
++static void compute_frame_rect(int width, int height, int *x, int *y, int *w, int *h)
+ {
++	double ratio;
++
++	switch (scale_size) {
++	case SCALE_SIZE_FULL:
++		*x = 0;
++		*y = 0;
++		*w = g_a30.logical_w;
++		*h = g_a30.logical_h;
++		return;
++	case SCALE_SIZE_ASPECT:
++		ratio = aspect_ratio > 0.0 ? aspect_ratio : (double)width / (double)height;
++		*h = g_a30.logical_h;
++		*w = (int)((double)*h * ratio + 0.5);
++		if (*w > g_a30.logical_w) {
++			*w = g_a30.logical_w;
++			*h = (int)((double)*w / ratio + 0.5);
++		}
++		if (*w < 1)
++			*w = 1;
++		if (*h < 1)
++			*h = 1;
++		*x = (g_a30.logical_w - *w) / 2;
++		*y = (g_a30.logical_h - *h) / 2;
++		return;
++	case SCALE_SIZE_NONE:
++	default:
++		compute_integer_rect(width, height, x, y, w, h);
++		return;
++	}
++}
++
++static void draw_rect(GLuint *texture, int *texture_w, int *texture_h,
++		      const void *rgb565, int pitch, int width, int height,
++		      int logical_x, int logical_y, int logical_w, int logical_h,
++		      int effect)
++{
+ 	GLfloat vertices[16];
+ 	const void *pixels;
+ 
+ 	if (!g_a30.initialized || !rgb565)
+ 		return;
+-	if (width != g_a30.logical_w || height != g_a30.logical_h) {
+-		fprintf(stderr, "picoarch-a30: unexpected present size %dx%d\n", width, height);
++	if (width <= 0 || height <= 0) {
++		fprintf(stderr, "picoarch-a30: invalid present size %dx%d\n", width, height);
+ 		return;
+ 	}
+ 
+ 	pixels = tighten_pixels(rgb565, pitch, width, height);
+-	g_a30.gl.ActiveTexture(GL_TEXTURE0);
+-	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	ensure_texture_size(texture, texture_w, texture_h, width, height);
+ 	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+ 			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
+ 
+-	fill_vertices(vertices);
+-	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
+-	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+-	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	fill_vertices(vertices, logical_x, logical_y, logical_w, logical_h);
+ 	g_a30.gl.UseProgram(g_a30.program);
+ 	g_a30.gl.Uniform1i(g_a30.sampler_location, 0);
++	g_a30.gl.Uniform1i(g_a30.effect_location, effect);
++	g_a30.gl.Uniform1i(g_a30.scan_axis_location,
++			   (g_a30.rotation == A30_ROT_CW || g_a30.rotation == A30_ROT_CCW) ? 1 : 0);
+ 	g_a30.gl.EnableVertexAttribArray(0);
+ 	g_a30.gl.EnableVertexAttribArray(1);
+ 	g_a30.gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
+@@ -603,9 +733,57 @@
+ 	g_a30.gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+ 	g_a30.gl.DisableVertexAttribArray(1);
+ 	g_a30.gl.DisableVertexAttribArray(0);
++}
++
++static void begin_present(void)
++{
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++}
++
++static void end_present(void)
++{
+ 	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
+ }
+ 
++void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height)
++{
++	begin_present();
++	draw_rect(&g_a30.texture, &g_a30.texture_w, &g_a30.texture_h,
++		  rgb565, pitch, width, height, 0, 0, g_a30.logical_w, g_a30.logical_h,
++		  SCALE_EFFECT_NONE);
++	end_present();
++}
++
++void picoarch_a30_mali_present_frame(const void *rgb565, int pitch, int width, int height)
++{
++	picoarch_a30_mali_present_frame_hud(rgb565, pitch, width, height, NULL, 0, 0, 0);
++}
++
++void picoarch_a30_mali_present_frame_hud(const void *rgb565, int pitch, int width, int height,
++					 const void *hud_rgb565, int hud_pitch, int hud_width,
++					 int hud_height)
++{
++	int x;
++	int y;
++	int w;
++	int h;
++
++	compute_frame_rect(width, height, &x, &y, &w, &h);
++	begin_present();
++	draw_rect(&g_a30.texture, &g_a30.texture_w, &g_a30.texture_h,
++		  rgb565, pitch, width, height, x, y, w, h,
++		  scale_effect == SCALE_EFFECT_SCANLINE ? SCALE_EFFECT_SCANLINE : SCALE_EFFECT_NONE);
++	if (hud_rgb565 && hud_width > 0 && hud_height > 0) {
++		draw_rect(&g_a30.hud_texture, &g_a30.hud_texture_w, &g_a30.hud_texture_h,
++			  hud_rgb565, hud_pitch, hud_width, hud_height,
++			  0, g_a30.logical_h - hud_height, g_a30.logical_w, hud_height,
++			  SCALE_EFFECT_NONE);
++	}
++	end_present();
++}
++
+ void picoarch_a30_mali_finish(void)
+ {
+ 	if (g_a30.display != EGL_NO_DISPLAY) {
+@@ -615,6 +793,8 @@
+ 		}
+ 		if (g_a30.texture)
+ 			g_a30.gl.DeleteTextures(1, &g_a30.texture);
++		if (g_a30.hud_texture)
++			g_a30.gl.DeleteTextures(1, &g_a30.hud_texture);
+ 		if (g_a30.program)
+ 			g_a30.gl.DeleteProgram(g_a30.program);
+ 		if (g_a30.context != EGL_NO_CONTEXT)
+--- a/plat_a30_mali.h
++++ b/plat_a30_mali.h
+@@ -7,6 +7,10 @@
+ int picoarch_a30_mali_enabled(void);
+ int picoarch_a30_mali_init(int logical_w, int logical_h);
+ void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height);
++void picoarch_a30_mali_present_frame(const void *rgb565, int pitch, int width, int height);
++void picoarch_a30_mali_present_frame_hud(const void *rgb565, int pitch, int width, int height,
++					 const void *hud_rgb565, int hud_pitch, int hud_width,
++					 int hud_height);
+ void picoarch_a30_mali_finish(void);
+ 
+ #endif
+--- a/plat_sdl.c
++++ b/plat_sdl.c
+@@ -16,6 +16,20 @@
+ static SDL_Surface* screen;
+ #ifdef PICOARCH_A30_MALI
+ static int a30_mali_active;
++#define A30_DIRECT_HUD_HEIGHT 10
++static uint16_t a30_hud_pixels[SCREEN_WIDTH * A30_DIRECT_HUD_HEIGHT];
++static struct {
++	const void *pixels;
++	int pitch;
++	int width;
++	int height;
++	const void *hud_pixels;
++	int hud_pitch;
++	int hud_width;
++	int hud_height;
++	int hud_valid;
++	int valid;
++} a30_direct;
+ #endif
+ 
+ // begin miyoo hardware scaling support
+@@ -435,7 +449,22 @@
+ {
+ #ifdef PICOARCH_A30_MALI
+ 	if (a30_mali_active) {
+-		picoarch_a30_mali_present(screen->pixels, screen->pitch, screen->w, screen->h);
++		if (a30_direct.valid) {
++			if (a30_direct.hud_valid) {
++				picoarch_a30_mali_present_frame_hud(
++					a30_direct.pixels, a30_direct.pitch,
++					a30_direct.width, a30_direct.height,
++					a30_direct.hud_pixels, a30_direct.hud_pitch,
++					a30_direct.hud_width, a30_direct.hud_height);
++			} else {
++				picoarch_a30_mali_present_frame(a30_direct.pixels, a30_direct.pitch,
++								a30_direct.width, a30_direct.height);
++			}
++			a30_direct.valid = 0;
++			a30_direct.hud_valid = 0;
++		} else {
++			picoarch_a30_mali_present(screen->pixels, screen->pitch, screen->w, screen->h);
++		}
+ 		return screen->pixels;
+ 	}
+ #endif
+@@ -582,6 +611,33 @@
+ 	framebuffer = data;
+ 	
+ 	static int had_msg = 0;
++#ifdef PICOARCH_A30_MALI
++	if (a30_mali_active && data && width > 0 && height > 0 &&
++	    (scale_effect == SCALE_EFFECT_NONE || scale_effect == SCALE_EFFECT_SCANLINE)) {
++		a30_direct.pixels = data;
++		a30_direct.pitch = (int)pitch;
++		a30_direct.width = (int)width;
++		a30_direct.height = (int)height;
++		a30_direct.valid = 1;
++		a30_direct.hud_valid = 0;
++		if (msg[0]) {
++			memset(a30_hud_pixels, 0, sizeof(a30_hud_pixels));
++			basic_text_out16_nf(a30_hud_pixels, SCREEN_WIDTH, 2, 0, msg);
++			a30_direct.hud_pixels = a30_hud_pixels;
++			a30_direct.hud_pitch = SCREEN_WIDTH * SCREEN_BPP;
++			a30_direct.hud_width = SCREEN_WIDTH;
++			a30_direct.hud_height = A30_DIRECT_HUD_HEIGHT;
++			a30_direct.hud_valid = 1;
++			had_msg = 1;
++		} else if (had_msg) {
++			had_msg = 0;
++		}
++		video_update_msg();
++		return;
++	}
++	a30_direct.valid = 0;
++#endif
++
+ 	SDL_LockSurface(screen);
+ 	
+ 	if (had_msg) {

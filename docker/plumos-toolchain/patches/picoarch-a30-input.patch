@@ -1,0 +1,136 @@
+diff --git a/libpicofe/in_sdl.c b/libpicofe/in_sdl.c
+index bab649a..d98708a 100644
+--- a/libpicofe/in_sdl.c
++++ b/libpicofe/in_sdl.c
+@@ -28,6 +28,7 @@ struct in_sdl_state {
+ 	SDL_Joystick *joy;
+ 	int joy_id;
+ 	int axis_keydown[2];
++	int hat_keydown[2];
+ 	enum mod_state mod_state;
+ 	keybits_t keystate[SDLK_LAST / KEYBITS_WORD_BITS + 1];
+ 	// emulator keys should always be processed immediately lest one is lost
+@@ -321,6 +322,43 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
+ 		}
+ 		break;
+ 
++	case SDL_JOYHATMOTION:
++		if (event->jhat.which != state->joy_id)
++			return -2;
++		{
++			int new_x = 0, new_y = 0;
++			if (event->jhat.value & SDL_HAT_LEFT)
++				new_x = SDLK_LEFT;
++			else if (event->jhat.value & SDL_HAT_RIGHT)
++				new_x = SDLK_RIGHT;
++			if (event->jhat.value & SDL_HAT_UP)
++				new_y = SDLK_UP;
++			else if (event->jhat.value & SDL_HAT_DOWN)
++				new_y = SDLK_DOWN;
++
++			if (state->hat_keydown[0] != new_x) {
++				if (state->hat_keydown[0] && new_x) {
++					emu |= get_keystate(state->emu_keys, state->hat_keydown[0]);
++					update_keystate(state->keystate, state->hat_keydown[0], 0);
++				}
++				kc = new_x ? new_x : state->hat_keydown[0];
++				down = new_x != 0;
++				state->hat_keydown[0] = new_x;
++				ret = 1;
++			}
++			else if (state->hat_keydown[1] != new_y) {
++				if (state->hat_keydown[1] && new_y) {
++					emu |= get_keystate(state->emu_keys, state->hat_keydown[1]);
++					update_keystate(state->keystate, state->hat_keydown[1], 0);
++				}
++				kc = new_y ? new_y : state->hat_keydown[1];
++				down = new_y != 0;
++				state->hat_keydown[1] = new_y;
++				ret = 1;
++			}
++		}
++		break;
++
+ 	case SDL_JOYBUTTONDOWN:
+ 	case SDL_JOYBUTTONUP:
+ 		if (event->jbutton.which != state->joy_id)
+diff --git a/libpicofe/input.c b/libpicofe/input.c
+index aa1f155..109e5be 100644
+--- a/libpicofe/input.c
++++ b/libpicofe/input.c
+@@ -453,13 +453,37 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
+ 	return ret;
+ }
+ 
++static int read_menu_repeat_env(const char *name, int fallback, int min, int max)
++{
++	const char *env = getenv(name);
++	char *end = NULL;
++	long value;
++
++	if (!env || !env[0])
++		return fallback;
++	value = strtol(env, &end, 10);
++	if (end == env)
++		return fallback;
++	if (value < min)
++		value = min;
++	if (value > max)
++		value = max;
++	return (int)value;
++}
++
+ /* wait for menu input, do autorepeat */
+ int in_menu_wait(int interesting, char *charcode, int autorep_delay_ms)
+ {
+-	int ret, wait = 450;
++	int repeat_ms = autorep_delay_ms < 180 ? 180 : autorep_delay_ms;
++	int ret, wait;
++
++	repeat_ms = read_menu_repeat_env("PLUMOS_PICOARCH_MENU_REPEAT_MS",
++		repeat_ms, 60, 1000);
++	wait = read_menu_repeat_env("PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS",
++		550, 200, 1500);
+ 
+ 	if (menu_key_repeat)
+-		wait = autorep_delay_ms;
++		wait = repeat_ms;
+ 
+ 	/* wait until either key repeat or a new key has been pressed */
+ 	do {
+diff --git a/plat_linux.c b/plat_linux.c
+index bc57f3c..bd16c0f 100644
+--- a/plat_linux.c
++++ b/plat_linux.c
+@@ -24,6 +24,17 @@ static const struct in_default_bind in_sdl_defbinds[] = {
+ 	{ SDLK_q,         IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_L2 },
+ 	{ SDLK_BACKSLASH, IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_R2 },
+ 	{ SDLK_ESCAPE,    IN_BINDTYPE_EMU, EACTION_MENU },
++	{ SDLK_WORLD_0,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_A },
++	{ SDLK_WORLD_1,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_B },
++	{ SDLK_WORLD_2,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_X },
++	{ SDLK_WORLD_3,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_Y },
++	{ SDLK_WORLD_4,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_L },
++	{ SDLK_WORLD_5,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_R },
++	{ SDLK_WORLD_6,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_L2 },
++	{ SDLK_WORLD_7,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_R2 },
++	{ SDLK_WORLD_8,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_SELECT },
++	{ SDLK_WORLD_9,   IN_BINDTYPE_PLAYER12, RETRO_DEVICE_ID_JOYPAD_START },
++	{ SDLK_WORLD_10,  IN_BINDTYPE_EMU, EACTION_MENU },
+ 	{ 0, 0, 0 }
+ };
+ 
+@@ -50,8 +61,11 @@ const struct menu_keymap in_sdl_joy_map[] =
+ 	{ SDLK_RIGHT, PBTN_RIGHT },
+ 	{ SDLK_WORLD_0, PBTN_MOK },
+ 	{ SDLK_WORLD_1, PBTN_MBACK },
+-	{ SDLK_WORLD_2, PBTN_MA2 },
+-	{ SDLK_WORLD_3, PBTN_MA3 },
++	{ SDLK_WORLD_2, PBTN_MA3 },
++	{ SDLK_WORLD_3, PBTN_MA2 },
++	{ SDLK_WORLD_4, PBTN_L },
++	{ SDLK_WORLD_5, PBTN_R },
++	{ SDLK_WORLD_10, PBTN_MENU },
+ };
+ 
+ static const struct mod_keymap in_sdl_mod_keymap[] = {
