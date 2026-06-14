@@ -135,3 +135,68 @@ nes	8442b86c	Urusei Yatsura - Lum no Wedding Bell (1986-10-23)(Jaleco)(JP)	neste
 nes	504c6455	Warpman (1985-07-12)(Namco)(JP)	nesterj-famicom-dat/date-publisher
 nes	fcfa4c1e	Woody Poko (1987-06-20)(DB Soft)(JP)	nesterj-famicom-dat/date-publisher
 nes	abef6b83	Yume Penguin Monogatari (1991-01-25)(Konami)(JP)	nesterj-famicom-dat/date-publisher
+#
+# fbneo-v0.2.97.44 rows are derived from local FBNeo console XML DAT records.
+# Rows are limited to single-ROM entries whose file extension is scraped by
+# plumOS, whose CRC is absent from the base libretro DAT, and whose game label
+# resolves to one libretro thumbnail label without region/risky-tag conflicts.
+colecovision	f7f18e6f	Star Fortress (1997)(Dondzila, John)(PD)	fbneo-v0.2.97.44/colecovision/single-rom-label
+gamegear	8a44108b	Megami Tensei Gaiden - Last Bible S (Japan) [T-En by MrRichard999, SSTranslations and Tom]	fbneo-v0.2.97.44/gamegear/single-rom-label
+mastersystem	25051dd5	Mickey's Ultimate Challenge (Brazil) (En)	fbneo-v0.2.97.44/mastersystem/single-rom-label
+mastersystem	30af0233	Promocao Especial M. System III Compact (Brazil) (Sample)	fbneo-v0.2.97.44/mastersystem/single-rom-label
+mastersystem	890e83e4	Sapo Xule - O Mestre do Kung Fu (Brazil)	fbneo-v0.2.97.44/mastersystem/single-rom-label
+mastersystem	a0cf8b15	World Cup Italia '90 (USA) (Demo)	fbneo-v0.2.97.44/mastersystem/single-rom-label
+megadrive	08ece367	Mega Anser (Japan) (Program)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	0bb511bd	SeaQuest DSV (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	10683e83	Chess (Russia) (En) (Unl)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	1d08828c	ESPN National Hockey Night (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	21f27d34	Tecmo Super Bowl (USA) (October 1993)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	23a9616d	Flashback - The Quest for Identity (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	2a60ebe9	Justice League Task Force (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	2abae889	Sega Channel Demo (USA) (Program)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	2fdac6ab	Zoop (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	35bff1fd	Cliffhanger (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	36248f90	Foreman for Real (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	3c427882	Pac-Panic (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	4ef5d411	WWF Raw (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	570b5024	Fire Shark (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	5df382f7	Pac-Attack (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	6e25ebf0	NBA Jam - Tournament Edition (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	6f311c83	Flashback (Europe) (En,Fr)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	8b723d01	Batman Forever (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	8ea4717b	Muhammad Ali Heavyweight Boxing (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	9350e754	Wonder Library (Japan) (Program)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	94542eaf	NFL Quarterback Club (World)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	95ff7c3e	Action Replay (Europe) (Program) (Unl)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	a5cef7b6	Chess (Russia) (En) (Unl)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	a88fee44	Super Volley Ball (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	a899befa	Zoop (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	ad217654	Cannon Fodder (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	af9f9d9c	Slaughter Sport (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	b2dd857f	Donald in Maui Mallard (Europe) (Rev A)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	b790e3b4	Flashback (Japan)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	bd9eecf4	Chaos Engine, The (Europe)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	bf3e3fa4	Garou Densetsu - Shukumei no Tatakai (Japan)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	e0594abe	Shining Force (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	e6ebe9d5	Swamp Thing (USA) (Proto)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	eae8c000	NBA Playoffs - Bulls vs Blazers (Japan)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	ed0c1303	NCAA Final Four Basketball (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+megadrive	f1748e91	Triple Play 96 (USA)	fbneo-v0.2.97.44/megadrive/single-rom-label
+msx	21e671f0	Batman (Japan)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	30151594	Fa Tetris (Korea) (Unl)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	3ebf588d	Demon Crystal, The (Japan)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	4c6df534	Fa Tetris (Korea) (Unl)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	57a1bfb3	Buru To Marty Kikiippatsu - Inspecteur Z (Japan)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	784d5f7f	Break Out (Japan)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	7de493ab	Super Boy II (Korea) (Unl)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	b358d5a7	Tetris (Korea) (Unl)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	c8fac21a	Nemesis 2 (Japan) (Demo)	fbneo-v0.2.97.44/msx/single-rom-label
+msx	f422ad79	Super Boy 3 (Korea) (Unl)	fbneo-v0.2.97.44/msx/single-rom-label
+pcengine	9a353afd	Gomola Speed (Japan)	fbneo-v0.2.97.44/pcengine/single-rom-label
+pcengine	c89ce75a	Dragon Saber - After Story of Dragon Spirit (Japan) (Alt 1)	fbneo-v0.2.97.44/pcengine/single-rom-label
+pcengine	e439f299	Be Ball (Japan)	fbneo-v0.2.97.44/pcengine/single-rom-label
+pcengine	e6b38af1	Santatlantean (World) (Aftermarket) (Homebrew)	fbneo-v0.2.97.44/pcengine/single-rom-label
+pcengine	eb833d15	Lady Sword (Japan) (Alt 1)	fbneo-v0.2.97.44/pcengine/single-rom-label
+pcengine	f131b706	Youkai Douchuuki (Japan)	fbneo-v0.2.97.44/pcengine/single-rom-label
+sg1000	2ec28526	Music (Japan) (SC-3000)	fbneo-v0.2.97.44/sg1000/single-rom-label
+sg1000	dd4a661b	Terebi Oekaki (Japan)	fbneo-v0.2.97.44/sg1000/single-rom-label

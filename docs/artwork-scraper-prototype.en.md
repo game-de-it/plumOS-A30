@@ -362,6 +362,10 @@ For NES, CRCs derived from the NesterJ_AoEX_R3 `famicom.dat` are seeded only
 when they do not duplicate the libretro base DB and their release date plus
 publisher resolves to exactly one libretro thumbnail label. Ambiguous matches
 are omitted to avoid downloading a wrong image.
+FBNeo console DAT seeds are limited to single-ROM entries whose extension is
+scraped by plumOS and whose libretro thumbnail label resolves uniquely without
+region or risky-tag conflicts. Split ROM-chip DAT rows and non-scraped
+extensions are omitted because the runtime cannot match them.
 When pre-downloaded external DATs should be used at build/prefetch time, pass a
 local root with `PLUMOS_RESCUE_DAT_ROOTS` or
 `scripts/prefetch-thumbnail-scraper-cache.sh --rescue-dat-root`.

@@ -322,6 +322,9 @@ seed から kind 別に生成され、`/mnt/SDCARD/plumos/share/frontend/artwork
 NES では、NesterJ_AoEX_R3 `famicom.dat` 由来の CRC も、libretro base DB と重複せず、
 release date + publisher で libretro thumbnail label に一意解決できたものだけ seed 化します。
 曖昧な一致は誤画像を避けるため収録しません。
+FBNeo console DAT 由来の seed は、単一ROM entry、scraper 対象拡張子、libretro thumbnail label
+への一意解決、region / risky tag の非衝突を満たす row だけに限定します。ROM chip 分割型 DAT や
+対象外拡張子の row は runtime で照合できないため収録しません。
 build/prefetch 時に事前取得済みの外部DATを使う場合は、
 `PLUMOS_RESCUE_DAT_ROOTS` または `scripts/prefetch-thumbnail-scraper-cache.sh --rescue-dat-root`
 で local root を渡します。
