@@ -169,6 +169,16 @@ presenter 初期化失敗時は通常失敗扱いにし、明示的に
 ただし継続動作、menu 操作、終了処理、複数 core の安定性をまだ十分に見ていないため、
 2026-06-15 時点では FE の通常 profile には入れません。
 
+BIOS/system directory は PicoArch config の `bios_dir = /path` で指定できます。
+未指定時は ROM directory 名を tag として `/mnt/SDCARD/Bios/<tag>` を返します。
+`/mnt/SDCARD/Roms/FC/...` から `FC` ではなく `C` を tag として取ってしまう off-by-one を
+2026-06-15 に修正しました。plumOS launcher の
+`/mnt/SDCARD/plumos/config/standalone/picoarch.env` では
+`PLUMOS_PICOARCH_BIOS_DIR=/path` を指定でき、これは `picoarch.cfg` が存在しない場合の
+既定 system directory として扱います。core/ROM directory ごとの
+`/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<tag>/picoarch.cfg` に
+`bios_dir` がある場合は、そちらが最終的に優先されます。
+
 2026-06-13 の first probe では、`scripts/probe-libretro-core-options.sh` で
 `nestopia`、`quicknes`、`snes9x2005`、`mednafen_pce_fast`、
 `mednafen_supergrafx` を比較しました。`nestopia`、`quicknes`、

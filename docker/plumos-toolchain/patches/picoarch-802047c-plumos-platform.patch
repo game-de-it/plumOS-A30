@@ -10,6 +10,143 @@ index 0eff6b6..8e0d243 100644
 +	OBJS += plat_linux.o plat_a30_mali.o
 +	CFLAGS += -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -DCONTENT_DIR='"/mnt/SDCARD/Roms"' -DPICOARCH_A30_MALI
 +	LDFLAGS += -fPIE
+diff --git a/config.c b/config.c
+index 6a1ad91..f8197ca 100644
+--- a/config.c
++++ b/config.c
+@@ -3,0 +4 @@
++#include "core.h"
+@@ -15 +16 @@ typedef enum {
+-	{ #val, CE_TYPE_STRING, val }
++	{ #val, CE_TYPE_STR, val }
+@@ -37,0 +39,5 @@ void config_write(FILE *f)
++	const char *system_dir = core_get_system_dir();
++
++	if (system_dir && system_dir[0])
++		fprintf(f, "bios_dir = %s\n", system_dir);
++
+@@ -60 +66 @@ void config_write(FILE *f)
+-static void parse_str_val(char *cval, const char *src)
++static void parse_str_val(char *cval, size_t cval_len, const char *src)
+@@ -63,2 +69,4 @@ static void parse_str_val(char *cval, const char *src)
+-	strncpy(cval, src, 256);
+-	cval[256 - 1] = 0;
++	if (!cval || cval_len == 0)
++		return;
++	strncpy(cval, src, cval_len);
++	cval[cval_len - 1] = 0;
+@@ -100,0 +109,7 @@ void config_read(const char* cfg)
++	const char *bios_dir = config_find_value(cfg, "bios_dir");
++	if (bios_dir) {
++		char value[MAX_PATH] = {0};
++		parse_str_val(value, sizeof(value), bios_dir);
++		core_set_system_dir(value);
++	}
++
+@@ -107 +122 @@ void config_read(const char* cfg)
+-			parse_str_val(config_data[i].val, tmp);
++			parse_str_val(config_data[i].val, 256, tmp);
+@@ -124 +139 @@ void config_read(const char* cfg)
+-		parse_str_val(value, tmp);
++		parse_str_val(value, sizeof(value), tmp);
+diff --git a/core.c b/core.c
+index 039570d..6e7a25f 100644
+--- a/core.c
++++ b/core.c
+@@ -58,0 +59,14 @@ void save_relative_path(char *buf, size_t len, const char *basename) {
++const char *core_get_system_dir(void)
++{
++	return system_dir;
++}
++
++void core_set_system_dir(const char *path)
++{
++	if (!path || !path[0])
++		return;
++	snprintf(system_dir, MAX_PATH, "%s", path);
++	mkdir(system_dir, 0755);
++	PA_INFO("System directory: %s\n", system_dir);
++}
++
+@@ -276,0 +291,3 @@ static void set_directories(const char *core_name, const char *tag_name) {
++	const char *bios_dir = getenv("PLUMOS_PICOARCH_BIOS_DIR");
++	char bios_root[MAX_PATH];
++	char save_root[MAX_PATH];
+@@ -281,0 +299,2 @@ static void set_directories(const char *core_name, const char *tag_name) {
++	if (!sdcard_path || !sdcard_path[0])
++		sdcard_path = "/mnt/SDCARD";
+@@ -289,2 +308,11 @@ static void set_directories(const char *core_name, const char *tag_name) {
+-	snprintf(save_dir, MAX_PATH, "%s/Saves/%s/", sdcard_path, tag_name);
+-	snprintf(system_dir, MAX_PATH, "%s/Bios/%s", sdcard_path, tag_name);
++	snprintf(save_root, MAX_PATH, "%s/Saves", sdcard_path);
++	mkdir(save_root, 0755);
++	snprintf(save_dir, MAX_PATH, "%s/%s/", save_root, tag_name);
++	mkdir(save_dir, 0755);
++	snprintf(bios_root, MAX_PATH, "%s/Bios", sdcard_path);
++	mkdir(bios_root, 0755);
++	snprintf(system_dir, MAX_PATH, "%s/%s", bios_root, tag_name);
++	if (bios_dir && bios_dir[0])
++		core_set_system_dir(bios_dir);
++	else
++		core_set_system_dir(system_dir);
+diff --git a/core.h b/core.h
+index ed56637..0cc1963 100644
+--- a/core.h
++++ b/core.h
+@@ -47,0 +48,2 @@ void save_relative_path(char *buf, size_t len, const char *basename);
++const char *core_get_system_dir(void);
++void core_set_system_dir(const char *path);
+diff --git a/main.c b/main.c
+index a2b5095..db0b7a8 100644
+--- a/main.c
++++ b/main.c
+@@ -509,3 +509,4 @@ static void get_tag_name(const char* in_path, char* out_tag) {
+-	char* tmp;
+-	strcpy(out_tag, in_path);
+-	tmp = out_tag;
++	const char *sdcard_path = getenv("SDCARD_PATH");
++	const char *tmp = in_path;
++	char *paren;
++	char *end;
+@@ -513 +514,5 @@ static void get_tag_name(const char* in_path, char* out_tag) {
+-	sprintf(roms_path, "%s/Roms/", getenv("SDCARD_PATH"));
++	size_t tag_len;
++
++	if (!sdcard_path || !sdcard_path[0])
++		sdcard_path = "/mnt/SDCARD";
++	snprintf(roms_path, sizeof(roms_path), "%s/Roms/", sdcard_path);
+@@ -516,3 +521,10 @@ static void get_tag_name(const char* in_path, char* out_tag) {
+-	tmp += strlen(roms_path) + 1;
+-	char* tmp2 = strchr(tmp, '/');
+-	if (tmp2) tmp2[0] = '\0';
++	if (!strncmp(tmp, roms_path, strlen(roms_path)))
++		tmp += strlen(roms_path);
++	end = strchr(tmp, '/');
++	tag_len = end ? (size_t)(end - tmp) : strcspn(tmp, ".");
++	if (tag_len == 0)
++		tag_len = strnlen(tmp, MAX_PATH - 1);
++	if (tag_len >= MAX_PATH)
++		tag_len = MAX_PATH - 1;
++	memcpy(out_tag, tmp, tag_len);
++	out_tag[tag_len] = '\0';
+@@ -521,6 +533,11 @@ static void get_tag_name(const char* in_path, char* out_tag) {
+-	tmp = strchr(tmp, '(');
+-	if (tmp) {
+-		tmp += 1;
+-		strcpy(out_tag, tmp);
+-		tmp = strchr(out_tag,')');
+-		tmp[0] = '\0';
++	paren = strchr(out_tag, '(');
++	if (paren) {
++		paren += 1;
++		end = strchr(paren, ')');
++		if (end) {
++			tag_len = (size_t)(end - paren);
++			if (tag_len >= MAX_PATH)
++				tag_len = MAX_PATH - 1;
++			memmove(out_tag, paren, tag_len);
++			out_tag[tag_len] = '\0';
++		}
 diff --git a/plat_a30_mali.c b/plat_a30_mali.c
 new file mode 100644
 index 0000000..f6d5397

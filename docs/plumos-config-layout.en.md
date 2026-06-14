@@ -50,6 +50,10 @@ plumOS configuration.
   - Environment overrides for standalone launchers. PPSSPP display, input, CPU,
     and similar device-tuned launch conditions belong in `ppsspp.env`, not in
     the generated `plumos-standalone-launch` script.
+  - PicoArch launch defaults belong in `picoarch.env`. Its BIOS/system
+    directory can be set with `PLUMOS_PICOARCH_BIOS_DIR=/path`, but a
+    per core/ROM directory PicoArch `picoarch.cfg` entry `bios_dir = /path`
+    takes precedence.
   - This directory is protected by `deploy-a30.sh`, so standalone package
     redeploys keep local tuning.
   - PPSSPP `ppsspp.ini` / `controls.ini` are user-managed PPSSPP settings and

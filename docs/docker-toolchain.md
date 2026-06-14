@@ -237,6 +237,14 @@ dlopen するため、picoarch binary 自体の NEEDED には EGL/GLES を増や
 確認済みですが、継続動作、menu、終了処理、複数 core の安定性を見るまでは A30 の通常
 FE profile には入れません。
 
+BIOS/system directory は PicoArch 側 config の `bios_dir = /path` で指定できます。
+config file は core と ROM directory ごとに
+`/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<ROM_DIR>/picoarch.cfg` へ置かれます。
+`bios_dir` が無い場合の既定値は `/mnt/SDCARD/Bios/<ROM_DIR>` です。plumOS 側の launch 既定値は
+`/mnt/SDCARD/plumos/config/standalone/picoarch.env` の
+`PLUMOS_PICOARCH_BIOS_DIR=/path` でも指定できますが、`picoarch.cfg` の `bios_dir` がある場合は
+そちらが優先されます。
+
 ```sh
 ./scripts/docker-build.sh picoarch
 ```
@@ -245,6 +253,7 @@ FE profile には入れません。
 
 ```text
 dist/plumos-picoarch/plumos/bin/plumos-picoarch-launch
+dist/plumos-picoarch/plumos/config/standalone/picoarch.env
 dist/plumos-picoarch/plumos/emulators/picoarch/bin/picoarch
 dist/plumos-picoarch/plumos/emulators/picoarch/lib/
 dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt

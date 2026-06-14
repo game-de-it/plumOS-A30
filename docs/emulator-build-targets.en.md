@@ -196,6 +196,16 @@ orientation without the mirror flip. Captures and logs are under
 outside normal FE profiles until menu, exit, long-run, and multi-core stability
 are validated.
 
+The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
+When it is absent, PicoArch uses the ROM directory name as a tag and returns
+`/mnt/SDCARD/Bios/<tag>`. The 2026-06-15 patch also fixes an off-by-one bug that
+could turn `/mnt/SDCARD/Roms/FC/...` into tag `C` instead of `FC`. The plumOS
+launcher also reads `/mnt/SDCARD/plumos/config/standalone/picoarch.env`, where
+`PLUMOS_PICOARCH_BIOS_DIR=/path` sets the launch default. A per core/ROM
+directory `bios_dir` entry in
+`/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<tag>/picoarch.cfg` takes
+final precedence.
+
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and
 `mednafen_supergrafx`. `nestopia`, `quicknes`, `mednafen_pce_fast`, and

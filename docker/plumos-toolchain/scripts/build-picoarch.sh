@@ -23,6 +23,7 @@ BIN_DIR="${TARGET_DIR}/plumos/bin"
 LOADER_DIR="${TARGET_DIR}/plumos/lib"
 PICOARCH_BIN_DIR="${TARGET_DIR}/plumos/emulators/picoarch/bin"
 PICOARCH_LIB_DIR="${TARGET_DIR}/plumos/emulators/picoarch/lib"
+PICOARCH_CONFIG_DIR="${TARGET_DIR}/plumos/config/standalone"
 DOC_DIR="${TARGET_DIR}/plumos/share/doc/picoarch"
 MANIFEST="${DOC_DIR}/manifest.txt"
 
@@ -161,6 +162,7 @@ Environment:
   PLUMOS_PICOARCH_CPU_CORES      keep, 2, 4. Default: keep.
   PLUMOS_PICOARCH_JOYSTICKD      0 disables per-launch joystickd. Default: 1.
   PLUMOS_PICOARCH_SDL_AUDIODRIVER Default: alsa.
+  PLUMOS_PICOARCH_BIOS_DIR       Default BIOS/system dir override for libretro cores.
   PLUMOS_PICOARCH_A30_MALI       0 disables the A30 Mali presenter. Default: 1.
   PLUMOS_PICOARCH_A30_ROTATION   cw, ccw, 180, none. Default: ccw.
   PLUMOS_PICOARCH_A30_VSYNC      0 disables EGL swap interval. Default: 1.
@@ -186,6 +188,7 @@ esac
 
 PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
 SDCARD_ROOT=${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}
+CONFIG_DIR=${PLUMOS_ROOT}/config/standalone
 PLUMOS_LIB=${PLUMOS_ROOT}/lib
 PICOARCH_LIB=${PLUMOS_ROOT}/emulators/picoarch/lib
 LOADER=${PLUMOS_LIB}/ld-linux-armhf.so.3
@@ -195,6 +198,16 @@ LOG_DIR=${PLUMOS_ROOT}/logs/picoarch
 CPU_STATE=/tmp/plumos-picoarch-cpustate-$$
 joystickd_pid=
 cpu_policy_applied=0
+
+load_env_file() {
+  env_file=$1
+  [ -r "${env_file}" ] || return 0
+  set -a
+  . "${env_file}"
+  set +a
+}
+
+load_env_file "${CONFIG_DIR}/picoarch.env"
 
 case "${core_arg}" in
   */*|*.so)
@@ -355,6 +368,7 @@ export SDL_FBDEV=${SDL_FBDEV:-/dev/fb0}
 export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
 export AUDIODEV=${AUDIODEV:-default}
+export PLUMOS_PICOARCH_BIOS_DIR=${PLUMOS_PICOARCH_BIOS_DIR:-}
 export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
 export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
@@ -370,7 +384,17 @@ EOF
 
 prepare_dist() {
   rm -rf "${TARGET_DIR}"
-  mkdir -p "${PICOARCH_BIN_DIR}" "${DOC_DIR}" "${LOADER_DIR}" "${PICOARCH_LIB_DIR}"
+  mkdir -p "${PICOARCH_BIN_DIR}" "${DOC_DIR}" "${LOADER_DIR}" "${PICOARCH_LIB_DIR}" \
+    "${PICOARCH_CONFIG_DIR}"
+}
+
+write_default_config() {
+  cat >"${PICOARCH_CONFIG_DIR}/picoarch.env" <<'EOF'
+# plumOS PicoArch launch overrides.
+# Leave empty to use PicoArch's per-system default: /mnt/SDCARD/Bios/<ROM_DIR>.
+# Example:
+# PLUMOS_PICOARCH_BIOS_DIR=/mnt/SDCARD/Bios
+EOF
 }
 
 stage_outputs() {
@@ -384,6 +408,7 @@ stage_outputs() {
     copy_if_present "${loader_path}" "${LOADER_DIR}" "ld-linux-armhf.so.3"
     chmod 0755 "${LOADER_DIR}/ld-linux-armhf.so.3" 2>/dev/null || true
   fi
+  write_default_config
   cp -f "${SRC_DIR}/README.md" "${DOC_DIR}/README.md" 2>/dev/null || true
   cp -f "${SRC_DIR}/LICENSE" "${DOC_DIR}/LICENSE" 2>/dev/null || true
   {
@@ -396,6 +421,7 @@ stage_outputs() {
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"
     echo "a30_mali_default_filter=nearest"
+    echo "config=plumos/config/standalone/picoarch.env"
     echo "cc=$("${CC}" --version | head -n 1)"
     echo "target_dir=${TARGET_DIR}"
     echo

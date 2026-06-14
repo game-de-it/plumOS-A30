@@ -243,6 +243,15 @@ correct orientation without mirror flip, but PicoArch is not exposed as a
 normal A30 FE profile until long-run, menu, exit, and multi-core stability are
 validated.
 
+The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
+The config file is per core and ROM directory:
+`/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<ROM_DIR>/picoarch.cfg`.
+When `bios_dir` is absent, the default is `/mnt/SDCARD/Bios/<ROM_DIR>`.
+The launch default can also be set in
+`/mnt/SDCARD/plumos/config/standalone/picoarch.env` with
+`PLUMOS_PICOARCH_BIOS_DIR=/path`; a `bios_dir` entry in `picoarch.cfg` takes
+precedence.
+
 ```sh
 ./scripts/docker-build.sh picoarch
 ```
@@ -251,6 +260,7 @@ Outputs:
 
 ```text
 dist/plumos-picoarch/plumos/bin/plumos-picoarch-launch
+dist/plumos-picoarch/plumos/config/standalone/picoarch.env
 dist/plumos-picoarch/plumos/emulators/picoarch/bin/picoarch
 dist/plumos-picoarch/plumos/emulators/picoarch/lib/
 dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
