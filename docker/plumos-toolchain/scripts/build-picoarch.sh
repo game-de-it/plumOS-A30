@@ -122,6 +122,7 @@ checkout_source() {
   fi
   git -C "${SRC_DIR}" fetch --tags --force origin
   git -C "${SRC_DIR}" reset --hard "${PICOARCH_REF}"
+  rm -f "${SRC_DIR}/plat_a30_mali.c" "${SRC_DIR}/plat_a30_mali.h"
   git -C "${SRC_DIR}" submodule update --init --recursive --depth 1
   git -C "${SRC_DIR}" submodule foreach --recursive 'git reset --hard >/dev/null && git clean -fdx >/dev/null'
   rm -f "${SRC_DIR}/libpicofe/.patched"
@@ -160,6 +161,12 @@ Environment:
   PLUMOS_PICOARCH_CPU_CORES      keep, 2, 4. Default: keep.
   PLUMOS_PICOARCH_JOYSTICKD      0 disables per-launch joystickd. Default: 1.
   PLUMOS_PICOARCH_SDL_AUDIODRIVER Default: alsa.
+  PLUMOS_PICOARCH_A30_MALI       0 disables the A30 Mali presenter. Default: 1.
+  PLUMOS_PICOARCH_A30_ROTATION   cw, ccw, 180, none. Default: ccw.
+  PLUMOS_PICOARCH_A30_VSYNC      0 disables EGL swap interval. Default: 1.
+  PLUMOS_PICOARCH_A30_LINEAR     1 enables GL_LINEAR texture filtering. Default: 0.
+  PLUMOS_PICOARCH_A30_FALLBACK_SDL
+                                1 allows stock SDL video fallback if presenter init fails. Default: 0.
 USAGE
 }
 
@@ -348,6 +355,10 @@ export SDL_FBDEV=${SDL_FBDEV:-/dev/fb0}
 export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
 export AUDIODEV=${AUDIODEV:-default}
+export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
+export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
+export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
+export PLUMOS_PICOARCH_A30_LINEAR=${PLUMOS_PICOARCH_A30_LINEAR:-0}
 
 "${LOADER}" \
   --library-path "${PICOARCH_LIB}:/usr/lib:/lib:/mnt/SDCARD/miyoo/lib:${PLUMOS_LIB}" \
@@ -381,6 +392,10 @@ stage_outputs() {
     echo "repo=${PICOARCH_REPO}"
     echo "ref=${PICOARCH_REF}"
     echo "patch=$(basename "${PICOARCH_PATCH}")"
+    echo "a30_mali_presenter=enabled"
+    echo "a30_mali_default_rotation=ccw"
+    echo "a30_mali_default_vsync=1"
+    echo "a30_mali_default_filter=nearest"
     echo "cc=$("${CC}" --version | head -n 1)"
     echo "target_dir=${TARGET_DIR}"
     echo

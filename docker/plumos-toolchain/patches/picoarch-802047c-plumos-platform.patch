@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 0eff6b6..3354ed3 100644
+index 0eff6b6..8e0d243 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -17 +17 @@ CFLAGS     += -I./ -I./libretro-common/include/ $(shell $(SYSROOT)/usr/bin/sdl-c
@@ -7,28 +7,697 @@ index 0eff6b6..3354ed3 100644
 +LDFLAGS    = -lc -ldl -lgcc -lm -lSDL -lpng -lz -Wl,--gc-sections -flto
 @@ -73,0 +74,4 @@ else ifeq ($(platform), miyoomini)
 +else ifeq ($(platform), plumos)
-+	OBJS += plat_linux.o
-+	CFLAGS += -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -DCONTENT_DIR='"/mnt/SDCARD/Roms"'
++	OBJS += plat_linux.o plat_a30_mali.o
++	CFLAGS += -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -DCONTENT_DIR='"/mnt/SDCARD/Roms"' -DPICOARCH_A30_MALI
 +	LDFLAGS += -fPIE
+diff --git a/plat_a30_mali.c b/plat_a30_mali.c
+new file mode 100644
+index 0000000..f6d5397
+--- /dev/null
++++ b/plat_a30_mali.c
+@@ -0,0 +1,636 @@
++#include "plat_a30_mali.h"
++
++#include <dlfcn.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fb.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <strings.h>
++#include <string.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++
++typedef int EGLint;
++typedef unsigned int EGLBoolean;
++typedef unsigned int EGLenum;
++typedef void *EGLDisplay;
++typedef void *EGLConfig;
++typedef void *EGLSurface;
++typedef void *EGLContext;
++typedef void *EGLNativeDisplayType;
++typedef void *EGLNativeWindowType;
++
++typedef unsigned int GLenum;
++typedef unsigned int GLbitfield;
++typedef unsigned int GLuint;
++typedef int GLint;
++typedef int GLsizei;
++typedef float GLfloat;
++typedef char GLchar;
++typedef unsigned char GLboolean;
++
++#define EGL_FALSE 0
++#define EGL_TRUE 1
++#define EGL_NONE 0x3038
++#define EGL_NO_DISPLAY ((EGLDisplay)0)
++#define EGL_NO_SURFACE ((EGLSurface)0)
++#define EGL_NO_CONTEXT ((EGLContext)0)
++#define EGL_DEFAULT_DISPLAY ((EGLNativeDisplayType)0)
++#define EGL_OPENGL_ES_API 0x30a0
++#define EGL_WINDOW_BIT 0x0004
++#define EGL_SURFACE_TYPE 0x3033
++#define EGL_RENDERABLE_TYPE 0x3040
++#define EGL_OPENGL_ES2_BIT 0x0004
++#define EGL_RED_SIZE 0x3024
++#define EGL_GREEN_SIZE 0x3023
++#define EGL_BLUE_SIZE 0x3022
++#define EGL_ALPHA_SIZE 0x3021
++#define EGL_DEPTH_SIZE 0x3025
++#define EGL_WIDTH 0x3057
++#define EGL_HEIGHT 0x3056
++#define EGL_CONTEXT_CLIENT_VERSION 0x3098
++
++#define GL_FALSE 0
++#define GL_TRUE 1
++#define GL_COLOR_BUFFER_BIT 0x00004000
++#define GL_TRIANGLE_STRIP 0x0005
++#define GL_FLOAT 0x1406
++#define GL_TEXTURE_2D 0x0de1
++#define GL_TEXTURE0 0x84c0
++#define GL_RGB 0x1907
++#define GL_UNSIGNED_SHORT_5_6_5 0x8363
++#define GL_NEAREST 0x2600
++#define GL_LINEAR 0x2601
++#define GL_CLAMP_TO_EDGE 0x812f
++#define GL_TEXTURE_MIN_FILTER 0x2801
++#define GL_TEXTURE_MAG_FILTER 0x2800
++#define GL_TEXTURE_WRAP_S 0x2802
++#define GL_TEXTURE_WRAP_T 0x2803
++#define GL_UNPACK_ALIGNMENT 0x0cf5
++#define GL_VERTEX_SHADER 0x8b31
++#define GL_FRAGMENT_SHADER 0x8b30
++#define GL_COMPILE_STATUS 0x8b81
++#define GL_LINK_STATUS 0x8b82
++
++enum a30_rotation {
++	A30_ROT_NONE,
++	A30_ROT_CW,
++	A30_ROT_CCW,
++	A30_ROT_180,
++};
++
++struct egl_api {
++	void *handle;
++	EGLDisplay (*GetDisplay)(EGLNativeDisplayType display_id);
++	EGLBoolean (*Initialize)(EGLDisplay dpy, EGLint *major, EGLint *minor);
++	EGLBoolean (*ChooseConfig)(EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs,
++				   EGLint config_size, EGLint *num_config);
++	EGLBoolean (*BindAPI)(EGLenum api);
++	EGLSurface (*CreateWindowSurface)(EGLDisplay dpy, EGLConfig config,
++					  EGLNativeWindowType win, const EGLint *attrib_list);
++	EGLContext (*CreateContext)(EGLDisplay dpy, EGLConfig config, EGLContext share_context,
++				    const EGLint *attrib_list);
++	EGLBoolean (*MakeCurrent)(EGLDisplay dpy, EGLSurface draw, EGLSurface read,
++				  EGLContext ctx);
++	EGLBoolean (*SwapBuffers)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*SwapInterval)(EGLDisplay dpy, EGLint interval);
++	EGLBoolean (*QuerySurface)(EGLDisplay dpy, EGLSurface surface, EGLint attribute,
++				   EGLint *value);
++	EGLint (*GetError)(void);
++	EGLBoolean (*DestroyContext)(EGLDisplay dpy, EGLContext ctx);
++	EGLBoolean (*DestroySurface)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*Terminate)(EGLDisplay dpy);
++};
++
++struct gl_api {
++	void *handle;
++	void (*ActiveTexture)(GLenum texture);
++	void (*AttachShader)(GLuint program, GLuint shader);
++	void (*BindAttribLocation)(GLuint program, GLuint index, const GLchar *name);
++	void (*BindTexture)(GLenum target, GLuint texture);
++	void (*Clear)(GLbitfield mask);
++	void (*ClearColor)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
++	void (*CompileShader)(GLuint shader);
++	GLuint (*CreateProgram)(void);
++	GLuint (*CreateShader)(GLenum type);
++	void (*DeleteProgram)(GLuint program);
++	void (*DeleteShader)(GLuint shader);
++	void (*DeleteTextures)(GLsizei n, const GLuint *textures);
++	void (*DisableVertexAttribArray)(GLuint index);
++	void (*DrawArrays)(GLenum mode, GLint first, GLsizei count);
++	void (*EnableVertexAttribArray)(GLuint index);
++	void (*GenTextures)(GLsizei n, GLuint *textures);
++	void (*GetProgramiv)(GLuint program, GLenum pname, GLint *params);
++	void (*GetShaderiv)(GLuint shader, GLenum pname, GLint *params);
++	GLint (*GetUniformLocation)(GLuint program, const GLchar *name);
++	void (*LinkProgram)(GLuint program);
++	void (*PixelStorei)(GLenum pname, GLint param);
++	void (*ShaderSource)(GLuint shader, GLsizei count, const GLchar *const *string,
++			     const GLint *length);
++	void (*TexImage2D)(GLenum target, GLint level, GLint internalformat, GLsizei width,
++			   GLsizei height, GLint border, GLenum format, GLenum type,
++			   const void *pixels);
++	void (*TexParameteri)(GLenum target, GLenum pname, GLint param);
++	void (*TexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
++			      GLsizei width, GLsizei height, GLenum format, GLenum type,
++			      const void *pixels);
++	void (*Uniform1i)(GLint location, GLint v0);
++	void (*UseProgram)(GLuint program);
++	void (*VertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized,
++				    GLsizei stride, const void *pointer);
++	void (*Viewport)(GLint x, GLint y, GLsizei width, GLsizei height);
++};
++
++struct a30_present {
++	int enabled;
++	int initialized;
++	int logical_w;
++	int logical_h;
++	int physical_w;
++	int physical_h;
++	int vsync;
++	int filter_linear;
++	enum a30_rotation rotation;
++	struct egl_api egl;
++	struct gl_api gl;
++	EGLDisplay display;
++	EGLConfig config;
++	EGLSurface surface;
++	EGLContext context;
++	GLuint program;
++	GLuint texture;
++	GLint sampler_location;
++	void *tight_pixels;
++	size_t tight_size;
++};
++
++static struct a30_present g_a30;
++
++static int env_enabled(const char *value, int fallback)
++{
++	if (!value || !value[0])
++		return fallback;
++	if (!strcasecmp(value, "0") || !strcasecmp(value, "no") ||
++	    !strcasecmp(value, "false") || !strcasecmp(value, "off"))
++		return 0;
++	return 1;
++}
++
++static enum a30_rotation parse_rotation(const char *value)
++{
++	if (!value || !value[0])
++		return A30_ROT_CCW;
++	if (!strcasecmp(value, "none") || !strcmp(value, "0"))
++		return A30_ROT_NONE;
++	if (!strcasecmp(value, "cw") || !strcmp(value, "90"))
++		return A30_ROT_CW;
++	if (!strcasecmp(value, "ccw") || !strcmp(value, "270"))
++		return A30_ROT_CCW;
++	if (!strcasecmp(value, "180"))
++		return A30_ROT_180;
++	return A30_ROT_CCW;
++}
++
++static int load_symbol(void *handle, const char *name, void *fn_out)
++{
++	void *symbol;
++
++	dlerror();
++	symbol = dlsym(handle, name);
++	if (!symbol) {
++		const char *error = dlerror();
++		fprintf(stderr, "picoarch-a30: missing symbol %s: %s\n", name,
++			error ? error : "-");
++		return 0;
++	}
++	memcpy(fn_out, &symbol, sizeof(symbol));
++	return 1;
++}
++
++#define LOAD_EGL(field, symbol) \
++	do { if (!load_symbol(g_a30.egl.handle, symbol, &g_a30.egl.field)) return 0; } while (0)
++#define LOAD_GL(field, symbol) \
++	do { if (!load_symbol(g_a30.gl.handle, symbol, &g_a30.gl.field)) return 0; } while (0)
++
++static int load_egl_gl(void)
++{
++	const char *egl_path = getenv("PLUMOS_PICOARCH_A30_EGL_LIB");
++	const char *gles_path = getenv("PLUMOS_PICOARCH_A30_GLES_LIB");
++
++	if (!egl_path || !egl_path[0])
++		egl_path = "/usr/lib/libEGL.so";
++	if (!gles_path || !gles_path[0])
++		gles_path = "/usr/lib/libGLESv2.so";
++
++	g_a30.egl.handle = dlopen(egl_path, RTLD_NOW | RTLD_GLOBAL);
++	if (!g_a30.egl.handle) {
++		fprintf(stderr, "picoarch-a30: dlopen %s failed: %s\n", egl_path, dlerror());
++		return 0;
++	}
++	g_a30.gl.handle = dlopen(gles_path, RTLD_NOW | RTLD_GLOBAL);
++	if (!g_a30.gl.handle) {
++		fprintf(stderr, "picoarch-a30: dlopen %s failed: %s\n", gles_path, dlerror());
++		return 0;
++	}
++
++	LOAD_EGL(GetDisplay, "eglGetDisplay");
++	LOAD_EGL(Initialize, "eglInitialize");
++	LOAD_EGL(ChooseConfig, "eglChooseConfig");
++	LOAD_EGL(BindAPI, "eglBindAPI");
++	LOAD_EGL(CreateWindowSurface, "eglCreateWindowSurface");
++	LOAD_EGL(CreateContext, "eglCreateContext");
++	LOAD_EGL(MakeCurrent, "eglMakeCurrent");
++	LOAD_EGL(SwapBuffers, "eglSwapBuffers");
++	LOAD_EGL(SwapInterval, "eglSwapInterval");
++	LOAD_EGL(QuerySurface, "eglQuerySurface");
++	LOAD_EGL(GetError, "eglGetError");
++	LOAD_EGL(DestroyContext, "eglDestroyContext");
++	LOAD_EGL(DestroySurface, "eglDestroySurface");
++	LOAD_EGL(Terminate, "eglTerminate");
++
++	LOAD_GL(ActiveTexture, "glActiveTexture");
++	LOAD_GL(AttachShader, "glAttachShader");
++	LOAD_GL(BindAttribLocation, "glBindAttribLocation");
++	LOAD_GL(BindTexture, "glBindTexture");
++	LOAD_GL(Clear, "glClear");
++	LOAD_GL(ClearColor, "glClearColor");
++	LOAD_GL(CompileShader, "glCompileShader");
++	LOAD_GL(CreateProgram, "glCreateProgram");
++	LOAD_GL(CreateShader, "glCreateShader");
++	LOAD_GL(DeleteProgram, "glDeleteProgram");
++	LOAD_GL(DeleteShader, "glDeleteShader");
++	LOAD_GL(DeleteTextures, "glDeleteTextures");
++	LOAD_GL(DisableVertexAttribArray, "glDisableVertexAttribArray");
++	LOAD_GL(DrawArrays, "glDrawArrays");
++	LOAD_GL(EnableVertexAttribArray, "glEnableVertexAttribArray");
++	LOAD_GL(GenTextures, "glGenTextures");
++	LOAD_GL(GetProgramiv, "glGetProgramiv");
++	LOAD_GL(GetShaderiv, "glGetShaderiv");
++	LOAD_GL(GetUniformLocation, "glGetUniformLocation");
++	LOAD_GL(LinkProgram, "glLinkProgram");
++	LOAD_GL(PixelStorei, "glPixelStorei");
++	LOAD_GL(ShaderSource, "glShaderSource");
++	LOAD_GL(TexImage2D, "glTexImage2D");
++	LOAD_GL(TexParameteri, "glTexParameteri");
++	LOAD_GL(TexSubImage2D, "glTexSubImage2D");
++	LOAD_GL(Uniform1i, "glUniform1i");
++	LOAD_GL(UseProgram, "glUseProgram");
++	LOAD_GL(VertexAttribPointer, "glVertexAttribPointer");
++	LOAD_GL(Viewport, "glViewport");
++	return 1;
++}
++
++static int read_fb_size(int *w, int *h)
++{
++	const char *fb_path = getenv("PLUMOS_PICOARCH_A30_FB");
++	struct fb_var_screeninfo var;
++	int fd;
++
++	if (!fb_path || !fb_path[0])
++		fb_path = "/dev/fb0";
++	fd = open(fb_path, O_RDWR | O_CLOEXEC);
++	if (fd < 0) {
++		fprintf(stderr, "picoarch-a30: open %s failed: %s\n", fb_path, strerror(errno));
++		return 0;
++	}
++	if (ioctl(fd, FBIOGET_VSCREENINFO, &var) != 0) {
++		fprintf(stderr, "picoarch-a30: FBIOGET_VSCREENINFO failed: %s\n", strerror(errno));
++		close(fd);
++		return 0;
++	}
++	close(fd);
++	*w = (int)var.xres;
++	*h = (int)var.yres;
++	return *w > 0 && *h > 0;
++}
++
++static int choose_config(void)
++{
++	const EGLint attribs[] = {
++		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
++		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
++		EGL_RED_SIZE, 5,
++		EGL_GREEN_SIZE, 6,
++		EGL_BLUE_SIZE, 5,
++		EGL_ALPHA_SIZE, 0,
++		EGL_DEPTH_SIZE, 0,
++		EGL_NONE
++	};
++	EGLint count = 0;
++
++	if (g_a30.egl.ChooseConfig(g_a30.display, attribs, &g_a30.config, 1, &count) == EGL_TRUE &&
++	    count > 0)
++		return 1;
++	fprintf(stderr, "picoarch-a30: eglChooseConfig failed error=0x%04x count=%d\n",
++		g_a30.egl.GetError(), count);
++	return 0;
++}
++
++static GLuint compile_shader(GLenum type, const char *source)
++{
++	GLuint shader = g_a30.gl.CreateShader(type);
++	GLint ok = 0;
++
++	g_a30.gl.ShaderSource(shader, 1, &source, NULL);
++	g_a30.gl.CompileShader(shader);
++	g_a30.gl.GetShaderiv(shader, GL_COMPILE_STATUS, &ok);
++	if (!ok) {
++		fprintf(stderr, "picoarch-a30: shader compile failed\n");
++		g_a30.gl.DeleteShader(shader);
++		return 0;
++	}
++	return shader;
++}
++
++static int create_program(void)
++{
++	static const char *vs =
++		"attribute vec2 a_position;\n"
++		"attribute vec2 a_texcoord;\n"
++		"varying vec2 v_texcoord;\n"
++		"void main() {\n"
++		"  gl_Position = vec4(a_position, 0.0, 1.0);\n"
++		"  v_texcoord = a_texcoord;\n"
++		"}\n";
++	static const char *fs =
++		"precision mediump float;\n"
++		"varying vec2 v_texcoord;\n"
++		"uniform sampler2D u_tex;\n"
++		"void main() {\n"
++		"  gl_FragColor = texture2D(u_tex, v_texcoord);\n"
++		"}\n";
++	GLuint vshader = 0;
++	GLuint fshader = 0;
++	GLint ok = 0;
++
++	vshader = compile_shader(GL_VERTEX_SHADER, vs);
++	fshader = compile_shader(GL_FRAGMENT_SHADER, fs);
++	if (!vshader || !fshader)
++		goto fail;
++
++	g_a30.program = g_a30.gl.CreateProgram();
++	g_a30.gl.AttachShader(g_a30.program, vshader);
++	g_a30.gl.AttachShader(g_a30.program, fshader);
++	g_a30.gl.BindAttribLocation(g_a30.program, 0, "a_position");
++	g_a30.gl.BindAttribLocation(g_a30.program, 1, "a_texcoord");
++	g_a30.gl.LinkProgram(g_a30.program);
++	g_a30.gl.GetProgramiv(g_a30.program, GL_LINK_STATUS, &ok);
++	if (!ok) {
++		fprintf(stderr, "picoarch-a30: program link failed\n");
++		goto fail;
++	}
++	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
++	g_a30.gl.DeleteShader(vshader);
++	g_a30.gl.DeleteShader(fshader);
++	return 1;
++
++fail:
++	if (vshader)
++		g_a30.gl.DeleteShader(vshader);
++	if (fshader)
++		g_a30.gl.DeleteShader(fshader);
++	if (g_a30.program) {
++		g_a30.gl.DeleteProgram(g_a30.program);
++		g_a30.program = 0;
++	}
++	return 0;
++}
++
++static void fill_vertices(GLfloat out[16])
++{
++	static const GLfloat pos[8] = {
++		-1.0f, -1.0f,
++		-1.0f,  1.0f,
++		 1.0f, -1.0f,
++		 1.0f,  1.0f
++	};
++	static const GLfloat none_uv[8] = {
++		0.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 0.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat cw_uv[8] = {
++		0.0f, 1.0f,
++		1.0f, 1.0f,
++		0.0f, 0.0f,
++		1.0f, 0.0f
++	};
++	static const GLfloat ccw_uv[8] = {
++		0.0f, 0.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat rot180_uv[8] = {
++		1.0f, 1.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		0.0f, 0.0f
++	};
++	const GLfloat *uv = ccw_uv;
++	int i;
++
++	switch (g_a30.rotation) {
++	case A30_ROT_NONE:
++		uv = none_uv;
++		break;
++	case A30_ROT_CCW:
++		uv = ccw_uv;
++		break;
++	case A30_ROT_180:
++		uv = rot180_uv;
++		break;
++	case A30_ROT_CW:
++	default:
++		uv = cw_uv;
++		break;
++	}
++
++	for (i = 0; i < 4; i++) {
++		out[i * 4 + 0] = pos[i * 2 + 0];
++		out[i * 4 + 1] = pos[i * 2 + 1];
++		out[i * 4 + 2] = uv[i * 2 + 0];
++		out[i * 4 + 3] = uv[i * 2 + 1];
++	}
++}
++
++int picoarch_a30_mali_enabled(void)
++{
++	return env_enabled(getenv("PLUMOS_PICOARCH_A30_MALI"), 1);
++}
++
++int picoarch_a30_mali_init(int logical_w, int logical_h)
++{
++	EGLint major = 0;
++	EGLint minor = 0;
++	EGLint width = 0;
++	EGLint height = 0;
++	EGLint context_attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
++
++	if (!picoarch_a30_mali_enabled())
++		return 0;
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.enabled = 1;
++	g_a30.logical_w = logical_w;
++	g_a30.logical_h = logical_h;
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++	g_a30.rotation = parse_rotation(getenv("PLUMOS_PICOARCH_A30_ROTATION"));
++	g_a30.vsync = env_enabled(getenv("PLUMOS_PICOARCH_A30_VSYNC"), 1);
++	g_a30.filter_linear = env_enabled(getenv("PLUMOS_PICOARCH_A30_LINEAR"), 0);
++
++	if (!read_fb_size(&g_a30.physical_w, &g_a30.physical_h))
++		goto fail;
++	if (!load_egl_gl())
++		goto fail;
++
++	g_a30.display = g_a30.egl.GetDisplay(EGL_DEFAULT_DISPLAY);
++	if (g_a30.display == EGL_NO_DISPLAY)
++		goto fail;
++	if (g_a30.egl.Initialize(g_a30.display, &major, &minor) != EGL_TRUE)
++		goto fail;
++	if (g_a30.egl.BindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
++		goto fail;
++	if (!choose_config())
++		goto fail;
++
++	g_a30.surface = g_a30.egl.CreateWindowSurface(g_a30.display, g_a30.config, NULL, NULL);
++	if (g_a30.surface == EGL_NO_SURFACE) {
++		fprintf(stderr, "picoarch-a30: eglCreateWindowSurface failed error=0x%04x\n",
++			g_a30.egl.GetError());
++		goto fail;
++	}
++	if (g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_WIDTH, &width) == EGL_TRUE &&
++	    g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_HEIGHT, &height) == EGL_TRUE) {
++		g_a30.physical_w = width;
++		g_a30.physical_h = height;
++	}
++
++	g_a30.context = g_a30.egl.CreateContext(g_a30.display, g_a30.config, EGL_NO_CONTEXT,
++						context_attribs);
++	if (g_a30.context == EGL_NO_CONTEXT)
++		goto fail;
++	if (g_a30.egl.MakeCurrent(g_a30.display, g_a30.surface, g_a30.surface,
++				  g_a30.context) != EGL_TRUE)
++		goto fail;
++	g_a30.egl.SwapInterval(g_a30.display, g_a30.vsync ? 1 : 0);
++
++	if (!create_program())
++		goto fail;
++
++	g_a30.gl.GenTextures(1, &g_a30.texture);
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
++			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
++			       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++	g_a30.gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
++	g_a30.gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, g_a30.logical_w, g_a30.logical_h, 0,
++			    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
++
++	g_a30.initialized = 1;
++	fprintf(stderr,
++		"picoarch-a30: mali presenter logical=%dx%d physical=%dx%d rotation=%d vsync=%d\n",
++		g_a30.logical_w, g_a30.logical_h, g_a30.physical_w, g_a30.physical_h,
++		g_a30.rotation, g_a30.vsync);
++	return 1;
++
++fail:
++	fprintf(stderr, "picoarch-a30: mali presenter init failed\n");
++	picoarch_a30_mali_finish();
++	return 0;
++}
++
++static const void *tighten_pixels(const void *rgb565, int pitch, int width, int height)
++{
++	size_t row_bytes = (size_t)width * 2;
++	size_t needed = row_bytes * (size_t)height;
++	const uint8_t *src = rgb565;
++	uint8_t *dst;
++	int y;
++
++	if (pitch == (int)row_bytes)
++		return rgb565;
++	if (g_a30.tight_size < needed) {
++		void *new_pixels = realloc(g_a30.tight_pixels, needed);
++		if (!new_pixels)
++			return rgb565;
++		g_a30.tight_pixels = new_pixels;
++		g_a30.tight_size = needed;
++	}
++	dst = g_a30.tight_pixels;
++	for (y = 0; y < height; y++)
++		memcpy(dst + (size_t)y * row_bytes, src + (size_t)y * pitch, row_bytes);
++	return g_a30.tight_pixels;
++}
++
++void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height)
++{
++	GLfloat vertices[16];
++	const void *pixels;
++
++	if (!g_a30.initialized || !rgb565)
++		return;
++	if (width != g_a30.logical_w || height != g_a30.logical_h) {
++		fprintf(stderr, "picoarch-a30: unexpected present size %dx%d\n", width, height);
++		return;
++	}
++
++	pixels = tighten_pixels(rgb565, pitch, width, height);
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
++			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
++
++	fill_vertices(vertices);
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	g_a30.gl.UseProgram(g_a30.program);
++	g_a30.gl.Uniform1i(g_a30.sampler_location, 0);
++	g_a30.gl.EnableVertexAttribArray(0);
++	g_a30.gl.EnableVertexAttribArray(1);
++	g_a30.gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
++				     vertices);
++	g_a30.gl.VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
++				     vertices + 2);
++	g_a30.gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++	g_a30.gl.DisableVertexAttribArray(1);
++	g_a30.gl.DisableVertexAttribArray(0);
++	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
++}
++
++void picoarch_a30_mali_finish(void)
++{
++	if (g_a30.display != EGL_NO_DISPLAY) {
++		if (g_a30.context != EGL_NO_CONTEXT) {
++			g_a30.egl.MakeCurrent(g_a30.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
++					      EGL_NO_CONTEXT);
++		}
++		if (g_a30.texture)
++			g_a30.gl.DeleteTextures(1, &g_a30.texture);
++		if (g_a30.program)
++			g_a30.gl.DeleteProgram(g_a30.program);
++		if (g_a30.context != EGL_NO_CONTEXT)
++			g_a30.egl.DestroyContext(g_a30.display, g_a30.context);
++		if (g_a30.surface != EGL_NO_SURFACE)
++			g_a30.egl.DestroySurface(g_a30.display, g_a30.surface);
++		g_a30.egl.Terminate(g_a30.display);
++	}
++	if (g_a30.tight_pixels)
++		free(g_a30.tight_pixels);
++	if (g_a30.gl.handle)
++		dlclose(g_a30.gl.handle);
++	if (g_a30.egl.handle)
++		dlclose(g_a30.egl.handle);
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++}
+diff --git a/plat_a30_mali.h b/plat_a30_mali.h
+new file mode 100644
+index 0000000..ea6b0db
+--- /dev/null
++++ b/plat_a30_mali.h
+@@ -0,0 +1,12 @@
++#ifndef PICOARCH_PLAT_A30_MALI_H
++#define PICOARCH_PLAT_A30_MALI_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++int picoarch_a30_mali_enabled(void);
++int picoarch_a30_mali_init(int logical_w, int logical_h);
++void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height);
++void picoarch_a30_mali_finish(void);
++
++#endif
 diff --git a/plat_sdl.c b/plat_sdl.c
-index 374d610..7227299 100644
+index 374d610..1c205aa 100644
 --- a/plat_sdl.c
 +++ b/plat_sdl.c
-@@ -16,0 +17,2 @@ static SDL_Surface* screen;
+@@ -8,0 +9,3 @@
++#ifdef PICOARCH_A30_MALI
++#include "plat_a30_mali.h"
++#endif
+@@ -13,0 +17,3 @@ static SDL_Surface* screen;
++#ifdef PICOARCH_A30_MALI
++static int a30_mali_active;
++#endif
+@@ -16,0 +23,2 @@ static SDL_Surface* screen;
 +#define	pixelsPa	unused1
 +#ifdef PICOARCH_MI_GFX
-@@ -19 +20,0 @@ static SDL_Surface* screen;
+@@ -19 +26,0 @@ static SDL_Surface* screen;
 -#define	pixelsPa	unused1
-@@ -20,0 +22,6 @@ static SDL_Surface* screen;
+@@ -21 +28,8 @@ static SDL_Surface* screen;
+-
 +#else
 +#include <stdint.h>
 +#include <stdlib.h>
 +#include <string.h>
 +#define ALIGN4K(val)	(val)
 +#endif
-@@ -21,0 +29 @@ static SDL_Surface* screen;
++
 +#ifdef PICOARCH_MI_GFX
-@@ -116,0 +125,9 @@ void GFX_BlitSurfaceExec(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst,
+@@ -116,0 +131,9 @@ void GFX_BlitSurfaceExec(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst,
 +#else
 +void GFX_BlitSurfaceExec(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect,
 +			 uint32_t rotate, uint32_t mirror, uint32_t nowait) {
@@ -38,37 +707,77 @@ index 374d610..7227299 100644
 +	SDL_BlitSurface(src, srcrect, dst, dstrect);
 +}
 +#endif
-@@ -118,0 +136 @@ struct GFX_Buffer {
+@@ -118,0 +142 @@ struct GFX_Buffer {
 +#ifdef PICOARCH_MI_GFX
-@@ -119,0 +138,3 @@ struct GFX_Buffer {
+@@ -119,0 +144,3 @@ struct GFX_Buffer {
 +#else
 +	uintptr_t	phyAddr;
 +#endif
-@@ -198,0 +220 @@ static void buffer_init(void) {
+@@ -198,0 +226 @@ static void buffer_init(void) {
 +#ifdef PICOARCH_MI_GFX
-@@ -201,0 +224,5 @@ static void buffer_init(void) {
+@@ -201,0 +230,5 @@ static void buffer_init(void) {
 +#else
 +	buffer.virAddr = calloc(1, buffer.size);
 +	buffer.phyAddr = buffer.virAddr ? 1 : 0;
 +	if (!buffer.virAddr) return;
 +#endif
-@@ -208,0 +236 @@ static void buffer_quit(void) {
+@@ -208,0 +242 @@ static void buffer_quit(void) {
 +#ifdef PICOARCH_MI_GFX
-@@ -210,0 +239,5 @@ static void buffer_quit(void) {
+@@ -210,0 +245,5 @@ static void buffer_quit(void) {
 +#else
 +		free(buffer.virAddr);
 +#endif
 +		buffer.virAddr = NULL;
 +		buffer.phyAddr = 0;
-@@ -221,0 +255 @@ static void buffer_clear(void) {
+@@ -221,0 +261 @@ static void buffer_clear(void) {
 +#ifdef PICOARCH_MI_GFX
-@@ -223,0 +258,3 @@ static void buffer_clear(void) {
+@@ -223,0 +264,3 @@ static void buffer_clear(void) {
 +#else
 +	memset(buffer.virAddr, 0, buffer.size);
 +#endif
-@@ -267,0 +305 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
+@@ -267,0 +311 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
 +#ifdef PICOARCH_MI_GFX
-@@ -268,0 +307,3 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
+@@ -268,0 +313,3 @@ static void buffer_renew_surface(int src_w, int src_h, int src_p) {
 +#else
 +	if (scaled != NULL) scaled->pixelsPa = 0;
++#endif
+@@ -388,0 +436,6 @@ static void *fb_flip(void)
++#ifdef PICOARCH_A30_MALI
++	if (a30_mali_active) {
++		picoarch_a30_mali_present(screen->pixels, screen->pitch, screen->w, screen->h);
++		return screen->pixels;
++	}
++#endif
+@@ -438,0 +492,5 @@ int plat_load_screen(const char *filename, void *buf, size_t buf_size, int *w, i
++#ifdef PICOARCH_A30_MALI
++	if (!surface && a30_mali_active) {
++		surface = SDL_ConvertSurface(imgsurface, screen->format, SDL_SWSURFACE);
++	}
++#endif
+@@ -733,0 +792,21 @@ int plat_init(void)
++#ifdef PICOARCH_A30_MALI
++	if (picoarch_a30_mali_enabled()) {
++		const char *fallback_sdl = getenv("PLUMOS_PICOARCH_A30_FALLBACK_SDL");
++		screen = SDL_CreateRGBSurface(SDL_SWSURFACE, SCREEN_WIDTH, SCREEN_HEIGHT,
++		                              SCREEN_BPP * 8, 0xF800, 0x07E0, 0x001F, 0x0000);
++		if (screen != NULL) {
++			a30_mali_active = picoarch_a30_mali_init(SCREEN_WIDTH, SCREEN_HEIGHT);
++		}
++		if (!a30_mali_active) {
++			if (screen != NULL) {
++				SDL_FreeSurface(screen);
++				screen = NULL;
++			}
++			PA_ERROR("A30 Mali presenter unavailable\n");
++			if (!fallback_sdl || strcmp(fallback_sdl, "1") != 0)
++				return -1;
++			PA_ERROR("Falling back to SDL fbcon by request\n");
++		}
++	}
++	if (!screen)
++#endif
+@@ -781,0 +861,4 @@ void plat_finish(void)
++#ifdef PICOARCH_A30_MALI
++	picoarch_a30_mali_finish();
++	a30_mali_active = 0;
 +#endif

@@ -226,10 +226,16 @@ PicoArch package を build します。PicoArch 本体だけを build し、libr
 `dist/plumos-libretro-cores` ではなく実機の `/mnt/SDCARD/plumos/retroarch/cores` を共有します。
 SDL1 は A30 stockOS 側の fbcon 実装を使うため、package には Docker 由来の
 `libSDL-1.2.so.0` を入れません。plumOS glibc/libpng/zlib は picoarch 専用 libdir に stage します。
-2026-06-15 時点では A30 の通常 FE profile には入れません。stock SDL1 の `640x480` 出力は
-実機 LCD 上で走査方向が崩れ、CPU 回転補正は黒画面/数fps級の音切れになったためです。
-PicoArch 側 patch 済み `fceumm` core を別途 build しても `/dev/fb0` capture だけ正常で
-物理 LCD は灰色に崩れたため、原因は core ではなく表示経路側と判断します。
+stock SDL1 の `640x480` video mode は実機 LCD 上で走査方向が崩れるため、plumOS patch では
+SDL1 を入力/音声用途に残しつつ、PicoArch の最終 640x480 RGB565 frame を A30 Mali/EGL
+presenter へ渡します。presenter は `/usr/lib/libEGL.so` と `/usr/lib/libGLESv2.so` を
+dlopen するため、picoarch binary 自体の NEEDED には EGL/GLES を増やしません。
+
+既定の表示条件は `PLUMOS_PICOARCH_A30_MALI=1`、
+`PLUMOS_PICOARCH_A30_ROTATION=ccw`、`PLUMOS_PICOARCH_A30_VSYNC=1`、
+`PLUMOS_PICOARCH_A30_LINEAR=0` です。実機では `fceumm` + `いっき` で向きと左右反転の修正を
+確認済みですが、継続動作、menu、終了処理、複数 core の安定性を見るまでは A30 の通常
+FE profile には入れません。
 
 ```sh
 ./scripts/docker-build.sh picoarch
