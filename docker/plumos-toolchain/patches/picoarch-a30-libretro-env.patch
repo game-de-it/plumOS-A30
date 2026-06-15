@@ -1,0 +1,499 @@
+--- a/core.c
++++ b/core.c
+@@ -1,7 +1,9 @@
++#include <dirent.h>
+ #include <dlfcn.h>
+ #include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <stdint.h>
+ #include <string.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+@@ -31,6 +33,9 @@
+ static char config_dir[MAX_PATH];
+ static char save_dir[MAX_PATH];
+ static char system_dir[MAX_PATH];
++static char content_dir[MAX_PATH];
++static char core_assets_dir[MAX_PATH];
++static bool support_no_game;
+ static struct retro_disk_control_ext_callback disk_control_ext;
+ 
+ static uint32_t buttons = 0;
+@@ -282,10 +287,17 @@ static void set_directories(const char *core_name, const char *tag_name) {
+ 	const char *home = getenv("HOME");
+ 	const char *sdcard_path = getenv("SDCARD_PATH");
++	const char *bios_dir = getenv("PLUMOS_PICOARCH_BIOS_DIR");
++	char bios_root[MAX_PATH];
++	char roms_root[MAX_PATH];
++	char assets_root[MAX_PATH];
++	char save_root[MAX_PATH];
+ 	// char *dst = save_dir;
+ 	// int len = MAX_PATH;
+ // #ifndef MINUI
+ // 	char cwd[MAX_PATH];
+ // #endif
++	if (!sdcard_path || !sdcard_path[0])
++		sdcard_path = "/mnt/SDCARD";
+ 	if (home != NULL) {
+ 		snprintf(config_dir, MAX_PATH, "%s/.picoarch-%s-%s/", home, core_name, tag_name);
+ 		mkdir(config_dir, 0755);
+@@ -297,7 +309,23 @@ static void set_directories(const char *core_name, const char *tag_name) {
+ 
+ 	// strncpy(config_dir, save_dir, MAX_PATH-1);
+ 	
+-	snprintf(save_dir, MAX_PATH, "%s/Saves/%s/", sdcard_path, tag_name);
+-	snprintf(system_dir, MAX_PATH, "%s/Bios/%s", sdcard_path, tag_name);
++	snprintf(save_root, MAX_PATH, "%s/Saves", sdcard_path);
++	mkdir(save_root, 0755);
++	snprintf(save_dir, MAX_PATH, "%s/%s/", save_root, tag_name);
++	mkdir(save_dir, 0755);
++	snprintf(bios_root, MAX_PATH, "%s/Bios", sdcard_path);
++	mkdir(bios_root, 0755);
++	snprintf(system_dir, MAX_PATH, "%s/%s", bios_root, tag_name);
++	snprintf(roms_root, MAX_PATH, "%s/Roms/%s", sdcard_path, tag_name);
++	if (access(roms_root, F_OK) == 0)
++		snprintf(content_dir, MAX_PATH, "%s", roms_root);
++	else
++		snprintf(content_dir, MAX_PATH, "%s/Roms", sdcard_path);
++	snprintf(assets_root, MAX_PATH, "%s", bios_root);
++	snprintf(core_assets_dir, MAX_PATH, "%s", assets_root);
++	if (bios_dir && bios_dir[0])
++		core_set_system_dir(bios_dir);
++	else
++		core_set_system_dir(system_dir);
+ 
+ // #ifdef MINUI
+ // 	strncpy(system_dir, save_dir, MAX_PATH-1);
+@@ -346,8 +360,259 @@ static bool pa_set_rumble_state(unsigned port, enum retro_rumble_effect effect,
+ 	return true;
+ }
+ 
++struct retro_vfs_file_handle {
++	FILE *file;
++	char *path;
++};
++
++struct retro_vfs_dir_handle {
++	DIR *dir;
++	struct dirent *entry;
++	char *path;
++	bool include_hidden;
++};
++
++static const char *pa_vfs_get_path(struct retro_vfs_file_handle *stream)
++{
++	return stream ? stream->path : NULL;
++}
++
++static struct retro_vfs_file_handle *pa_vfs_open(const char *path, unsigned mode, unsigned hints)
++{
++	struct retro_vfs_file_handle *stream;
++	const char *file_mode = "rb";
++	(void)hints;
++
++	if (!path)
++		return NULL;
++
++	if ((mode & RETRO_VFS_FILE_ACCESS_READ_WRITE) == RETRO_VFS_FILE_ACCESS_READ_WRITE)
++		file_mode = (mode & RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING) ? "r+b" : "w+b";
++	else if (mode & RETRO_VFS_FILE_ACCESS_WRITE)
++		file_mode = (mode & RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING) ? "r+b" : "wb";
++
++	stream = calloc(1, sizeof(*stream));
++	if (!stream)
++		return NULL;
++
++	stream->file = fopen(path, file_mode);
++	if (!stream->file && (mode & RETRO_VFS_FILE_ACCESS_WRITE) &&
++	    (mode & RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING))
++		stream->file = fopen(path, "w+b");
++	if (!stream->file) {
++		free(stream);
++		return NULL;
++	}
++
++	stream->path = strdup(path);
++	return stream;
++}
++
++static int pa_vfs_close(struct retro_vfs_file_handle *stream)
++{
++	int ret = 0;
++	if (!stream)
++		return -1;
++	if (stream->file)
++		ret = fclose(stream->file);
++	free(stream->path);
++	free(stream);
++	return ret;
++}
++
++static int64_t pa_vfs_tell(struct retro_vfs_file_handle *stream)
++{
++	if (!stream || !stream->file)
++		return -1;
++	return ftello(stream->file);
++}
++
++static int64_t pa_vfs_seek(struct retro_vfs_file_handle *stream, int64_t offset, int seek_position)
++{
++	int whence = SEEK_SET;
++	if (!stream || !stream->file)
++		return -1;
++	switch (seek_position) {
++	case RETRO_VFS_SEEK_POSITION_CURRENT:
++		whence = SEEK_CUR;
++		break;
++	case RETRO_VFS_SEEK_POSITION_END:
++		whence = SEEK_END;
++		break;
++	default:
++		whence = SEEK_SET;
++		break;
++	}
++	if (fseeko(stream->file, offset, whence) != 0)
++		return -1;
++	return ftello(stream->file);
++}
++
++static int64_t pa_vfs_size(struct retro_vfs_file_handle *stream)
++{
++	off_t pos;
++	off_t end;
++	if (!stream || !stream->file)
++		return -1;
++	pos = ftello(stream->file);
++	if (fseeko(stream->file, 0, SEEK_END) != 0)
++		return -1;
++	end = ftello(stream->file);
++	fseeko(stream->file, pos, SEEK_SET);
++	return end;
++}
++
++static int64_t pa_vfs_truncate(struct retro_vfs_file_handle *stream, int64_t length)
++{
++	if (!stream || !stream->file)
++		return -1;
++	return ftruncate(fileno(stream->file), length);
++}
++
++static int64_t pa_vfs_read(struct retro_vfs_file_handle *stream, void *s, uint64_t len)
++{
++	if (!stream || !stream->file || !s)
++		return -1;
++	return fread(s, 1, len, stream->file);
++}
++
++static int64_t pa_vfs_write(struct retro_vfs_file_handle *stream, const void *s, uint64_t len)
++{
++	if (!stream || !stream->file || !s)
++		return -1;
++	return fwrite(s, 1, len, stream->file);
++}
++
++static int pa_vfs_flush(struct retro_vfs_file_handle *stream)
++{
++	if (!stream || !stream->file)
++		return -1;
++	return fflush(stream->file);
++}
++
++static int pa_vfs_remove(const char *path)
++{
++	return path ? remove(path) : -1;
++}
++
++static int pa_vfs_rename(const char *old_path, const char *new_path)
++{
++	return (old_path && new_path) ? rename(old_path, new_path) : -1;
++}
++
++static int pa_vfs_stat(const char *path, int32_t *size)
++{
++	struct stat st;
++	int flags = 0;
++	if (!path || stat(path, &st) != 0)
++		return 0;
++	flags |= RETRO_VFS_STAT_IS_VALID;
++	if (S_ISDIR(st.st_mode))
++		flags |= RETRO_VFS_STAT_IS_DIRECTORY;
++	if (S_ISCHR(st.st_mode))
++		flags |= RETRO_VFS_STAT_IS_CHARACTER_SPECIAL;
++	if (size)
++		*size = (int32_t)st.st_size;
++	return flags;
++}
++
++static int pa_vfs_mkdir(const char *dir)
++{
++	if (!dir)
++		return -1;
++	if (mkdir(dir, 0755) == 0 || errno == EEXIST)
++		return 0;
++	return -1;
++}
++
++static struct retro_vfs_dir_handle *pa_vfs_opendir(const char *dir, bool include_hidden)
++{
++	struct retro_vfs_dir_handle *stream;
++	if (!dir)
++		return NULL;
++	stream = calloc(1, sizeof(*stream));
++	if (!stream)
++		return NULL;
++	stream->dir = opendir(dir);
++	if (!stream->dir) {
++		free(stream);
++		return NULL;
++	}
++	stream->path = strdup(dir);
++	stream->include_hidden = include_hidden;
++	return stream;
++}
++
++static bool pa_vfs_readdir(struct retro_vfs_dir_handle *stream)
++{
++	if (!stream || !stream->dir)
++		return false;
++	while ((stream->entry = readdir(stream->dir))) {
++		if (stream->include_hidden || stream->entry->d_name[0] != '.')
++			return true;
++	}
++	return false;
++}
++
++static const char *pa_vfs_dirent_get_name(struct retro_vfs_dir_handle *stream)
++{
++	return (stream && stream->entry) ? stream->entry->d_name : NULL;
++}
++
++static bool pa_vfs_dirent_is_dir(struct retro_vfs_dir_handle *stream)
++{
++	char path[MAX_PATH];
++	struct stat st;
++	if (!stream || !stream->entry)
++		return false;
++#ifdef DT_DIR
++	if (stream->entry->d_type == DT_DIR)
++		return true;
++	if (stream->entry->d_type != DT_UNKNOWN)
++		return false;
++#endif
++	snprintf(path, sizeof(path), "%s/%s", stream->path, stream->entry->d_name);
++	return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
++}
++
++static int pa_vfs_closedir(struct retro_vfs_dir_handle *stream)
++{
++	int ret = 0;
++	if (!stream)
++		return -1;
++	if (stream->dir)
++		ret = closedir(stream->dir);
++	free(stream->path);
++	free(stream);
++	return ret;
++}
++
++static struct retro_vfs_interface pa_vfs_interface = {
++	.get_path = pa_vfs_get_path,
++	.open = pa_vfs_open,
++	.close = pa_vfs_close,
++	.size = pa_vfs_size,
++	.tell = pa_vfs_tell,
++	.seek = pa_vfs_seek,
++	.read = pa_vfs_read,
++	.write = pa_vfs_write,
++	.flush = pa_vfs_flush,
++	.remove = pa_vfs_remove,
++	.rename = pa_vfs_rename,
++	.truncate = pa_vfs_truncate,
++	.stat = pa_vfs_stat,
++	.mkdir = pa_vfs_mkdir,
++	.opendir = pa_vfs_opendir,
++	.readdir = pa_vfs_readdir,
++	.dirent_get_name = pa_vfs_dirent_get_name,
++	.dirent_is_dir = pa_vfs_dirent_is_dir,
++	.closedir = pa_vfs_closedir,
++};
++
+ static bool pa_environment(unsigned cmd, void *data) {
+ 	switch(cmd) {
++	case RETRO_ENVIRONMENT_SET_ROTATION: /* 1 */
++		break;
+ 	case RETRO_ENVIRONMENT_GET_OVERSCAN: { /* 2 */
+ 		bool *out = (bool *)data;
+ 		if (out)
+@@ -358,5 +555,11 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_SHUTDOWN: { /* 7 */
++		should_quit = true;
++		break;
++	}
++	case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL: /* 8 */
++		break;
+ 	case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY: { /* 9 */
+ 		const char **out = (const char **)data;
+ 		if (out)
+@@ -380,6 +584,12 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		}
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: /* 11 */
++		break;
++	case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: { /* 18 */
++		support_no_game = data ? *(const bool *)data : false;
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: { /* 13 */
+ 		const struct retro_disk_control_callback *var =
+ 			(const struct retro_disk_control_callback *)data;
+@@ -390,6 +600,12 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		}
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_GET_LIBRETRO_PATH: { /* 19 */
++		const char **out = (const char **)data;
++		if (out)
++			*out = core_path;
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_GET_VARIABLE: { /* 15 */
+ 		struct retro_variable *var = (struct retro_variable *)data;
+ 		if (var && var->key) {
+@@ -422,6 +638,12 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		}
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES: { /* 24 */
++		uint64_t *out = (uint64_t *)data;
++		if (out)
++			*out = (1ULL << RETRO_DEVICE_JOYPAD);
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: { /* 27 */
+ 		struct retro_log_callback *log_cb = (struct retro_log_callback *)data;
+ 		if (log_cb)
+@@ -429,11 +651,75 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY: { /* 30 */
++		const char **out = (const char **)data;
++		if (out)
++			*out = core_assets_dir;
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY: { /* 31 */
+ 		const char **out = (const char **)data;
+ 		if (out)
+ 			*out = save_dir;
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: { /* 32 */
++		const struct retro_system_av_info *av_info = (const struct retro_system_av_info *)data;
++		if (av_info) {
++			sample_rate = av_info->timing.sample_rate;
++			frame_rate = av_info->timing.fps;
++			aspect_ratio = av_info->geometry.aspect_ratio;
++			plat_reinit();
++		}
++		break;
++	}
++	case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: /* 34 */
++	case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: /* 35 */
++	case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: /* 36 */
++		break;
++	case RETRO_ENVIRONMENT_SET_GEOMETRY: { /* 37 */
++		const struct retro_game_geometry *geom = (const struct retro_game_geometry *)data;
++		if (geom)
++			aspect_ratio = geom->aspect_ratio;
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_USERNAME: { /* 38 */
++		const char **out = (const char **)data;
++		if (out)
++			*out = "plumOS";
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_LANGUAGE: { /* 39 */
++		unsigned *out = (unsigned *)data;
++		if (out)
++			*out = RETRO_LANGUAGE_JAPANESE;
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_VFS_INTERFACE: { /* 45 */
++		struct retro_vfs_interface_info *info = (struct retro_vfs_interface_info *)data;
++		if (!info || info->required_interface_version > 3)
++			return false;
++		info->required_interface_version = 3;
++		info->iface = &pa_vfs_interface;
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: { /* 47 */
++		int *out = (int *)data;
++		if (out)
++			*out = 1 | (enable_audio ? 2 : 0);
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_FASTFORWARDING: { /* 49 */
++		bool *out = (bool *)data;
++		if (out)
++			*out = false;
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE: { /* 50 */
++		float *out = (float *)data;
++		if (out)
++			*out = 60.0f;
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: { /* 52 */
+ 		bool *out = (bool *)data;
+ 		if (out)
+@@ -487,6 +723,24 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		}
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION: { /* 59 */
++		unsigned *out = (unsigned *)data;
++		if (out)
++			*out = 0;
++		break;
++	}
++	case RETRO_ENVIRONMENT_SET_MESSAGE_EXT: { /* 60 */
++		const struct retro_message_ext *message = (const struct retro_message_ext *)data;
++		if (message && message->msg)
++			PA_INFO("%s\n", message->msg);
++		break;
++	}
++	case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS: { /* 61 */
++		unsigned *out = (unsigned *)data;
++		if (out)
++			*out = 1;
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK: { /* 62 */
+ 		const struct retro_audio_buffer_status_callback *cb =
+ 			(const struct retro_audio_buffer_status_callback *)data;
+@@ -506,6 +759,8 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 		}
+ 		break;
+ 	}
++	case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK: /* 69 */
++		break;
+ 	default:
+ 		PA_DEBUG("Unsupported environment cmd: %u\n", cmd);
+ 		return false;
+@@ -681,6 +936,10 @@ int core_load_content(struct content *content) {
+ 		goto finish;
+ 	}
+ 
++	if (current_core.retro_set_controller_port_device) {
++		current_core.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
++	}
++
+ 	if (!current_core.retro_load_game(&game_info)) {
+ 		PA_ERROR("Couldn't load content\n");
+ 		goto finish;

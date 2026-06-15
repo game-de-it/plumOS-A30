@@ -1170,6 +1170,23 @@ static int add_core_profile(struct core_system_def *system, const char *profile)
   return 1;
 }
 
+static int picoarch_companion_core_allowed(const char *core_id) {
+  static const char *blocked_core_ids[] = {
+      "tgbdual",
+  };
+  size_t i;
+
+  if (!core_id || !core_id[0]) {
+    return 0;
+  }
+  for (i = 0; i < sizeof(blocked_core_ids) / sizeof(blocked_core_ids[0]); i++) {
+    if (strcmp(core_id, blocked_core_ids[i]) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static void add_picoarch_companion_profiles(struct core_system_def *system) {
   size_t original_count;
   size_t i;
@@ -1188,6 +1205,9 @@ static void add_picoarch_companion_profiles(struct core_system_def *system) {
     }
     core_id = profile + 10;
     if (!core_id[0]) {
+      continue;
+    }
+    if (!picoarch_companion_core_allowed(core_id)) {
       continue;
     }
     if (snprintf(pico_profile, sizeof(pico_profile), "picoarch:%s", core_id) >=

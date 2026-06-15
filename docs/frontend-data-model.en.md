@@ -136,6 +136,9 @@ settings are passed as `PLUMOS_PICOARCH_*` environment variables.
 In Core Settings, the FE automatically adds a matching `picoarch:<core_id>`
 candidate for each `retroarch:<core_id>` listed in `systems.json`. The initial
 default remains `default_launch_profile`; users opt into PicoArch explicitly.
+Cores that fail real A30 PicoArch display or input validation are excluded from
+this automatic companion list. As of 2026-06-15, `tgbdual` is excluded because it
+still renders a black screen on the PicoArch path.
 
 ### `DirectoryAlias`
 

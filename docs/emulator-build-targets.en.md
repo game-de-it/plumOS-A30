@@ -211,6 +211,19 @@ adds matching `picoarch:<core>` candidates from existing `retroarch:<core>`
 candidates in `systems.json`. This is for multi-system/core validation; as of
 2026-06-15, each system keeps its existing `default_launch_profile` as the
 initial default.
+Follow-up validation fills in PicoArch's missing libretro environment handling,
+fixes `RETRO_ENVIRONMENT_SET_CORE_OPTIONS` array handling, and fixes directory
+content loading. That removes startup crashes for cores such as `gearboy`,
+`gearsystem`, `mednafen_lynx`, and `dosbox_pure`, and fixes directory/no-game
+loading paths for `easyrpg`, `scummvm`, and `quasi88`. `pa_log()` is flushed on
+each message so probe logs still contain the last initialization stage after
+TERM/KILL. `tgbdual` remains excluded from automatic `picoarch:<core>` Core
+Settings candidates because a reset state/config still produced a black raw
+framebuffer on A30. GB/GBC PicoArch validation should use `gambatte`, `gearboy`,
+`mgba`, or `vbam`.
+The launcher also keeps the `picoarch` child PID and kills both `picoarch` and
+`plumos-joystickd` during TERM/HUP/INT/EXIT cleanup, preventing stale PicoArch
+instances from skewing CPU/audio/fb0-owner tests.
 
 The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
 When it is absent, PicoArch uses the ROM directory name as a tag and returns

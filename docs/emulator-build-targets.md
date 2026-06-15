@@ -180,6 +180,17 @@ GPU 側で処理します。`DMG` は白寄せの液晶ブレンド、`LCD` は 
 Core Settings では、`systems.json` にある既存 `retroarch:<core>` 候補から対応する
 `picoarch:<core>` 候補を自動追加します。これは複数 system/core の動作確認用であり、
 2026-06-15 時点では各 system の初期 default は既存の `default_launch_profile` のままにします。
+その後の追加検証で、PicoArch の libretro environment を補完し、
+`RETRO_ENVIRONMENT_SET_CORE_OPTIONS` の配列解釈と directory content の渡し方を修正しました。
+これにより `gearboy`、`gearsystem`、`mednafen_lynx`、`dosbox_pure` などの起動時 crash と、
+`easyrpg`、`scummvm`、`quasi88` の directory/no-game 系 content 読み込み不備を潰しています。
+ログは `pa_log()` ごとに flush するようにし、TERM/KILL で終了した probe でも最後の初期化状況を
+追いやすくしました。`tgbdual` は state/config を初期化しても実機 raw framebuffer が黒画面のため、
+Core Settings の `picoarch:<core>` 自動候補から除外します。GB/GBC は PicoArch 検証では
+`gambatte`、`gearboy`、`mgba`、`vbam` を使います。
+また launcher は `picoarch` 子プロセスを background 起動して PID を保持し、TERM/HUP/INT/EXIT の
+cleanup で `picoarch` 本体と `plumos-joystickd` を両方止めます。これは probe や FE 終了時に
+複数の PicoArch が残り、CPU/audio/fb0 owner 判定を汚す問題を避けるためです。
 
 BIOS/system directory は PicoArch config の `bios_dir = /path` で指定できます。
 未指定時は ROM directory 名を tag として `/mnt/SDCARD/Bios/<tag>` を返します。

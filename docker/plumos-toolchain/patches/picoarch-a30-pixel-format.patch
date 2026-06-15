@@ -1,0 +1,318 @@
+--- a/core.c
++++ b/core.c
+@@ -28,6 +28,7 @@
+ unsigned audio_buffer_size_override;
+ int state_slot;
+ int resume_slot = -1;
++enum retro_pixel_format core_pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
+ 
+ static char config_dir[MAX_PATH];
+ static char save_dir[MAX_PATH];
+@@ -391,8 +392,15 @@
+ 	case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: { /* 10 */
+ 		const enum retro_pixel_format *format = (enum retro_pixel_format *)data;
+ 
+-		if (*format != RETRO_PIXEL_FORMAT_RGB565) {
+-			/* 565 is only supported format */
++		switch (*format) {
++		case RETRO_PIXEL_FORMAT_0RGB1555:
++		case RETRO_PIXEL_FORMAT_XRGB8888:
++		case RETRO_PIXEL_FORMAT_RGB565:
++			core_pixel_format = *format;
++			PA_INFO("SET_PIXEL_FORMAT: %d\n", *format);
++			break;
++		default:
++			PA_ERROR("Unsupported pixel format: %d\n", *format);
+ 			return false;
+ 		}
+ 		break;
+@@ -531,8 +539,9 @@
+ }
+ 
+ static void pa_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch) {
+-	if (data && !should_quit) {
+-		pa_track_render();
++	if (!should_quit) {
++		if (data)
++			pa_track_render();
+ 		plat_video_process(data, width, height, pitch);
+ 	}
+ }
+@@ -657,6 +666,7 @@
+ }
+ 
+ void core_load(void) {
++	core_pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
+ 	current_core.retro_init();
+ 	current_core.initialized = true;
+ 	PA_INFO("Finished loading core\n");
+--- a/core.h
++++ b/core.h
+@@ -42,6 +42,7 @@
+ extern unsigned audio_buffer_size_override;
+ extern int state_slot;
+ extern int resume_slot;
++extern enum retro_pixel_format core_pixel_format;
+ 
+ void config_file_name(char *buf, size_t len, int is_game);
+ void save_relative_path(char *buf, size_t len, const char *basename);
+--- a/plat_sdl.c
++++ b/plat_sdl.c
+@@ -1,6 +1,7 @@
+ #include <SDL/SDL.h>
+ #include <unistd.h>
+ #include <math.h>
++#include <stdint.h>
+ #include "core.h"
+ #include "libpicofe/fonts.h"
+ #include "libpicofe/plat.h"
+@@ -28,6 +29,8 @@
+ 	int hud_width;
+ 	int hud_height;
+ 	int hud_valid;
++	int pixel_format;
++	int duplicate;
+ 	int valid;
+ } a30_direct;
+ #endif
+@@ -449,19 +452,28 @@
+ {
+ #ifdef PICOARCH_A30_MALI
+ 	if (a30_mali_active) {
++		if (a30_direct.duplicate) {
++			a30_direct.duplicate = 0;
++			return screen->pixels;
++		}
+ 		if (a30_direct.valid) {
+ 			if (a30_direct.hud_valid) {
+-				picoarch_a30_mali_present_frame_hud(
++				picoarch_a30_mali_present_frame_hud_ex(
+ 					a30_direct.pixels, a30_direct.pitch,
+ 					a30_direct.width, a30_direct.height,
++					a30_direct.pixel_format,
+ 					a30_direct.hud_pixels, a30_direct.hud_pitch,
+ 					a30_direct.hud_width, a30_direct.hud_height);
+ 			} else {
+-				picoarch_a30_mali_present_frame(a30_direct.pixels, a30_direct.pitch,
+-								a30_direct.width, a30_direct.height);
++				picoarch_a30_mali_present_frame_ex(a30_direct.pixels,
++								   a30_direct.pitch,
++								   a30_direct.width,
++								   a30_direct.height,
++								   a30_direct.pixel_format);
+ 			}
+ 			a30_direct.valid = 0;
+ 			a30_direct.hud_valid = 0;
++			a30_direct.pixel_format = RETRO_PIXEL_FORMAT_RGB565;
+ 		} else {
+ 			picoarch_a30_mali_present(screen->pixels, screen->pitch, screen->w, screen->h);
+ 		}
+@@ -612,11 +624,20 @@
+ 	
+ 	static int had_msg = 0;
+ #ifdef PICOARCH_A30_MALI
++	if (a30_mali_active && !data) {
++		a30_direct.valid = 0;
++		a30_direct.hud_valid = 0;
++		a30_direct.duplicate = 1;
++		video_update_msg();
++		return;
++	}
+ 	if (a30_mali_active && data && width > 0 && height > 0) {
+ 		a30_direct.pixels = data;
+ 		a30_direct.pitch = (int)pitch;
+ 		a30_direct.width = (int)width;
+ 		a30_direct.height = (int)height;
++		a30_direct.pixel_format = core_pixel_format;
++		a30_direct.duplicate = 0;
+ 		a30_direct.valid = 1;
+ 		a30_direct.hud_valid = 0;
+ 		if (msg[0]) {
+@@ -636,6 +657,10 @@
+ 	}
+ 	a30_direct.valid = 0;
+ #endif
++	if (!data) {
++		video_update_msg();
++		return;
++	}
+ 
+ 	SDL_LockSurface(screen);
+ 	
+--- a/plat_a30_mali.c
++++ b/plat_a30_mali.c
+@@ -660,26 +660,69 @@
+ 	return 0;
+ }
+ 
+-static const void *tighten_pixels(const void *rgb565, int pitch, int width, int height)
++static uint16_t convert_0rgb1555_to_rgb565(uint16_t pixel)
++{
++	uint16_t r = (pixel >> 10) & 0x1f;
++	uint16_t g = (pixel >> 5) & 0x1f;
++	uint16_t b = pixel & 0x1f;
++
++	return (uint16_t)((r << 11) | (((g << 1) | (g >> 4)) << 5) | b);
++}
++
++static uint16_t convert_xrgb8888_to_rgb565(uint32_t pixel)
++{
++	uint16_t r = (pixel >> 16) & 0xff;
++	uint16_t g = (pixel >> 8) & 0xff;
++	uint16_t b = pixel & 0xff;
++
++	return (uint16_t)(((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3));
++}
++
++static const void *prepare_rgb565_pixels(const void *src_pixels, int pitch, int width, int height,
++					 int pixel_format)
+ {
+ 	size_t row_bytes = (size_t)width * 2;
+ 	size_t needed = row_bytes * (size_t)height;
+-	const uint8_t *src = rgb565;
++	const uint8_t *src = src_pixels;
+ 	uint8_t *dst;
+ 	int y;
+ 
+-	if (pitch == (int)row_bytes)
+-		return rgb565;
++	if (pixel_format == RETRO_PIXEL_FORMAT_RGB565 && pitch == (int)row_bytes)
++		return src_pixels;
+ 	if (g_a30.tight_size < needed) {
+ 		void *new_pixels = realloc(g_a30.tight_pixels, needed);
+ 		if (!new_pixels)
+-			return rgb565;
++			return src_pixels;
+ 		g_a30.tight_pixels = new_pixels;
+ 		g_a30.tight_size = needed;
+ 	}
+ 	dst = g_a30.tight_pixels;
+-	for (y = 0; y < height; y++)
+-		memcpy(dst + (size_t)y * row_bytes, src + (size_t)y * pitch, row_bytes);
++	for (y = 0; y < height; y++) {
++		const uint8_t *row = src + (size_t)y * pitch;
++		uint16_t *out = (uint16_t *)(dst + (size_t)y * row_bytes);
++		int x;
++
++		switch (pixel_format) {
++		case RETRO_PIXEL_FORMAT_RGB565:
++			memcpy(out, row, row_bytes);
++			break;
++		case RETRO_PIXEL_FORMAT_0RGB1555: {
++			const uint16_t *in = (const uint16_t *)row;
++			for (x = 0; x < width; x++)
++				out[x] = convert_0rgb1555_to_rgb565(in[x]);
++			break;
++		}
++		case RETRO_PIXEL_FORMAT_XRGB8888: {
++			const uint32_t *in = (const uint32_t *)row;
++			for (x = 0; x < width; x++)
++				out[x] = convert_xrgb8888_to_rgb565(in[x]);
++			break;
++		}
++		default:
++			memset(out, 0, row_bytes);
++			break;
++		}
++	}
+ 	return g_a30.tight_pixels;
+ }
+ 
+@@ -756,7 +799,7 @@
+ }
+ 
+ static void draw_rect(GLuint *texture, int *texture_w, int *texture_h,
+-		      const void *rgb565, int pitch, int width, int height,
++		      const void *pixels_in, int pitch, int width, int height, int pixel_format,
+ 		      int logical_x, int logical_y, int logical_w, int logical_h,
+ 		      int effect)
+ {
+@@ -766,14 +809,14 @@
+ 	int sy;
+ 	int effect_period;
+ 
+-	if (!g_a30.initialized || !rgb565)
++	if (!g_a30.initialized || !pixels_in)
+ 		return;
+ 	if (width <= 0 || height <= 0) {
+ 		fprintf(stderr, "picoarch-a30: invalid present size %dx%d\n", width, height);
+ 		return;
+ 	}
+ 
+-	pixels = tighten_pixels(rgb565, pitch, width, height);
++	pixels = prepare_rgb565_pixels(pixels_in, pitch, width, height, pixel_format);
+ 	ensure_texture_size(texture, texture_w, texture_h, width, height);
+ 	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+ 			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
+@@ -819,20 +862,37 @@
+ {
+ 	begin_present();
+ 	draw_rect(&g_a30.texture, &g_a30.texture_w, &g_a30.texture_h,
+-		  rgb565, pitch, width, height, 0, 0, g_a30.logical_w, g_a30.logical_h,
+-		  SCALE_EFFECT_NONE);
++		  rgb565, pitch, width, height, RETRO_PIXEL_FORMAT_RGB565,
++		  0, 0, g_a30.logical_w, g_a30.logical_h, SCALE_EFFECT_NONE);
+ 	end_present();
+ }
+ 
+ void picoarch_a30_mali_present_frame(const void *rgb565, int pitch, int width, int height)
+ {
+-	picoarch_a30_mali_present_frame_hud(rgb565, pitch, width, height, NULL, 0, 0, 0);
++	picoarch_a30_mali_present_frame_ex(rgb565, pitch, width, height,
++					   RETRO_PIXEL_FORMAT_RGB565);
+ }
+ 
++void picoarch_a30_mali_present_frame_ex(const void *pixels, int pitch, int width, int height,
++					int pixel_format)
++{
++	picoarch_a30_mali_present_frame_hud_ex(pixels, pitch, width, height, pixel_format,
++					       NULL, 0, 0, 0);
++}
++
+ void picoarch_a30_mali_present_frame_hud(const void *rgb565, int pitch, int width, int height,
+ 					 const void *hud_rgb565, int hud_pitch, int hud_width,
+ 					 int hud_height)
+ {
++	picoarch_a30_mali_present_frame_hud_ex(rgb565, pitch, width, height,
++					       RETRO_PIXEL_FORMAT_RGB565,
++					       hud_rgb565, hud_pitch, hud_width, hud_height);
++}
++
++void picoarch_a30_mali_present_frame_hud_ex(const void *pixels, int pitch, int width, int height,
++					    int pixel_format, const void *hud_rgb565,
++					    int hud_pitch, int hud_width, int hud_height)
++{
+ 	int x;
+ 	int y;
+ 	int w;
+@@ -841,11 +901,12 @@
+ 	compute_frame_rect(width, height, &x, &y, &w, &h);
+ 	begin_present();
+ 	draw_rect(&g_a30.texture, &g_a30.texture_w, &g_a30.texture_h,
+-		  rgb565, pitch, width, height, x, y, w, h,
++		  pixels, pitch, width, height, pixel_format, x, y, w, h,
+ 		  scale_effect);
+ 	if (hud_rgb565 && hud_width > 0 && hud_height > 0) {
+ 		draw_rect(&g_a30.hud_texture, &g_a30.hud_texture_w, &g_a30.hud_texture_h,
+ 			  hud_rgb565, hud_pitch, hud_width, hud_height,
++			  RETRO_PIXEL_FORMAT_RGB565,
+ 			  0, g_a30.logical_h - hud_height, g_a30.logical_w, hud_height,
+ 			  SCALE_EFFECT_NONE);
+ 	}
+--- a/plat_a30_mali.h
++++ b/plat_a30_mali.h
+@@ -8,9 +8,14 @@
+ int picoarch_a30_mali_init(int logical_w, int logical_h);
+ void picoarch_a30_mali_present(const void *rgb565, int pitch, int width, int height);
+ void picoarch_a30_mali_present_frame(const void *rgb565, int pitch, int width, int height);
++void picoarch_a30_mali_present_frame_ex(const void *pixels, int pitch, int width, int height,
++					int pixel_format);
+ void picoarch_a30_mali_present_frame_hud(const void *rgb565, int pitch, int width, int height,
+ 					 const void *hud_rgb565, int hud_pitch, int hud_width,
+ 					 int hud_height);
++void picoarch_a30_mali_present_frame_hud_ex(const void *pixels, int pitch, int width, int height,
++					    int pixel_format, const void *hud_rgb565,
++					    int hud_pitch, int hud_width, int hud_height);
+ void picoarch_a30_mali_finish(void);
+ 
+ #endif

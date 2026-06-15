@@ -1,0 +1,21 @@
+--- a/main.c
++++ b/main.c
+@@ -445,6 +445,8 @@
+ 	default:
+ 		break;
+ 	}
++	fflush(stdout);
++	fflush(stderr);
+ }
+ 
+ static void show_startup_message(void) {
+@@ -572,6 +574,9 @@
+ 	char content_path[MAX_PATH];
+ 	char tag_name[MAX_PATH];
+ 
++	setvbuf(stdout, NULL, _IOLBF, 0);
++	setvbuf(stderr, NULL, _IONBF, 0);
++
+ 	if (argc > 1) {
+ 		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+ 			printf("Usage: picoarch libretro_core content [NONE DMG LCD SCANLINE]\n");

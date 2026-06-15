@@ -53,7 +53,7 @@ diff --git a/core.c b/core.c
 index 039570d..6e7a25f 100644
 --- a/core.c
 +++ b/core.c
-@@ -58,0 +59,14 @@ void save_relative_path(char *buf, size_t len, const char *basename) {
+@@ -58,0 +59,18 @@ void save_relative_path(char *buf, size_t len, const char *basename) {
 +const char *core_get_system_dir(void)
 +{
 +	return system_dir;
@@ -61,34 +61,18 @@ index 039570d..6e7a25f 100644
 +
 +void core_set_system_dir(const char *path)
 +{
++	char normalized[MAX_PATH];
++
 +	if (!path || !path[0])
 +		return;
-+	snprintf(system_dir, MAX_PATH, "%s", path);
++	snprintf(normalized, MAX_PATH, "%s", path);
++	if (!normalized[0])
++		return;
++	snprintf(system_dir, MAX_PATH, "%s", normalized);
 +	mkdir(system_dir, 0755);
 +	PA_INFO("System directory: %s\n", system_dir);
 +}
 +
-@@ -276,0 +291,3 @@ static void set_directories(const char *core_name, const char *tag_name) {
-+	const char *bios_dir = getenv("PLUMOS_PICOARCH_BIOS_DIR");
-+	char bios_root[MAX_PATH];
-+	char save_root[MAX_PATH];
-@@ -281,0 +299,2 @@ static void set_directories(const char *core_name, const char *tag_name) {
-+	if (!sdcard_path || !sdcard_path[0])
-+		sdcard_path = "/mnt/SDCARD";
-@@ -289,2 +308,11 @@ static void set_directories(const char *core_name, const char *tag_name) {
--	snprintf(save_dir, MAX_PATH, "%s/Saves/%s/", sdcard_path, tag_name);
--	snprintf(system_dir, MAX_PATH, "%s/Bios/%s", sdcard_path, tag_name);
-+	snprintf(save_root, MAX_PATH, "%s/Saves", sdcard_path);
-+	mkdir(save_root, 0755);
-+	snprintf(save_dir, MAX_PATH, "%s/%s/", save_root, tag_name);
-+	mkdir(save_dir, 0755);
-+	snprintf(bios_root, MAX_PATH, "%s/Bios", sdcard_path);
-+	mkdir(bios_root, 0755);
-+	snprintf(system_dir, MAX_PATH, "%s/%s", bios_root, tag_name);
-+	if (bios_dir && bios_dir[0])
-+		core_set_system_dir(bios_dir);
-+	else
-+		core_set_system_dir(system_dir);
 diff --git a/core.h b/core.h
 index ed56637..0cc1963 100644
 --- a/core.h

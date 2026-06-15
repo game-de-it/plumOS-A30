@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-RUNTIME_PREFIXES = ("retroarch:", "standalone:")
+RUNTIME_PREFIXES = ("retroarch:", "picoarch:", "standalone:")
 SKIP_PREFIXES = ("external:", "internal:")
 
 
@@ -39,6 +39,7 @@ def default_artifact_roots(root: Path) -> list[Path]:
         root / "dist/plumos-libretro-cores",
         root / "dist/plumos-standalone-emulators",
         root / "dist/plumos-retroarch-practical",
+        root / "dist/plumos-picoarch",
     ]
     return [path for path in candidates if path.exists()]
 
@@ -63,6 +64,11 @@ def add_artifact(artifacts: dict[str, Artifact], profile: str, path: Path) -> No
 
 def scan_artifacts(roots: list[Path]) -> dict[str, Artifact]:
     artifacts: dict[str, Artifact] = {}
+    picoarch_launchers: list[Path] = []
+    for root in roots:
+        launcher = plumos_root(root) / "bin/plumos-picoarch-launch"
+        if launcher.is_file():
+            picoarch_launchers.append(launcher)
     for root in roots:
         runtime = plumos_root(root)
         cores_dir = runtime / "retroarch/cores"
@@ -71,6 +77,8 @@ def scan_artifacts(roots: list[Path]) -> dict[str, Artifact]:
                 core_id = core.name.removesuffix("_libretro.so")
                 if core_id:
                     add_artifact(artifacts, f"retroarch:{core_id}", core)
+                    for picoarch_launcher in picoarch_launchers:
+                        add_artifact(artifacts, f"picoarch:{core_id}", picoarch_launcher)
 
         emulators_dir = runtime / "emulators"
         if emulators_dir.is_dir():
@@ -119,6 +127,8 @@ def expected_runtime_path(profile: str) -> str:
     kind, value = profile.split(":", 1)
     if kind == "retroarch":
         return f"plumos/retroarch/cores/{value}_libretro.so"
+    if kind == "picoarch":
+        return f"plumos/bin/plumos-picoarch-launch + plumOS libretro core {value}"
     if kind == "standalone":
         return f"plumos/emulators/{value}/bin/*"
     return "-"
@@ -214,7 +224,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--runtime",
-        choices=("all", "retroarch", "standalone"),
+        choices=("all", "retroarch", "picoarch", "standalone"),
         default="all",
         help="Limit runtime-backed checks to one profile prefix. Default: all.",
     )

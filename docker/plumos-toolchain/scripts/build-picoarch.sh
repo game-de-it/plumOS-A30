@@ -15,6 +15,11 @@ PICOARCH_REF=${PICOARCH_REF:-802047c276a5a931b0bf837c4ea4b8e238bdeabe}
 PICOARCH_PATCH=${PICOARCH_PATCH:-"${PATCH_DIR}/picoarch-802047c-plumos-platform.patch"}
 PICOARCH_A30_INPUT_PATCH=${PICOARCH_A30_INPUT_PATCH:-"${PATCH_DIR}/picoarch-a30-input.patch"}
 PICOARCH_A30_DIRECT_PRESENT_PATCH=${PICOARCH_A30_DIRECT_PRESENT_PATCH:-"${PATCH_DIR}/picoarch-a30-direct-present.patch"}
+PICOARCH_A30_PIXEL_FORMAT_PATCH=${PICOARCH_A30_PIXEL_FORMAT_PATCH:-"${PATCH_DIR}/picoarch-a30-pixel-format.patch"}
+PICOARCH_A30_LIBRETRO_ENV_PATCH=${PICOARCH_A30_LIBRETRO_ENV_PATCH:-"${PATCH_DIR}/picoarch-a30-libretro-env.patch"}
+PICOARCH_A30_CORE_OPTIONS_PATCH=${PICOARCH_A30_CORE_OPTIONS_PATCH:-"${PATCH_DIR}/picoarch-a30-core-options.patch"}
+PICOARCH_A30_CONTENT_DIR_PATCH=${PICOARCH_A30_CONTENT_DIR_PATCH:-"${PATCH_DIR}/picoarch-a30-content-dir.patch"}
+PICOARCH_A30_LOG_FLUSH_PATCH=${PICOARCH_A30_LOG_FLUSH_PATCH:-"${PATCH_DIR}/picoarch-a30-log-flush.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -133,6 +138,11 @@ checkout_source() {
   patch -d "${SRC_DIR}/libpicofe" -p1 <"${SRC_DIR}/patches/libpicofe/0001-key-combos.patch"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_INPUT_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_DIRECT_PRESENT_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_PIXEL_FORMAT_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LIBRETRO_ENV_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_CORE_OPTIONS_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_CONTENT_DIR_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LOG_FLUSH_PATCH}"
   touch "${SRC_DIR}/libpicofe/.patched"
 }
 
@@ -207,6 +217,7 @@ STATE_DIR=${PLUMOS_ROOT}/state/picoarch
 LOG_DIR=${PLUMOS_ROOT}/logs/picoarch
 CPU_STATE=/tmp/plumos-picoarch-cpustate-$$
 joystickd_pid=
+picoarch_pid=
 cpu_policy_applied=0
 
 load_env_file() {
@@ -237,6 +248,13 @@ restore_framebuffer() {
 cleanup() {
   rc=$?
   trap - EXIT HUP INT TERM
+  if [ -n "${picoarch_pid}" ]; then
+    kill -TERM "${picoarch_pid}" >/dev/null 2>&1 || true
+    sleep 1
+    kill -KILL "${picoarch_pid}" >/dev/null 2>&1 || true
+    wait "${picoarch_pid}" 2>/dev/null || true
+    picoarch_pid=
+  fi
   if [ -n "${joystickd_pid}" ]; then
     kill -TERM "${joystickd_pid}" >/dev/null 2>&1 || true
     sleep 1
@@ -377,7 +395,8 @@ if [ ! -e "${rom_path}" ]; then
   exit 66
 fi
 
-mkdir -p "${STATE_DIR}" "${LOG_DIR}"
+mkdir -p "${STATE_DIR}" "${LOG_DIR}" \
+  "${STATE_DIR}/xdg-config" "${STATE_DIR}/xdg-data" "${STATE_DIR}/xdg-cache"
 trap cleanup EXIT HUP INT TERM
 
 restore_framebuffer
@@ -387,20 +406,22 @@ apply_cpu_policy "${PLUMOS_PICOARCH_CPU_POLICY:-keep}" \
 start_joystickd
 
 export HOME=${STATE_DIR}
+export XDG_CONFIG_HOME=${STATE_DIR}/xdg-config
+export XDG_DATA_HOME=${STATE_DIR}/xdg-data
+export XDG_CACHE_HOME=${STATE_DIR}/xdg-cache
 export SDCARD_PATH=${SDCARD_ROOT}
 export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-fbcon}
 export SDL_FBDEV=${SDL_FBDEV:-/dev/fb0}
 export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
 export AUDIODEV=${AUDIODEV:-default}
-export PLUMOS_PICOARCH_BIOS_DIR=${PLUMOS_PICOARCH_BIOS_DIR:-}
 export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
 export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
 export PLUMOS_PICOARCH_A30_LINEAR=${PLUMOS_PICOARCH_A30_LINEAR:-0}
 
 run_picoarch() {
-  "${LOADER}" \
+  exec "${LOADER}" \
     --library-path "${PICOARCH_LIB}:/usr/lib:/lib:/mnt/SDCARD/miyoo/lib:${PLUMOS_LIB}" \
     "${PICOARCH_BIN}" "${core_path}" "${rom_path}" "${scale_effect}"
 }
@@ -409,12 +430,36 @@ core_log_name=$(basename "${core_path}")
 core_log_name=${core_log_name%_libretro.so}
 core_log_name=${core_log_name%.so}
 core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
+
+if [ -z "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
+  case "${core_log_name}" in
+    scummvm)
+      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
+      ;;
+    quasi88)
+      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios/quasi88
+      ;;
+    bluemsx|fmsx)
+      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
+      ;;
+  esac
+fi
+if [ -n "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
+  export PLUMOS_PICOARCH_BIOS_DIR
+else
+  unset PLUMOS_PICOARCH_BIOS_DIR
+fi
+
 run_log=${LOG_DIR}/${core_log_name}-last.log
 latest_log=${LOG_DIR}/last.log
 
 if [ "${PLUMOS_PICOARCH_LOG:-1}" = 0 ]; then
-  run_picoarch
-  exit $?
+  run_picoarch &
+  picoarch_pid=$!
+  wait "${picoarch_pid}"
+  rc=$?
+  picoarch_pid=
+  exit "$rc"
 fi
 
 {
@@ -430,11 +475,15 @@ fi
   printf 'a30_rotation=%s\n' "${PLUMOS_PICOARCH_A30_ROTATION}"
   printf 'a30_vsync=%s\n' "${PLUMOS_PICOARCH_A30_VSYNC}"
   printf 'a30_linear=%s\n' "${PLUMOS_PICOARCH_A30_LINEAR}"
+  printf 'bios_dir=%s\n' "${PLUMOS_PICOARCH_BIOS_DIR:-}"
   printf '%s\n' '---'
 } >"${run_log}"
 
-run_picoarch >>"${run_log}" 2>&1
+run_picoarch >>"${run_log}" 2>&1 &
+picoarch_pid=$!
+wait "${picoarch_pid}"
 rc=$?
+picoarch_pid=
 cp "${run_log}" "${latest_log}" 2>/dev/null || true
 exit "$rc"
 EOF
@@ -478,6 +527,11 @@ stage_outputs() {
     echo "patch=$(basename "${PICOARCH_PATCH}")"
     echo "a30_input_patch=$(basename "${PICOARCH_A30_INPUT_PATCH}")"
     echo "a30_direct_present_patch=$(basename "${PICOARCH_A30_DIRECT_PRESENT_PATCH}")"
+    echo "a30_pixel_format_patch=$(basename "${PICOARCH_A30_PIXEL_FORMAT_PATCH}")"
+    echo "a30_libretro_env_patch=$(basename "${PICOARCH_A30_LIBRETRO_ENV_PATCH}")"
+    echo "a30_core_options_patch=$(basename "${PICOARCH_A30_CORE_OPTIONS_PATCH}")"
+    echo "a30_content_dir_patch=$(basename "${PICOARCH_A30_CONTENT_DIR_PATCH}")"
+    echo "a30_log_flush_patch=$(basename "${PICOARCH_A30_LOG_FLUSH_PATCH}")"
     echo "a30_mali_presenter=enabled"
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"
