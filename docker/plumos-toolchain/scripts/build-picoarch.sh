@@ -178,6 +178,7 @@ Environment:
   PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
   PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
   PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
+  PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
 USAGE
 }
 
@@ -398,10 +399,44 @@ export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
 export PLUMOS_PICOARCH_A30_LINEAR=${PLUMOS_PICOARCH_A30_LINEAR:-0}
 
-"${LOADER}" \
-  --library-path "${PICOARCH_LIB}:/usr/lib:/lib:/mnt/SDCARD/miyoo/lib:${PLUMOS_LIB}" \
-  "${PICOARCH_BIN}" "${core_path}" "${rom_path}" "${scale_effect}"
-exit $?
+run_picoarch() {
+  "${LOADER}" \
+    --library-path "${PICOARCH_LIB}:/usr/lib:/lib:/mnt/SDCARD/miyoo/lib:${PLUMOS_LIB}" \
+    "${PICOARCH_BIN}" "${core_path}" "${rom_path}" "${scale_effect}"
+}
+
+core_log_name=$(basename "${core_path}")
+core_log_name=${core_log_name%_libretro.so}
+core_log_name=${core_log_name%.so}
+core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
+run_log=${LOG_DIR}/${core_log_name}-last.log
+latest_log=${LOG_DIR}/last.log
+
+if [ "${PLUMOS_PICOARCH_LOG:-1}" = 0 ]; then
+  run_picoarch
+  exit $?
+fi
+
+{
+  printf 'timestamp=%s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || true)"
+  printf 'core=%s\n' "${core_path}"
+  printf 'rom=%s\n' "${rom_path}"
+  printf 'effect=%s\n' "${scale_effect}"
+  printf 'cpu_policy=%s\n' "${PLUMOS_PICOARCH_CPU_POLICY:-keep}"
+  printf 'cpu_freq=%s\n' "${PLUMOS_PICOARCH_CPU_FREQ:-648000}"
+  printf 'cpu_cores=%s\n' "${PLUMOS_PICOARCH_CPU_CORES:-keep}"
+  printf 'joystickd_mode=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}"
+  printf 'a30_mali=%s\n' "${PLUMOS_PICOARCH_A30_MALI}"
+  printf 'a30_rotation=%s\n' "${PLUMOS_PICOARCH_A30_ROTATION}"
+  printf 'a30_vsync=%s\n' "${PLUMOS_PICOARCH_A30_VSYNC}"
+  printf 'a30_linear=%s\n' "${PLUMOS_PICOARCH_A30_LINEAR}"
+  printf '%s\n' '---'
+} >"${run_log}"
+
+run_picoarch >>"${run_log}" 2>&1
+rc=$?
+cp "${run_log}" "${latest_log}" 2>/dev/null || true
+exit "$rc"
 EOF
   chmod 0755 "${BIN_DIR}/plumos-picoarch-launch"
 }
