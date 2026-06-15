@@ -1681,6 +1681,19 @@ static int clear_system_core_override(struct core_override_state *state, const c
   return 1;
 }
 
+static int clear_system_launch_profile_override(struct core_override_state *state,
+                                                const char *system_id) {
+  int idx = find_system_core_override(state, system_id);
+  if (idx < 0) {
+    return 1;
+  }
+  state->system_overrides[idx].launch_profile[0] = '\0';
+  if (system_core_override_is_empty(&state->system_overrides[idx])) {
+    return clear_system_core_override(state, system_id);
+  }
+  return 1;
+}
+
 static int set_system_cpu_override(struct core_override_state *state, const char *system_id,
                                    const char *cpu_policy, long cpu_freq_khz) {
   int idx = find_system_core_override(state, system_id);
@@ -1779,6 +1792,20 @@ static int clear_rom_core_override(struct core_override_state *state, const char
             (state->rom_override_count - (size_t)idx - 1) * sizeof(state->rom_overrides[0]));
   }
   state->rom_override_count--;
+  return 1;
+}
+
+static int clear_rom_launch_profile_override(struct core_override_state *state,
+                                             const char *system_id,
+                                             const char *relative_path) {
+  int idx = find_rom_core_override(state, system_id, relative_path);
+  if (idx < 0) {
+    return 1;
+  }
+  state->rom_overrides[idx].launch_profile[0] = '\0';
+  if (rom_core_override_is_empty(&state->rom_overrides[idx])) {
+    return clear_rom_core_override(state, system_id, relative_path);
+  }
   return 1;
 }
 
@@ -3983,9 +4010,9 @@ static void usage(const char *argv0) {
   printf("  %s top [--all] [--refresh] [--limit N]\n", argv0);
   printf("  %s roms SYSTEM [--no-scan] [--limit N]\n", argv0);
   printf("  %s menu start|apps [--limit N]\n", argv0);
-  printf("  %s core system SYSTEM [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--clear|--clear-cpu]\n",
+  printf("  %s core system SYSTEM [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--clear-profile|--clear|--clear-cpu]\n",
          argv0);
-  printf("  %s core rom SYSTEM RELATIVE_PATH [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--content-suffix '#EXE'] [--audio oss|alsa] [--latency MS] [--dosbox-force60fps true|false] [--dosbox-cycles auto|max|N] [--clear|--clear-cpu|--clear-content-suffix|--clear-audio|--clear-dosbox] [--no-scan]\n",
+  printf("  %s core rom SYSTEM RELATIVE_PATH [--set PROFILE] [--cpu performance|fixed] [--freq KHZ] [--cores 2|4] [--content-suffix '#EXE'] [--audio oss|alsa] [--latency MS] [--dosbox-force60fps true|false] [--dosbox-cycles auto|max|N] [--clear-profile|--clear|--clear-cpu|--clear-content-suffix|--clear-audio|--clear-dosbox] [--no-scan]\n",
          argv0);
   printf("  %s favorites [--limit N]\n", argv0);
   printf("  %s favorite rom SYSTEM RELATIVE_PATH [--toggle|--set|--clear] [--no-scan]\n",
@@ -4912,6 +4939,7 @@ int main(int argc, char **argv) {
     struct core_system_def system;
     static struct core_override_state state;
     int clear = 0;
+    int clear_profile = 0;
     int clear_cpu = 0;
     int clear_content_suffix = 0;
     int clear_audio = 0;
@@ -4955,7 +4983,7 @@ int main(int argc, char **argv) {
 
     for (i = option_start; i < argc; i++) {
       if (strcmp(argv[i], "--set") == 0 && i + 1 < argc) {
-        if (clear || set_profile) {
+        if (clear || clear_profile || set_profile) {
           fprintf(stderr, "error: use only one profile action\n");
           return 2;
         }
@@ -5064,13 +5092,19 @@ int main(int argc, char **argv) {
         clear_dosbox = 1;
       } else if (strcmp(argv[i], "--clear") == 0) {
         if (clear || set_profile || set_cpu_policy || clear_cpu || freq_seen || cores_seen ||
-            set_content_suffix || clear_content_suffix || set_audio_driver ||
+            clear_profile || set_content_suffix || clear_content_suffix || set_audio_driver ||
             audio_latency_seen || clear_audio || set_dosbox_force60fps ||
             set_dosbox_cycles || clear_dosbox) {
           fprintf(stderr, "error: --clear cannot be combined with set actions\n");
           return 2;
         }
         clear = 1;
+      } else if (strcmp(argv[i], "--clear-profile") == 0) {
+        if (clear || clear_profile || set_profile) {
+          fprintf(stderr, "error: use only one profile action\n");
+          return 2;
+        }
+        clear_profile = 1;
       } else if (strcmp(argv[i], "--clear-cpu") == 0) {
         if (clear || set_cpu_policy || clear_cpu || freq_seen || cores_seen) {
           fprintf(stderr, "error: use only one CPU action\n");
@@ -5167,7 +5201,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "error: cannot write core overrides: %s\n", core_overrides_path);
         return 1;
       }
-    } else if (set_profile || set_cpu_policy || cores_seen || clear_cpu ||
+    } else if (set_profile || clear_profile || set_cpu_policy || cores_seen || clear_cpu ||
                set_content_suffix || clear_content_suffix || set_audio_driver ||
                audio_latency_seen || clear_audio || set_dosbox_force60fps ||
                set_dosbox_cycles || clear_dosbox) {
@@ -5176,6 +5210,11 @@ int main(int argc, char **argv) {
         ok = rom_relative_path
                  ? set_rom_core_override(&state, system_id, rom_relative_path, set_profile)
                  : set_system_core_override(&state, system_id, set_profile);
+      }
+      if (ok && clear_profile) {
+        ok = rom_relative_path
+                 ? clear_rom_launch_profile_override(&state, system_id, rom_relative_path)
+                 : clear_system_launch_profile_override(&state, system_id);
       }
       if (ok && set_cpu_policy) {
         ok = rom_relative_path

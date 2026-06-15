@@ -656,10 +656,11 @@ static const size_t PERFORMANCE_CPU_CORE_PRESET_COUNT =
 
 enum core_menu_row {
   CORE_MENU_ROW_PROFILE = 0,
-  CORE_MENU_ROW_SEPARATOR = 1,
-  CORE_MENU_ROW_CPU_FREQ = 2,
-  CORE_MENU_ROW_CPU_CORES = 3,
-  CORE_MENU_ROW_COUNT = 4,
+  CORE_MENU_ROW_DEFAULT = 1,
+  CORE_MENU_ROW_SEPARATOR = 2,
+  CORE_MENU_ROW_CPU_FREQ = 3,
+  CORE_MENU_ROW_CPU_CORES = 4,
+  CORE_MENU_ROW_COUNT = 5,
 };
 
 static const char *WIFI_KEYBOARD_ROWS_LOWER[UI_WIFI_COMMAND_ROW] = {
@@ -6946,6 +6947,7 @@ static void render_help(struct ui_state *ui) {
 static void render_core_select(struct ui_state *ui) {
   size_t i;
   const char *profile = NULL;
+  const char *default_label;
   char cores_label[64];
   const char *footer1 = "Launch core/profile used for this target.";
   const char *footer2 = "TOP saves system; ROM saves ROM override.";
@@ -6975,15 +6977,19 @@ static void render_core_select(struct ui_state *ui) {
   } else {
     copy_string(cores_label, sizeof(cores_label), "launcher default");
   }
+  default_label = ui->core_target_relative_path[0] ? "Inherit TOP" : "plumOS default";
 
   ui_printf(ui, "%c   1  Cores < %s >\n",
             ui->core_menu_cursor == CORE_MENU_ROW_PROFILE ? '>' : ' ',
             core_profile_display_name(profile));
-  ui_printf(ui, "    2  ------------------------------\n");
-  ui_printf(ui, "%c   3  CPU freq < %s >\n",
+  ui_printf(ui, "%c   2  Default < %s >\n",
+            ui->core_menu_cursor == CORE_MENU_ROW_DEFAULT ? '>' : ' ',
+            default_label);
+  ui_printf(ui, "    3  ------------------------------\n");
+  ui_printf(ui, "%c   4  CPU freq < %s >\n",
             ui->core_menu_cursor == CORE_MENU_ROW_CPU_FREQ ? '>' : ' ',
             ui->core_cpu_label);
-  ui_printf(ui, "%c   4  CPU Cores < %s >\n",
+  ui_printf(ui, "%c   5  CPU Cores < %s >\n",
             ui->core_menu_cursor == CORE_MENU_ROW_CPU_CORES ? '>' : ' ',
             cores_label);
   for (i = 0; i < ui->core_line_count; i++) {
@@ -6996,6 +7002,10 @@ static void render_core_select(struct ui_state *ui) {
     footer1 = "CPU core count for this target.";
     footer2 = ui->core_cpu_cores_source[0] ? ui->core_cpu_cores_source
                                            : "source unavailable";
+  } else if (ui->core_menu_cursor == CORE_MENU_ROW_DEFAULT) {
+    footer1 = "A removes this target core override.";
+    footer2 = ui->core_target_relative_path[0] ? "ROM will inherit TOP core."
+                                               : "TOP will use plumOS default.";
   }
   if (ui->renderer_mali) {
     ui_printf(ui, "footer1=%s\n", footer1);
@@ -7698,6 +7708,27 @@ static int run_core_set_profile(struct ui_state *ui, const char *profile) {
   return run_core_text_ui_extra(ui, extra);
 }
 
+static int run_core_clear_profile_override(struct ui_state *ui) {
+  const char *target_label;
+
+  if (!ui) {
+    return 0;
+  }
+  target_label = ui->core_target_relative_path[0] ? "inherit TOP" : "plumOS default";
+  if (!run_core_text_ui_extra(ui, " --clear-profile")) {
+    return 0;
+  }
+  if (!load_core_select_lines(ui, ui->core_target_system_id,
+                              ui->core_target_relative_path[0]
+                                  ? ui->core_target_relative_path
+                                  : NULL)) {
+    set_status(ui, "default restored; reload failed");
+    return 0;
+  }
+  snprintf(ui->status, sizeof(ui->status), "Core default: %s", target_label);
+  return 1;
+}
+
 static void cycle_core_profile(struct ui_state *ui, int direction) {
   const char *profile;
   char label[128];
@@ -7829,6 +7860,8 @@ static void cycle_core_menu_current_row(struct ui_state *ui, int direction) {
   core_menu_clamp_cursor(ui);
   if (ui->core_menu_cursor == CORE_MENU_ROW_PROFILE) {
     cycle_core_profile(ui, direction);
+  } else if (ui->core_menu_cursor == CORE_MENU_ROW_DEFAULT) {
+    set_status(ui, "press A to restore default");
   } else if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_FREQ) {
     cycle_core_cpu_policy(ui, direction);
   } else if (ui->core_menu_cursor == CORE_MENU_ROW_CPU_CORES) {
@@ -10214,6 +10247,15 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     if (action == ACTION_RIGHT) {
       cycle_core_menu_current_row(ui, 1);
+      return;
+    }
+    if (action == ACTION_A) {
+      core_menu_clamp_cursor(ui);
+      if (ui->core_menu_cursor == CORE_MENU_ROW_DEFAULT) {
+        run_core_clear_profile_override(ui);
+      } else {
+        set_status(ui, "use LEFT/RIGHT to change values");
+      }
       return;
     }
     if (action == ACTION_SELECT) {

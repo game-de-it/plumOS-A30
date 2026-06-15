@@ -793,7 +793,9 @@ Rules:
 - The SELECT core menu is the TOP/ROM shared `SCREEN_CORE_SELECT`; it shows the
   launch candidate with a runtime prefix, such as `Cores < RA: fceumm >`,
   `Cores < PICO: fceumm >`, or `Cores < SA: ppsspp >`, then below a separator shows
-  `CPU freq < value >` and `CPU Cores < value >`. On TOP it writes a system
+  `CPU freq < value >` and `CPU Cores < value >`. The `Default` row clears only
+  the `launch_profile` override; ROM targets inherit the TOP/system override, and
+  TOP targets inherit `default_launch_profile`. On TOP it writes a system
   override; on a ROM list it writes a ROM override through the same
   `plumos-text-ui core ... --set/--cpu --freq/--cores` save path.
 - `Performance Settings` edits the same `core-overrides.json` system override.

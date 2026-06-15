@@ -759,7 +759,9 @@ rules:
 - SELECT core menu は TOP/ROM 共通の `SCREEN_CORE_SELECT` で、起動候補を
   `Cores < RA: fceumm >` / `Cores < PICO: fceumm >` /
   `Cores < SA: ppsspp >` のように実行経路の省略接頭辞付きで表示し、区切り線の下に `CPU freq < value >` と
-  `CPU Cores < value >` を表示する。TOPではsystem override、ROM listではROM overrideを
+  `CPU Cores < value >` を表示する。`Default` 行は `launch_profile` override だけを消し、
+  ROM では TOP/system override を、TOP では `default_launch_profile` を継承する。
+  TOPではsystem override、ROM listではROM overrideを
   `plumos-text-ui core ... --set/--cpu --freq/--cores` の同じ保存経路へ書く。
 - `Performance Settings` も同じ `core-overrides.json` のsystem overrideを編集する。
   2026-06-07 の dummy負荷測定では 4コアperformance負荷は2コアperformance負荷の

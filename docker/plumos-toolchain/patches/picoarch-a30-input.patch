@@ -98,17 +98,31 @@ index aa1f155..109e5be 100644
  
  	/* wait until either key repeat or a new key has been pressed */
  	do {
+diff --git a/menu.c b/menu.c
+index 86b3bb3..3453f68 100644
+--- a/menu.c
++++ b/menu.c
+@@ -70,6 +70,7 @@ me_bind_action emuctrl_actions[] =
+ 	{ "Load State       ", 1 << EACTION_LOAD_STATE },
+ 	{ "Toggle FPS/CPU%  ", 1 << EACTION_TOGGLE_HUD },
+ 	{ "Toggle FF        ", 1 << EACTION_TOGGLE_FF },
++	{ "menu             ", 1 << EACTION_MENU },
+ 	// { "Take Screenshot  ", 1 << EACTION_SCREENSHOT },
+ 	{ NULL,                0 }
+ };
 diff --git a/main.c b/main.c
-index a2b5095..705121b 100644
+index a2b5095..7f44bbb 100644
 --- a/main.c
 +++ b/main.c
-@@ -285,0 +286,34 @@
-+}
-+
-+static void force_default_menu_binds(void)
+@@ -285,27 +285,60 @@ void load_config(void)
+ 	plat_reinit();
+ }
+ 
++static int force_default_menu_binds(void)
 +{
 +	int menu_mask = 1 << EACTION_MENU;
 +	int dev_id;
++	int changed = 0;
 +
 +	for (dev_id = 0; dev_id < IN_MAX_DEVS; dev_id++) {
 +		const int *binds;
@@ -132,15 +146,31 @@ index a2b5095..705121b 100644
 +			if (binds && (binds[IN_BIND_OFFS(i, IN_BINDTYPE_EMU)] & menu_mask))
 +				continue;
 +			key_name = in_get_key_name(dev_id, i);
-+			if (key_name && key_name[0])
-+				in_config_bind_key(dev_id, key_name, menu_mask, IN_BINDTYPE_EMU);
++			if (key_name && key_name[0] &&
++					in_config_bind_key(dev_id, key_name, menu_mask, IN_BINDTYPE_EMU) == 0)
++				changed = 1;
 +		}
 +	}
 +	in_clean_binds();
-@@ -291,2 +324,0 @@
++	return changed;
++}
++
+ void load_config_keys(void)
+ {
+ 	char *config = NULL;
++	int config_missing_default_menu_binds = 0;
 -	int kcount = 0;
 -	const int *defbinds = NULL;
-@@ -300,9 +332 @@
+ 
+ 	alloc_config_buffer(&config);
+ 
+ 	if (config) {
++		config_missing_default_menu_binds =
++			!strstr(config, "bind escape = menu") ||
++			!strstr(config, "bind \\xAA = menu");
+ 		config_read_keys(config);
+ 		free(config);
+-
 -		/* Force input device 0 menu to be bound to the default key */
 -		in_get_config(0, IN_CFG_BIND_COUNT, &kcount);
 -		defbinds = in_get_dev_def_binds(0);
@@ -150,7 +180,13 @@ index a2b5095..705121b 100644
 -				in_bind_key(0, i, 1 << EACTION_MENU, IN_BINDTYPE_EMU, 0);
 -			}
 -		}
-+		force_default_menu_binds();
+ 	}
++	if (force_default_menu_binds() || config_missing_default_menu_binds) {
++		PA_INFO("Restored default menu binds in config\n");
++		save_config(config_override ? 1 : 0);
++	}
+ }
+ 
 diff --git a/plat_linux.c b/plat_linux.c
 index bc57f3c..bd16c0f 100644
 --- a/plat_linux.c

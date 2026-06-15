@@ -196,6 +196,9 @@ blend and `LCD` approximates the RGB subpixel pattern in the fragment shader, so
 these effects do not return to PicoArch's software scaler on A30.
 When an old or user-edited `picoarch.cfg` lacks the Gamepad-side Function menu
 binding, startup restores the default menu binding across all SDL input devices.
+`EACTION_MENU` is also present in PicoArch's config-save action table, and if an
+existing config lacks `bind escape = menu` / `bind \xAA = menu`, startup repairs
+and saves it.
 
 A manual `fceumm_libretro.so` launch with `/mnt/SDCARD/Roms/FC/いっき.zip`
 logged `picoarch-a30: mali presenter logical=640x480 physical=480x640 rotation=2 vsync=1`,
