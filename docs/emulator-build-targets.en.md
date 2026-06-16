@@ -480,7 +480,7 @@ initial plumOS emulator/core build plan.
 | SFC / SNES | `snes9x`, `mednafen_supafaust`, optional `snes9x2005-plus` | `Emu/SFC`, `RApp/snes9x`, `RApp/snes9x2018` | Enhancement-chip games need per-title checks. |
 | PC Engine / TurboGrafx-16 | `mednafen_pce_fast` | `Emu/PCE`, `RApp/mednafen_pce_fast` | Low load. |
 | PC Engine CD | `mednafen_pce_fast` | backup `mednafen_pce_cd` | Strong non-PS1 CD candidate. Needs BIOS/CHD/CUE checks. |
-| SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Practical candidate. |
+| SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Enhanced PC Engine-compatible hardware, not an overseas name. A PC Engine content check validates only the PC Engine profile; SuperGrafx-exclusive content needs a separate check. |
 | Neo Geo cartridge | `fbneo` | `Emu/NEOGEO`, `RApp/fbneo` | Needs BIOS and gamelist compatibility checks. |
 | Neo Geo CD | `neocd` | `RApp/neocd` | CD-based but 2D-focused. Check loading and CDDA. |
 | Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
