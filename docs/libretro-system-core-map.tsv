@@ -2,8 +2,8 @@ system_id	display_name	rom_dir	directory_aliases	extensions	default_core	candida
 nes	NES	FC	nes;famicom	nes,unf,unif,zip,7z	fceumm	fceumm,nestopia,quicknes	existing	systems.json	-
 fds	FDS	FDS	FC;fds	fds,zip,7z	fceumm	fceumm,nestopia	existing	systems.json	-
 sfc	SFC	SFC	sfc;snes	sfc,smc,fig,bs,swc,zip,7z	snes9x2005	chimerasnes,mednafen_supafaust,snes9x,snes9x2002,snes9x2005,snes9x2005_plus,snes9x2010	add_core	systems.json	add candidates: chimerasnes,mednafen_supafaust,snes9x2002,snes9x2005_plus,snes9x2010
-gb	GB	GB	gb	gb,zip,7z	gambatte	gambatte,gearboy,mgba,tgbdual,vbam	add_core	systems.json	add candidates: gearboy,tgbdual,vbam
-gbc	GBC	GBC	GB;gbc	gbc,zip,7z	gambatte	gambatte,gearboy,mgba,tgbdual,vbam	add_core	systems.json	add candidates: gearboy,tgbdual,vbam
+gb	GB	GB	gb	gb,zip,7z	gambatte	gambatte,gearboy,mgba,vbam	add_core	systems.json	add candidates: gearboy,vbam; exclude tgbdual
+gbc	GBC	GBC	GB;gbc	gbc,zip,7z	gambatte	gambatte,gearboy,mgba,vbam	add_core	systems.json	add candidates: gearboy,vbam; exclude tgbdual
 gba	GBA	GBA	gba	gba,zip,7z	mgba	gpsp,mednafen_gba,meteor,mgba,vba_next,vbam	add_core	systems.json	add candidates: mednafen_gba,meteor,vba_next,vbam
 megadrive	Mega Drive	MD	megadrive;genesis	gen,md,smd,bin,zip,7z	genesis_plus_gx	genesis_plus_gx,picodrive	existing	systems.json	-
 mastersystem	Master System	MS	MD;mastersystem	sms,bin,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem

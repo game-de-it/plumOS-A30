@@ -127,8 +127,9 @@ override の値を `PLUMOS_PICOARCH_*` 環境変数として渡します。
 Core Settings では、`systems.json` にある各 `retroarch:<core_id>` から対応する
 `picoarch:<core_id>` を検証用候補として自動追加します。初期 default は
 `default_launch_profile` のままとし、PicoArch を使う場合はユーザーが明示的に選びます。
-ただし実機検証で PicoArch 経路の表示、操作、実速度が成立しない core は、この自動追加対象から
-除外します。2026-06-16 時点では `tgbdual` が黒画面、`mednafen_pce` が実動作約30fpsのため
+ただし実機検証で表示、操作、実速度が成立しない core は候補から除外します。
+2026-06-16 時点では `tgbdual` を GB/GBC の通常候補から外し、PicoArch 自動追加対象からも
+除外します。`mednafen_pce` は PicoArch 実動作が約30fpsのため PicoArch 自動追加対象から
 除外対象です。
 
 ### `DirectoryAlias`
