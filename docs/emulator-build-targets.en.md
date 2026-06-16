@@ -236,8 +236,8 @@ to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
 `bluemsx` / `fmsx` can also report a successful content load through PicoArch VFS
 while falling back to the MSX BASIC screen, so PicoArch withholds VFS for those
-cores and lets them use their built-in file I/O. As of 2026-06-17, the MSX PICO
-path needs a hardware retest after this fix is deployed.
+cores and lets them use their built-in file I/O. The 2026-06-17 hardware check
+confirms both MSX PICO `bluemsx` and `fmsx` now launch content correctly.
 `scummvm` libretro reads the analog cursor through gamepad axes, so the A30
 PicoArch launcher swaps joystickd X/Y sources to `axisYR`/`axisXR` for that core
 by default. The 2026-06-17 hardware check confirms the corrected ScummVM PICO

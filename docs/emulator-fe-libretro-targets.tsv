@@ -147,8 +147,8 @@ scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	untested	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	untested	systems.json
@@ -234,14 +234,14 @@ quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	y
 quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	untested	FE auto companion
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	RA	retroarch:xrick	xrick	yes	yes	yes	yes	yes	yes	untested	systems.json
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	PICO	picoarch:xrick	xrick	yes	yes	yes	yes	yes	no	untested	FE auto companion
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	untested	systems.json
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	yes	untested	systems.json
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	systems.json
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	systems.json
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	untested	FE auto companion
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	FE auto companion
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	systems.json
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	yes	pass	systems.json
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	systems.json
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	RA	retroarch:x1	x1	yes	yes	yes	yes	yes	yes	untested	systems.json
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	PICO	picoarch:x1	x1	yes	yes	yes	yes	yes	no	untested	FE auto companion
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	theodore	yes	yes	yes	yes	yes	yes	untested	systems.json
