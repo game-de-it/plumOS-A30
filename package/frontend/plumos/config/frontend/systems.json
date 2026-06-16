@@ -492,7 +492,7 @@
       "short_name": "N64",
       "sort_order": 160,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "N64", "source": "miyoo", "priority": 10},
