@@ -321,7 +321,7 @@
  static bool pa_environment(unsigned cmd, void *data) {
  	switch(cmd) {
 +	case RETRO_ENVIRONMENT_SET_ROTATION: /* 1 */
-+		break;
++		return false;
  	case RETRO_ENVIRONMENT_GET_OVERSCAN: { /* 2 */
  		bool *out = (bool *)data;
  		if (out)

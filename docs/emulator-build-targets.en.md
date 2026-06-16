@@ -225,6 +225,11 @@ a black raw framebuffer on A30. For PC Engine-family systems, `mednafen_pce` is
 excluded from normal RA/PICO candidates because of its runtime load; use
 `mednafen_pce_fast` instead. GB/GBC PicoArch validation should use `gambatte`,
 `gearboy`, `mgba`, or `vbam`.
+For WonderSwan, `mednafen_wswan` disables its internal software rotation when
+`RETRO_ENVIRONMENT_SET_ROTATION` succeeds, because it then expects frontend
+hardware display rotation. The PicoArch A30 presenter only implements the final
+rotation into the A30 raw panel, not libretro display rotation, so `SET_ROTATION`
+returns false and lets `mednafen_wswan` use its core-side rotation path.
 For `quasi88`, D88 header seek/read fails through PicoArch's simple VFS and drops
 to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
