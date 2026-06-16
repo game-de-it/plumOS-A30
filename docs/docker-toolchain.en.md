@@ -257,7 +257,9 @@ When `bios_dir` is absent, the default is `/mnt/SDCARD/Bios/<ROM_DIR>`.
 The launch default can also be set in
 `/mnt/SDCARD/plumos/config/standalone/picoarch.env` with
 `PLUMOS_PICOARCH_BIOS_DIR=/path`; a `bios_dir` entry in `picoarch.cfg` takes
-precedence.
+precedence. For cores whose BIOS packs live in the shared root, the launcher
+defaults to `/mnt/SDCARD/Bios`; `docs/emulator-build-targets.md` is the
+authoritative core list.
 
 ```sh
 ./scripts/docker-build.sh picoarch

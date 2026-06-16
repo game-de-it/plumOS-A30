@@ -249,7 +249,8 @@ config file は core と ROM directory ごとに
 `bios_dir` が無い場合の既定値は `/mnt/SDCARD/Bios/<ROM_DIR>` です。plumOS 側の launch 既定値は
 `/mnt/SDCARD/plumos/config/standalone/picoarch.env` の
 `PLUMOS_PICOARCH_BIOS_DIR=/path` でも指定できますが、`picoarch.cfg` の `bios_dir` がある場合は
-そちらが優先されます。
+そちらが優先されます。BIOS pack が共有 root に置かれる core は launcher 側で
+`/mnt/SDCARD/Bios` を既定値にします。対象 core の一覧は `docs/emulator-build-targets.md` を正とします。
 
 ```sh
 ./scripts/docker-build.sh picoarch

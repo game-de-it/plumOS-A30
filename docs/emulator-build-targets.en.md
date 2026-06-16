@@ -261,9 +261,11 @@ these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
 | FDS | `fceumm`, `nestopia` | Read `disksys.rom` from `/mnt/SDCARD/Bios`. |
 | PC Engine CD / SuperGrafx | `mednafen_pce_fast`, `mednafen_supergrafx`, `mednafen_pce` | Read `syscard*.pce` / `games_express.pce` from `/mnt/SDCARD/Bios`. |
 | Sega CD / 32X | `genesis_plus_gx`, `picodrive` | Read `bios_CD_*.bin` / `32X_*_BIOS.BIN` from `/mnt/SDCARD/Bios`. |
-| CD console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd` | Read PS1 / PC-FX / 3DO / Neo Geo CD BIOS files from `/mnt/SDCARD/Bios`. |
-| handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `mednafen_lynx`, `handy`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
-| computer | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1` | Resolve system ROMs / machine databases relative to `/mnt/SDCARD/Bios`. |
+| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64`, `virtualjaguar` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. |
+| handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
+| arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | Resolve arcade BIOS/data packs such as `fbneo/neogeo.zip` relative to `/mnt/SDCARD/Bios`. |
+| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | Resolve system ROMs / machine databases / runtime data relative to `/mnt/SDCARD/Bios`. |
+| SNES special carts | `snes9x` | Read BS-X / Sufami Turbo BIOS files from `/mnt/SDCARD/Bios`. |
 | PC-88 | `quasi88` | Exception: use `/mnt/SDCARD/Bios/quasi88`. |
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on

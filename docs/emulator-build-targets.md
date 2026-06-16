@@ -223,9 +223,11 @@ BIOS pack の多くは Onion/Miyoo 互換の共有 BIOS root `/mnt/SDCARD/Bios` 
 | FDS | `fceumm`, `nestopia` | `disksys.rom` を `/mnt/SDCARD/Bios` から読む。 |
 | PC Engine CD / SuperGrafx | `mednafen_pce_fast`, `mednafen_supergrafx`, `mednafen_pce` | `syscard*.pce` / `games_express.pce` を `/mnt/SDCARD/Bios` から読む。 |
 | Sega CD / 32X | `genesis_plus_gx`, `picodrive` | `bios_CD_*.bin` / `32X_*_BIOS.BIN` を `/mnt/SDCARD/Bios` から読む。 |
-| CD console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd` | PS1 / PC-FX / 3DO / Neo Geo CD BIOS を `/mnt/SDCARD/Bios` から読む。 |
-| handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `mednafen_lynx`, `handy`, `atari800`, `prosystem`, `freeintv`, `o2em` | optional/required BIOS を `/mnt/SDCARD/Bios` から読む。 |
-| computer | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1` | system ROM / machine database を `/mnt/SDCARD/Bios` 基準で探す。 |
+| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64`, `virtualjaguar` | PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD などの BIOS を `/mnt/SDCARD/Bios` から読む。 |
+| handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | optional/required BIOS を `/mnt/SDCARD/Bios` から読む。 |
+| arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | `fbneo/neogeo.zip` などの arcade BIOS/data pack を `/mnt/SDCARD/Bios` 基準で探す。 |
+| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | system ROM / machine database / runtime data を `/mnt/SDCARD/Bios` 基準で探す。 |
+| SNES special carts | `snes9x` | BS-X / Sufami Turbo BIOS を `/mnt/SDCARD/Bios` から読む。 |
 | PC-88 | `quasi88` | 例外として `/mnt/SDCARD/Bios/quasi88` を使う。 |
 
 2026-06-13 の first probe では、`scripts/probe-libretro-core-options.sh` で

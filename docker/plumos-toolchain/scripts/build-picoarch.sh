@@ -441,20 +441,40 @@ core_log_name=${core_log_name%_libretro.so}
 core_log_name=${core_log_name%.so}
 core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
 
+uses_shared_bios_root() {
+  case "$1" in
+    scummvm|fceumm|nestopia|mednafen_pce_fast|mednafen_supergrafx|mednafen_pce|genesis_plus_gx|picodrive|pcsx_rearmed|mednafen_pcfx|opera|neocd)
+      return 0
+      ;;
+    gpsp|mgba|mednafen_gba|meteor|vba_next|vbam|gambatte|gearboy|gearsystem|mednafen_lynx|handy|mednafen_ngp|mednafen_wswan|pokemini|freechaf|snes9x)
+      return 0
+      ;;
+    atari800|prosystem|freeintv|o2em|bluemsx|fmsx|puae|np2kai|nekop2|px68k|hatari|cap32|x1|bk|mu|vice_x64|vice_xvic|fuse)
+      return 0
+      ;;
+    flycast|yabasanshiro|beetle_saturn|yabause|mupen64plus_next|parallel_n64|virtualjaguar)
+      return 0
+      ;;
+    fbneo|fbalpha2012|fbalpha2012_cps1|fbalpha2012_cps2|fbalpha2012_neogeo|mame2000|mame2003_plus)
+      return 0
+      ;;
+    squirreljme|ecwolf|dosbox_pure|prboom)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 if [ -z "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
   case "${core_log_name}" in
-    scummvm)
-      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
-      ;;
     quasi88)
       PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios/quasi88
       ;;
-    fceumm|nestopia|mednafen_pce_fast|mednafen_supergrafx|mednafen_pce|genesis_plus_gx|picodrive|pcsx_rearmed|mednafen_pcfx|opera|neocd|gpsp|mgba|mednafen_gba|meteor|vba_next|vbam|mednafen_lynx|handy|atari800|prosystem|freeintv|o2em|puae|np2kai|nekop2|px68k|hatari|cap32|x1)
-      # BIOS packs are staged in the shared Miyoo/Onion-style BIOS root.
-      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
-      ;;
-    bluemsx|fmsx)
-      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
+    *)
+      if uses_shared_bios_root "${core_log_name}"; then
+        # BIOS packs are staged in the shared Miyoo/Onion-style BIOS root.
+        PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
+      fi
       ;;
   esac
 fi
