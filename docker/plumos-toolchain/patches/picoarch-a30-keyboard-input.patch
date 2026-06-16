@@ -1,0 +1,63 @@
+--- a/core.c
++++ b/core.c
+@@ -40,6 +40,42 @@
+ static struct retro_disk_control_ext_callback disk_control_ext;
+ 
+ static uint32_t buttons = 0;
++static bool keyboard_state(unsigned key)
++{
++	switch (key) {
++	case RETROK_UP:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_UP) & 1;
++	case RETROK_DOWN:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_DOWN) & 1;
++	case RETROK_LEFT:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_LEFT) & 1;
++	case RETROK_RIGHT:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_RIGHT) & 1;
++	case RETROK_SPACE:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_A) & 1;
++	case RETROK_LCTRL:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_B) & 1;
++	case RETROK_LSHIFT:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_X) & 1;
++	case RETROK_LALT:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_Y) & 1;
++	case RETROK_RETURN:
++	case RETROK_KP_ENTER:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_START) & 1;
++	case RETROK_ESCAPE:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_SELECT) & 1;
++	case RETROK_TAB:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_L) & 1;
++	case RETROK_BACKSPACE:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_R) & 1;
++	case RETROK_e:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_L2) & 1;
++	case RETROK_t:
++		return (buttons >> RETRO_DEVICE_ID_JOYPAD_R2) & 1;
++	default:
++		return false;
++	}
++}
+ 
+ static int core_load_game_info(struct content *content, struct retro_game_info *game_info) {
+ 	struct retro_system_info info = {};
+@@ -559,7 +595,7 @@
+ 	case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES: { /* 24 */
+ 		uint64_t *out = (uint64_t *)data;
+ 		if (out)
+-			*out = (1ULL << RETRO_DEVICE_JOYPAD);
++			*out = (1ULL << RETRO_DEVICE_JOYPAD) | (1ULL << RETRO_DEVICE_KEYBOARD);
+ 		break;
+ 	}
+ 	case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: { /* 27 */
+@@ -806,6 +842,8 @@
+ 
+ 		return (buttons >> id) & 1;
+ 	}
++	if (port == 0 && device == RETRO_DEVICE_KEYBOARD && index == 0)
++		return keyboard_state(id) ? 1 : 0;
+ 
+ 	return 0;
+ }

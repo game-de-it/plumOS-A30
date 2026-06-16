@@ -575,6 +575,9 @@ USE_JOYSTICKD=1
 JOY_PID=""
 GAMEPAD_JS=""
 RA_PID=""
+CORE_ID=""
+JOY_MODE="xbox"
+JOY_KEYBOARD_PROFILE="passthrough"
 
 usage() {
   cat <<USAGE
@@ -863,11 +866,18 @@ stop_joystickd() {
     cmd=$(cat "$f" 2>/dev/null | tr '\0' ' ')
     [ -n "$cmd" ] || continue
     case "$cmd" in
-      *"$JOY --device-mode xbox"*) kill_pid_quick "$pid" ;;
+      *"$JOY --device-mode xbox"*|*"$JOY --device-mode keyboard"*) kill_pid_quick "$pid" ;;
     esac
   done
   set -e
   JOY_PID=""
+}
+
+core_id_from_path() {
+  name=${1##*/}
+  name=${name%_libretro.so}
+  name=${name%.so}
+  printf '%s\n' "$name"
 }
 
 cleanup() {
@@ -1130,13 +1140,39 @@ dosbox_pure_cycles = "$DOSBOX_PURE_CYCLES"
 APPEND
 fi
 
+CORE_ID="$(core_id_from_path "$CORE")"
+case "$CORE_ID" in
+  np2kai)
+    cat >> "$APPEND" <<APPEND
+np2kai_joymode = "Arrows"
+APPEND
+    ;;
+  nekop2)
+    JOY_MODE="keyboard"
+    cat >> "$APPEND" <<APPEND
+input_driver = "sdl2"
+APPEND
+    ;;
+esac
+
 apply_cpu_policy
 ensure_loopback_up
 
 if [ "$USE_JOYSTICKD" = "1" ] && [ -x "$JOY" ]; then
-  "$JOY" --device-mode xbox >"$JOY_LOG" 2>&1 &
+  case "$JOY_MODE" in
+    keyboard)
+      "$JOY" --device-mode keyboard --keyboard-profile "$JOY_KEYBOARD_PROFILE" --trigger-mode buttons --shoulder-layout user >"$JOY_LOG" 2>&1 &
+      ;;
+    xbox)
+      "$JOY" --device-mode xbox >"$JOY_LOG" 2>&1 &
+      ;;
+    *)
+      echo "error: invalid joystickd mode: $JOY_MODE" >&2
+      exit 2
+      ;;
+  esac
   JOY_PID=$!
-  wait_for_gamepad_js || true
+  [ "$JOY_MODE" = "xbox" ] && wait_for_gamepad_js || true
 fi
 
 run_retroarch

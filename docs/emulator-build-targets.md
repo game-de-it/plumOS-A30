@@ -468,7 +468,7 @@ A30で動く可能性はあるが、満足ラインはtitle/profile依存。
 | --- | --- | --- |
 | CPS3 | `fbalpha2012`, `fbneo` | 2Dだが重め。代表タイトルで実測して判断。 |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX等は個別性能確認。 |
-| PC-88 / PC-98 | `quasi88`, `np2kai` | CPU負荷より入力/keyboard UXが課題。必要なら build。 |
+| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | CPU負荷より入力/keyboard UXが課題。PC-98は RA `np2kai` に `np2kai_joymode=Arrows`、RA `nekop2` に keyboard joystickd、PicoArch に最小keyboard state変換を入れて再検証待ち。 |
 | Virtual Boy | `retroarch:mednafen_vb` | `mednafen_vb` は Onion 由来 commit `162918f` へ pin した plumOS build で Bad Apple の実動作を確認済み。Red Viper は StockOS 由来描画経路の向き/fit と単眼描画は修正済みだが、高負荷場面の音切れが残るため FE profile から外す。 |
 | lightweight PSP | `standalone:ppsspp` | PSP全体ではなく、2D/軽量タイトル限定で検証。A30向け入力/menu/表示は first-pass OK。 |
 | old computer engines | `crocods`, `gme`, other installed cores | ROM需要と入力profile次第。 |

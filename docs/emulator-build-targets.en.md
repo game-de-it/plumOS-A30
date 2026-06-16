@@ -543,7 +543,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | --- | --- | --- |
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
-| PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. |
+| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | Input/keyboard UX may be harder than CPU load. PC-98 is pending retest after adding RA `np2kai` `np2kai_joymode=Arrows`, keyboard joystickd for RA `nekop2`, and minimal keyboard-state mapping in PicoArch. |
 | Virtual Boy | `retroarch:mednafen_vb` | The plumOS-built `mednafen_vb` core pinned to Onion-proven commit `162918f` has confirmed Bad Apple gameplay on A30. Red Viper's StockOS-derived rendering path now has correct orientation/fit and single-eye rendering, but heavy-scene audio dropout remains, so it is removed from the FE profile list. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |

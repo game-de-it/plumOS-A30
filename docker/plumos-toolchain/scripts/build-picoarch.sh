@@ -22,6 +22,7 @@ PICOARCH_A30_CONTENT_DIR_PATCH=${PICOARCH_A30_CONTENT_DIR_PATCH:-"${PATCH_DIR}/p
 PICOARCH_A30_LOG_FLUSH_PATCH=${PICOARCH_A30_LOG_FLUSH_PATCH:-"${PATCH_DIR}/picoarch-a30-log-flush.patch"}
 PICOARCH_A30_LIBRETRO_COMPAT_PATCH=${PICOARCH_A30_LIBRETRO_COMPAT_PATCH:-"${PATCH_DIR}/picoarch-a30-libretro-compat.patch"}
 PICOARCH_A30_VFS_NORMALIZE_PATCH=${PICOARCH_A30_VFS_NORMALIZE_PATCH:-"${PATCH_DIR}/picoarch-a30-vfs-normalize.patch"}
+PICOARCH_A30_KEYBOARD_INPUT_PATCH=${PICOARCH_A30_KEYBOARD_INPUT_PATCH:-"${PATCH_DIR}/picoarch-a30-keyboard-input.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -148,6 +149,7 @@ checkout_source() {
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LOG_FLUSH_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_VFS_NORMALIZE_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_KEYBOARD_INPUT_PATCH}"
   if find "${SRC_DIR}" -name '*.rej' -print -quit | grep -q .; then
     msg "error: patch rejects remain under ${SRC_DIR}"
     find "${SRC_DIR}" -name '*.rej' -print >&2
@@ -608,6 +610,7 @@ stage_outputs() {
     echo "a30_content_dir_patch=$(basename "${PICOARCH_A30_CONTENT_DIR_PATCH}")"
     echo "a30_log_flush_patch=$(basename "${PICOARCH_A30_LOG_FLUSH_PATCH}")"
     echo "a30_libretro_compat_patch=$(basename "${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}")"
+    echo "a30_keyboard_input_patch=$(basename "${PICOARCH_A30_KEYBOARD_INPUT_PATCH}")"
     echo "a30_mali_presenter=enabled"
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"
