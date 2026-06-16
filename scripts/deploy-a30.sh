@@ -110,8 +110,8 @@ if [ -r "${PRESERVE_DIR}/manifest" ]; then
     [ -e "$src" ] || continue
     mkdir -p "$(dirname "$dst")"
     if [ -d "$src" ]; then
-      rm -rf "$dst"
-      cp -a "$src" "$dst" 2>/dev/null || cp -r "$src" "$dst"
+      mkdir -p "$dst"
+      cp -a "$src"/. "$dst"/ 2>/dev/null || cp -r "$src"/. "$dst"/
     else
       cp -p "$src" "$dst" 2>/dev/null || cp "$src" "$dst"
     fi

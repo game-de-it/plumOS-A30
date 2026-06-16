@@ -1,0 +1,292 @@
+diff --git a/engine/sdl/sdlport.c b/engine/sdl/sdlport.c
+index a820fef..7d35049 100644
+--- a/engine/sdl/sdlport.c
++++ b/engine/sdl/sdlport.c
+@@ -12,6 +12,7 @@
+ #include "video.h"
+ #include "menu.h"
+ #include <time.h>
++#include <stdlib.h>
+ #include <unistd.h>
+ 
+ #undef usleep
+@@ -71,6 +72,7 @@ int main(int argc, char *argv[])
+ {
+ #ifndef SKIP_CODE
+ 	char pakname[MAX_FILENAME_LEN] = {""};
++	const char *plumosPak = NULL;
+ #endif
+ #ifdef CUSTOM_SIGNAL_HANDLER
+ 	struct sigaction sigact;
+@@ -137,10 +139,23 @@ int main(int argc, char *argv[])
+ 	dirExists(logsDir, 1);
+ 	dirExists(screenShotsDir, 1);
+ 
+-	Menu();
+ #ifndef SKIP_CODE
+-	getPakName(pakname, -1);
+-	video_set_window_title(pakname);
++	plumosPak = getenv("PLUMOS_A30_OPENBOR_PAK");
++	if(plumosPak && plumosPak[0])
++	{
++		strncpy(packfile, plumosPak, MAX_FILENAME_LEN - 1);
++		packfile[MAX_FILENAME_LEN - 1] = '\0';
++		getPakName(pakname, -1);
++		video_set_window_title(pakname);
++	}
++	else
++	{
++		Menu();
++		getPakName(pakname, -1);
++		video_set_window_title(pakname);
++	}
++#else
++	Menu();
+ #endif
+ 	openborMain(argc, argv);
+ 	borExit(0);
+diff --git a/engine/sdl/opengl.h b/engine/sdl/opengl.h
+index 729cbdf..b0c9371 100644
+--- a/engine/sdl/opengl.h
++++ b/engine/sdl/opengl.h
+@@ -10,7 +10,7 @@
+ #define BOR_OPENGL_H
+ 
+ #include "types.h"
+-#include "yuv.h"
++#include "source/webmlib/yuv.h"
+ #include "videocommon.h"
+ 
+ #ifdef OPENGL
+diff --git a/engine/sdl/video.h b/engine/sdl/video.h
+index a35937c..6f458c3 100644
+--- a/engine/sdl/video.h
++++ b/engine/sdl/video.h
+@@ -11,7 +11,7 @@
+ 
+ #include "gfxtypes.h"
+ #include "types.h"
+-#include "yuv.h"
++#include "source/webmlib/yuv.h"
+ #include "SDL.h"
+ 
+ extern u8 pDeltaBuffer[480 * 2592];
+diff --git a/engine/sdl/video.c b/engine/sdl/video.c
+index ff4b37e..e572cce 100644
+--- a/engine/sdl/video.c
++++ b/engine/sdl/video.c
+@@ -28,10 +28,25 @@
+ #include "videocommon.h"
+ #include "../resources/OpenBOR_Icon_32x32_png.h"
+ 
++#include <stdlib.h>
++
+ SDL_Window *window = NULL;
+ static SDL_Renderer *renderer = NULL;
+ static SDL_Texture *texture = NULL;
+ 
++enum
++{
++	A30_SCALE_FIT = 0,
++	A30_SCALE_STRETCH,
++	A30_SCALE_INTEGER,
++	A30_SCALE_NATIVE
++};
++
++static int a30_present_inited = 0;
++static int a30_present_angle = 0;
++static int a30_present_scale = A30_SCALE_FIT;
++static int a30_force_fullscreen = 0;
++
+ FPSmanager framerate_manager;
+ 
+ s_videomodes stored_videomodes;
+@@ -43,6 +58,139 @@ int opengl = 0; // OpenGL backend currently in use?
+ int nativeWidth, nativeHeight; // monitor resolution used in fullscreen mode
+ int brightness = 0;
+ 
++static int env_enabled(const char *name, int fallback)
++{
++	const char *value = getenv(name);
++	if(!value || !value[0]) return fallback;
++	if(!SDL_strcasecmp(value, "0") ||
++	   !SDL_strcasecmp(value, "no") ||
++	   !SDL_strcasecmp(value, "false") ||
++	   !SDL_strcasecmp(value, "off")) return 0;
++	return 1;
++}
++
++static void init_a30_present_options(void)
++{
++	const char *rotation;
++	const char *scale;
++
++	if(a30_present_inited) return;
++	a30_present_inited = 1;
++
++	rotation = getenv("PLUMOS_A30_OPENBOR_ROTATION");
++	if(rotation && rotation[0])
++	{
++		if(!SDL_strcasecmp(rotation, "cw") || !SDL_strcasecmp(rotation, "90"))
++			a30_present_angle = 90;
++		else if(!SDL_strcasecmp(rotation, "ccw") || !SDL_strcasecmp(rotation, "270"))
++			a30_present_angle = 270;
++		else if(!SDL_strcasecmp(rotation, "180"))
++			a30_present_angle = 180;
++		else
++			a30_present_angle = 0;
++	}
++
++	scale = getenv("PLUMOS_A30_OPENBOR_SCALE");
++	if(scale && scale[0])
++	{
++		if(!SDL_strcasecmp(scale, "stretch"))
++			a30_present_scale = A30_SCALE_STRETCH;
++		else if(!SDL_strcasecmp(scale, "integer"))
++			a30_present_scale = A30_SCALE_INTEGER;
++		else if(!SDL_strcasecmp(scale, "native") || !SDL_strcasecmp(scale, "none"))
++			a30_present_scale = A30_SCALE_NATIVE;
++		else
++			a30_present_scale = A30_SCALE_FIT;
++	}
++
++	a30_force_fullscreen = env_enabled("PLUMOS_A30_OPENBOR_FULLSCREEN", 0);
++}
++
++static int a30_rotation_enabled(void)
++{
++	init_a30_present_options();
++	return a30_present_angle != 0;
++}
++
++static int a30_fullscreen_enabled(void)
++{
++	init_a30_present_options();
++	return a30_force_fullscreen;
++}
++
++static void a30_present_texture(void)
++{
++	SDL_Rect dst;
++	double angle;
++	int tex_w = 0;
++	int tex_h = 0;
++	int out_w = 0;
++	int out_h = 0;
++	int fit_w;
++	int fit_h;
++	int draw_w;
++	int draw_h;
++	float scale;
++
++	init_a30_present_options();
++	if(!a30_present_angle)
++	{
++		SDL_RenderCopy(renderer, texture, NULL, NULL);
++		return;
++	}
++
++	SDL_QueryTexture(texture, NULL, NULL, &tex_w, &tex_h);
++	SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
++	if(tex_w <= 0 || tex_h <= 0 || out_w <= 0 || out_h <= 0)
++	{
++		SDL_RenderCopy(renderer, texture, NULL, NULL);
++		return;
++	}
++
++	if(a30_present_angle == 90 || a30_present_angle == 270)
++	{
++		fit_w = out_h;
++		fit_h = out_w;
++	}
++	else
++	{
++		fit_w = out_w;
++		fit_h = out_h;
++	}
++
++	switch(a30_present_scale)
++	{
++	case A30_SCALE_STRETCH:
++		draw_w = fit_w;
++		draw_h = fit_h;
++		break;
++	case A30_SCALE_NATIVE:
++		draw_w = tex_w;
++		draw_h = tex_h;
++		break;
++	case A30_SCALE_INTEGER:
++		scale = fminf((float)fit_w / (float)tex_w, (float)fit_h / (float)tex_h);
++		if(scale >= 1.0f) scale = floorf(scale);
++		if(scale <= 0.0f) scale = 1.0f;
++		draw_w = (int)((float)tex_w * scale);
++		draw_h = (int)((float)tex_h * scale);
++		break;
++	default:
++		scale = fminf((float)fit_w / (float)tex_w, (float)fit_h / (float)tex_h);
++		if(scale <= 0.0f) scale = 1.0f;
++		draw_w = (int)((float)tex_w * scale);
++		draw_h = (int)((float)tex_h * scale);
++		break;
++	}
++
++	dst.x = (out_w - draw_w) / 2;
++	dst.y = (out_h - draw_h) / 2;
++	dst.w = draw_w;
++	dst.h = draw_h;
++	angle = (double)a30_present_angle;
++	SDL_RenderCopyEx(renderer, texture, NULL, &dst, angle, NULL, SDL_FLIP_NONE);
++}
++
+ void initSDL()
+ {
+ 	SDL_DisplayMode video_info;
+@@ -92,7 +240,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+ 	static int last_y = SDL_WINDOWPOS_UNDEFINED;
+ 
+ 	if(gl) flags |= SDL_WINDOW_OPENGL;
+-	if(savedata.fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
++	if(savedata.fullscreen || a30_fullscreen_enabled()) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+ 
+ 	if(!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP))
+ 		SDL_GetWindowPosition(window, &last_x, &last_y);
+@@ -111,7 +259,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+ 
+ 	if(window)
+ 	{
+-		if(savedata.fullscreen)
++		if(savedata.fullscreen || a30_fullscreen_enabled())
+ 		{
+ 			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+ 		}
+@@ -211,7 +359,7 @@ void blit()
+ {
+ 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+ 	SDL_RenderClear(renderer);
+-	SDL_RenderCopy(renderer, texture, NULL, NULL);
++	a30_present_texture();
+ 
+ 	if (brightness > 0)
+ 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, brightness-1);
+@@ -253,7 +401,9 @@ void video_stretch(int enable)
+ 	stretch = enable;
+ 	if(window && !opengl)
+ 	{
+-		if(stretch)
++		if(a30_rotation_enabled())
++			SDL_RenderSetLogicalSize(renderer, 0, 0);
++		else if(stretch)
+ 			SDL_RenderSetLogicalSize(renderer, 0, 0);
+ 		else
+ 			SDL_RenderSetLogicalSize(renderer, stored_videomodes.hRes, stored_videomodes.vRes);
+@@ -278,7 +428,9 @@ int video_setup_yuv_overlay(const yuv_video_mode *mode)
+ 	                            SDL_PIXELFORMAT_YV12,
+ 	                            SDL_TEXTUREACCESS_STREAMING,
+ 	                            mode->width, mode->height);
+-	if(!stretch)
++	if(a30_rotation_enabled())
++		SDL_RenderSetLogicalSize(renderer, 0, 0);
++	else if(!stretch)
+ 		SDL_RenderSetLogicalSize(renderer, mode->display_width, mode->display_height);
+ 	return texture ? 1 : 0;
+ }

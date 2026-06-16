@@ -533,6 +533,7 @@ initial plumOS emulator/core build plan.
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
 | ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion is also hardware-confirmed after analog-axis correction. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
+| OpenBOR | `standalone:openbor` | upstream OpenBOR engine | Build v6391 for A30 armhf and launch the FE-selected `.pak` directly. Final rotate/fit is handled through the stock SDL2/mali path. |
 | DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
 | MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |
 
@@ -564,7 +565,6 @@ an experimental target or a known-light title.
 | PC-FX | `mednafen_pcfx` | Expected to be too heavy. |
 | current MAME / newer 3D arcade | `mame`, `mame2015` | Class A covers older 2D arcade; newer MAME should wait. |
 | heavy PSP | PPSSPP standalone/libretro | PSP as a whole is not a target. Light titles only stay in Class B. |
-| OpenBOR | `external:openbor` | `.pak` ROMs exist on the device, but no OpenBOR engine was found. The current `external:` path only runs the `.pak` as a shell script, so keep it out of normal targets. |
 
 ## Suggested validation order
 

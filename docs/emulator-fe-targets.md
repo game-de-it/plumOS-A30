@@ -38,7 +38,7 @@ mkdir -p artifacts/a30-core-inventory
   b=${f##*/}
   b=${b%_libretro.so}
   echo "$b"
-done | sort' > artifacts/a30-core-inventory/deployed-libretro-cores-20260616.txt
+done | sort' > artifacts/a30-core-inventory/deployed-libretro-cores-20260617.txt
 
 ./scripts/run-a30.sh 'for p in \
   /mnt/SDCARD/plumos/bin/plumos-picoarch-launch \
@@ -47,6 +47,7 @@ done | sort' > artifacts/a30-core-inventory/deployed-libretro-cores-20260616.txt
   /mnt/SDCARD/plumos/emulators/pcsx_rearmed/bin/pcsx \
   /mnt/SDCARD/plumos/emulators/ppsspp/bin/PPSSPPSDL \
   /mnt/SDCARD/plumos/emulators/easyrpg/bin/easyrpg-player \
+  /mnt/SDCARD/plumos/emulators/openbor/bin/OpenBOR \
   /mnt/SDCARD/plumos/emulators/scummvm/bin/scummvm \
   /mnt/SDCARD/plumos/emulators/dosbox-staging/bin/dosbox \
   /mnt/SDCARD/plumos/emulators/ppsspp-display-ui/bin/PPSSPPSDL \
@@ -54,9 +55,9 @@ done | sort' > artifacts/a30-core-inventory/deployed-libretro-cores-20260616.txt
   /mnt/SDCARD/plumos/emulators/red_viper/bin/red-viper-sdlgl-a30 \
   /mnt/SDCARD/plumos/emulators/red_viper/bin/red-viper-a30; do
   [ -e "$p" ] && echo "$p"
-done | sort' > artifacts/a30-core-inventory/deployed-runtime-paths-20260616.txt
+done | sort' > artifacts/a30-core-inventory/deployed-runtime-paths-20260617.txt
 
 ./scripts/generate-fe-verification-targets.py \
-  --deployed-cores artifacts/a30-core-inventory/deployed-libretro-cores-20260616.txt \
-  --deployed-paths artifacts/a30-core-inventory/deployed-runtime-paths-20260616.txt
+  --deployed-cores artifacts/a30-core-inventory/deployed-libretro-cores-20260617.txt \
+  --deployed-paths artifacts/a30-core-inventory/deployed-runtime-paths-20260617.txt
 ```

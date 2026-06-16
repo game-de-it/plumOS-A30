@@ -34,7 +34,7 @@ Commands:
                  Build the practical RetroArch runtime into dist/plumos-retroarch-practical.
   libretro-cores Build Class A/B libretro cores into dist/plumos-libretro-cores.
   standalone-emulators
-                 Build standalone PPSSPP/ScummVM/EasyRPG/DOSBox/PCSX-ReARMed/Red Viper into dist/plumos-standalone-emulators.
+                 Build standalone PPSSPP/ScummVM/EasyRPG/OpenBOR/DOSBox/PCSX-ReARMed/Red Viper into dist/plumos-standalone-emulators.
   shell          Open an interactive shell in the toolchain container.
   run CMD...     Run an arbitrary command in the toolchain container.
 
@@ -88,6 +88,7 @@ Environment:
   PYXEL_VERSION            Pyxel version for pyxel-a30. Default: 2.9.6.
   PYXEL_REF                Pyxel git ref for pyxel-a30. Default: v\$PYXEL_VERSION.
   PICOARCH_REF             picoarch git ref. Default: pinned tested commit.
+  OPENBOR_REF              OpenBOR git ref for standalone OpenBOR. Default: v6391.
 EOF
 }
 
@@ -150,6 +151,7 @@ docker_run_base=(
   -e PYXEL_VERSION="${PYXEL_VERSION:-2.9.6}"
   -e PYXEL_REF="${PYXEL_REF:-}"
   -e PICOARCH_REF="${PICOARCH_REF:-}"
+  -e OPENBOR_REF="${OPENBOR_REF:-}"
   -e RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly-2026-06-12}"
   -v "${ROOT_DIR}:/workspace"
   -w /workspace

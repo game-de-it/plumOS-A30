@@ -43,6 +43,8 @@ PCSX_REARMED_REF=${PCSX_REARMED_REF:-r26l}
 RED_VIPER_REPO=${RED_VIPER_REPO:-https://github.com/skyfloogle/red-viper.git}
 RED_VIPER_REF=${RED_VIPER_REF:-afb8080ef38f63e067099505d2b8c608b1766b30}
 RED_VIPER_A30_FRONTEND_DIR=${RED_VIPER_A30_FRONTEND_DIR:-"${ROOT_DIR}/docker/plumos-toolchain/red-viper-a30"}
+OPENBOR_REPO=${OPENBOR_REPO:-https://github.com/DCurrent/openbor.git}
+OPENBOR_REF=${OPENBOR_REF:-v6391}
 
 SCUMMVM_ENGINES=${SCUMMVM_ENGINES:-"scumm,agi,agos,sky,sword1,sword2,queen,gob,lure,kyra,sci,cine,drascula,touche,teenagent,tinsel,cruise,parallaction"}
 
@@ -888,6 +890,48 @@ build_red_viper() {
   append_manifest "  display=gles-final-quad-rotation"
 }
 
+build_openbor() {
+  local src=$1
+  local engine_dir="${src}/engine"
+  local bin="${engine_dir}/OpenBOR"
+  local openbor_archflags
+
+  patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30-sdl2-rotation.patch" || return 1
+  append_manifest "  patch=openbor-v6391-a30-sdl2-rotation.patch"
+
+  openbor_archflags="-marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fcommon"
+  sed -i 's/-Wall -Werror/-Wall/g' "${engine_dir}/Makefile" || return 1
+  append_manifest "  patch=makefile-drop-werror"
+
+  (
+    cd "${engine_dir}" || exit 1
+    make clean BUILD_LINUX=1 >/dev/null 2>&1 || true
+    PKG_CONFIG_LIBDIR=/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig \
+    PKG_CONFIG_ALLOW_CROSS=1 \
+    CFLAGS="${COMMON_CFLAGS}" \
+    LDFLAGS="${COMMON_LDFLAGS}" \
+    make -j"${JOBS}" \
+      BUILD_LINUX=1 \
+      BUILD_MMX= \
+      BUILD_OPENGL= \
+      BUILD_LOADGL= \
+      BUILD_WEBM= \
+      NO_STRIP=1 \
+      VERSION_NAME=OpenBOR \
+      LNXDEV=/usr/bin \
+      PREFIX="${CROSS_PREFIX}" \
+      GCC_TARGET=arm-linux-gnueabihf \
+      TARGET_ARCH=arm \
+      ARCHFLAGS="${openbor_archflags}" \
+      LIBRARIES=/usr/lib/arm-linux-gnueabihf \
+      CC="${CC}"
+  ) || return 1
+
+  stage_binary openbor "${bin}" OpenBOR || return 1
+  append_manifest "  video=stock-sdl2-mali renderer rotation patch"
+  append_manifest "  webm=disabled"
+}
+
 prepare_dist() {
   rm -rf "${TARGET_DIR}"
   mkdir -p "${TARGET_DIR}/docs/build-logs" "${TARGET_DIR}/plumos/bin"
@@ -908,6 +952,7 @@ prepare_dist() {
     echo "scummvm_engines=${SCUMMVM_ENGINES}"
     echo "red_viper_ref=${RED_VIPER_REF}"
     echo "red_viper_a30_audio_rate=${RED_VIPER_A30_AUDIO_RATE:-48000}"
+    echo "openbor_ref=${OPENBOR_REF}"
     echo
   } >"${MANIFEST}"
 }
@@ -929,6 +974,7 @@ EMULATOR:
   ppsspp-vanilla
   scummvm
   easyrpg
+  openbor
   dosbox-staging | dosbox
   pcsx_rearmed | pcsx
   red_viper | red-viper
@@ -978,6 +1024,12 @@ Environment:
   PLUMOS_A30_SCUMMVM_STRETCH_MODE     ScummVM stretch_mode default. Default: fit.
   PLUMOS_A30_SCUMMVM_TARGET           Override ScummVM target id for directory ROMs.
   PLUMOS_A30_EASYRPG_ROTATION         EasyRPG final display rotation: ccw, cw, 180, none. Default: ccw.
+  PLUMOS_A30_OPENBOR_CPU_POLICY       OpenBOR CPU policy. Default: fixed.
+  PLUMOS_A30_OPENBOR_CPU_FREQ         OpenBOR fixed CPU frequency. Default: 1200000.
+  PLUMOS_A30_OPENBOR_CPU_CORES        OpenBOR CPU core policy. Default: 2.
+  PLUMOS_A30_OPENBOR_ROTATION         OpenBOR final display rotation: ccw, cw, 180, none. Default: ccw.
+  PLUMOS_A30_OPENBOR_SCALE            OpenBOR scaling: fit, stretch, integer, native. Default: fit.
+  PLUMOS_A30_OPENBOR_FULLSCREEN       OpenBOR fullscreen desktop mode: 0 or 1. Default: 1.
   PLUMOS_A30_DOSBOX_ROTATION          DOSBox final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_CPU_POLICY     Red Viper CPU policy. Default: fixed.
   PLUMOS_A30_RED_VIPER_CPU_FREQ       Red Viper fixed CPU frequency. Default: 648000.
@@ -1893,6 +1945,56 @@ case "${id}" in
       run_with_fb_restore "${EMU_ROOT}/easyrpg/bin/easyrpg-player" --fullscreen "$@"
     fi
     ;;
+  openbor)
+    openbor_pak=
+    if [ "$#" -gt 0 ]; then
+      case "$1" in
+        -*)
+          ;;
+        *)
+          openbor_pak=$1
+          shift
+          ;;
+      esac
+    fi
+    if [ -z "${openbor_pak}" ]; then
+      echo "error: OpenBOR requires a .pak path" >&2
+      exit 2
+    fi
+    if [ ! -f "${openbor_pak}" ]; then
+      echo "error: OpenBOR .pak not found: ${openbor_pak}" >&2
+      exit 2
+    fi
+    case "${openbor_pak}" in
+      *.pak|*.PAK|*.Pak)
+        ;;
+      *)
+        echo "error: unsupported OpenBOR extension: ${openbor_pak}" >&2
+        exit 2
+        ;;
+    esac
+    cd "${STATE_DIR}" || exit 1
+    mkdir -p Paks Saves Logs ScreenShots
+    export PLUMOS_A30_OPENBOR_PAK="${openbor_pak}"
+    export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-mali}
+    export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-alsa}
+    export SDL_AUDIO_ALSA_SET_BUFFER_SIZE=${SDL_AUDIO_ALSA_SET_BUFFER_SIZE:-1}
+    export PLUMOS_A30_OPENBOR_ROTATION=${PLUMOS_A30_OPENBOR_ROTATION:-ccw}
+    export PLUMOS_A30_OPENBOR_SCALE=${PLUMOS_A30_OPENBOR_SCALE:-fit}
+    export PLUMOS_A30_OPENBOR_FULLSCREEN=${PLUMOS_A30_OPENBOR_FULLSCREEN:-1}
+    export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,guide:b10,start:b9,leftstick:b6,rightstick:b7,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
+    export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=${PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}}
+    export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=${PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT:-${PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT:-user}}
+    export PLUMOS_STANDALONE_JOYSTICKD_X_SOURCE=${PLUMOS_A30_OPENBOR_JOYSTICKD_X_SOURCE:-${PLUMOS_STANDALONE_JOYSTICKD_X_SOURCE:-axisYR}}
+    export PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE=${PLUMOS_A30_OPENBOR_JOYSTICKD_Y_SOURCE:-${PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE:-axisXR}}
+    export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=${PLUMOS_A30_OPENBOR_JOYSTICKD_FUNCTION_BUTTON:-${PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON:-none}}
+    cpu_policy=${PLUMOS_A30_OPENBOR_CPU_POLICY:-${PLUMOS_STANDALONE_CPU_POLICY:-fixed}}
+    cpu_freq=${PLUMOS_A30_OPENBOR_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-1200000}}
+    cpu_cores=${PLUMOS_A30_OPENBOR_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
+    apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
+    start_joystickd
+    run_with_fb_restore "${EMU_ROOT}/openbor/bin/OpenBOR" "$@"
+    ;;
   red_viper|red-viper)
     if [ "$#" -lt 1 ]; then
       echo "error: Red Viper requires a ROM path" >&2
@@ -2064,6 +2166,28 @@ PLUMOS_A30_PSX_JOYSTICKD_SHOULDER_LAYOUT=user
 EOF
   append_manifest "config=plumos/config/standalone/pcsx_rearmed.env"
 
+  cat >"${config_dir}/openbor.env" <<'EOF'
+# OpenBOR launcher overrides for Miyoo A30.
+# This file is user-mutable and is preserved by scripts/deploy-a30.sh.
+
+PLUMOS_STANDALONE_USE_STOCK_SDL=1
+
+PLUMOS_A30_OPENBOR_CPU_POLICY=fixed
+PLUMOS_A30_OPENBOR_CPU_FREQ=1200000
+PLUMOS_A30_OPENBOR_CPU_CORES=2
+
+PLUMOS_A30_OPENBOR_ROTATION=ccw
+PLUMOS_A30_OPENBOR_SCALE=fit
+PLUMOS_A30_OPENBOR_FULLSCREEN=1
+
+PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE=buttons
+PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT=user
+PLUMOS_A30_OPENBOR_JOYSTICKD_X_SOURCE=axisYR
+PLUMOS_A30_OPENBOR_JOYSTICKD_Y_SOURCE=axisXR
+PLUMOS_A30_OPENBOR_JOYSTICKD_FUNCTION_BUTTON=none
+EOF
+  append_manifest "config=plumos/config/standalone/openbor.env"
+
   if red_viper_build_enabled; then
     cat >"${config_dir}/red_viper.env" <<'EOF'
 # Red Viper launcher overrides for Miyoo A30.
@@ -2187,6 +2311,7 @@ write_standalone_config_defaults
 build_one ppsspp "${PPSSPP_REPO}" "${PPSSPP_REF}" build_ppsspp
 build_one scummvm "${SCUMMVM_REPO}" "${SCUMMVM_REF}" build_scummvm
 build_one easyrpg "${EASYRPG_REPO}" "${EASYRPG_REF}" build_easyrpg
+build_one openbor "${OPENBOR_REPO}" "${OPENBOR_REF}" build_openbor
 build_one dosbox-staging "${DOSBOX_REPO}" "${DOSBOX_REF}" build_dosbox
 build_one pcsx_rearmed "${PCSX_REARMED_REPO}" "${PCSX_REARMED_REF}" build_pcsx_rearmed
 if red_viper_build_enabled; then

@@ -22,6 +22,7 @@ STANDALONE_BINARIES = {
     "dosbox": ["/mnt/SDCARD/plumos/emulators/dosbox-staging/bin/dosbox"],
     "dosbox-staging": ["/mnt/SDCARD/plumos/emulators/dosbox-staging/bin/dosbox"],
     "easyrpg": ["/mnt/SDCARD/plumos/emulators/easyrpg/bin/easyrpg-player"],
+    "openbor": ["/mnt/SDCARD/plumos/emulators/openbor/bin/OpenBOR"],
     "pcsx": ["/mnt/SDCARD/plumos/emulators/pcsx_rearmed/bin/pcsx"],
     "pcsx_rearmed": ["/mnt/SDCARD/plumos/emulators/pcsx_rearmed/bin/pcsx"],
     "ppsspp": ["/mnt/SDCARD/plumos/emulators/ppsspp/bin/PPSSPPSDL"],

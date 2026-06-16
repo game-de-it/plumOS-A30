@@ -1090,7 +1090,7 @@
       "short_name": "OpenBOR",
       "sort_order": 340,
       "hardware": "engine",
-      "enabled": false,
+      "enabled": true,
       "pinned": false,
       "directory_aliases": [
         {"name": "OPENBOR", "source": "miyoo", "priority": 10},
@@ -1102,8 +1102,11 @@
           {"root": "sdcard", "path": "Images/openbor"}
         ]
       },
-      "launch_profiles": ["external:openbor"],
-      "default_launch_profile": "external:openbor",
+      "launch_profiles": ["standalone:openbor"],
+      "default_launch_profile": "standalone:openbor",
+      "default_cpu_policy": "fixed",
+      "default_cpu_freq_khz": 1200000,
+      "default_cpu_cores": 2,
       "scraper": {
         "enabled": false,
         "reason": "not_single_rom_crc"

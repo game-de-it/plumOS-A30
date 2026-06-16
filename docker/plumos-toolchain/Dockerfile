@@ -59,6 +59,7 @@ RUN dpkg --add-architecture armhf \
     libssl-dev:armhf \
     libsdl1.2-dev:armhf \
     libsdl2-dev:armhf \
+    libsdl2-gfx-dev:armhf \
     libspeexdsp-dev:armhf \
     libtool \
     libvorbis-dev:armhf \
