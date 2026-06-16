@@ -251,6 +251,8 @@ launcher also reads `/mnt/SDCARD/plumos/config/standalone/picoarch.env`, where
 directory `bios_dir` entry in
 `/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<tag>/picoarch.cfg` takes
 final precedence.
+For FDS, `fceumm` and `nestopia` need `disksys.rom` from the shared BIOS root,
+so the launcher explicitly uses `/mnt/SDCARD/Bios` for those cores.
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and

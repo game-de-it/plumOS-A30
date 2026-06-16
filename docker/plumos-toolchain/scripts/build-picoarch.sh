@@ -449,6 +449,10 @@ if [ -z "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
     quasi88)
       PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios/quasi88
       ;;
+    fceumm|nestopia)
+      # FDS BIOS is kept in the shared Miyoo/Onion-style BIOS root.
+      PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
+      ;;
     bluemsx|fmsx)
       PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
       ;;

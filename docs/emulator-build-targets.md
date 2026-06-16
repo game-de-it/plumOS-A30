@@ -215,6 +215,8 @@ BIOS/system directory は PicoArch config の `bios_dir = /path` で指定でき
 既定 system directory として扱います。core/ROM directory ごとの
 `/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<tag>/picoarch.cfg` に
 `bios_dir` がある場合は、そちらが最終的に優先されます。
+FDS の `fceumm`/`nestopia` は `disksys.rom` を共有 BIOS root
+`/mnt/SDCARD/Bios` から読む必要があるため、launcher 側でこの directory を明示します。
 
 2026-06-13 の first probe では、`scripts/probe-libretro-core-options.sh` で
 `nestopia`、`quicknes`、`snes9x2005`、`mednafen_pce_fast`、
