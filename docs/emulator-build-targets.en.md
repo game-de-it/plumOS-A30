@@ -230,6 +230,14 @@ to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
 On 2026-06-16, `XeGrader100001.d88` reached the same title screen in both RA and
 PICO, with no visible color difference in that comparison.
+The same-day arcade validation found another VFS gap: PicoArch did not normalize
+`vfsonly://` paths or match FBNeo's minizip `fseek` expectations, so `gunforc2.zip`
+loaded in RA but failed in PICO as `No romset found`. The A30 patch now normalizes
+VFS paths, adds optional `PLUMOS_PICOARCH_VFS_TRACE=1` tracing, and returns
+FBNeo-compatible seek results. `fbneo`, `mame2003_plus`, `fbalpha2012`, and
+`mame2000` have been verified through arcade ROM initialization. Some Irem M92
+titles in `mame2000` are flagged `GAME_NO_SOUND` by the core driver itself, so
+silence there is not a plumOS audio-path failure.
 The launcher also keeps the `picoarch` child PID and kills both `picoarch` and
 `plumos-joystickd` during TERM/HUP/INT/EXIT cleanup, preventing stale PicoArch
 instances from skewing CPU/audio/fb0-owner tests.

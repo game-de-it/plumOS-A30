@@ -195,6 +195,13 @@ PC Engine 系の PicoArch 検証は `mednafen_pce_fast` を使います。
 `Image not found` の内蔵メニューへ落ちるため、`RETRO_ENVIRONMENT_GET_VFS_INTERFACE` だけ
 false を返して core 内蔵の標準 file I/O に戻します。2026-06-16 の
 `XeGrader100001.d88` 比較では RA/PICO とも同じ title 画面まで到達し、色差は見られませんでした。
+同日の arcade 追加検証では、PicoArch の VFS が `vfsonly://` path と FBNeo の minizip
+`fseek` 互換を満たしておらず、RA では起動する `gunforc2.zip` が PICO では
+`No romset found` になることを確認しました。A30 patch で VFS path 正規化、任意の
+`PLUMOS_PICOARCH_VFS_TRACE=1` trace、FBNeo 向け seek return 互換を追加し、
+`fbneo`、`mame2003_plus`、`fbalpha2012`、`mame2000` の arcade ROM 初期化まで確認済みです。
+なお RA/PICO どちらでも `mame2000` の Irem M92 系 driver には core 側で
+`GAME_NO_SOUND` 指定の title があり、その場合の無音は plumOS audio 経路の不具合ではありません。
 また launcher は `picoarch` 子プロセスを background 起動して PID を保持し、TERM/HUP/INT/EXIT の
 cleanup で `picoarch` 本体と `plumos-joystickd` を両方止めます。これは probe や FE 終了時に
 複数の PicoArch が残り、CPU/audio/fb0 owner 判定を汚す問題を避けるためです。

@@ -1,0 +1,104 @@
+--- a/core.c
++++ b/core.c
+@@ -394,16 +394,36 @@
+ static const char *pa_vfs_get_path(struct retro_vfs_file_handle *stream)
+ {
+ 	return stream ? stream->path : NULL;
++}
++
++static int pa_vfs_trace_enabled(void)
++{
++	static int enabled = -1;
++	if (enabled < 0)
++		enabled = getenv("PLUMOS_PICOARCH_VFS_TRACE") ? 1 : 0;
++	return enabled;
++}
++
++static const char *pa_vfs_normalize_path(const char *path)
++{
++	const char *vfsonly_prefix = "vfsonly://";
++	size_t vfsonly_len = strlen(vfsonly_prefix);
++
++	if (path && !strncmp(path, vfsonly_prefix, vfsonly_len))
++		return path + vfsonly_len;
++	return path;
+ }
+ 
+ static struct retro_vfs_file_handle *pa_vfs_open(const char *path, unsigned mode, unsigned hints)
+ {
+ 	struct retro_vfs_file_handle *stream;
++	const char *request_path = path;
+ 	const char *file_mode = "rb";
+ 	(void)hints;
+ 
+ 	if (!path)
+ 		return NULL;
++	path = pa_vfs_normalize_path(path);
+ 
+ 	if ((mode & RETRO_VFS_FILE_ACCESS_READ_WRITE) == RETRO_VFS_FILE_ACCESS_READ_WRITE)
+ 		file_mode = (mode & RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING) ? "r+b" : "w+b";
+@@ -419,9 +439,15 @@
+ 	    (mode & RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING))
+ 		stream->file = fopen(path, "w+b");
+ 	if (!stream->file) {
++		if (pa_vfs_trace_enabled())
++			PA_INFO("VFS open failed path=%s normalized=%s mode=%u file_mode=%s errno=%d %s\n",
++				request_path, path, mode, file_mode, errno, strerror(errno));
+ 		free(stream);
+ 		return NULL;
+ 	}
++	if (pa_vfs_trace_enabled())
++		PA_INFO("VFS open ok path=%s normalized=%s mode=%u file_mode=%s\n",
++			request_path, path, mode, file_mode);
+ 
+ 	stream->path = strdup(path);
+ 	return stream;
+@@ -464,6 +490,9 @@
+ 	}
+ 	if (fseeko(stream->file, offset, whence) != 0)
+ 		return -1;
++	/* FBNeo's transformed minizip fseek wrapper checks for C fseek semantics. */
++	if (!strcmp(core_name, "fbneo"))
++		return 0;
+ 	return ftello(stream->file);
+ }
+ 
+@@ -511,11 +540,14 @@
+ 
+ static int pa_vfs_remove(const char *path)
+ {
++	path = pa_vfs_normalize_path(path);
+ 	return path ? remove(path) : -1;
+ }
+ 
+ static int pa_vfs_rename(const char *old_path, const char *new_path)
+ {
++	old_path = pa_vfs_normalize_path(old_path);
++	new_path = pa_vfs_normalize_path(new_path);
+ 	return (old_path && new_path) ? rename(old_path, new_path) : -1;
+ }
+ 
+@@ -523,6 +555,7 @@
+ {
+ 	struct stat st;
+ 	int flags = 0;
++	path = pa_vfs_normalize_path(path);
+ 	if (!path || stat(path, &st) != 0)
+ 		return 0;
+ 	flags |= RETRO_VFS_STAT_IS_VALID;
+@@ -537,6 +570,7 @@
+ 
+ static int pa_vfs_mkdir(const char *dir)
+ {
++	dir = pa_vfs_normalize_path(dir);
+ 	if (!dir)
+ 		return -1;
+ 	if (mkdir(dir, 0755) == 0 || errno == EEXIST)
+@@ -547,6 +581,7 @@
+ static struct retro_vfs_dir_handle *pa_vfs_opendir(const char *dir, bool include_hidden)
+ {
+ 	struct retro_vfs_dir_handle *stream;
++	dir = pa_vfs_normalize_path(dir);
+ 	if (!dir)
+ 		return NULL;
+ 	stream = calloc(1, sizeof(*stream));

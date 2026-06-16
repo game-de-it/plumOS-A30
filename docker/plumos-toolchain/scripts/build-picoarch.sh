@@ -21,6 +21,7 @@ PICOARCH_A30_CORE_OPTIONS_PATCH=${PICOARCH_A30_CORE_OPTIONS_PATCH:-"${PATCH_DIR}
 PICOARCH_A30_CONTENT_DIR_PATCH=${PICOARCH_A30_CONTENT_DIR_PATCH:-"${PATCH_DIR}/picoarch-a30-content-dir.patch"}
 PICOARCH_A30_LOG_FLUSH_PATCH=${PICOARCH_A30_LOG_FLUSH_PATCH:-"${PATCH_DIR}/picoarch-a30-log-flush.patch"}
 PICOARCH_A30_LIBRETRO_COMPAT_PATCH=${PICOARCH_A30_LIBRETRO_COMPAT_PATCH:-"${PATCH_DIR}/picoarch-a30-libretro-compat.patch"}
+PICOARCH_A30_VFS_NORMALIZE_PATCH=${PICOARCH_A30_VFS_NORMALIZE_PATCH:-"${PATCH_DIR}/picoarch-a30-vfs-normalize.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -146,6 +147,7 @@ checkout_source() {
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_CONTENT_DIR_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LOG_FLUSH_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_VFS_NORMALIZE_PATCH}"
   if find "${SRC_DIR}" -name '*.rej' -print -quit | grep -q .; then
     msg "error: patch rejects remain under ${SRC_DIR}"
     find "${SRC_DIR}" -name '*.rej' -print >&2
