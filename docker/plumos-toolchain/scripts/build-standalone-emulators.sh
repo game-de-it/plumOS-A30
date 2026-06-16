@@ -1030,6 +1030,8 @@ Environment:
   PLUMOS_A30_OPENBOR_ROTATION         OpenBOR final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_OPENBOR_SCALE            OpenBOR scaling: fit, stretch, integer, native. Default: fit.
   PLUMOS_A30_OPENBOR_FULLSCREEN       OpenBOR fullscreen desktop mode: 0 or 1. Default: 1.
+  PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE
+                                      Force fb0 pan to 0,0 during OpenBOR startup. Default: 1.
   PLUMOS_A30_DOSBOX_ROTATION          DOSBox final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_CPU_POLICY     Red Viper CPU policy. Default: fixed.
   PLUMOS_A30_RED_VIPER_CPU_FREQ       Red Viper fixed CPU frequency. Default: 648000.
@@ -1365,6 +1367,43 @@ stop_owned_joystickd() {
   joystickd_pid=
 }
 
+force_fb_front_page() {
+  case "${PLUMOS_STANDALONE_FORCE_FB_FRONT_PAGE:-0}" in
+    1|yes|YES|true|TRUE)
+      [ -w /sys/class/graphics/fb0/pan ] &&
+        echo 0,0 >/sys/class/graphics/fb0/pan 2>/dev/null || true
+      ;;
+  esac
+}
+
+start_fb_front_page_guard() {
+  case "${PLUMOS_STANDALONE_FORCE_FB_FRONT_PAGE:-0}" in
+    1|yes|YES|true|TRUE) ;;
+    *) return 0 ;;
+  esac
+
+  force_fb_front_page
+  (
+    i=0
+    while [ "$i" -lt 5 ]; do
+      sleep 1
+      [ -w /sys/class/graphics/fb0/pan ] &&
+        echo 0,0 >/sys/class/graphics/fb0/pan 2>/dev/null || true
+      i=$((i + 1))
+    done
+  ) &
+  fb_front_page_guard_pid=$!
+}
+
+stop_fb_front_page_guard() {
+  if [ -n "${fb_front_page_guard_pid:-}" ] &&
+     kill -0 "${fb_front_page_guard_pid}" >/dev/null 2>&1; then
+    kill -TERM "${fb_front_page_guard_pid}" >/dev/null 2>&1 || true
+    wait "${fb_front_page_guard_pid}" >/dev/null 2>&1 || true
+  fi
+  fb_front_page_guard_pid=
+}
+
 restore_fb() {
   case "${PLUMOS_STANDALONE_RESTORE_FB:-1}" in
     0|no|NO|false|FALSE) return 0 ;;
@@ -1412,12 +1451,14 @@ cleanup_standalone_temp_paths() {
 
 run_with_fb_restore() {
   child_pid=
+  fb_front_page_guard_pid=
 
   finish_with_fb_restore() {
     rc=$1
     trap - EXIT HUP INT TERM
     # Restore clocks before slower cleanup so an external KILL cannot leave fixed CPU state behind.
     restore_cpu_policy
+    stop_fb_front_page_guard
     stop_owned_joystickd
     restore_fb
     reset_ppsspp_instance_counter_if_idle
@@ -1432,6 +1473,7 @@ run_with_fb_restore() {
       kill -KILL "${child_pid}" >/dev/null 2>&1 || true
     fi
     restore_cpu_policy
+    stop_fb_front_page_guard
     stop_owned_joystickd
     if [ -n "${child_pid:-}" ] && kill -0 "${child_pid}" >/dev/null 2>&1; then
       wait "${child_pid}" >/dev/null 2>&1 || true
@@ -1447,6 +1489,7 @@ run_with_fb_restore() {
   trap 'stop_child_and_restore' HUP INT TERM
   "${LOADER}" --library-path "${LIB_PATH}" "$@" &
   child_pid=$!
+  start_fb_front_page_guard
   wait "${child_pid}"
   rc=$?
   child_pid=
@@ -1982,6 +2025,7 @@ case "${id}" in
     export PLUMOS_A30_OPENBOR_ROTATION=${PLUMOS_A30_OPENBOR_ROTATION:-ccw}
     export PLUMOS_A30_OPENBOR_SCALE=${PLUMOS_A30_OPENBOR_SCALE:-fit}
     export PLUMOS_A30_OPENBOR_FULLSCREEN=${PLUMOS_A30_OPENBOR_FULLSCREEN:-1}
+    export PLUMOS_STANDALONE_FORCE_FB_FRONT_PAGE=${PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE:-1}
     export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,guide:b10,start:b9,leftstick:b6,rightstick:b7,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
     export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=${PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}}
     export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=${PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT:-${PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT:-user}}
@@ -2179,6 +2223,7 @@ PLUMOS_A30_OPENBOR_CPU_CORES=4
 PLUMOS_A30_OPENBOR_ROTATION=ccw
 PLUMOS_A30_OPENBOR_SCALE=fit
 PLUMOS_A30_OPENBOR_FULLSCREEN=1
+PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE=1
 
 PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT=user
