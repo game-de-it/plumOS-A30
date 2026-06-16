@@ -75,11 +75,13 @@ diff --git a/engine/sdl/video.c b/engine/sdl/video.c
 index ff4b37e..e572cce 100644
 --- a/engine/sdl/video.c
 +++ b/engine/sdl/video.c
-@@ -28,10 +28,25 @@
+@@ -28,10 +28,29 @@
  #include "videocommon.h"
  #include "../resources/OpenBOR_Icon_32x32_png.h"
  
++#include <fcntl.h>
 +#include <stdlib.h>
++#include <unistd.h>
 +
  SDL_Window *window = NULL;
  static SDL_Renderer *renderer = NULL;
@@ -97,11 +99,13 @@ index ff4b37e..e572cce 100644
 +static int a30_present_angle = 0;
 +static int a30_present_scale = A30_SCALE_FIT;
 +static int a30_force_fullscreen = 0;
++static int a30_force_front_page = 1;
++static int a30_fb_pan_fd = -2;
 +
  FPSmanager framerate_manager;
  
  s_videomodes stored_videomodes;
-@@ -43,6 +58,139 @@ int opengl = 0; // OpenGL backend currently in use?
+@@ -43,6 +62,161 @@ int opengl = 0; // OpenGL backend currently in use?
  int nativeWidth, nativeHeight; // monitor resolution used in fullscreen mode
  int brightness = 0;
  
@@ -151,6 +155,7 @@ index ff4b37e..e572cce 100644
 +	}
 +
 +	a30_force_fullscreen = env_enabled("PLUMOS_A30_OPENBOR_FULLSCREEN", 0);
++	a30_force_front_page = env_enabled("PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE", 1);
 +}
 +
 +static int a30_rotation_enabled(void)
@@ -163,6 +168,27 @@ index ff4b37e..e572cce 100644
 +{
 +	init_a30_present_options();
 +	return a30_force_fullscreen;
++}
++
++static void a30_force_fb_front_page(void)
++{
++	const char *pan_path;
++	static const char pan_value[] = "0,0\n";
++
++	init_a30_present_options();
++	if(!a30_force_front_page) return;
++
++	if(a30_fb_pan_fd == -2)
++	{
++		pan_path = getenv("PLUMOS_A30_OPENBOR_FB_PAN");
++		if(!pan_path || !pan_path[0])
++			pan_path = "/sys/class/graphics/fb0/pan";
++		a30_fb_pan_fd = open(pan_path, O_WRONLY);
++	}
++	if(a30_fb_pan_fd < 0) return;
++
++	lseek(a30_fb_pan_fd, 0, SEEK_SET);
++	write(a30_fb_pan_fd, pan_value, sizeof(pan_value) - 1);
 +}
 +
 +static void a30_present_texture(void)
@@ -241,7 +267,7 @@ index ff4b37e..e572cce 100644
  void initSDL()
  {
  	SDL_DisplayMode video_info;
-@@ -92,7 +240,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+@@ -92,7 +266,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
  	static int last_y = SDL_WINDOWPOS_UNDEFINED;
  
  	if(gl) flags |= SDL_WINDOW_OPENGL;
@@ -250,7 +276,7 @@ index ff4b37e..e572cce 100644
  
  	if(!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP))
  		SDL_GetWindowPosition(window, &last_x, &last_y);
-@@ -111,7 +259,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+@@ -111,7 +285,7 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
  
  	if(window)
  	{
@@ -259,7 +285,7 @@ index ff4b37e..e572cce 100644
  		{
  			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
  		}
-@@ -211,7 +359,7 @@ void blit()
+@@ -211,7 +385,7 @@ void blit()
  {
  	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
  	SDL_RenderClear(renderer);
@@ -268,7 +294,15 @@ index ff4b37e..e572cce 100644
  
  	if (brightness > 0)
  		SDL_SetRenderDrawColor(renderer, 255, 255, 255, brightness-1);
-@@ -253,7 +401,9 @@ void video_stretch(int enable)
+@@ -222,6 +396,7 @@ void blit()
+ 	SDL_RenderFillRect(renderer, NULL);
+ 
+ 	SDL_RenderPresent(renderer);
++	a30_force_fb_front_page();
+ }
+ 
+ int video_copy_screen(s_screen* src)
+@@ -253,7 +428,9 @@ void video_stretch(int enable)
  	stretch = enable;
  	if(window && !opengl)
  	{
@@ -279,7 +313,7 @@ index ff4b37e..e572cce 100644
  			SDL_RenderSetLogicalSize(renderer, 0, 0);
  		else
  			SDL_RenderSetLogicalSize(renderer, stored_videomodes.hRes, stored_videomodes.vRes);
-@@ -278,7 +428,9 @@ int video_setup_yuv_overlay(const yuv_video_mode *mode)
+@@ -278,7 +455,9 @@ int video_setup_yuv_overlay(const yuv_video_mode *mode)
  	                            SDL_PIXELFORMAT_YV12,
  	                            SDL_TEXTUREACCESS_STREAMING,
  	                            mode->width, mode->height);

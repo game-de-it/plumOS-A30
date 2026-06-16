@@ -1,0 +1,78 @@
+diff --git a/engine/sdl/video.c b/engine/sdl/video.c
+index e572cce..f622c16 100644
+--- a/engine/sdl/video.c
++++ b/engine/sdl/video.c
+@@ -42,6 +42,7 @@ static int a30_present_angle = 0;
+ static int a30_present_scale = A30_SCALE_FIT;
+ static int a30_force_fullscreen = 0;
+ static int a30_force_front_page = 1;
++static int a30_force_renderer_opengl = 0;
+ static int a30_fb_pan_fd = -2;
+ 
+ FPSmanager framerate_manager;
+@@ -94,6 +95,7 @@ static void init_a30_present_options(void)
+ 
+ 	a30_force_fullscreen = env_enabled("PLUMOS_A30_OPENBOR_FULLSCREEN", 0);
+ 	a30_force_front_page = env_enabled("PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE", 1);
++	a30_force_renderer_opengl = env_enabled("PLUMOS_A30_OPENBOR_RENDERER_OPENGL", 0);
+ }
+ 
+ static int a30_rotation_enabled(void)
+@@ -108,6 +110,12 @@ static int a30_fullscreen_enabled(void)
+ 	return a30_force_fullscreen;
+ }
+ 
++static int a30_renderer_opengl_enabled(void)
++{
++	init_a30_present_options();
++	return a30_force_renderer_opengl;
++}
++
+ static void a30_force_fb_front_page(void)
+ {
+ 	const char *pan_path;
+@@ -239,19 +247,20 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+ 	static bool last_gl = false;
+ 	static int last_x = SDL_WINDOWPOS_UNDEFINED;
+ 	static int last_y = SDL_WINDOWPOS_UNDEFINED;
++	bool window_gl = gl || a30_renderer_opengl_enabled();
+ 
+-	if(gl) flags |= SDL_WINDOW_OPENGL;
++	if(window_gl) flags |= SDL_WINDOW_OPENGL;
+ 	if(savedata.fullscreen || a30_fullscreen_enabled()) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+ 
+ 	if(!(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP))
+ 		SDL_GetWindowPosition(window, &last_x, &last_y);
+ 
+-	if(window && gl != last_gl)
++	if(window && window_gl != last_gl)
+ 	{
+ 		SDL_DestroyWindow(window);
+ 		window = NULL;
+ 	}
+-	last_gl = gl;
++	last_gl = window_gl;
+ 
+ 	if(renderer) SDL_DestroyRenderer(renderer);
+ 	if(texture)  SDL_DestroyTexture(texture);
+@@ -286,12 +295,20 @@ int SetVideoMode(int w, int h, int bpp, bool gl)
+ 
+ 	if(!gl)
+ 	{
++		if(a30_renderer_opengl_enabled())
++			SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
+ 		renderer = SDL_CreateRenderer(window, -1, 0);
+ 		if(!renderer)
+ 		{
+ 			printf("Error: failed to create renderer: %s\n", SDL_GetError());
+ 			return 0;
+ 		}
++		else
++		{
++			SDL_RendererInfo renderer_info;
++			if(SDL_GetRendererInfo(renderer, &renderer_info) == 0 && renderer_info.name)
++				printf("debug: SDL renderer: %s\n", renderer_info.name);
++		}
+ 	}
+ 
+ 	return 1;

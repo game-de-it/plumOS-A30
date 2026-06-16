@@ -21,6 +21,9 @@ Defaults:
   A30_SSH_PORT ${PORT}
   PLUMOS_DEPLOY_PROTECT_CONFIG
               Preserve existing plumOS mutable settings. Default: 1.
+  PLUMOS_DEPLOY_ALLOW_NESTED_PLUMOS
+              Allow deploying a package that already contains a top-level
+              plumos/ directory into a remote plumos/ directory. Default: 0.
 EOF
 }
 
@@ -36,6 +39,20 @@ fi
 if [ ! -e "$SRC" ]; then
   echo "error: local path does not exist: $SRC" >&2
   exit 1
+fi
+
+if [ -d "$SRC" ] && [ -d "$SRC/plumos" ] &&
+   [ "$(basename "$REMOTE_DIR")" = "plumos" ] &&
+   [ "${PLUMOS_DEPLOY_ALLOW_NESTED_PLUMOS:-0}" != "1" ]; then
+  cat >&2 <<EOF
+error: ${SRC} contains a top-level plumos/ directory, but REMOTE_DIR is ${REMOTE_DIR}.
+This would deploy into ${REMOTE_DIR}/plumos and leave the active runtime unchanged.
+Use one of these instead:
+  $0 ${SRC} /mnt/SDCARD
+  $0 ${SRC}/plumos ${REMOTE_DIR}
+Set PLUMOS_DEPLOY_ALLOW_NESTED_PLUMOS=1 only if this nesting is intentional.
+EOF
+  exit 2
 fi
 
 if [ -f "$SRC" ]; then

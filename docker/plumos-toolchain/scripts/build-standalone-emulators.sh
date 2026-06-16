@@ -898,6 +898,10 @@ build_openbor() {
 
   patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30-sdl2-rotation.patch" || return 1
   append_manifest "  patch=openbor-v6391-a30-sdl2-rotation.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30mali-renderer.patch" || return 1
+  append_manifest "  patch=openbor-v6391-a30mali-renderer.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30-direct-present.patch" || return 1
+  append_manifest "  patch=openbor-v6391-a30-direct-present.patch"
 
   openbor_archflags="-marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fcommon"
   sed -i 's/-Wall -Werror/-Wall/g' "${engine_dir}/Makefile" || return 1
@@ -928,7 +932,7 @@ build_openbor() {
   ) || return 1
 
   stage_binary openbor "${bin}" OpenBOR || return 1
-  append_manifest "  video=stock-sdl2-mali renderer rotation patch"
+  append_manifest "  video=plumos-sdl2-input-audio a30-direct-mali-presenter"
   append_manifest "  webm=disabled"
 }
 
@@ -1030,6 +1034,10 @@ Environment:
   PLUMOS_A30_OPENBOR_ROTATION         OpenBOR final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_OPENBOR_SCALE            OpenBOR scaling: fit, stretch, integer, native. Default: fit.
   PLUMOS_A30_OPENBOR_FULLSCREEN       OpenBOR fullscreen desktop mode: 0 or 1. Default: 1.
+  PLUMOS_A30_OPENBOR_DIRECT_PRESENT   Route OpenBOR frames directly to fbdev+Mali. Default: 1 when not using stock SDL.
+  PLUMOS_A30_OPENBOR_DIRECT_ROTATION  Direct presenter rotation: ccw, cw, 180, none. Default: ccw.
+  PLUMOS_A30_OPENBOR_DIRECT_LOGICAL_SIZE
+                                      Direct presenter logical canvas. Default: 640x480.
   PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE
                                       Force fb0 pan to 0,0 during OpenBOR startup. Default: 1.
   PLUMOS_A30_DOSBOX_ROTATION          DOSBox final display rotation: ccw, cw, 180, none. Default: ccw.
@@ -2019,13 +2027,43 @@ case "${id}" in
     cd "${STATE_DIR}" || exit 1
     mkdir -p Paks Saves Logs ScreenShots
     export PLUMOS_A30_OPENBOR_PAK="${openbor_pak}"
-    export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-mali}
+    case "${PLUMOS_STANDALONE_USE_STOCK_SDL:-1}" in
+      0|no|NO|false|FALSE)
+        openbor_default_video_driver=dummy
+        openbor_default_rotation=none
+        openbor_default_force_front_page=0
+        openbor_default_renderer_opengl=0
+        openbor_default_render_driver=
+        openbor_default_direct_present=1
+        ;;
+      *)
+        openbor_default_video_driver=mali
+        openbor_default_rotation=ccw
+        openbor_default_force_front_page=1
+        openbor_default_renderer_opengl=0
+        openbor_default_render_driver=
+        openbor_default_direct_present=0
+        ;;
+    esac
+    export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-${openbor_default_video_driver}}
     export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-alsa}
     export SDL_AUDIO_ALSA_SET_BUFFER_SIZE=${SDL_AUDIO_ALSA_SET_BUFFER_SIZE:-1}
-    export PLUMOS_A30_OPENBOR_ROTATION=${PLUMOS_A30_OPENBOR_ROTATION:-ccw}
+    if [ -z "${SDL_RENDER_DRIVER:-}" ] && [ -n "${openbor_default_render_driver}" ]; then
+      export SDL_RENDER_DRIVER=${openbor_default_render_driver}
+    fi
+    export PLUMOS_A30_OPENBOR_RENDERER_OPENGL=${PLUMOS_A30_OPENBOR_RENDERER_OPENGL:-${openbor_default_renderer_opengl}}
+    export PLUMOS_A30_OPENBOR_DIRECT_PRESENT=${PLUMOS_A30_OPENBOR_DIRECT_PRESENT:-${openbor_default_direct_present}}
+    export PLUMOS_A30_OPENBOR_DIRECT_ROTATION=${PLUMOS_A30_OPENBOR_DIRECT_ROTATION:-ccw}
+    export PLUMOS_A30_OPENBOR_DIRECT_LOGICAL_SIZE=${PLUMOS_A30_OPENBOR_DIRECT_LOGICAL_SIZE:-640x480}
+    export PLUMOS_A30_OPENBOR_DIRECT_BGR565=${PLUMOS_A30_OPENBOR_DIRECT_BGR565:-1}
+    export PLUMOS_A30_OPENBOR_DIRECT_LINEAR=${PLUMOS_A30_OPENBOR_DIRECT_LINEAR:-0}
+    export PLUMOS_A30MALI_ROTATION=${PLUMOS_A30MALI_ROTATION:-cw}
+    export PLUMOS_A30MALI_LOGICAL_SIZE=${PLUMOS_A30MALI_LOGICAL_SIZE:-640x480}
+    export PLUMOS_A30MALI_SHADER_FIT=${PLUMOS_A30MALI_SHADER_FIT:-1}
+    export PLUMOS_A30_OPENBOR_ROTATION=${PLUMOS_A30_OPENBOR_ROTATION:-${openbor_default_rotation}}
     export PLUMOS_A30_OPENBOR_SCALE=${PLUMOS_A30_OPENBOR_SCALE:-fit}
     export PLUMOS_A30_OPENBOR_FULLSCREEN=${PLUMOS_A30_OPENBOR_FULLSCREEN:-1}
-    export PLUMOS_STANDALONE_FORCE_FB_FRONT_PAGE=${PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE:-1}
+    export PLUMOS_STANDALONE_FORCE_FB_FRONT_PAGE=${PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE:-${openbor_default_force_front_page}}
     export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,guide:b10,start:b9,leftstick:b6,rightstick:b7,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
     export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=${PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}}
     export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=${PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT:-${PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT:-user}}
@@ -2214,16 +2252,24 @@ EOF
 # OpenBOR launcher overrides for Miyoo A30.
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
-PLUMOS_STANDALONE_USE_STOCK_SDL=1
+PLUMOS_STANDALONE_USE_STOCK_SDL=0
 
 PLUMOS_A30_OPENBOR_CPU_POLICY=fixed
 PLUMOS_A30_OPENBOR_CPU_FREQ=1344000
 PLUMOS_A30_OPENBOR_CPU_CORES=4
 
-PLUMOS_A30_OPENBOR_ROTATION=ccw
+SDL_VIDEODRIVER=dummy
+
+PLUMOS_A30_OPENBOR_DIRECT_PRESENT=1
+PLUMOS_A30_OPENBOR_DIRECT_ROTATION=ccw
+PLUMOS_A30_OPENBOR_DIRECT_LOGICAL_SIZE=640x480
+PLUMOS_A30_OPENBOR_DIRECT_BGR565=1
+PLUMOS_A30_OPENBOR_DIRECT_LINEAR=0
+PLUMOS_A30_OPENBOR_RENDERER_OPENGL=0
+PLUMOS_A30_OPENBOR_ROTATION=none
 PLUMOS_A30_OPENBOR_SCALE=fit
-PLUMOS_A30_OPENBOR_FULLSCREEN=1
-PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE=1
+PLUMOS_A30_OPENBOR_FULLSCREEN=0
+PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE=0
 
 PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT=user

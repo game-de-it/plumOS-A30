@@ -533,7 +533,7 @@ initial plumOS emulator/core build plan.
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
 | ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion is also hardware-confirmed after analog-axis correction. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
-| OpenBOR | `standalone:openbor` | upstream OpenBOR engine | Build v6391 for A30 armhf and launch the FE-selected `.pak` directly. Final rotate/fit is handled through the stock SDL2/mali path. |
+| OpenBOR | `standalone:openbor` | upstream OpenBOR engine | Build v6391 for A30 armhf and launch the FE-selected `.pak` directly. SDL stays on the plumOS side for input/audio, while completed OpenBOR frames are sent directly to a fbdev + Mali EGL presenter for final rotation/fit. |
 | DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
 | MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |
 

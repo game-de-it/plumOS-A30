@@ -1,0 +1,957 @@
+diff --git a/engine/Makefile b/engine/Makefile
+index 42b2aa5..cce50a9 100644
+--- a/engine/Makefile
++++ b/engine/Makefile
+@@ -413,6 +413,7 @@ GAME_CONSOLE   += sdl/joysticks.o
+                   sdl/sblaster.o                                                                    \
+                   sdl/timer.o                                                                       \
+                   sdl/sdlport.o                                                                     \
++                  sdl/a30_direct_present.o                                                          \
+                   sdl/video.o                                                                       \
+                   sdl/videocommon.o                                                                 \
+ 				  sdl/threads.o                                                                     \
+@@ -617,7 +618,7 @@ ifdef BUILD_WEBM
+ LIBS           += -lvpx
+ endif
+ 
+-LIBS           += -lpng -lz -lm
++LIBS           += -lpng -lz -lm -ldl
+ 
+ #----------------------------------------------------------------------------------------------------
+ # Rules to manage Files and Libraries for PSP
+diff --git a/engine/sdl/a30_direct_present.c b/engine/sdl/a30_direct_present.c
+new file mode 100644
+index 0000000..c225165
+--- /dev/null
++++ b/engine/sdl/a30_direct_present.c
+@@ -0,0 +1,814 @@
++#include "a30_direct_present.h"
++
++#include <dlfcn.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fb.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++
++typedef int EGLint;
++typedef unsigned int EGLBoolean;
++typedef unsigned int EGLenum;
++typedef void *EGLDisplay;
++typedef void *EGLConfig;
++typedef void *EGLSurface;
++typedef void *EGLContext;
++typedef void *EGLNativeDisplayType;
++typedef void *EGLNativeWindowType;
++
++typedef unsigned int GLenum;
++typedef unsigned int GLbitfield;
++typedef unsigned int GLuint;
++typedef int GLint;
++typedef int GLsizei;
++typedef float GLfloat;
++typedef char GLchar;
++typedef unsigned char GLboolean;
++
++#define EGL_FALSE 0
++#define EGL_TRUE 1
++#define EGL_NONE 0x3038
++#define EGL_NO_DISPLAY ((EGLDisplay)0)
++#define EGL_NO_SURFACE ((EGLSurface)0)
++#define EGL_NO_CONTEXT ((EGLContext)0)
++#define EGL_DEFAULT_DISPLAY ((EGLNativeDisplayType)0)
++#define EGL_OPENGL_ES_API 0x30a0
++#define EGL_WINDOW_BIT 0x0004
++#define EGL_SURFACE_TYPE 0x3033
++#define EGL_RENDERABLE_TYPE 0x3040
++#define EGL_OPENGL_ES2_BIT 0x0004
++#define EGL_RED_SIZE 0x3024
++#define EGL_GREEN_SIZE 0x3023
++#define EGL_BLUE_SIZE 0x3022
++#define EGL_ALPHA_SIZE 0x3021
++#define EGL_DEPTH_SIZE 0x3025
++#define EGL_WIDTH 0x3057
++#define EGL_HEIGHT 0x3056
++#define EGL_CONTEXT_CLIENT_VERSION 0x3098
++
++#define GL_FALSE 0
++#define GL_COLOR_BUFFER_BIT 0x00004000
++#define GL_TRIANGLE_STRIP 0x0005
++#define GL_FLOAT 0x1406
++#define GL_TEXTURE_2D 0x0de1
++#define GL_TEXTURE0 0x84c0
++#define GL_RGB 0x1907
++#define GL_UNSIGNED_SHORT_5_6_5 0x8363
++#define GL_NEAREST 0x2600
++#define GL_LINEAR 0x2601
++#define GL_CLAMP_TO_EDGE 0x812f
++#define GL_TEXTURE_MIN_FILTER 0x2801
++#define GL_TEXTURE_MAG_FILTER 0x2800
++#define GL_TEXTURE_WRAP_S 0x2802
++#define GL_TEXTURE_WRAP_T 0x2803
++#define GL_UNPACK_ALIGNMENT 0x0cf5
++#define GL_VERTEX_SHADER 0x8b31
++#define GL_FRAGMENT_SHADER 0x8b30
++#define GL_COMPILE_STATUS 0x8b81
++#define GL_LINK_STATUS 0x8b82
++
++enum a30_rotation {
++	A30_ROT_NONE,
++	A30_ROT_CW,
++	A30_ROT_CCW,
++	A30_ROT_180
++};
++
++enum a30_scale {
++	A30_SCALE_FIT,
++	A30_SCALE_STRETCH,
++	A30_SCALE_INTEGER,
++	A30_SCALE_NATIVE
++};
++
++struct egl_api {
++	void *handle;
++	EGLDisplay (*GetDisplay)(EGLNativeDisplayType display_id);
++	EGLBoolean (*Initialize)(EGLDisplay dpy, EGLint *major, EGLint *minor);
++	EGLBoolean (*ChooseConfig)(EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs,
++				   EGLint config_size, EGLint *num_config);
++	EGLBoolean (*BindAPI)(EGLenum api);
++	EGLSurface (*CreateWindowSurface)(EGLDisplay dpy, EGLConfig config,
++					  EGLNativeWindowType win, const EGLint *attrib_list);
++	EGLContext (*CreateContext)(EGLDisplay dpy, EGLConfig config, EGLContext share_context,
++				    const EGLint *attrib_list);
++	EGLBoolean (*MakeCurrent)(EGLDisplay dpy, EGLSurface draw, EGLSurface read,
++				  EGLContext ctx);
++	EGLBoolean (*SwapBuffers)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*SwapInterval)(EGLDisplay dpy, EGLint interval);
++	EGLBoolean (*QuerySurface)(EGLDisplay dpy, EGLSurface surface, EGLint attribute,
++				   EGLint *value);
++	EGLint (*GetError)(void);
++	EGLBoolean (*DestroyContext)(EGLDisplay dpy, EGLContext ctx);
++	EGLBoolean (*DestroySurface)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*Terminate)(EGLDisplay dpy);
++};
++
++struct gl_api {
++	void *handle;
++	void (*ActiveTexture)(GLenum texture);
++	void (*AttachShader)(GLuint program, GLuint shader);
++	void (*BindAttribLocation)(GLuint program, GLuint index, const GLchar *name);
++	void (*BindTexture)(GLenum target, GLuint texture);
++	void (*Clear)(GLbitfield mask);
++	void (*ClearColor)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
++	void (*CompileShader)(GLuint shader);
++	GLuint (*CreateProgram)(void);
++	GLuint (*CreateShader)(GLenum type);
++	void (*DeleteProgram)(GLuint program);
++	void (*DeleteShader)(GLuint shader);
++	void (*DeleteTextures)(GLsizei n, const GLuint *textures);
++	void (*DisableVertexAttribArray)(GLuint index);
++	void (*DrawArrays)(GLenum mode, GLint first, GLsizei count);
++	void (*EnableVertexAttribArray)(GLuint index);
++	void (*GenTextures)(GLsizei n, GLuint *textures);
++	void (*GetProgramiv)(GLuint program, GLenum pname, GLint *params);
++	void (*GetShaderiv)(GLuint shader, GLenum pname, GLint *params);
++	GLint (*GetUniformLocation)(GLuint program, const GLchar *name);
++	void (*LinkProgram)(GLuint program);
++	void (*PixelStorei)(GLenum pname, GLint param);
++	void (*ShaderSource)(GLuint shader, GLsizei count, const GLchar *const *string,
++			     const GLint *length);
++	void (*TexImage2D)(GLenum target, GLint level, GLint internalformat, GLsizei width,
++			   GLsizei height, GLint border, GLenum format, GLenum type,
++			   const void *pixels);
++	void (*TexParameteri)(GLenum target, GLenum pname, GLint param);
++	void (*TexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
++			      GLsizei width, GLsizei height, GLenum format, GLenum type,
++			      const void *pixels);
++	void (*Uniform1i)(GLint location, GLint v0);
++	void (*UseProgram)(GLuint program);
++	void (*VertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized,
++				    GLsizei stride, const void *pointer);
++	void (*Viewport)(GLint x, GLint y, GLsizei width, GLsizei height);
++};
++
++struct a30_presenter {
++	int initialized;
++	int logical_w;
++	int logical_h;
++	int physical_w;
++	int physical_h;
++	int texture_w;
++	int texture_h;
++	int filter_linear;
++	int swap_rb_565;
++	enum a30_rotation rotation;
++	enum a30_scale scale;
++	struct egl_api egl;
++	struct gl_api gl;
++	EGLDisplay display;
++	EGLConfig config;
++	EGLSurface surface;
++	EGLContext context;
++	GLuint program;
++	GLuint texture;
++	GLint sampler_location;
++	void *tight_pixels;
++	size_t tight_size;
++};
++
++static struct a30_presenter g_a30;
++
++static int env_enabled_name(const char *name, int fallback)
++{
++	const char *value = getenv(name);
++	if(!value || !value[0]) return fallback;
++	if(!strcasecmp(value, "0") || !strcasecmp(value, "no") ||
++	   !strcasecmp(value, "false") || !strcasecmp(value, "off")) return 0;
++	return 1;
++}
++
++int openbor_a30_direct_present_enabled(void)
++{
++	return env_enabled_name("PLUMOS_A30_OPENBOR_DIRECT_PRESENT", 0);
++}
++
++static enum a30_rotation parse_rotation(const char *value)
++{
++	if(!value || !value[0]) return A30_ROT_CCW;
++	if(!strcasecmp(value, "none") || !strcmp(value, "0")) return A30_ROT_NONE;
++	if(!strcasecmp(value, "cw") || !strcmp(value, "90")) return A30_ROT_CW;
++	if(!strcasecmp(value, "ccw") || !strcmp(value, "270")) return A30_ROT_CCW;
++	if(!strcasecmp(value, "180")) return A30_ROT_180;
++	return A30_ROT_CCW;
++}
++
++static enum a30_scale parse_scale(const char *value)
++{
++	if(!value || !value[0]) return A30_SCALE_FIT;
++	if(!strcasecmp(value, "stretch")) return A30_SCALE_STRETCH;
++	if(!strcasecmp(value, "integer")) return A30_SCALE_INTEGER;
++	if(!strcasecmp(value, "native") || !strcasecmp(value, "none")) return A30_SCALE_NATIVE;
++	return A30_SCALE_FIT;
++}
++
++static int parse_size(const char *value, int *w, int *h)
++{
++	char *end = NULL;
++	long parsed_w;
++	long parsed_h;
++
++	if(!value || !value[0]) return 0;
++	errno = 0;
++	parsed_w = strtol(value, &end, 10);
++	if(errno || end == value || (*end != 'x' && *end != 'X')) return 0;
++	value = end + 1;
++	errno = 0;
++	parsed_h = strtol(value, &end, 10);
++	if(errno || end == value || *end != '\0') return 0;
++	if(parsed_w <= 0 || parsed_h <= 0 || parsed_w > 4096 || parsed_h > 4096) return 0;
++	*w = (int)parsed_w;
++	*h = (int)parsed_h;
++	return 1;
++}
++
++static int load_symbol(void *handle, const char *name, void *fn_out)
++{
++	void *symbol;
++
++	dlerror();
++	symbol = dlsym(handle, name);
++	if(!symbol)
++	{
++		const char *error = dlerror();
++		fprintf(stderr, "openbor-a30: missing symbol %s: %s\n", name,
++		        error ? error : "-");
++		return 0;
++	}
++	memcpy(fn_out, &symbol, sizeof(symbol));
++	return 1;
++}
++
++#define LOAD_EGL(field, symbol) \
++	do { if(!load_symbol(g_a30.egl.handle, symbol, &g_a30.egl.field)) return 0; } while(0)
++#define LOAD_GL(field, symbol) \
++	do { if(!load_symbol(g_a30.gl.handle, symbol, &g_a30.gl.field)) return 0; } while(0)
++
++static int load_egl_gl(void)
++{
++	const char *egl_path = getenv("PLUMOS_A30_OPENBOR_EGL_LIB");
++	const char *gles_path = getenv("PLUMOS_A30_OPENBOR_GLES_LIB");
++
++	if(!egl_path || !egl_path[0]) egl_path = "/usr/lib/libEGL.so";
++	if(!gles_path || !gles_path[0]) gles_path = "/usr/lib/libGLESv2.so";
++
++	g_a30.egl.handle = dlopen(egl_path, RTLD_NOW | RTLD_GLOBAL);
++	if(!g_a30.egl.handle)
++	{
++		fprintf(stderr, "openbor-a30: dlopen %s failed: %s\n", egl_path, dlerror());
++		return 0;
++	}
++	g_a30.gl.handle = dlopen(gles_path, RTLD_NOW | RTLD_GLOBAL);
++	if(!g_a30.gl.handle)
++	{
++		fprintf(stderr, "openbor-a30: dlopen %s failed: %s\n", gles_path, dlerror());
++		return 0;
++	}
++
++	LOAD_EGL(GetDisplay, "eglGetDisplay");
++	LOAD_EGL(Initialize, "eglInitialize");
++	LOAD_EGL(ChooseConfig, "eglChooseConfig");
++	LOAD_EGL(BindAPI, "eglBindAPI");
++	LOAD_EGL(CreateWindowSurface, "eglCreateWindowSurface");
++	LOAD_EGL(CreateContext, "eglCreateContext");
++	LOAD_EGL(MakeCurrent, "eglMakeCurrent");
++	LOAD_EGL(SwapBuffers, "eglSwapBuffers");
++	LOAD_EGL(SwapInterval, "eglSwapInterval");
++	LOAD_EGL(QuerySurface, "eglQuerySurface");
++	LOAD_EGL(GetError, "eglGetError");
++	LOAD_EGL(DestroyContext, "eglDestroyContext");
++	LOAD_EGL(DestroySurface, "eglDestroySurface");
++	LOAD_EGL(Terminate, "eglTerminate");
++
++	LOAD_GL(ActiveTexture, "glActiveTexture");
++	LOAD_GL(AttachShader, "glAttachShader");
++	LOAD_GL(BindAttribLocation, "glBindAttribLocation");
++	LOAD_GL(BindTexture, "glBindTexture");
++	LOAD_GL(Clear, "glClear");
++	LOAD_GL(ClearColor, "glClearColor");
++	LOAD_GL(CompileShader, "glCompileShader");
++	LOAD_GL(CreateProgram, "glCreateProgram");
++	LOAD_GL(CreateShader, "glCreateShader");
++	LOAD_GL(DeleteProgram, "glDeleteProgram");
++	LOAD_GL(DeleteShader, "glDeleteShader");
++	LOAD_GL(DeleteTextures, "glDeleteTextures");
++	LOAD_GL(DisableVertexAttribArray, "glDisableVertexAttribArray");
++	LOAD_GL(DrawArrays, "glDrawArrays");
++	LOAD_GL(EnableVertexAttribArray, "glEnableVertexAttribArray");
++	LOAD_GL(GenTextures, "glGenTextures");
++	LOAD_GL(GetProgramiv, "glGetProgramiv");
++	LOAD_GL(GetShaderiv, "glGetShaderiv");
++	LOAD_GL(GetUniformLocation, "glGetUniformLocation");
++	LOAD_GL(LinkProgram, "glLinkProgram");
++	LOAD_GL(PixelStorei, "glPixelStorei");
++	LOAD_GL(ShaderSource, "glShaderSource");
++	LOAD_GL(TexImage2D, "glTexImage2D");
++	LOAD_GL(TexParameteri, "glTexParameteri");
++	LOAD_GL(TexSubImage2D, "glTexSubImage2D");
++	LOAD_GL(Uniform1i, "glUniform1i");
++	LOAD_GL(UseProgram, "glUseProgram");
++	LOAD_GL(VertexAttribPointer, "glVertexAttribPointer");
++	LOAD_GL(Viewport, "glViewport");
++	return 1;
++}
++
++static int read_fb_size(int *w, int *h)
++{
++	const char *fb_path = getenv("PLUMOS_A30_OPENBOR_FB");
++	struct fb_var_screeninfo var;
++	int fd;
++
++	if(!fb_path || !fb_path[0]) fb_path = "/dev/fb0";
++	fd = open(fb_path, O_RDWR | O_CLOEXEC);
++	if(fd < 0)
++	{
++		fprintf(stderr, "openbor-a30: open %s failed: %s\n", fb_path, strerror(errno));
++		return 0;
++	}
++	if(ioctl(fd, FBIOGET_VSCREENINFO, &var) != 0)
++	{
++		fprintf(stderr, "openbor-a30: FBIOGET_VSCREENINFO failed: %s\n", strerror(errno));
++		close(fd);
++		return 0;
++	}
++	close(fd);
++	*w = (int)var.xres;
++	*h = (int)var.yres;
++	return *w > 0 && *h > 0;
++}
++
++static int choose_config(void)
++{
++	const EGLint attribs[] = {
++		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
++		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
++		EGL_RED_SIZE, 5,
++		EGL_GREEN_SIZE, 6,
++		EGL_BLUE_SIZE, 5,
++		EGL_ALPHA_SIZE, 0,
++		EGL_DEPTH_SIZE, 0,
++		EGL_NONE
++	};
++	EGLint count = 0;
++
++	if(g_a30.egl.ChooseConfig(g_a30.display, attribs, &g_a30.config, 1, &count) == EGL_TRUE &&
++	   count > 0) return 1;
++	fprintf(stderr, "openbor-a30: eglChooseConfig failed error=0x%04x count=%d\n",
++	        g_a30.egl.GetError(), count);
++	return 0;
++}
++
++static GLuint compile_shader(GLenum type, const char *source)
++{
++	GLuint shader = g_a30.gl.CreateShader(type);
++	GLint ok = 0;
++
++	g_a30.gl.ShaderSource(shader, 1, &source, NULL);
++	g_a30.gl.CompileShader(shader);
++	g_a30.gl.GetShaderiv(shader, GL_COMPILE_STATUS, &ok);
++	if(!ok)
++	{
++		fprintf(stderr, "openbor-a30: shader compile failed\n");
++		g_a30.gl.DeleteShader(shader);
++		return 0;
++	}
++	return shader;
++}
++
++static int create_program(void)
++{
++	static const char *vs =
++		"attribute vec2 a_position;\n"
++		"attribute vec2 a_texcoord;\n"
++		"varying vec2 v_texcoord;\n"
++		"void main() {\n"
++		"  gl_Position = vec4(a_position, 0.0, 1.0);\n"
++		"  v_texcoord = a_texcoord;\n"
++		"}\n";
++	static const char *fs =
++		"precision mediump float;\n"
++		"varying vec2 v_texcoord;\n"
++		"uniform sampler2D u_tex;\n"
++		"void main() {\n"
++		"  gl_FragColor = texture2D(u_tex, v_texcoord);\n"
++		"}\n";
++	GLuint vshader = 0;
++	GLuint fshader = 0;
++	GLint ok = 0;
++
++	vshader = compile_shader(GL_VERTEX_SHADER, vs);
++	fshader = compile_shader(GL_FRAGMENT_SHADER, fs);
++	if(!vshader || !fshader) goto fail;
++
++	g_a30.program = g_a30.gl.CreateProgram();
++	g_a30.gl.AttachShader(g_a30.program, vshader);
++	g_a30.gl.AttachShader(g_a30.program, fshader);
++	g_a30.gl.BindAttribLocation(g_a30.program, 0, "a_position");
++	g_a30.gl.BindAttribLocation(g_a30.program, 1, "a_texcoord");
++	g_a30.gl.LinkProgram(g_a30.program);
++	g_a30.gl.GetProgramiv(g_a30.program, GL_LINK_STATUS, &ok);
++	if(!ok)
++	{
++		fprintf(stderr, "openbor-a30: program link failed\n");
++		goto fail;
++	}
++	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
++	g_a30.gl.DeleteShader(vshader);
++	g_a30.gl.DeleteShader(fshader);
++	return 1;
++
++fail:
++	if(vshader) g_a30.gl.DeleteShader(vshader);
++	if(fshader) g_a30.gl.DeleteShader(fshader);
++	if(g_a30.program)
++	{
++		g_a30.gl.DeleteProgram(g_a30.program);
++		g_a30.program = 0;
++	}
++	return 0;
++}
++
++static void configure_bound_texture(void)
++{
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
++	                       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
++	                       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++}
++
++int openbor_a30_direct_present_init(int logical_w, int logical_h)
++{
++	EGLint major = 0;
++	EGLint minor = 0;
++	EGLint width = 0;
++	EGLint height = 0;
++	EGLint context_attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
++	const char *logical_env;
++	int parsed_w;
++	int parsed_h;
++
++	if(!openbor_a30_direct_present_enabled()) return 0;
++	openbor_a30_direct_present_finish();
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++	g_a30.logical_w = logical_w > 0 ? logical_w : 640;
++	g_a30.logical_h = logical_h > 0 ? logical_h : 480;
++	logical_env = getenv("PLUMOS_A30_OPENBOR_DIRECT_LOGICAL_SIZE");
++	if(parse_size(logical_env, &parsed_w, &parsed_h))
++	{
++		g_a30.logical_w = parsed_w;
++		g_a30.logical_h = parsed_h;
++	}
++	g_a30.rotation = parse_rotation(getenv("PLUMOS_A30_OPENBOR_DIRECT_ROTATION"));
++	g_a30.scale = parse_scale(getenv("PLUMOS_A30_OPENBOR_SCALE"));
++	g_a30.filter_linear = env_enabled_name("PLUMOS_A30_OPENBOR_DIRECT_LINEAR", 0);
++	g_a30.swap_rb_565 = env_enabled_name("PLUMOS_A30_OPENBOR_DIRECT_BGR565", 1);
++
++	if(!read_fb_size(&g_a30.physical_w, &g_a30.physical_h)) goto fail;
++	if(!load_egl_gl()) goto fail;
++
++	g_a30.display = g_a30.egl.GetDisplay(EGL_DEFAULT_DISPLAY);
++	if(g_a30.display == EGL_NO_DISPLAY) goto fail;
++	if(g_a30.egl.Initialize(g_a30.display, &major, &minor) != EGL_TRUE) goto fail;
++	if(g_a30.egl.BindAPI(EGL_OPENGL_ES_API) != EGL_TRUE) goto fail;
++	if(!choose_config()) goto fail;
++
++	g_a30.surface = g_a30.egl.CreateWindowSurface(g_a30.display, g_a30.config, NULL, NULL);
++	if(g_a30.surface == EGL_NO_SURFACE)
++	{
++		fprintf(stderr, "openbor-a30: eglCreateWindowSurface failed error=0x%04x\n",
++		        g_a30.egl.GetError());
++		goto fail;
++	}
++	if(g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_WIDTH, &width) == EGL_TRUE &&
++	   g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_HEIGHT, &height) == EGL_TRUE &&
++	   width > 0 && height > 0)
++	{
++		g_a30.physical_w = width;
++		g_a30.physical_h = height;
++	}
++
++	g_a30.context = g_a30.egl.CreateContext(g_a30.display, g_a30.config, EGL_NO_CONTEXT,
++	                                        context_attribs);
++	if(g_a30.context == EGL_NO_CONTEXT) goto fail;
++	if(g_a30.egl.MakeCurrent(g_a30.display, g_a30.surface, g_a30.surface,
++	                         g_a30.context) != EGL_TRUE) goto fail;
++	g_a30.egl.SwapInterval(g_a30.display,
++	                       env_enabled_name("PLUMOS_A30_OPENBOR_DIRECT_VSYNC", 1) ? 1 : 0);
++	if(!create_program()) goto fail;
++
++	g_a30.gl.GenTextures(1, &g_a30.texture);
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	configure_bound_texture();
++	g_a30.gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
++	g_a30.texture_w = 0;
++	g_a30.texture_h = 0;
++	g_a30.initialized = 1;
++	fprintf(stderr,
++	        "openbor-a30: direct presenter logical=%dx%d physical=%dx%d rotation=%d scale=%d\n",
++	        g_a30.logical_w, g_a30.logical_h, g_a30.physical_w, g_a30.physical_h,
++	        g_a30.rotation, g_a30.scale);
++	return 1;
++
++fail:
++	fprintf(stderr, "openbor-a30: direct presenter init failed\n");
++	openbor_a30_direct_present_finish();
++	return 0;
++}
++
++static uint16_t bgr565_to_rgb565(uint16_t pixel)
++{
++	return (uint16_t)(((pixel & 0x001f) << 11) |
++	                  (pixel & 0x07e0) |
++	                  ((pixel & 0xf800) >> 11));
++}
++
++static uint16_t rgba8888_to_rgb565(const uint8_t *pixel)
++{
++	return (uint16_t)(((uint16_t)(pixel[0] & 0xf8) << 8) |
++	                  ((uint16_t)(pixel[1] & 0xfc) << 3) |
++	                  ((uint16_t)pixel[2] >> 3));
++}
++
++static const void *prepare_rgb565_pixels(const void *src_pixels, int pitch, int width,
++                                         int height, int pixel_bytes)
++{
++	size_t row_bytes = (size_t)width * 2;
++	size_t needed = row_bytes * (size_t)height;
++	const uint8_t *src = (const uint8_t *)src_pixels;
++	uint8_t *dst;
++	int y;
++
++	if(pixel_bytes == 2 && !g_a30.swap_rb_565 && pitch == (int)row_bytes) return src_pixels;
++	if(g_a30.tight_size < needed)
++	{
++		void *new_pixels = realloc(g_a30.tight_pixels, needed);
++		if(!new_pixels) return src_pixels;
++		g_a30.tight_pixels = new_pixels;
++		g_a30.tight_size = needed;
++	}
++	dst = (uint8_t *)g_a30.tight_pixels;
++	for(y = 0; y < height; y++)
++	{
++		const uint8_t *row = src + (size_t)y * pitch;
++		uint16_t *out = (uint16_t *)(dst + (size_t)y * row_bytes);
++		int x;
++
++		if(pixel_bytes == 2)
++		{
++			const uint16_t *in = (const uint16_t *)row;
++			if(g_a30.swap_rb_565)
++			{
++				for(x = 0; x < width; x++) out[x] = bgr565_to_rgb565(in[x]);
++			}
++			else
++			{
++				memcpy(out, row, row_bytes);
++			}
++		}
++		else if(pixel_bytes == 4)
++		{
++			for(x = 0; x < width; x++) out[x] = rgba8888_to_rgb565(row + x * 4);
++		}
++		else
++		{
++			memset(out, 0, row_bytes);
++		}
++	}
++	return g_a30.tight_pixels;
++}
++
++static void ensure_texture_size(int width, int height)
++{
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	if(g_a30.texture_w == width && g_a30.texture_h == height) return;
++	g_a30.gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
++	                    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
++	g_a30.texture_w = width;
++	g_a30.texture_h = height;
++}
++
++static void compute_integer_rect(int width, int height, int *x, int *y, int *w, int *h)
++{
++	int sx = width > 0 ? g_a30.logical_w / width : 1;
++	int sy = height > 0 ? g_a30.logical_h / height : 1;
++	int scale = sx < sy ? sx : sy;
++
++	if(scale < 1) scale = 1;
++	*w = width * scale;
++	*h = height * scale;
++	if(*w > g_a30.logical_w) *w = g_a30.logical_w;
++	if(*h > g_a30.logical_h) *h = g_a30.logical_h;
++	*x = (g_a30.logical_w - *w) / 2;
++	*y = (g_a30.logical_h - *h) / 2;
++}
++
++static void compute_frame_rect(int width, int height, int *x, int *y, int *w, int *h)
++{
++	double ratio;
++
++	switch(g_a30.scale)
++	{
++	case A30_SCALE_STRETCH:
++		*x = 0;
++		*y = 0;
++		*w = g_a30.logical_w;
++		*h = g_a30.logical_h;
++		return;
++	case A30_SCALE_NATIVE:
++		*w = width;
++		*h = height;
++		if(*w > g_a30.logical_w) *w = g_a30.logical_w;
++		if(*h > g_a30.logical_h) *h = g_a30.logical_h;
++		*x = (g_a30.logical_w - *w) / 2;
++		*y = (g_a30.logical_h - *h) / 2;
++		return;
++	case A30_SCALE_INTEGER:
++		compute_integer_rect(width, height, x, y, w, h);
++		return;
++	case A30_SCALE_FIT:
++	default:
++		ratio = height > 0 ? (double)width / (double)height : 4.0 / 3.0;
++		*h = g_a30.logical_h;
++		*w = (int)((double)*h * ratio + 0.5);
++		if(*w > g_a30.logical_w)
++		{
++			*w = g_a30.logical_w;
++			*h = (int)((double)*w / ratio + 0.5);
++		}
++		if(*w < 1) *w = 1;
++		if(*h < 1) *h = 1;
++		*x = (g_a30.logical_w - *w) / 2;
++		*y = (g_a30.logical_h - *h) / 2;
++		return;
++	}
++}
++
++static void fill_vertices(GLfloat out[16], int logical_x, int logical_y, int logical_w,
++                          int logical_h)
++{
++	static const GLfloat none_uv[8] = {
++		0.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 0.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat cw_uv[8] = {
++		0.0f, 1.0f,
++		1.0f, 1.0f,
++		0.0f, 0.0f,
++		1.0f, 0.0f
++	};
++	static const GLfloat ccw_uv[8] = {
++		0.0f, 0.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat rot180_uv[8] = {
++		1.0f, 1.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		0.0f, 0.0f
++	};
++	int px = logical_x;
++	int py = logical_y;
++	int pw = logical_w;
++	int ph = logical_h;
++	GLfloat left;
++	GLfloat right;
++	GLfloat top;
++	GLfloat bottom;
++	const GLfloat *uv = ccw_uv;
++	int i;
++
++	switch(g_a30.rotation)
++	{
++	case A30_ROT_NONE:
++		uv = none_uv;
++		break;
++	case A30_ROT_CCW:
++		uv = ccw_uv;
++		px = logical_y;
++		py = g_a30.logical_w - logical_x - logical_w;
++		pw = logical_h;
++		ph = logical_w;
++		break;
++	case A30_ROT_180:
++		uv = rot180_uv;
++		px = g_a30.logical_w - logical_x - logical_w;
++		py = g_a30.logical_h - logical_y - logical_h;
++		break;
++	case A30_ROT_CW:
++	default:
++		uv = cw_uv;
++		px = g_a30.logical_h - logical_y - logical_h;
++		py = logical_x;
++		pw = logical_h;
++		ph = logical_w;
++		break;
++	}
++
++	if(px < 0) px = 0;
++	if(py < 0) py = 0;
++	if(pw < 1) pw = 1;
++	if(ph < 1) ph = 1;
++	if(px + pw > g_a30.physical_w) pw = g_a30.physical_w - px;
++	if(py + ph > g_a30.physical_h) ph = g_a30.physical_h - py;
++	if(pw < 1) pw = 1;
++	if(ph < 1) ph = 1;
++
++	left = (2.0f * (GLfloat)px / (GLfloat)g_a30.physical_w) - 1.0f;
++	right = (2.0f * (GLfloat)(px + pw) / (GLfloat)g_a30.physical_w) - 1.0f;
++	top = 1.0f - (2.0f * (GLfloat)py / (GLfloat)g_a30.physical_h);
++	bottom = 1.0f - (2.0f * (GLfloat)(py + ph) / (GLfloat)g_a30.physical_h);
++
++	for(i = 0; i < 4; i++)
++	{
++		out[i * 4 + 0] = (i < 2) ? left : right;
++		out[i * 4 + 1] = (i & 1) ? top : bottom;
++		out[i * 4 + 2] = uv[i * 2 + 0];
++		out[i * 4 + 3] = uv[i * 2 + 1];
++	}
++}
++
++void openbor_a30_direct_present_frame(const void *pixels, int pitch, int width, int height,
++                                      int pixel_bytes)
++{
++	GLfloat vertices[16];
++	const void *rgb565_pixels;
++	int x;
++	int y;
++	int w;
++	int h;
++
++	if(!g_a30.initialized || !pixels || width <= 0 || height <= 0) return;
++	rgb565_pixels = prepare_rgb565_pixels(pixels, pitch, width, height, pixel_bytes);
++	ensure_texture_size(width, height);
++	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
++	                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, rgb565_pixels);
++
++	compute_frame_rect(width, height, &x, &y, &w, &h);
++	fill_vertices(vertices, x, y, w, h);
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	g_a30.gl.UseProgram(g_a30.program);
++	g_a30.gl.Uniform1i(g_a30.sampler_location, 0);
++	g_a30.gl.EnableVertexAttribArray(0);
++	g_a30.gl.EnableVertexAttribArray(1);
++	g_a30.gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
++	                             vertices);
++	g_a30.gl.VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
++	                             vertices + 2);
++	g_a30.gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++	g_a30.gl.DisableVertexAttribArray(1);
++	g_a30.gl.DisableVertexAttribArray(0);
++	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
++}
++
++void openbor_a30_direct_present_clear(void)
++{
++	if(!g_a30.initialized) return;
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
++}
++
++void openbor_a30_direct_present_finish(void)
++{
++	if(g_a30.display != EGL_NO_DISPLAY)
++	{
++		if(g_a30.context != EGL_NO_CONTEXT)
++		{
++			g_a30.egl.MakeCurrent(g_a30.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
++			                      EGL_NO_CONTEXT);
++		}
++		if(g_a30.texture) g_a30.gl.DeleteTextures(1, &g_a30.texture);
++		if(g_a30.program) g_a30.gl.DeleteProgram(g_a30.program);
++		if(g_a30.context != EGL_NO_CONTEXT) g_a30.egl.DestroyContext(g_a30.display, g_a30.context);
++		if(g_a30.surface != EGL_NO_SURFACE) g_a30.egl.DestroySurface(g_a30.display, g_a30.surface);
++		g_a30.egl.Terminate(g_a30.display);
++	}
++	if(g_a30.tight_pixels) free(g_a30.tight_pixels);
++	if(g_a30.gl.handle) dlclose(g_a30.gl.handle);
++	if(g_a30.egl.handle) dlclose(g_a30.egl.handle);
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++}
+diff --git a/engine/sdl/a30_direct_present.h b/engine/sdl/a30_direct_present.h
+new file mode 100644
+index 0000000..530b04b
+--- /dev/null
++++ b/engine/sdl/a30_direct_present.h
+@@ -0,0 +1,11 @@
++#ifndef OPENBOR_A30_DIRECT_PRESENT_H
++#define OPENBOR_A30_DIRECT_PRESENT_H
++
++int openbor_a30_direct_present_enabled(void);
++int openbor_a30_direct_present_init(int logical_w, int logical_h);
++void openbor_a30_direct_present_frame(const void *pixels, int pitch, int width, int height,
++                                      int pixel_bytes);
++void openbor_a30_direct_present_clear(void);
++void openbor_a30_direct_present_finish(void);
++
++#endif
+diff --git a/engine/sdl/video.c b/engine/sdl/video.c
+index e70f789..38815d9 100644
+--- a/engine/sdl/video.c
++++ b/engine/sdl/video.c
+@@ -25,6 +25,7 @@
+ #include "pngdec.h"
+ #include "videocommon.h"
+ #include "../resources/OpenBOR_Icon_32x32_png.h"
++#include "a30_direct_present.h"
+ 
+ #include <fcntl.h>
+ #include <stdlib.h>
+@@ -52,6 +53,7 @@ static int a30_present_scale = A30_SCALE_FIT;
+ static int a30_force_fullscreen = 0;
+ static int a30_force_front_page = 1;
+ static int a30_force_renderer_opengl = 0;
++static int a30_direct_present_active = 0;
+ static int a30_fb_pan_fd = -2;
+ 
+ FPSmanager framerate_manager;
+@@ -348,6 +350,11 @@ int video_set_mode(s_videomodes videomodes)
+ 	stored_videomodes = videomodes;
+ 	yuv_mode = 0;
+ 
++	if(a30_direct_present_active)
++	{
++		openbor_a30_direct_present_finish();
++		a30_direct_present_active = 0;
++	}
+ 	if(videomodes.hRes==0 && videomodes.vRes==0)
+ 	{
+ 		Term_Gfx();
+@@ -365,6 +372,12 @@ int video_set_mode(s_videomodes videomodes)
+ 	if(savedata.usegl && video_gl_set_mode(videomodes)) return 1;
+ 	else opengl = 0;
+ 
++	if(openbor_a30_direct_present_enabled() &&
++	   openbor_a30_direct_present_init(640, 480))
++	{
++		a30_direct_present_active = 1;
++		return 1;
++	}
+ 	if(!SetVideoMode(videomodes.hRes * videomodes.hScale,
+ 	                 videomodes.vRes * videomodes.vScale,
+ 	                 videomodes.pixel * 8, false))
+@@ -420,6 +433,16 @@ int video_copy_screen(s_screen* src)
+ 
+ 	if(opengl) return video_gl_copy_screen(surface);
+ 
++	if(a30_direct_present_active)
++	{
++		openbor_a30_direct_present_frame(surface->data, surface->pitch, surface->width,
++		                                surface->height, stored_videomodes.pixel);
++#if WIN || LINUX
++		SDL_framerateDelay(&framerate_manager);
++#endif
++		return 1;
++	}
++
+ 	SDL_UpdateTexture(texture, NULL, surface->data, surface->pitch);
+ 	blit();
+ 
+@@ -434,6 +457,12 @@ void video_clearscreen()
+ {
+ 	if(opengl) { video_gl_clearscreen(); return; }
+ 
++	if(a30_direct_present_active)
++	{
++		openbor_a30_direct_present_clear();
++		return;
++	}
++
+ 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+ 	SDL_RenderClear(renderer);
+ 	SDL_RenderPresent(renderer);
+@@ -466,6 +495,7 @@ int video_setup_yuv_overlay(const yuv_video_mode *mode)
+ 	stored_yuv_mode = *mode;
+ 	yuv_mode = 1;
+ 	if(opengl) return video_gl_setup_yuv_overlay(mode);
++	if(a30_direct_present_active) return 0;
+ 
+ 	SDL_DestroyTexture(texture);
+ 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+@@ -484,6 +515,7 @@ int video_prepare_yuv_frame(yuv_frame *src)
+ {
+ 	if(opengl) return video_gl_prepare_yuv_frame(src);
+ 
++	if(a30_direct_present_active) return 0;
+ 	SDL_UpdateYUVTexture(texture, NULL, src->lum, stored_yuv_mode.width,
+ 	        src->cr, stored_yuv_mode.width/2, src->cb, stored_yuv_mode.width/2);
+ 	return 1;
+@@ -493,6 +525,7 @@ int video_display_yuv_frame(void)
+ {
+ 	if(opengl) return video_gl_display_yuv_frame();
+ 
++	if(a30_direct_present_active) return 0;
+ 	blit();
+ 	return 1;
+ }
