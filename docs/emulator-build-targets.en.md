@@ -238,6 +238,13 @@ FBNeo-compatible seek results. `fbneo`, `mame2003_plus`, `fbalpha2012`, and
 `mame2000` have been verified through arcade ROM initialization. Some Irem M92
 titles in `mame2000` are flagged `GAME_NO_SOUND` by the core driver itself, so
 silence there is not a plumOS audio-path failure.
+The same-day PS1 validation found that PICO `pcsx_rearmed` detected BIOS files
+but then rejected the CD image with `cdrom read failed for lba 4`. The cause was
+that PCSX-ReARMed's libretro-common stdio transform treats VFS `seek` as
+`fseeko()` and expects `0` on success, while PicoArch returned the current file
+position following libretro VFS semantics. PicoArch now gives `pcsx_rearmed` the
+same C `fseek`-compatible return as FBNeo, and a short `chroQW.cue` probe reached
+`Screen: 256x240`.
 The launcher also keeps the `picoarch` child PID and kills both `picoarch` and
 `plumos-joystickd` during TERM/HUP/INT/EXIT cleanup, preventing stale PicoArch
 instances from skewing CPU/audio/fb0-owner tests.

@@ -71,9 +71,9 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-As of 2026-06-13, the default theme family has 88 target systems and 2 virtual
-TOP logos, for 90 required logos total. All required logos are present.
-`dreamcast`, `n64`, and `saturn` are excluded from required logos because they
+As of 2026-06-16, the default theme family has 90 target systems and 2 virtual
+TOP logos, for 92 required logos total. All required logos are present.
+`dreamcast` and `saturn` are excluded from required logos because they
 are `enabled:false`, but their older seed logos may remain as optional assets.
 
 Use this script to regenerate hand-drawn fallback and virtual TOP logos. It

@@ -68,9 +68,9 @@ scripts/audit-system-logos.py
 scripts/audit-system-logos.py --list-targets
 ```
 
-2026-06-13 時点の default theme 系では、対象 system は88件、仮想TOP logo は2件、
-必須 logo は合計90件で、すべて充足済みです。
-`dreamcast`, `n64`, `saturn` は `enabled:false` のため logo 必須対象から除外しますが、
+2026-06-16 時点の default theme 系では、対象 system は90件、仮想TOP logo は2件、
+必須 logo は合計92件で、すべて充足済みです。
+`dreamcast`, `saturn` は `enabled:false` のため logo 必須対象から除外しますが、
 旧 seed 由来の logo は任意 asset として残せます。
 
 不足分と仮想TOP logo を手描き fallback で再生成する場合は以下を使います。生成結果は
