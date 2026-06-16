@@ -220,11 +220,11 @@ content loading. That removes startup crashes for cores such as `gearboy`,
 `gearsystem`, `mednafen_lynx`, and `dosbox_pure`, and fixes directory/no-game
 loading paths for `easyrpg`, `scummvm`, and `quasi88`. `pa_log()` is flushed on
 each message so probe logs still contain the last initialization stage after
-TERM/KILL. `tgbdual` remains excluded from automatic `picoarch:<core>` Core
-Settings candidates because a reset state/config still produced a black raw
-framebuffer on A30, and `mednafen_pce` is excluded because it runs at roughly
-30fps in practice. GB/GBC PicoArch validation should use `gambatte`, `gearboy`,
-`mgba`, or `vbam`; PC Engine PicoArch validation should use `mednafen_pce_fast`.
+TERM/KILL. `tgbdual` remains excluded because a reset state/config still produced
+a black raw framebuffer on A30. For PC Engine-family systems, `mednafen_pce` is
+excluded from normal RA/PICO candidates because of its runtime load; use
+`mednafen_pce_fast` instead. GB/GBC PicoArch validation should use `gambatte`,
+`gearboy`, `mgba`, or `vbam`.
 For `quasi88`, D88 header seek/read fails through PicoArch's simple VFS and drops
 to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
@@ -251,8 +251,20 @@ launcher also reads `/mnt/SDCARD/plumos/config/standalone/picoarch.env`, where
 directory `bios_dir` entry in
 `/mnt/SDCARD/plumos/state/picoarch/.picoarch-<core>-<tag>/picoarch.cfg` takes
 final precedence.
-For FDS, `fceumm` and `nestopia` need `disksys.rom` from the shared BIOS root,
-so the launcher explicitly uses `/mnt/SDCARD/Bios` for those cores.
+Most BIOS packs follow the Onion/Miyoo-compatible shared BIOS root
+`/mnt/SDCARD/Bios`. When no override is provided, the PicoArch launcher points
+these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
+`picoarch.cfg` still takes final precedence.
+
+| group | core | BIOS path policy |
+| --- | --- | --- |
+| FDS | `fceumm`, `nestopia` | Read `disksys.rom` from `/mnt/SDCARD/Bios`. |
+| PC Engine CD / SuperGrafx | `mednafen_pce_fast`, `mednafen_supergrafx`, `mednafen_pce` | Read `syscard*.pce` / `games_express.pce` from `/mnt/SDCARD/Bios`. |
+| Sega CD / 32X | `genesis_plus_gx`, `picodrive` | Read `bios_CD_*.bin` / `32X_*_BIOS.BIN` from `/mnt/SDCARD/Bios`. |
+| CD console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd` | Read PS1 / PC-FX / 3DO / Neo Geo CD BIOS files from `/mnt/SDCARD/Bios`. |
+| handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `mednafen_lynx`, `handy`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
+| computer | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1` | Resolve system ROMs / machine databases relative to `/mnt/SDCARD/Bios`. |
+| PC-88 | `quasi88` | Exception: use `/mnt/SDCARD/Bios/quasi88`. |
 
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and

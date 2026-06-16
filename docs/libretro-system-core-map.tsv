@@ -10,9 +10,9 @@ mastersystem	Master System	MS	MD;mastersystem	sms,bin,zip,7z	genesis_plus_gx	gea
 gamegear	Game Gear	GG	GameGear;MD;gamegear	gg,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem
 sega32x	32X	THIRTYTWOX	MD;sega32x	32x,bin,zip,7z	picodrive	picodrive	existing	systems.json	-
 segacd	Sega CD	SEGACD	segacd;megacd	cue,chd,iso,m3u,bin	genesis_plus_gx	genesis_plus_gx,picodrive	existing	systems.json	-
-pcengine	PC Engine	PCE	pcengine;tg16	pce,sgx,zip,7z	mednafen_pce_fast	mednafen_pce,mednafen_pce_fast,mednafen_supergrafx	add_core	systems.json	add candidates: mednafen_pce
-supergrafx	SuperGrafx	SGX	PCE;supergrafx	sgx,pce,zip,7z	mednafen_supergrafx	mednafen_pce,mednafen_pce_fast,mednafen_supergrafx	add_core	systems.json	add candidates: mednafen_pce
-pcenginecd	PC Engine CD	PCECD	pcenginecd;tg16cd	cue,chd,iso,m3u	mednafen_pce_fast	mednafen_pce,mednafen_pce_fast	add_core	systems.json	add candidates: mednafen_pce
+pcengine	PC Engine	PCE	pcengine;tg16	pce,sgx,zip,7z	mednafen_pce_fast	mednafen_pce_fast,mednafen_supergrafx	existing	systems.json	exclude mednafen_pce due runtime load
+supergrafx	SuperGrafx	SGX	PCE;supergrafx	sgx,pce,zip,7z	mednafen_supergrafx	mednafen_pce_fast,mednafen_supergrafx	existing	systems.json	exclude mednafen_pce due runtime load
+pcenginecd	PC Engine CD	PCECD	pcenginecd;tg16cd	cue,chd,iso,m3u	mednafen_pce_fast	mednafen_pce_fast	existing	systems.json	exclude mednafen_pce due runtime load
 psx	PlayStation	PS	PSX;psx	cue,chd,pbp,m3u,iso,img,bin	pcsx_rearmed	pcsx_rearmed	existing	systems.json	-
 neogeo	Neo Geo	NEOGEO	neogeo	zip,7z	fbneo	fbalpha2012,fbalpha2012_neogeo,fbneo	add_core	systems.json	add candidates: fbalpha2012,fbalpha2012_neogeo
 neogeocd	Neo Geo CD	NEOCD	neogeocd	cue,chd	neocd	neocd	existing	systems.json	-

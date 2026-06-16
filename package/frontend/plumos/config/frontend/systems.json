@@ -357,7 +357,7 @@
           {"root": "sdcard", "path": "Images/pcengine"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx", "retroarch:mednafen_pce"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -388,7 +388,7 @@
           {"root": "sdcard", "path": "Images/supergrafx"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_supergrafx", "retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
+      "launch_profiles": ["retroarch:mednafen_supergrafx", "retroarch:mednafen_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_supergrafx",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -419,7 +419,7 @@
           {"root": "sdcard", "path": "Images/pcenginecd"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,

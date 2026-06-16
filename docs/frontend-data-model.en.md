@@ -139,8 +139,8 @@ default remains `default_launch_profile`; users opt into PicoArch explicitly.
 Cores that fail real A30 display, input, or full-speed validation are excluded
 from candidates. As of 2026-06-16, `tgbdual` is removed from the normal GB/GBC
 candidate list and also blocked from PicoArch automatic companions.
-`mednafen_pce` is blocked from PicoArch automatic companions because it runs at
-roughly 30fps in practice.
+For PC Engine-family systems, `mednafen_pce` is excluded from normal RA/PICO
+candidates because of its runtime load; use `mednafen_pce_fast` instead.
 
 ### `DirectoryAlias`
 

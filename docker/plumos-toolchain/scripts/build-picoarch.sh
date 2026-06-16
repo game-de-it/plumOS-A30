@@ -449,8 +449,8 @@ if [ -z "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
     quasi88)
       PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios/quasi88
       ;;
-    fceumm|nestopia)
-      # FDS BIOS is kept in the shared Miyoo/Onion-style BIOS root.
+    fceumm|nestopia|mednafen_pce_fast|mednafen_supergrafx|mednafen_pce|genesis_plus_gx|picodrive|pcsx_rearmed|mednafen_pcfx|opera|neocd|gpsp|mgba|mednafen_gba|meteor|vba_next|vbam|mednafen_lynx|handy|atari800|prosystem|freeintv|o2em|puae|np2kai|nekop2|px68k|hatari|cap32|x1)
+      # BIOS packs are staged in the shared Miyoo/Onion-style BIOS root.
       PLUMOS_PICOARCH_BIOS_DIR=${SDCARD_ROOT}/Bios
       ;;
     bluemsx|fmsx)
