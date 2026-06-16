@@ -222,8 +222,14 @@ loading paths for `easyrpg`, `scummvm`, and `quasi88`. `pa_log()` is flushed on
 each message so probe logs still contain the last initialization stage after
 TERM/KILL. `tgbdual` remains excluded from automatic `picoarch:<core>` Core
 Settings candidates because a reset state/config still produced a black raw
-framebuffer on A30. GB/GBC PicoArch validation should use `gambatte`, `gearboy`,
-`mgba`, or `vbam`.
+framebuffer on A30, and `mednafen_pce` is excluded because it runs at roughly
+30fps in practice. GB/GBC PicoArch validation should use `gambatte`, `gearboy`,
+`mgba`, or `vbam`; PC Engine PicoArch validation should use `mednafen_pce_fast`.
+For `quasi88`, D88 header seek/read fails through PicoArch's simple VFS and drops
+to the core's `Image not found` menu, so PicoArch returns false only for
+`RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
+On 2026-06-16, `XeGrader100001.d88` reached the same title screen in both RA and
+PICO, with no visible color difference in that comparison.
 The launcher also keeps the `picoarch` child PID and kills both `picoarch` and
 `plumos-joystickd` during TERM/HUP/INT/EXIT cleanup, preventing stale PicoArch
 instances from skewing CPU/audio/fb0-owner tests.

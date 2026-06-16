@@ -1172,6 +1172,7 @@ static int add_core_profile(struct core_system_def *system, const char *profile)
 
 static int picoarch_companion_core_allowed(const char *core_id) {
   static const char *blocked_core_ids[] = {
+      "mednafen_pce",
       "tgbdual",
   };
   size_t i;

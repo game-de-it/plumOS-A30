@@ -247,7 +247,8 @@ and `LCD`, on the GPU path. `DMG` approximates the white-biased LCD blend and
 effects do not fall back to the existing software scaler. In Core Settings, the
 FE automatically adds matching `picoarch:<core_id>` test candidates from existing
 `retroarch:<core_id>` entries, while each system keeps its existing
-`default_launch_profile` as the initial default.
+`default_launch_profile` as the initial default. Cores that fail real-device
+display, input, or full-speed validation are excluded from the automatic list.
 
 The BIOS/system directory can be set in PicoArch config with `bios_dir = /path`.
 The config file is per core and ROM directory:

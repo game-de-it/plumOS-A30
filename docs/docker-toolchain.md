@@ -240,7 +240,8 @@ dlopen するため、picoarch binary 自体の NEEDED には EGL/GLES を増や
 `DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風パターンとして shader で近似し、
 従来 software scaler へ fallback しません。Core Settings では既存の
 `retroarch:<core_id>` から対応する `picoarch:<core_id>` を検証用候補として自動追加しますが、
-各 system の初期 default は `default_launch_profile` のままにします。
+各 system の初期 default は `default_launch_profile` のままにします。実機で表示、操作、実速度が
+成立しない core は自動候補から除外します。
 
 BIOS/system directory は PicoArch 側 config の `bios_dir = /path` で指定できます。
 config file は core と ROM directory ごとに

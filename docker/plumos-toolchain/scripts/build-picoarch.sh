@@ -20,6 +20,7 @@ PICOARCH_A30_LIBRETRO_ENV_PATCH=${PICOARCH_A30_LIBRETRO_ENV_PATCH:-"${PATCH_DIR}
 PICOARCH_A30_CORE_OPTIONS_PATCH=${PICOARCH_A30_CORE_OPTIONS_PATCH:-"${PATCH_DIR}/picoarch-a30-core-options.patch"}
 PICOARCH_A30_CONTENT_DIR_PATCH=${PICOARCH_A30_CONTENT_DIR_PATCH:-"${PATCH_DIR}/picoarch-a30-content-dir.patch"}
 PICOARCH_A30_LOG_FLUSH_PATCH=${PICOARCH_A30_LOG_FLUSH_PATCH:-"${PATCH_DIR}/picoarch-a30-log-flush.patch"}
+PICOARCH_A30_LIBRETRO_COMPAT_PATCH=${PICOARCH_A30_LIBRETRO_COMPAT_PATCH:-"${PATCH_DIR}/picoarch-a30-libretro-compat.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -130,6 +131,7 @@ checkout_source() {
   fi
   git -C "${SRC_DIR}" fetch --tags --force origin
   git -C "${SRC_DIR}" reset --hard "${PICOARCH_REF}"
+  git -C "${SRC_DIR}" clean -fdx
   rm -f "${SRC_DIR}/plat_a30_mali.c" "${SRC_DIR}/plat_a30_mali.h"
   git -C "${SRC_DIR}" submodule update --init --recursive --depth 1
   git -C "${SRC_DIR}" submodule foreach --recursive 'git reset --hard >/dev/null && git clean -fdx >/dev/null'
@@ -143,6 +145,12 @@ checkout_source() {
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_CORE_OPTIONS_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_CONTENT_DIR_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LOG_FLUSH_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}"
+  if find "${SRC_DIR}" -name '*.rej' -print -quit | grep -q .; then
+    msg "error: patch rejects remain under ${SRC_DIR}"
+    find "${SRC_DIR}" -name '*.rej' -print >&2
+    exit 1
+  fi
   touch "${SRC_DIR}/libpicofe/.patched"
 }
 
@@ -532,6 +540,7 @@ stage_outputs() {
     echo "a30_core_options_patch=$(basename "${PICOARCH_A30_CORE_OPTIONS_PATCH}")"
     echo "a30_content_dir_patch=$(basename "${PICOARCH_A30_CONTENT_DIR_PATCH}")"
     echo "a30_log_flush_patch=$(basename "${PICOARCH_A30_LOG_FLUSH_PATCH}")"
+    echo "a30_libretro_compat_patch=$(basename "${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}")"
     echo "a30_mali_presenter=enabled"
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"
