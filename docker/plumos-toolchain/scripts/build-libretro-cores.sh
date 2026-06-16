@@ -442,6 +442,12 @@ patch_core_source() {
         printf '\n[plumOS] patched quasi88 libretro monitor options\n' >>"${log}"
       fi
       ;;
+    nekop2)
+      if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/nekop2-libretro-joypad-keyboard.patch" ]; then
+        patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/nekop2-libretro-joypad-keyboard.patch"
+        printf '\n[plumOS] patched nekop2 joypad-to-keyboard mapping\n' >>"${log}"
+      fi
+      ;;
     lutro)
       lua_makefile="${src}/deps/lua/src/Makefile"
       if [ -f "${lua_makefile}" ]; then

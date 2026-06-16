@@ -241,7 +241,7 @@ BIOS pack の多くは Onion/Miyoo 互換の共有 BIOS root `/mnt/SDCARD/Bios` 
 | CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64` | PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD などの BIOS を `/mnt/SDCARD/Bios` から読む。Atari Jaguar / `virtualjaguar` は A30 では性能不足のため通常候補から外す。 |
 | handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | optional/required BIOS を `/mnt/SDCARD/Bios` から読む。 |
 | arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | `fbneo/neogeo.zip` などの arcade BIOS/data pack を `/mnt/SDCARD/Bios` 基準で探す。 |
-| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | system ROM / machine database / runtime data を `/mnt/SDCARD/Bios` 基準で探す。 |
+| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | system ROM / machine database / runtime data を `/mnt/SDCARD/Bios` 基準で探す。`np2kai` は `/mnt/SDCARD/Bios/np2kai` 配下の `bios.rom`, `font.rom` or `font.bmp`, `itf.rom`, `sound.rom` を探す。 |
 | SNES special carts | `snes9x` | BS-X / Sufami Turbo BIOS を `/mnt/SDCARD/Bios` から読む。 |
 | PC-88 | `quasi88` | 例外として `/mnt/SDCARD/Bios/quasi88` を使う。 |
 
@@ -468,7 +468,7 @@ A30で動く可能性はあるが、満足ラインはtitle/profile依存。
 | --- | --- | --- |
 | CPS3 | `fbalpha2012`, `fbneo` | 2Dだが重め。代表タイトルで実測して判断。 |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX等は個別性能確認。 |
-| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | CPU負荷より入力/keyboard UXが課題。PC-98は RA `np2kai` に `np2kai_joymode=Arrows`、RA `nekop2` に keyboard joystickd、PicoArch に最小keyboard state変換を入れて再検証待ち。 |
+| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | CPU負荷より入力/keyboard UXが課題。PC-98は RA `np2kai` に `np2kai_joymode=Arrows` を付与し、RA `nekop2` は core 側 joypad-to-keyboard patch で通常 gamepad 経路を維持する。`np2kai` は `Keypad 3button` で Desire.hdi の hit-any-key 通過をユーザー確認済み。 |
 | Virtual Boy | `retroarch:mednafen_vb` | `mednafen_vb` は Onion 由来 commit `162918f` へ pin した plumOS build で Bad Apple の実動作を確認済み。Red Viper は StockOS 由来描画経路の向き/fit と単眼描画は修正済みだが、高負荷場面の音切れが残るため FE profile から外す。 |
 | lightweight PSP | `standalone:ppsspp` | PSP全体ではなく、2D/軽量タイトル限定で検証。A30向け入力/menu/表示は first-pass OK。 |
 | old computer engines | `crocods`, `gme`, other installed cores | ROM需要と入力profile次第。 |

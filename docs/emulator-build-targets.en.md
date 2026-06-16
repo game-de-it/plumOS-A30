@@ -285,7 +285,7 @@ these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
 | CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. Atari Jaguar / `virtualjaguar` is removed from normal candidates because A30 performance is insufficient. |
 | handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
 | arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | Resolve arcade BIOS/data packs such as `fbneo/neogeo.zip` relative to `/mnt/SDCARD/Bios`. |
-| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | Resolve system ROMs / machine databases / runtime data relative to `/mnt/SDCARD/Bios`. |
+| computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | Resolve system ROMs / machine databases / runtime data relative to `/mnt/SDCARD/Bios`. `np2kai` looks under `/mnt/SDCARD/Bios/np2kai` for `bios.rom`, `font.rom` or `font.bmp`, `itf.rom`, and `sound.rom`. |
 | SNES special carts | `snes9x` | Read BS-X / Sufami Turbo BIOS files from `/mnt/SDCARD/Bios`. |
 | PC-88 | `quasi88` | Exception: use `/mnt/SDCARD/Bios/quasi88`. |
 
@@ -543,7 +543,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | --- | --- | --- |
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
-| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | Input/keyboard UX may be harder than CPU load. PC-98 is pending retest after adding RA `np2kai` `np2kai_joymode=Arrows`, keyboard joystickd for RA `nekop2`, and minimal keyboard-state mapping in PicoArch. |
+| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | Input/keyboard UX may be harder than CPU load. RA `np2kai` appends `np2kai_joymode=Arrows`; RA `nekop2` keeps the normal gamepad path and uses a core-side joypad-to-keyboard patch. The user confirmed Desire.hdi passes hit-any-key with `np2kai` set to `Keypad 3button`. |
 | Virtual Boy | `retroarch:mednafen_vb` | The plumOS-built `mednafen_vb` core pinned to Onion-proven commit `162918f` has confirmed Bad Apple gameplay on A30. Red Viper's StockOS-derived rendering path now has correct orientation/fit and single-eye rendering, but heavy-scene audio dropout remains, so it is removed from the FE profile list. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |

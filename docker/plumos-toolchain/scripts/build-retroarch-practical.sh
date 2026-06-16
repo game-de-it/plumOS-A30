@@ -1147,12 +1147,6 @@ case "$CORE_ID" in
 np2kai_joymode = "Arrows"
 APPEND
     ;;
-  nekop2)
-    JOY_MODE="keyboard"
-    cat >> "$APPEND" <<APPEND
-input_driver = "sdl2"
-APPEND
-    ;;
 esac
 
 apply_cpu_policy
