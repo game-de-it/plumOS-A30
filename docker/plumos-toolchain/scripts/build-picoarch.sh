@@ -206,6 +206,10 @@ Environment:
                                 ScummVM-only X source override. Default: axisYR.
   PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE
                                 ScummVM-only Y source override. Default: axisXR.
+  PLUMOS_PICOARCH_PC98_JOYSTICKD_X_SOURCE
+                                PC-98-only X source override. Default: axisYR.
+  PLUMOS_PICOARCH_PC98_JOYSTICKD_Y_SOURCE
+                                PC-98-only Y source override. Default: axisXR.
   PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
   PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
   PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
@@ -381,6 +385,10 @@ start_joystickd() {
     scummvm)
       PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-axisYR}}
       PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-axisXR}}
+      ;;
+    np2kai|nekop2)
+      PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_PC98_JOYSTICKD_X_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-axisYR}}
+      PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_PC98_JOYSTICKD_Y_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-axisXR}}
       ;;
   esac
 
@@ -579,6 +587,9 @@ write_default_config() {
 # future joystickd mapping changes.
 # PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE=axisYR
 # PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE=axisXR
+# PC-98 np2kai/nekop2 mouse-style input needs the same A30 axis swap.
+# PLUMOS_PICOARCH_PC98_JOYSTICKD_X_SOURCE=axisYR
+# PLUMOS_PICOARCH_PC98_JOYSTICKD_Y_SOURCE=axisXR
 EOF
 }
 
