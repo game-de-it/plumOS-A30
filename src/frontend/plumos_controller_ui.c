@@ -9131,27 +9131,47 @@ static int update_settings_entries_after_save(struct ui_state *ui) {
   return 1;
 }
 
-static void refresh_top_entries_preserve_cursor(struct ui_state *ui) {
+static int refresh_top_entries_preserve_cursor(struct ui_state *ui) {
   char selected_id[64] = "";
   size_t i;
 
   if (!ui) {
-    return;
+    return 0;
   }
   if (ui->top_count > 0 && ui->top_cursor < ui->top_count) {
     copy_string(selected_id, sizeof(selected_id), ui->top_entries[ui->top_cursor].id);
   }
   if (!load_top_entries(ui)) {
-    return;
+    return 0;
   }
   if (!selected_id[0]) {
-    return;
+    return 1;
   }
   for (i = 0; i < ui->top_count; i++) {
     if (strcmp(ui->top_entries[i].id, selected_id) == 0) {
       ui->top_cursor = i;
-      return;
+      return 1;
     }
+  }
+  return 1;
+}
+
+static void refresh_top_entries_from_start_close(struct ui_state *ui) {
+  int reload_ok;
+  int scan_ok;
+
+  if (!ui) {
+    return;
+  }
+  set_status(ui, "refreshing TOP");
+  render_ui(ui);
+  scan_ok = run_scanner(ui->plumos_root, ui->sdcard_root, NULL, 0);
+  reload_ok = refresh_top_entries_preserve_cursor(ui);
+  if (!reload_ok) {
+    set_status(ui, scan_ok ? "TOP scan done; reload failed"
+                           : "TOP refresh failed; using cached counts");
+  } else {
+    set_status(ui, scan_ok ? "TOP refreshed" : "TOP refresh failed; using cached counts");
   }
 }
 
@@ -10562,7 +10582,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         return;
       }
       ui->screen = ui->back_screen;
-      set_status(ui, "close START menu");
+      if (ui->screen == SCREEN_TOP) {
+        refresh_top_entries_from_start_close(ui);
+      } else {
+        set_status(ui, "close START menu");
+      }
       return;
     }
     if (action == ACTION_A) {
