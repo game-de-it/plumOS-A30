@@ -436,6 +436,12 @@ patch_core_source() {
         printf '[plumOS] patched mgba libretro CMake source list for duplicate/missing VFS symbols\n' >>"${log}"
       fi
       ;;
+    quasi88)
+      if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/quasi88-libretro-monitor-options.patch" ]; then
+        patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/quasi88-libretro-monitor-options.patch"
+        printf '\n[plumOS] patched quasi88 libretro monitor options\n' >>"${log}"
+      fi
+      ;;
     lutro)
       lua_makefile="${src}/deps/lua/src/Makefile"
       if [ -f "${lua_makefile}" ]; then
