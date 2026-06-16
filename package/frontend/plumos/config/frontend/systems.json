@@ -1105,8 +1105,8 @@
       "launch_profiles": ["standalone:openbor"],
       "default_launch_profile": "standalone:openbor",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 1200000,
-      "default_cpu_cores": 2,
+      "default_cpu_freq_khz": 1344000,
+      "default_cpu_cores": 4,
       "scraper": {
         "enabled": false,
         "reason": "not_single_rom_crc"

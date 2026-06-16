@@ -1025,8 +1025,8 @@ Environment:
   PLUMOS_A30_SCUMMVM_TARGET           Override ScummVM target id for directory ROMs.
   PLUMOS_A30_EASYRPG_ROTATION         EasyRPG final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_OPENBOR_CPU_POLICY       OpenBOR CPU policy. Default: fixed.
-  PLUMOS_A30_OPENBOR_CPU_FREQ         OpenBOR fixed CPU frequency. Default: 1200000.
-  PLUMOS_A30_OPENBOR_CPU_CORES        OpenBOR CPU core policy. Default: 2.
+  PLUMOS_A30_OPENBOR_CPU_FREQ         OpenBOR fixed CPU frequency. Default: 1344000.
+  PLUMOS_A30_OPENBOR_CPU_CORES        OpenBOR CPU core policy. Default: 4.
   PLUMOS_A30_OPENBOR_ROTATION         OpenBOR final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_OPENBOR_SCALE            OpenBOR scaling: fit, stretch, integer, native. Default: fit.
   PLUMOS_A30_OPENBOR_FULLSCREEN       OpenBOR fullscreen desktop mode: 0 or 1. Default: 1.
@@ -1989,8 +1989,8 @@ case "${id}" in
     export PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE=${PLUMOS_A30_OPENBOR_JOYSTICKD_Y_SOURCE:-${PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE:-axisXR}}
     export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=${PLUMOS_A30_OPENBOR_JOYSTICKD_FUNCTION_BUTTON:-${PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON:-none}}
     cpu_policy=${PLUMOS_A30_OPENBOR_CPU_POLICY:-${PLUMOS_STANDALONE_CPU_POLICY:-fixed}}
-    cpu_freq=${PLUMOS_A30_OPENBOR_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-1200000}}
-    cpu_cores=${PLUMOS_A30_OPENBOR_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-2}}
+    cpu_freq=${PLUMOS_A30_OPENBOR_CPU_FREQ:-${PLUMOS_STANDALONE_CPU_FREQ:-1344000}}
+    cpu_cores=${PLUMOS_A30_OPENBOR_CPU_CORES:-${PLUMOS_STANDALONE_CPU_CORES:-4}}
     apply_cpu_policy "${cpu_policy}" "${cpu_freq}" "${cpu_cores}"
     start_joystickd
     run_with_fb_restore "${EMU_ROOT}/openbor/bin/OpenBOR" "$@"
@@ -2173,8 +2173,8 @@ EOF
 PLUMOS_STANDALONE_USE_STOCK_SDL=1
 
 PLUMOS_A30_OPENBOR_CPU_POLICY=fixed
-PLUMOS_A30_OPENBOR_CPU_FREQ=1200000
-PLUMOS_A30_OPENBOR_CPU_CORES=2
+PLUMOS_A30_OPENBOR_CPU_FREQ=1344000
+PLUMOS_A30_OPENBOR_CPU_CORES=4
 
 PLUMOS_A30_OPENBOR_ROTATION=ccw
 PLUMOS_A30_OPENBOR_SCALE=fit
