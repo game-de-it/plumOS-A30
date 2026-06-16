@@ -2064,7 +2064,7 @@
       "short_name": "Jaguar",
       "sort_order": 680,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "JAGUAR", "source": "onion", "priority": 10},

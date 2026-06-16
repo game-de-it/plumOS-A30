@@ -234,10 +234,14 @@ returns false and lets `mednafen_wswan` use its core-side rotation path.
 For `quasi88`, D88 header seek/read fails through PicoArch's simple VFS and drops
 to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
+`bluemsx` / `fmsx` can also report a successful content load through PicoArch VFS
+while falling back to the MSX BASIC screen, so PicoArch withholds VFS for those
+cores and lets them use their built-in file I/O. As of 2026-06-17, the MSX PICO
+path needs a hardware retest after this fix is deployed.
 `scummvm` libretro reads the analog cursor through gamepad axes, so the A30
 PicoArch launcher swaps joystickd X/Y sources to `axisYR`/`axisXR` for that core
-by default. As of 2026-06-17 the user report confirms the pre-fix axis swap; the
-corrected launcher path still needs a hardware retest.
+by default. The 2026-06-17 hardware check confirms the corrected ScummVM PICO
+analog cursor path works.
 On 2026-06-16, `XeGrader100001.d88` reached the same title screen in both RA and
 PICO, with no visible color difference in that comparison.
 The same-day arcade validation found another VFS gap: PicoArch did not normalize
@@ -278,7 +282,7 @@ these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
 | FDS | `fceumm`, `nestopia` | Read `disksys.rom` from `/mnt/SDCARD/Bios`. |
 | PC Engine CD / SuperGrafx | `mednafen_pce_fast`, `mednafen_supergrafx`, `mednafen_pce` | Read `syscard*.pce` / `games_express.pce` from `/mnt/SDCARD/Bios`. |
 | Sega CD / 32X | `genesis_plus_gx`, `picodrive` | Read `bios_CD_*.bin` / `32X_*_BIOS.BIN` from `/mnt/SDCARD/Bios`. |
-| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64`, `virtualjaguar` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. |
+| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. Atari Jaguar / `virtualjaguar` is removed from normal candidates because A30 performance is insufficient. |
 | handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
 | arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | Resolve arcade BIOS/data packs such as `fbneo/neogeo.zip` relative to `/mnt/SDCARD/Bios`. |
 | computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | Resolve system ROMs / machine databases / runtime data relative to `/mnt/SDCARD/Bios`. |
@@ -526,7 +530,7 @@ initial plumOS emulator/core build plan.
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
 | PICO-8 carts | `retro8`, optional standalone `fake08` | `RApp/retro8`, installed `fake08` | Active stock launch uses `retro8`; standalone `fake08` is a comparison target. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
-| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion needs a hardware retest after analog-axis correction. |
+| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion is also hardware-confirmed after analog-axis correction. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
 | DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
 | MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |

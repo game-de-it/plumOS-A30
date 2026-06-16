@@ -363,7 +363,7 @@
 +	}
 +	case RETRO_ENVIRONMENT_GET_VFS_INTERFACE: { /* 45 */
 +		struct retro_vfs_interface_info *info = (struct retro_vfs_interface_info *)data;
-+		if (!strcmp(core_name, "quasi88"))
++		if (!strcmp(core_name, "quasi88") || !strcmp(core_name, "bluemsx") || !strcmp(core_name, "fmsx"))
 +			return false;
 +		if (!info || info->required_interface_version > 3)
 +			return false;

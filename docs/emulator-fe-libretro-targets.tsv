@@ -144,11 +144,11 @@ pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	FE auto companion
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	systems.json
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	untested	systems.json
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	untested	systems.json
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	untested	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	untested	systems.json
@@ -158,20 +158,20 @@ x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	RA	retroarch:px68k	px68k	yes	
 x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	PICO	picoarch:px68k	px68k	yes	yes	yes	yes	yes	no	untested	FE auto companion
 tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
 tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	untested	FE auto companion
-atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	RA	retroarch:stella2014	stella2014	yes	yes	yes	yes	yes	yes	untested	systems.json
-atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	PICO	picoarch:stella2014	stella2014	yes	yes	yes	yes	yes	no	untested	FE auto companion
-atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	RA	retroarch:prosystem	prosystem	yes	yes	yes	yes	yes	yes	untested	systems.json
-atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	PICO	picoarch:prosystem	prosystem	yes	yes	yes	yes	yes	no	untested	FE auto companion
-vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	untested	systems.json
-vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	PICO	picoarch:vecx	vecx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	RA	retroarch:stella2014	stella2014	yes	yes	yes	yes	yes	yes	pass	systems.json
+atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	PICO	picoarch:stella2014	stella2014	yes	yes	yes	yes	yes	no	pass	FE auto companion
+atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	RA	retroarch:prosystem	prosystem	yes	yes	yes	yes	yes	yes	pass	systems.json
+atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	PICO	picoarch:prosystem	prosystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
+vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	pass	systems.json
+vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	PICO	picoarch:vecx	vecx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	untested	systems.json
 supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	untested	systems.json
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	untested	FE auto companion
 gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	untested	systems.json
 gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	untested	systems.json
-pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	untested	FE auto companion
+pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
+pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes	yes	yes	untested	systems.json
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	PICO	picoarch:prboom	prboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
 2048	2048	2048		RA	retroarch:2048	2048	yes	yes	yes	yes	yes	yes	untested	systems.json
@@ -216,8 +216,6 @@ intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	re
 intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	PICO	picoarch:freeintv	freeintv	yes	yes	yes	yes	yes	no	untested	FE auto companion
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	untested	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	untested	FE auto companion
-jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	RA	retroarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	yes	untested	systems.json
-jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	PICO	picoarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	no	untested	FE auto companion
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	untested	systems.json
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	PICO	picoarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	no	untested	FE auto companion
 lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	untested	systems.json
