@@ -11,6 +11,8 @@ from pathlib import Path
 
 PICOARCH_BLOCKED_CORES = {
     "mednafen_pce",
+    "nekop2",
+    "np2kai",
     "quasi88",
     "tgbdual",
 }

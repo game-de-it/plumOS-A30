@@ -152,8 +152,6 @@ msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	y
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	pass	systems.json
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	PICO	picoarch:np2kai	np2kai	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	PICO	picoarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
 x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	RA	retroarch:px68k	px68k	yes	yes	yes	yes	yes	yes	untested	systems.json
 x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	PICO	picoarch:px68k	px68k	yes	yes	yes	yes	yes	no	untested	FE auto companion
 tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
