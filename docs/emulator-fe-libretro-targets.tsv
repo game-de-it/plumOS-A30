@@ -67,8 +67,8 @@ gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:gearsystem	gea
 gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	untested	systems.json
-sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	FE auto companion
+sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
+sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	untested	systems.json
 segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	systems.json
 segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	FE auto companion
@@ -166,8 +166,8 @@ supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potat
 supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	untested	systems.json
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	untested	FE auto companion
-gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	untested	systems.json
-gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	untested	FE auto companion
+gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	pass	systems.json
+gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes	yes	yes	untested	systems.json
@@ -210,8 +210,7 @@ dinothawr	Dinothawr	DINOTHAWR;dinothawr	game	RA	retroarch:dinothawr	dinothawr	ye
 dinothawr	Dinothawr	DINOTHAWR;dinothawr	game	PICO	picoarch:dinothawr	dinothawr	yes	yes	yes	yes	yes	no	untested	FE auto companion
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	RA	retroarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	yes	untested	systems.json
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	PICO	picoarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	no	untested	FE auto companion
-intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	untested	systems.json
-intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	PICO	picoarch:freeintv	freeintv	yes	yes	yes	yes	yes	no	untested	FE auto companion
+intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	pass	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	untested	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	untested	FE auto companion
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	untested	systems.json

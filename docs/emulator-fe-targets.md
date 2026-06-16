@@ -21,7 +21,7 @@ launch profile を突き合わせたものです。動作確認対象は `target
 - `verification_status`: `docs/emulator-runtime-verification.tsv` の現在の検証状態。
 
 PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
-`mednafen_pce`、`quasi88`、`tgbdual` は既知問題があるため自動追加対象から外しています。
+`freeintv`、`mednafen_pce`、`nekop2`、`np2kai`、`quasi88`、`tgbdual` は既知問題があるため自動追加対象から外しています。
 
 N64 は Class C の実験対象でしたが、性能と描画経路の都合で正式な検証対象から外しました。
 stockOS 由来の N64 core は plumOS の build/deploy 一覧に含めません。

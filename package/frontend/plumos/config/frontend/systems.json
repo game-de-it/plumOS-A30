@@ -1090,7 +1090,7 @@
       "short_name": "OpenBOR",
       "sort_order": 340,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "OPENBOR", "source": "miyoo", "priority": 10},

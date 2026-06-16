@@ -38,7 +38,7 @@ Inventory date: 2026-06-07
 | --- | --- | --- |
 | RetroArch | `/mnt/SDCARD/plumos/retroarch/bin/retroarch` | RetroArch 1.22.2 minimal RGUI build now confirms real display output through GLES/EGL + `fbdev_mali`. Horizontal A30 RGUI uses a GL2 menu MVP patch plus CCW 90-degree rotation. `fceumm`/`gambatte` core-loaded game screens are also confirmed. Full runtime still needs audio/input validation. Prefer SDL2/evdev input plus `plumos-joystickd --device-mode xbox`. |
 | libretro cores | `/mnt/SDCARD/plumos/retroarch/cores/*.so` | Stock core names are reference only. The current recipes are the union of Onion-adopted cores and plumOS-only cores, keeping the plumOS-default 41 Class A/B cores plus Onion-catalog Class O entries in `docker/plumos-toolchain/libretro-core-recipes.tsv`. On real A30 hardware, `fceumm` and `gambatte` have screen-smoke confirmation, and the Onion-proven `mednafen_vb` commit has confirmed performance recovery plus working Bad Apple gameplay; the rest still need per-system boot, performance, input, and audio/video validation. |
-| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. SDL1 remains for input/audio, while in-game libretro RGB565 frames are uploaded directly through an A30 Mali/EGL presenter. On 2026-06-15, `fceumm` + `Ikki` confirmed correct orientation, no mirror flip, Native/Aspect/Full sizing, Scanline/DMG/LCD, and stable 60fps audio. It is exposed in Core Settings as test `picoarch:<core>` companions for existing `retroarch:<core>` candidates, but it is not made the initial default. `quasi88` is excluded from PicoArch candidates after the 2026-06-16 hardware check showed an in-game palette mismatch between RA and PICO; `np2kai` / `nekop2` are excluded after the 2026-06-17 hardware check showed they cannot hold 60fps through PicoArch. |
+| PicoArch | `/mnt/SDCARD/plumos/emulators/picoarch/` | Builds `shauninman/picoarch` commit `802047c` with plumOS `platform=plumos`. SDL1 remains for input/audio, while in-game libretro RGB565 frames are uploaded directly through an A30 Mali/EGL presenter. On 2026-06-15, `fceumm` + `Ikki` confirmed correct orientation, no mirror flip, Native/Aspect/Full sizing, Scanline/DMG/LCD, and stable 60fps audio. It is exposed in Core Settings as test `picoarch:<core>` companions for existing `retroarch:<core>` candidates, but it is not made the initial default. `quasi88` is excluded from PicoArch candidates after the 2026-06-16 hardware check showed an in-game palette mismatch between RA and PICO; `np2kai` / `nekop2` are excluded after the 2026-06-17 hardware check showed they cannot hold 60fps through PicoArch; `freeintv` is also excluded after hardware validation. |
 | standalone emulators | `/mnt/SDCARD/plumos/emulators/<id>/` | Trial builds for PPSSPP, ScummVM, EasyRPG Player, DOSBox Staging, and PCSX-ReARMed are staged in `dist/plumos-standalone-emulators`. After A30 hardware testing, PPSSPP/ScummVM/EasyRPG Player/PCSX-ReARMed are promoted to standalone profile candidates, while DOSBox Staging is kept out of normal launch targets. |
 | FFmpeg/FFPlay | `/mnt/SDCARD/plumos/apps/ffplay/` | Equivalent to stock `Emu/ffplay`; keep outside the initial emulator pack. |
 
@@ -525,6 +525,7 @@ initial plumOS emulator/core build plan.
 | Atari Lynx | `mednafen_lynx` or `handy` | backup `mednafen_lynx`, installed `handy` | Not stock top-level, but practical on A30. |
 | Atari 2600 / 7800 | `stella2014`, `prosystem` | installed cores | Low load. |
 | Vectrex / Watara Supervision / Odyssey2 | `vecx`, `potator`, `o2em` | installed cores | Low-load niche systems. |
+| Intellivision | `retroarch:freeintv` | installed `freeintv` | RA is hardware-confirmed. PicoArch `freeintv` is excluded. |
 | Game & Watch | `gw` | backup `gw` | Low load. |
 | Pokemon Mini | `pokemini` | backup `pokemini` | Low load. |
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
@@ -563,6 +564,7 @@ an experimental target or a known-light title.
 | PC-FX | `mednafen_pcfx` | Expected to be too heavy. |
 | current MAME / newer 3D arcade | `mame`, `mame2015` | Class A covers older 2D arcade; newer MAME should wait. |
 | heavy PSP | PPSSPP standalone/libretro | PSP as a whole is not a target. Light titles only stay in Class B. |
+| OpenBOR | `external:openbor` | `.pak` ROMs exist on the device, but no OpenBOR engine was found. The current `external:` path only runs the `.pak` as a shell script, so keep it out of normal targets. |
 
 ## Suggested validation order
 
