@@ -196,6 +196,14 @@ Environment:
   PLUMOS_PICOARCH_A30_FALLBACK_SDL
                                 1 allows stock SDL video fallback if presenter init fails. Default: 0.
   PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
+  PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
+  PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
+  PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
+  PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y 1 inverts virtual gamepad Y axis.
+  PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE
+                                ScummVM-only X source override. Default: axisYR.
+  PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE
+                                ScummVM-only Y source override. Default: axisXR.
   PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
   PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
   PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
@@ -363,27 +371,50 @@ apply_cpu_policy() {
 start_joystickd() {
   [ "${PLUMOS_PICOARCH_JOYSTICKD:-1}" != 0 ] || return 0
   [ -x "${PLUMOS_ROOT}/bin/plumos-joystickd" ] || return 0
-  case "${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}" in
+
+  joystickd_core_name=$(basename "${core_path}")
+  joystickd_core_name=${joystickd_core_name%_libretro.so}
+  joystickd_core_name=${joystickd_core_name%.so}
+  case "${joystickd_core_name}" in
+    scummvm)
+      PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-axisYR}}
+      PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-axisXR}}
+      ;;
+  esac
+
+  joystickd_mode=${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}
+  case "${joystickd_mode}" in
     xbox)
-      "${PLUMOS_ROOT}/bin/plumos-joystickd" \
-        --device-mode xbox \
-        --trigger-mode buttons \
-        --shoulder-layout user \
-        >"${LOG_DIR}/joystickd-last.log" 2>&1 &
+      joystickd_opts="--device-mode xbox --trigger-mode buttons --shoulder-layout user"
       ;;
     keyboard)
-      "${PLUMOS_ROOT}/bin/plumos-joystickd" \
-        --device-mode keyboard \
-        --keyboard-profile passthrough \
-        --trigger-mode buttons \
-        --shoulder-layout user \
-        >"${LOG_DIR}/joystickd-last.log" 2>&1 &
+      joystickd_opts="--device-mode keyboard --keyboard-profile passthrough --trigger-mode buttons --shoulder-layout user"
       ;;
     *)
-      echo "error: invalid joystickd mode: ${PLUMOS_PICOARCH_JOYSTICKD_MODE}" >&2
+      echo "error: invalid joystickd mode: ${joystickd_mode}" >&2
       exit 2
       ;;
   esac
+
+  case "${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-}" in
+    '') ;;
+    axisYL|axisXL|axisYR|axisXR) joystickd_opts="${joystickd_opts} --x-source ${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE}" ;;
+    *) echo "warning: invalid PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE}" >&2 ;;
+  esac
+  case "${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-}" in
+    '') ;;
+    axisYL|axisXL|axisYR|axisXR) joystickd_opts="${joystickd_opts} --y-source ${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE}" ;;
+    *) echo "warning: invalid PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE}" >&2 ;;
+  esac
+  case "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_X:-0}" in
+    1|yes|YES|true|TRUE) joystickd_opts="${joystickd_opts} --invert-x" ;;
+  esac
+  case "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y:-0}" in
+    1|yes|YES|true|TRUE) joystickd_opts="${joystickd_opts} --invert-y" ;;
+  esac
+
+  "${PLUMOS_ROOT}/bin/plumos-joystickd" ${joystickd_opts} \
+    >"${LOG_DIR}/joystickd-last.log" 2>&1 &
   joystickd_pid=$!
   sleep 1
 }
@@ -505,6 +536,10 @@ fi
   printf 'cpu_freq=%s\n' "${PLUMOS_PICOARCH_CPU_FREQ:-648000}"
   printf 'cpu_cores=%s\n' "${PLUMOS_PICOARCH_CPU_CORES:-keep}"
   printf 'joystickd_mode=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}"
+  printf 'joystickd_x_source=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-}"
+  printf 'joystickd_y_source=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-}"
+  printf 'joystickd_invert_x=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_X:-0}"
+  printf 'joystickd_invert_y=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y:-0}"
   printf 'a30_mali=%s\n' "${PLUMOS_PICOARCH_A30_MALI}"
   printf 'a30_rotation=%s\n' "${PLUMOS_PICOARCH_A30_ROTATION}"
   printf 'a30_vsync=%s\n' "${PLUMOS_PICOARCH_A30_VSYNC}"
@@ -536,6 +571,12 @@ write_default_config() {
 # Leave empty to use PicoArch's per-system default: /mnt/SDCARD/Bios/<ROM_DIR>.
 # Example:
 # PLUMOS_PICOARCH_BIOS_DIR=/mnt/SDCARD/Bios
+#
+# ScummVM libretro reads the analog cursor through the gamepad axes. On A30 the
+# PicoArch launcher swaps X/Y for that core by default; override these only if a
+# future joystickd mapping changes.
+# PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE=axisYR
+# PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE=axisXR
 EOF
 }
 

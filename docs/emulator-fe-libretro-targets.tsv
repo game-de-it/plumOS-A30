@@ -99,10 +99,10 @@ ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	ye
 ngp	NGP	NGP;ngp	ngp;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
 ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
-wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	untested	systems.json
-wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
-wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	untested	systems.json
-wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	untested	FE auto companion
+wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
+wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
+wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
+wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	yes	pass	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass	FE auto companion
@@ -137,16 +137,14 @@ cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	y
 cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
 cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
 cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	untested	systems.json
-dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	untested	FE auto companion
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	RA	retroarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	systems.json
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	PICO	picoarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	untested	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	untested	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	untested	FE auto companion
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	untested	systems.json
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	untested	FE auto companion
+dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	pass	systems.json
+dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	pass	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	FE auto companion
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	systems.json
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	known_issue	FE auto companion
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	untested	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	untested	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	untested	FE auto companion

@@ -218,7 +218,8 @@ Follow-up validation fills in PicoArch's missing libretro environment handling,
 fixes `RETRO_ENVIRONMENT_SET_CORE_OPTIONS` array handling, and fixes directory
 content loading. That removes startup crashes for cores such as `gearboy`,
 `gearsystem`, `mednafen_lynx`, and `dosbox_pure`, and fixes directory/no-game
-loading paths for `easyrpg`, `scummvm`, and `quasi88`. `pa_log()` is flushed on
+loading paths for `scummvm`, `quasi88`, and early EasyRPG probes. `pa_log()` is
+flushed on
 each message so probe logs still contain the last initialization stage after
 TERM/KILL. `tgbdual` remains excluded because a reset state/config still produced
 a black raw framebuffer on A30. For PC Engine-family systems, `mednafen_pce` is
@@ -233,6 +234,10 @@ returns false and lets `mednafen_wswan` use its core-side rotation path.
 For `quasi88`, D88 header seek/read fails through PicoArch's simple VFS and drops
 to the core's `Image not found` menu, so PicoArch returns false only for
 `RETRO_ENVIRONMENT_GET_VFS_INTERFACE` and lets the core use its built-in file I/O.
+`scummvm` libretro reads the analog cursor through gamepad axes, so the A30
+PicoArch launcher swaps joystickd X/Y sources to `axisYR`/`axisXR` for that core
+by default. As of 2026-06-17 the user report confirms the pre-fix axis swap; the
+corrected launcher path still needs a hardware retest.
 On 2026-06-16, `XeGrader100001.d88` reached the same title screen in both RA and
 PICO, with no visible color difference in that comparison.
 The same-day arcade validation found another VFS gap: PicoArch did not normalize
@@ -521,8 +526,8 @@ initial plumOS emulator/core build plan.
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
 | PICO-8 carts | `retro8`, optional standalone `fake08` | `RApp/retro8`, installed `fake08` | Active stock launch uses `retro8`; standalone `fake08` is a comparison target. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
-| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. |
-| EasyRPG | `standalone:easyrpg`, optional `retroarch:easyrpg` | `RApp/easyrpg` | Standalone is the practical candidate with auxiliary audio features enabled. |
+| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion needs a hardware retest after analog-axis correction. |
+| EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
 | DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
 | MSX | `bluemsx` | backup `bluemsx` | Not stock top-level, but practical. |
 
@@ -574,7 +579,7 @@ order after deploying the staged package:
    Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `neocd`.
 6. Lightweight systems promoted from stock backup/installed cores:
    `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
-   `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `easyrpg`, `prboom`,
+   `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `prboom`,
    `dosbox_pure`, `retro8`/`fake08`.
 7. Conditional checks:
    CPS3, SNES enhancement-chip titles, PC-88/PC-98, lightweight PSP.
