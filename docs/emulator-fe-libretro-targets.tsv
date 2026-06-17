@@ -128,8 +128,8 @@ lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednaf
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass_init	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:handy	handy	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	yes	pass	systems.json
-mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
+mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
+mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
 mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
 mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	systems.json
