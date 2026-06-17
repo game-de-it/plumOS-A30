@@ -112,7 +112,7 @@
           {"root": "sdcard", "path": "Images/gb"}
         ]
       },
-      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:vbam"],
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:tgbdual", "retroarch:vbam"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -143,7 +143,7 @@
           {"root": "sdcard", "path": "Images/gbc"}
         ]
       },
-      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:vbam"],
+      "launch_profiles": ["retroarch:gambatte", "retroarch:mgba", "retroarch:gearboy", "retroarch:tgbdual", "retroarch:vbam"],
       "default_launch_profile": "retroarch:gambatte",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -357,7 +357,7 @@
           {"root": "sdcard", "path": "Images/pcengine"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx", "retroarch:mednafen_pce"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -419,7 +419,7 @@
           {"root": "sdcard", "path": "Images/pcenginecd"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -1019,7 +1019,7 @@
           {"root": "sdcard", "path": "Images/easyrpg"}
         ]
       },
-      "launch_profiles": ["standalone:easyrpg"],
+      "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
       "default_launch_profile": "standalone:easyrpg",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -2068,7 +2068,7 @@
       "short_name": "Jaguar",
       "sort_order": 680,
       "hardware": "console",
-      "enabled": false,
+      "enabled": true,
       "pinned": false,
       "directory_aliases": [
         {"name": "JAGUAR", "source": "onion", "priority": 10},
