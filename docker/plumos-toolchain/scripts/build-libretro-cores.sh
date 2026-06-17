@@ -448,6 +448,12 @@ patch_core_source() {
         printf '\n[plumOS] patched nekop2 joypad-to-keyboard mapping\n' >>"${log}"
       fi
       ;;
+    hatari)
+      if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" ]; then
+        patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch"
+        printf '\n[plumOS] patched hatari to skip empty media command-line options\n' >>"${log}"
+      fi
+      ;;
     lutro)
       lua_makefile="${src}/deps/lua/src/Makefile"
       if [ -f "${lua_makefile}" ]; then
