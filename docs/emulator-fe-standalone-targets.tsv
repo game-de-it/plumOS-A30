@@ -3,5 +3,5 @@ psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	SA	standalone:pcsx_rearme
 psp	PSP	PSP;PPSSPP;psp	iso;cso;pbp	SA	standalone:ppsspp	ppsspp	yes	yes	yes	yes	yes	yes	pass	systems.json
 easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	SA	standalone:easyrpg	easyrpg	yes	yes	yes	yes	yes	yes	pass	systems.json
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	SA	standalone:scummvm	scummvm	yes	yes	yes	yes	yes	yes	pass	systems.json
-openbor	OpenBOR	OPENBOR;openbor	pak	SA	standalone:openbor	openbor	yes	yes	yes	yes	yes	yes	smoke	systems.json
+openbor	OpenBOR	OPENBOR;openbor	pak	SA	standalone:openbor	openbor	yes	yes	yes	yes	yes	yes	pass	systems.json
 pyxel	Pyxel	pyxel;PYXEL	pyxapp;py	PYXEL	pyxel:a30	a30	yes	yes	yes	yes	yes	yes	pass	systems.json
