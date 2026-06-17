@@ -65,11 +65,33 @@ and plumOS recipe mappings are recorded in
 
 plumOS does not ship Onion prebuilt core binaries as runtime cores. Onion's
 working set is used only as source-version/provenance input, then plumOS builds
-the pinned source from `libretro-core-recipes.tsv` with the Docker toolchain.
-For Atari ST, the upstream master/c605d3a `hatari` build dropped to roughly
-22-26fps on A30, so the recipe is pinned to
-`245e1a126f8920cc7f6fbb582fdc9fd110de7a30`. The plumOS-built core from that
-commit was confirmed at 50fps in the same `1st Division Manager` scene.
+the pinned source from `libretro-core-recipes.tsv` with the Docker toolchain. On
+2026-06-18, `docs/onion-libretro-source-lock.tsv` was added to resolve upstream
+source commits for the 96 cores that exist both as Onion prebuilts and plumOS
+recipes. It uses the Onion binary update timestamp, embedded build dates found
+inside binaries, and Onion builder recipes. As confirmed by Atari ST `hatari`
+and Virtual Boy `mednafen_vb`, Onion-era source commits can be faster on A30
+than upstream latest/master, so even previously working cores should be rebuilt
+and reverified against this source lock. The pinned plumOS-built Atari ST
+`hatari` core at `245e1a126f8920cc7f6fbb582fdc9fd110de7a30` was confirmed at
+50fps in the same `1st Division Manager` scene.
+
+The same-day full source-lock application initially built `87` cores and failed
+`10`. The failures were source-provenance and build-route issues: `fake08` uses
+the `aebd6b9` commit named by the Onion commit message; `fbneo` avoids a false
+embedded-date lock and uses the libretro Makefile-era commit; `pcsx_rearmed`
+and `scummvm` use buildable libretro commits because the Onion-window source
+alone no longer reproduces the current libretro build path; and `tic80` uses the
+libretro wrapper repository. `easyrpg` preloads matching `liblcf`
+`abc215345ba962a031f2b8c645f4357cf1bece85`, `dosbox_pure` passes
+`STRIPCMD=arm-linux-gnueabihf-strip`, `ecwolf` updates only
+`src/libretro/libretro-common` instead of the broken Bitbucket SDL submodules,
+and `squirreljme` returns to the Onion-era `ratufacoat/makefilelibretro` route.
+After these fixes,
+`PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 LIBRETRO_CORE_BUILD_CONCURRENCY=4 ./scripts/docker-build.sh libretro-cores`
+stages all 97 cores in `dist/plumos-libretro-cores-onion-lock-all` with
+`built=97`, `failed=0`, and `skipped=0`. This only proves the source build; FE
+adoption still depends on the usual A30 video/audio/input/performance testing.
 
 The older 2026-06-07 bulk build staged 41 Class A/B cores under
 `dist/plumos-libretro-cores/plumos/retroarch/cores`, and its manifest reported

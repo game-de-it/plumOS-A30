@@ -56,10 +56,30 @@ recipe の対応は [libretro core version inventory](libretro-core-version-inve
 
 Onion の prebuilt core binary は plumOS runtime として採用しません。Onion 側の実績は
 source version/provenance の比較入力としてのみ扱い、plumOS では `libretro-core-recipes.tsv`
-に pin した source を Docker toolchain で build します。Atari ST の `hatari` は
-upstream master/c605d3a build が A30 で 22-26fps 程度に落ちたため、
-`245e1a126f8920cc7f6fbb582fdc9fd110de7a30` に pin しました。この plumOS-built core は
-同じ `1st Division Manager` の場面で 50fps を確認済みです。
+に pin した source を Docker toolchain で build します。2026-06-18 に
+`docs/onion-libretro-source-lock.tsv` を追加し、Onion prebuilt に存在する 96 core について
+Onion binary 更新日時、binary 内 embedded build date、Onion builder recipe をもとに
+upstream source commit を解決しました。Atari ST の `hatari` と Virtual Boy の
+`mednafen_vb` で確認した通り、upstream latest/master より Onion 採用時期の source commit が
+A30 で速い場合があるため、正常動作済み core も含めて、この source lock 版で再 build /
+再検証します。Atari ST の `hatari` は `245e1a126f8920cc7f6fbb582fdc9fd110de7a30` に
+pin した plumOS-built core で、同じ `1st Division Manager` の場面 50fps を確認済みです。
+
+同日の source lock 全体反映では、最初の all build が `built=87`, `failed=10`,
+`skipped=0` でした。失敗は source provenance と build route の問題で、`fake08` は
+Onion commit message が明示した `aebd6b9`、`fbneo` は embedded date 誤検出を避けた
+libretro Makefile commit、`pcsx_rearmed` と `scummvm` は Onion window の source だけでは
+現在の libretro build path を再現できないため buildable libretro commit、
+`tic80` は libretro wrapper repo に固定しました。`easyrpg` は同時期の `liblcf`
+`abc215345ba962a031f2b8c645f4357cf1bece85` を先に配置し、`dosbox_pure` は
+`STRIPCMD=arm-linux-gnueabihf-strip` を recipe に明示、`ecwolf` は壊れている
+Bitbucket SDL submodule を追わず `src/libretro/libretro-common` だけを更新します。
+`squirreljme` は Onion-era source の `ratufacoat/makefilelibretro` route へ戻しました。
+この修正後、
+`PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 LIBRETRO_CORE_BUILD_CONCURRENCY=4 ./scripts/docker-build.sh libretro-cores`
+は `dist/plumos-libretro-cores-onion-lock-all` に全 97 core を stage し、
+manifest は `built=97`, `failed=0`, `skipped=0` です。これは source build の成功確認であり、
+FE 採用可否は従来通り A30 実機の video/audio/input/performance 検証で判断します。
 
 2026-06-07 の旧 bulk build では `./scripts/docker-build.sh libretro-cores` により Class A/B の
 41 core を `dist/plumos-libretro-cores/plumos/retroarch/cores` に stage 済みで、

@@ -285,7 +285,14 @@ clone_repo() {
       cd "${dst}" &&
         git fetch --depth 1 origin "${ref}" &&
         git checkout --detach FETCH_HEAD &&
-        git submodule update --init --recursive --depth 1
+        case "${name}" in
+          ecwolf)
+            git submodule update --init --depth 1 src/libretro/libretro-common
+            ;;
+          *)
+            git submodule update --init --recursive --depth 1
+            ;;
+        esac
     ) >>"${log}" 2>&1 || return 1
   fi
   return 0
@@ -677,6 +684,23 @@ build_inih_for_easyrpg() {
   ) >>"${log}" 2>&1
 }
 
+prepare_liblcf_for_easyrpg() {
+  local src=$1
+  local log=$2
+  local liblcf_dir="${src}/lib/liblcf"
+  local liblcf_ref=${EASYRPG_LIBLCF_REF:-abc215345ba962a031f2b8c645f4357cf1bece85}
+
+  rm -rf "${liblcf_dir}"
+  mkdir -p "$(dirname "${liblcf_dir}")"
+  git clone --depth 1 https://github.com/EasyRPG/liblcf.git "${liblcf_dir}" >>"${log}" 2>&1 || return 1
+  (
+    cd "${liblcf_dir}" &&
+      git fetch --depth 1 origin "${liblcf_ref}" &&
+      git checkout --detach FETCH_HEAD
+  ) >>"${log}" 2>&1 || return 1
+  printf '\n[plumOS] pinned EasyRPG liblcf to %s\n' "${liblcf_ref}" >>"${log}"
+}
+
 build_special_core() {
   local id=$1
   local src=$2
@@ -706,15 +730,21 @@ build_special_core() {
       ;;
     tic80)
       msg "cmake ${id}: libretro build"
-      run_cmake_build_with_job_retry "${src}" "${src}/build-libretro" tic80_libretro MinSizeRel "${log}" \
+      local tic80_src="${src}"
+      if [ -f "${src}/core/CMakeLists.txt" ]; then
+        tic80_src="${src}/core"
+      fi
+      run_cmake_build_with_job_retry "${tic80_src}" "${src}/build-libretro" tic80_libretro MinSizeRel "${log}" \
         -DBUILD_PLAYER=OFF \
         -DBUILD_SDL=OFF \
         -DBUILD_SDLGPU=OFF \
         -DBUILD_TOOLS=OFF \
-        -DBUILD_LIBRETRO=ON
+        -DBUILD_LIBRETRO=ON \
+        -DBUILD_WITH_MRUBY=OFF
       ;;
     easyrpg)
       msg "cmake ${id}: libretro build"
+      prepare_liblcf_for_easyrpg "${src}" "${log}" || return 1
       build_inih_for_easyrpg "${src}" "${log}" || return 1
       run_cmake_build_with_job_retry "${src}" "${src}/build-libretro" easyrpg_libretro Release "${log}" \
         -DPLAYER_TARGET_PLATFORM=libretro \
@@ -746,6 +776,9 @@ build_special_core() {
       run_scummvm_build_with_job_retry "${src}" "${log}"
       ;;
     squirreljme)
+      if [ ! -f "${src}/nanocoat/CMakeLists.txt" ]; then
+        return 99
+      fi
       msg "cmake ${id}: nanocoat libretro build"
       run_cmake_build_with_job_retry "${src}/nanocoat" "${src}/nanocoat/build-libretro" squirreljme_libretro Release "${log}" \
         -DSQUIRRELJME_ENABLE_FRONTEND_LIBRETRO=ON \
