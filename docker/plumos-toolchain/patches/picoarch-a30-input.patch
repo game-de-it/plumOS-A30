@@ -187,6 +187,46 @@ index a2b5095..7f44bbb 100644
 +	}
  }
  
+@@ -657,7 +690,9 @@ int main(int argc, char **argv) {
+ 	do {
+ 		count_fps();
+ 		adjust_audio();
+-		current_core.retro_run();
++		core_poll_input();
++		if (!should_quit)
++			current_core.retro_run();
+ 		if (!should_quit)
+ 			plat_video_flip();
+ 	} while (!should_quit);
+diff --git a/core.c b/core.c
+index 8d1902d..b9afdbc 100644
+--- a/core.c
++++ b/core.c
+@@ -1024,6 +1024,11 @@ static void pa_input_poll(void) {
+ 	buttons = actions[IN_BINDTYPE_PLAYER12];
+ }
+ 
++void core_poll_input(void)
++{
++	pa_input_poll();
++}
++
+ static int16_t pa_input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
+ 	if (port == 0 && device == RETRO_DEVICE_JOYPAD && index == 0) {
+ 		if (id == RETRO_DEVICE_ID_JOYPAD_MASK)
+diff --git a/core.h b/core.h
+index b7a496d..fa19e4e 100644
+--- a/core.h
++++ b/core.h
+@@ -61,6 +61,7 @@ bool disc_replace_index(unsigned index, const char *content_path);
+ void core_extract_name(const char* core_file, char *buf, size_t len);
+ int core_open(const char *corefile, const char* tag_name);
+ void core_load(void);
+ int core_load_content(struct content *content);
++void core_poll_input(void);
+ void core_apply_cheats(struct cheats *cheats);
+ void core_unload_content(void);
+ void core_unload(void);
 diff --git a/plat_linux.c b/plat_linux.c
 index bc57f3c..bd16c0f 100644
 --- a/plat_linux.c
