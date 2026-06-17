@@ -282,9 +282,9 @@ these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
 | FDS | `fceumm`, `nestopia` | Read `disksys.rom` from `/mnt/SDCARD/Bios`. |
 | PC Engine CD / SuperGrafx | `mednafen_pce_fast`, `mednafen_supergrafx`, `mednafen_pce` | Read `syscard*.pce` / `games_express.pce` from `/mnt/SDCARD/Bios`. |
 | Sega CD / 32X | `genesis_plus_gx`, `picodrive` | Read `bios_CD_*.bin` / `32X_*_BIOS.BIN` from `/mnt/SDCARD/Bios`. |
-| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. Atari Jaguar / `virtualjaguar` is removed from normal candidates because A30 performance is insufficient. |
+| CD / 3D console | `pcsx_rearmed`, `mednafen_pcfx`, `opera`, `neocd`, `flycast`, `yabasanshiro`, `beetle_saturn`, `mupen64plus_next`, `parallel_n64` | Read PS1 / PC-FX / 3DO / Neo Geo CD / Dreamcast / NAOMI / Saturn / 64DD BIOS files from `/mnt/SDCARD/Bios`. `neocd` identifies `.bin` / `.rom` files under `/mnt/SDCARD/Bios/neocd` by contents. Atari Jaguar / `virtualjaguar` is removed from normal candidates because A30 performance is insufficient. |
 | handheld / 8-bit | `gpsp`, `mgba`, `mednafen_gba`, `meteor`, `vba_next`, `vbam`, `gambatte`, `gearboy`, `gearsystem`, `mednafen_lynx`, `handy`, `mednafen_ngp`, `mednafen_wswan`, `pokemini`, `freechaf`, `atari800`, `prosystem`, `freeintv`, `o2em` | Read optional/required BIOS files from `/mnt/SDCARD/Bios`. |
-| arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | Resolve arcade BIOS/data packs such as `fbneo/neogeo.zip` relative to `/mnt/SDCARD/Bios`. |
+| arcade BIOS pack | `fbneo`, `fbalpha2012`, `fbalpha2012_cps1`, `fbalpha2012_cps2`, `fbalpha2012_neogeo`, `mame2000`, `mame2003_plus` | Resolve arcade BIOS/data packs such as `fbneo/neogeo.zip` relative to `/mnt/SDCARD/Bios`. FBNeo Neo Geo cartridge uses `/mnt/SDCARD/Bios/fbneo/neogeo.zip` or `/mnt/SDCARD/Bios/neogeo.zip`. |
 | computer / data pack | `bluemsx`, `fmsx`, `puae`, `np2kai`, `nekop2`, `px68k`, `hatari`, `cap32`, `x1`, `bk`, `mu`, `vice_x64`, `vice_xvic`, `fuse`, `squirreljme`, `ecwolf`, `dosbox_pure`, `prboom` | Resolve system ROMs / machine databases / runtime data relative to `/mnt/SDCARD/Bios`. `np2kai` looks under `/mnt/SDCARD/Bios/np2kai` for `bios.rom`, `font.rom` or `font.bmp`, `itf.rom`, and `sound.rom`. `nekop2` appends `np2` to RetroArch's system directory and looks under `/mnt/SDCARD/Bios/np2` for `bios.rom`, `FONT.ROM` or `font.bmp`, `itf.rom`, `sound.rom`, and `bios9821.rom`. |
 | SNES special carts | `snes9x` | Read BS-X / Sufami Turbo BIOS files from `/mnt/SDCARD/Bios`. |
 | PC-88 | `quasi88` | Exception: use `/mnt/SDCARD/Bios/quasi88`. |
@@ -516,8 +516,8 @@ initial plumOS emulator/core build plan.
 | PC Engine / TurboGrafx-16 | `mednafen_pce_fast` | `Emu/PCE`, `RApp/mednafen_pce_fast` | Low load. |
 | PC Engine CD | `mednafen_pce_fast` | backup `mednafen_pce_cd` | Strong non-PS1 CD candidate. Needs BIOS/CHD/CUE checks. |
 | SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Enhanced PC Engine-compatible hardware, not an overseas name. A PC Engine content check validates only the PC Engine profile; SuperGrafx-exclusive content needs a separate check. |
-| Neo Geo cartridge | `fbneo` | `Emu/NEOGEO`, `RApp/fbneo` | Needs BIOS and gamelist compatibility checks. |
-| Neo Geo CD | `neocd` | `RApp/neocd` | CD-based but 2D-focused. Check loading and CDDA. |
+| Neo Geo cartridge | `fbneo` | `Emu/NEOGEO`, `RApp/fbneo` | BIOS loading is confirmed after placing `/mnt/SDCARD/Bios/fbneo/neogeo.zip`. The game ROM set still has to match the core DAT. |
+| Neo Geo CD | `fbneo` | `RApp/neocd` | `neocd` does not support MP3 CUE media, so ISO+MP3 CUE defaults to FBNeo. `neocd` remains available for `/mnt/SDCARD/Bios/neocd` plus WAV/FLAC/OGG/CHD media. |
 | Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
 | PS1 | `standalone:pcsx_rearmed`, `retroarch:pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Standalone is hardware-tested and is the initial default candidate. Decide BIOS/save/state paths early. |
 | NGP / NGPC | `mednafen_ngp` | `Emu/NGP`, `RApp/mednafen_ngp` | Low load. |
@@ -582,7 +582,7 @@ order after deploying the staged package:
    `gpsp`, `mgba`, `pcsx_rearmed`, `picodrive`, `mame2003-plus`, `fbalpha2012`.
 5. CD systems that are still realistic:
    PS1 via `pcsx_rearmed`, PC Engine CD via `mednafen_pce_fast`,
-   Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `neocd`.
+   Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `fbneo` or `neocd`.
 6. Lightweight systems promoted from stock backup/installed cores:
    `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
    `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `prboom`,

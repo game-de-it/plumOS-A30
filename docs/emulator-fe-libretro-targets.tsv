@@ -85,7 +85,7 @@ pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:med
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	PICO	picoarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	untested	systems.json
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	fail_romset_mismatch	systems.json
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	untested	systems.json
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	untested	systems.json
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	untested	systems.json
@@ -93,7 +93,9 @@ neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	ye
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	untested	FE auto companion
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	untested	FE auto companion
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	untested	FE auto companion
-neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:neocd	neocd	yes	yes	yes	yes	yes	yes	untested	systems.json
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:neocd	neocd	yes	yes	yes	yes	yes	no	fail_unsupported_media	systems.json
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	untested	FE auto companion
 neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:neocd	neocd	yes	yes	yes	yes	yes	no	untested	FE auto companion
 ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
 ngp	NGP	NGP;ngp	ngp;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion

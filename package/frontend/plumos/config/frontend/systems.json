@@ -615,8 +615,8 @@
           {"root": "sdcard", "path": "Images/neogeocd"}
         ]
       },
-      "launch_profiles": ["retroarch:neocd"],
-      "default_launch_profile": "retroarch:neocd",
+      "launch_profiles": ["retroarch:fbneo", "retroarch:neocd"],
+      "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
