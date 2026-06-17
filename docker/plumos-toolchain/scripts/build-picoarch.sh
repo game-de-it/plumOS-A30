@@ -474,6 +474,106 @@ core_log_name=${core_log_name%_libretro.so}
 core_log_name=${core_log_name%.so}
 core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
 
+picoarch_tag_name() {
+  path=$1
+  roms_prefix=${SDCARD_ROOT}/Roms/
+  case "${path}" in
+    "${roms_prefix}"*)
+      rel=${path#"${roms_prefix}"}
+      tag=${rel%%/*}
+      ;;
+    *)
+      tag=$(basename "${path}")
+      tag=${tag%.*}
+      ;;
+  esac
+  case "${tag}" in
+    *"("*")"*)
+      inner=${tag#*(}
+      tag=${inner%%)*}
+      ;;
+  esac
+  printf '%s\n' "${tag}"
+}
+
+seed_picoarch_input_config() {
+  tag_name=$(picoarch_tag_name "${rom_path}")
+  [ -n "${tag_name}" ] || return 0
+
+  config_dir=${STATE_DIR}/.picoarch-${core_log_name}-${tag_name}
+  config_path=${config_dir}/picoarch.cfg
+  mkdir -p "${config_dir}" 2>/dev/null || return 0
+
+  if [ ! -s "${config_path}" ]; then
+    cat >"${config_path}" <<'CFG'
+binddev = sdl:keys
+bind backspace = player1 R BUTTON
+bind tab = player1 L BUTTON
+bind return = player1 START
+bind escape = menu
+bind space = player1 A BUTTON
+bind \ = player1 R2 BUTTON
+bind q = player1 L2 BUTTON
+bind \xA0 = player1 A BUTTON
+bind \xA1 = player1 B BUTTON
+bind \xA2 = player1 X BUTTON
+bind \xA3 = player1 Y BUTTON
+bind \xA4 = player1 L BUTTON
+bind \xA5 = player1 R BUTTON
+bind \xA6 = player1 L2 BUTTON
+bind \xA7 = player1 R2 BUTTON
+bind \xA8 = player1 SELECT
+bind \xA9 = player1 START
+bind \xAA = menu
+bind up = player1 UP
+bind down = player1 DOWN
+bind right = player1 RIGHT
+bind left = player1 LEFT
+bind left shift = player1 X BUTTON
+bind right ctrl = player1 SELECT
+bind left ctrl = player1 B BUTTON
+bind left alt = player1 Y BUTTON
+binddev = sdl:plumOS A30 Gamepad
+bind backspace = player1 R BUTTON
+bind tab = player1 L BUTTON
+bind return = player1 START
+bind escape = menu
+bind space = player1 A BUTTON
+bind \ = player1 R2 BUTTON
+bind q = player1 L2 BUTTON
+bind \xA0 = player1 A BUTTON
+bind \xA1 = player1 B BUTTON
+bind \xA2 = player1 X BUTTON
+bind \xA3 = player1 Y BUTTON
+bind \xA4 = player1 L BUTTON
+bind \xA5 = player1 R BUTTON
+bind \xA6 = player1 L2 BUTTON
+bind \xA7 = player1 R2 BUTTON
+bind \xA8 = player1 SELECT
+bind \xA9 = player1 START
+bind \xAA = menu
+bind up = player1 UP
+bind down = player1 DOWN
+bind right = player1 RIGHT
+bind left = player1 LEFT
+bind left shift = player1 X BUTTON
+bind right ctrl = player1 SELECT
+bind left ctrl = player1 B BUTTON
+bind left alt = player1 Y BUTTON
+CFG
+  elif ! grep -q 'bind \\xAA = menu' "${config_path}" 2>/dev/null; then
+    cat >>"${config_path}" <<'CFG'
+
+binddev = sdl:keys
+bind escape = menu
+bind \xAA = menu
+binddev = sdl:plumOS A30 Gamepad
+bind escape = menu
+bind \xAA = menu
+CFG
+  fi
+}
+
 uses_shared_bios_root() {
   case "$1" in
     scummvm|fceumm|nestopia|mednafen_pce_fast|mednafen_supergrafx|mednafen_pce|genesis_plus_gx|picodrive|pcsx_rearmed|mednafen_pcfx|opera|neocd)
@@ -516,6 +616,8 @@ if [ -n "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
 else
   unset PLUMOS_PICOARCH_BIOS_DIR
 fi
+
+seed_picoarch_input_config
 
 run_log=${LOG_DIR}/${core_log_name}-last.log
 latest_log=${LOG_DIR}/last.log
