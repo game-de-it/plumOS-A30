@@ -1,0 +1,109 @@
+diff --git a/engine/openbor.c b/engine/openbor.c
+index 5aaa7e6..53852df 100644
+--- a/engine/openbor.c
++++ b/engine/openbor.c
+@@ -34163,6 +34163,94 @@ void apply_controls()
+     }
+ }
+ 
++#if SDL
++static int a30_env_enabled(const char *name, int fallback)
++{
++    const char *value = getenv(name);
++    if(!value || !value[0]) return fallback;
++    if(!stricmp(value, "0") || !stricmp(value, "no") ||
++       !stricmp(value, "false") || !stricmp(value, "off")) return 0;
++    return 1;
++}
++
++static int a30_p1_uses_keyboard_defaults(void)
++{
++    return savedata.keys[0][SDID_MOVEUP] == CONTROL_DEFAULT1_UP &&
++           savedata.keys[0][SDID_MOVEDOWN] == CONTROL_DEFAULT1_DOWN &&
++           savedata.keys[0][SDID_MOVELEFT] == CONTROL_DEFAULT1_LEFT &&
++           savedata.keys[0][SDID_MOVERIGHT] == CONTROL_DEFAULT1_RIGHT &&
++           savedata.keys[0][SDID_ATTACK] == CONTROL_DEFAULT1_FIRE1 &&
++           savedata.keys[0][SDID_ATTACK2] == CONTROL_DEFAULT1_FIRE2 &&
++           savedata.keys[0][SDID_ATTACK3] == CONTROL_DEFAULT1_FIRE3 &&
++           savedata.keys[0][SDID_ATTACK4] == CONTROL_DEFAULT1_FIRE4 &&
++           savedata.keys[0][SDID_JUMP] == CONTROL_DEFAULT1_FIRE5 &&
++           savedata.keys[0][SDID_SPECIAL] == CONTROL_DEFAULT1_FIRE6 &&
++           savedata.keys[0][SDID_START] == CONTROL_DEFAULT1_START &&
++           savedata.keys[0][SDID_SCREENSHOT] == CONTROL_DEFAULT1_SCREENSHOT;
++}
++
++static int a30_joy_button_key(int button)
++{
++    return JOY_LIST_FIRST + 1 + button;
++}
++
++static int a30_joy_axis_key(int axis, int positive)
++{
++    return JOY_LIST_FIRST + 1 + joysticks[0].NumButtons + axis * 2 + (positive ? 1 : 0);
++}
++
++static int a30_joy_hat_key(int hat, int direction)
++{
++    return JOY_LIST_FIRST + 1 + joysticks[0].NumButtons + joysticks[0].NumAxes * 2 + hat * 4 + direction;
++}
++
++static int a30_joy_button_or_default(int button, int fallback)
++{
++    if(joysticks[0].NumButtons > button) return a30_joy_button_key(button);
++    return fallback;
++}
++
++static void a30_apply_p1_joystick_defaults(void)
++{
++    if(!a30_env_enabled("PLUMOS_A30_OPENBOR_FIX_CONTROLS", 1)) return;
++    if(!a30_env_enabled("PLUMOS_A30_OPENBOR_FORCE_CONTROLS", 0) &&
++       !a30_p1_uses_keyboard_defaults()) return;
++    if(joysticks[0].NumButtons <= 0 && joysticks[0].NumAxes <= 0 && joysticks[0].NumHats <= 0)
++    {
++        printf("openbor-a30: P1 controls unchanged; joystick0 has no inputs\n");
++        return;
++    }
++
++    savedata.usejoy = 1;
++
++    if(joysticks[0].NumHats > 0)
++    {
++        savedata.keys[0][SDID_MOVEUP] = a30_joy_hat_key(0, 0);
++        savedata.keys[0][SDID_MOVERIGHT] = a30_joy_hat_key(0, 1);
++        savedata.keys[0][SDID_MOVEDOWN] = a30_joy_hat_key(0, 2);
++        savedata.keys[0][SDID_MOVELEFT] = a30_joy_hat_key(0, 3);
++    }
++    else if(joysticks[0].NumAxes >= 2)
++    {
++        savedata.keys[0][SDID_MOVELEFT] = a30_joy_axis_key(0, 0);
++        savedata.keys[0][SDID_MOVERIGHT] = a30_joy_axis_key(0, 1);
++        savedata.keys[0][SDID_MOVEUP] = a30_joy_axis_key(1, 0);
++        savedata.keys[0][SDID_MOVEDOWN] = a30_joy_axis_key(1, 1);
++    }
++
++    savedata.keys[0][SDID_ATTACK] = a30_joy_button_or_default(0, CONTROL_DEFAULT1_FIRE1);
++    savedata.keys[0][SDID_JUMP] = a30_joy_button_or_default(1, CONTROL_DEFAULT1_FIRE5);
++    savedata.keys[0][SDID_ATTACK2] = a30_joy_button_or_default(2, CONTROL_DEFAULT1_FIRE2);
++    savedata.keys[0][SDID_ATTACK3] = a30_joy_button_or_default(3, CONTROL_DEFAULT1_FIRE3);
++    savedata.keys[0][SDID_ATTACK4] = a30_joy_button_or_default(4, CONTROL_DEFAULT1_FIRE4);
++    savedata.keys[0][SDID_SPECIAL] = a30_joy_button_or_default(5, CONTROL_DEFAULT1_FIRE6);
++    savedata.keys[0][SDID_START] = a30_joy_button_or_default(9, CONTROL_DEFAULT1_START);
++
++    printf("openbor-a30: patched P1 controls for joystick0 buttons=%d axes=%d hats=%d\n",
++           joysticks[0].NumButtons, joysticks[0].NumAxes, joysticks[0].NumHats);
++}
++#endif
++
+ 
+ 
+ // ----------------------------------------------------------------------
+@@ -34662,6 +34750,9 @@ void startup()
+ 
+     printf("Input init...................\t");
+     control_init(savedata.usejoy);
++#if SDL
++    a30_apply_p1_joystick_defaults();
++#endif
+     apply_controls();
+     printf("Done!\n");
+ 

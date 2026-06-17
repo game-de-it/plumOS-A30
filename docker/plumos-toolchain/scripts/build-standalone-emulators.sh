@@ -902,6 +902,8 @@ build_openbor() {
   append_manifest "  patch=openbor-v6391-a30mali-renderer.patch"
   patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30-direct-present.patch" || return 1
   append_manifest "  patch=openbor-v6391-a30-direct-present.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/openbor-v6391-a30-p1-controls.patch" || return 1
+  append_manifest "  patch=openbor-v6391-a30-p1-controls.patch"
 
   openbor_archflags="-marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fcommon"
   sed -i 's/-Wall -Werror/-Wall/g' "${engine_dir}/Makefile" || return 1
@@ -1040,6 +1042,8 @@ Environment:
                                       Direct presenter logical canvas. Default: 640x480.
   PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE
                                       Force fb0 pan to 0,0 during OpenBOR startup. Default: 1.
+  PLUMOS_A30_OPENBOR_FIX_CONTROLS     Patch P1 keyboard defaults to A30 joystick controls. Default: 1.
+  PLUMOS_A30_OPENBOR_FORCE_CONTROLS   Always patch P1 A30 joystick controls. Default: 0.
   PLUMOS_A30_DOSBOX_ROTATION          DOSBox final display rotation: ccw, cw, 180, none. Default: ccw.
   PLUMOS_A30_RED_VIPER_CPU_POLICY     Red Viper CPU policy. Default: fixed.
   PLUMOS_A30_RED_VIPER_CPU_FREQ       Red Viper fixed CPU frequency. Default: 648000.
@@ -2270,6 +2274,9 @@ PLUMOS_A30_OPENBOR_ROTATION=none
 PLUMOS_A30_OPENBOR_SCALE=fit
 PLUMOS_A30_OPENBOR_FULLSCREEN=0
 PLUMOS_A30_OPENBOR_FORCE_FB_FRONT_PAGE=0
+
+PLUMOS_A30_OPENBOR_FIX_CONTROLS=1
+PLUMOS_A30_OPENBOR_FORCE_CONTROLS=0
 
 PLUMOS_A30_OPENBOR_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_OPENBOR_JOYSTICKD_SHOULDER_LAYOUT=user
