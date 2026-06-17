@@ -21,6 +21,7 @@ launch profile を突き合わせたものです。動作確認対象は `target
 - `verification_status`: `docs/emulator-runtime-verification.tsv` の現在の検証状態。
   - `pass`: video/audio/input/performance が実用範囲で確認済み。
   - `pass_init`: 起動や初期表示は改善済みだが、入力や gameplay の追加確認が必要。
+  - `fail_audio`: 映像や起動は成立するが、音声再生や codec 対応が実用判定に届かない。
   - `fail_boot`: FE から起動は試せるが、ゲーム本編や content 起動に進めない。
   - `fail_input`: 画面や動作は成立するが、入力方向やボタン割り当てが実用判定に届かない。
   - `fail_perf`: 起動はするが performance、音声、フレーム pacing などが実用判定に届かない。

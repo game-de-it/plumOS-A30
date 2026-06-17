@@ -66,15 +66,15 @@ dinothawr	Dinothawr	DINOTHAWR;dinothawr	game	PICO	picoarch:dinothawr	dinothawr	y
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes	yes	yes	untested	systems.json
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	PICO	picoarch:prboom	prboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
 dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	pass	systems.json
-dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	pass	FE auto companion
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	RA	retroarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	systems.json
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	PICO	picoarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	FE auto companion
+dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	fail_input	FE auto companion
+easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	RA	retroarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	fail_audio	systems.json
+easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	PICO	picoarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
 fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
 fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
 fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
-fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
+fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	RA	retroarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	yes	untested	systems.json
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	PICO	picoarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	no	untested	FE auto companion
 gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	pass	systems.json
