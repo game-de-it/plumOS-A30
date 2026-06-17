@@ -1695,7 +1695,8 @@
       "launch_profiles": ["retroarch:hatari"],
       "default_launch_profile": "retroarch:hatari",
       "default_cpu_policy": "fixed",
-      "default_cpu_freq_khz": 648000,
+      "default_cpu_freq_khz": 1344000,
+      "default_cpu_cores": 2,
       "scraper": {
         "enabled": false,
         "reason": "pc_disk_image_policy_pending"

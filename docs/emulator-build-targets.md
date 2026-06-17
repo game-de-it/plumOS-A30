@@ -54,6 +54,13 @@ Onion core の `display_version`、prebuilt binary の更新 commit、builder re
 recipe の対応は [libretro core version inventory](libretro-core-version-inventory.md) と
 `docs/libretro-core-version-inventory.tsv` に残します。
 
+Onion の prebuilt core binary は plumOS runtime として採用しません。Onion 側の実績は
+source version/provenance の比較入力としてのみ扱い、plumOS では `libretro-core-recipes.tsv`
+に pin した source を Docker toolchain で build します。Atari ST の `hatari` は
+upstream master/c605d3a build が A30 で 22-26fps 程度に落ちたため、
+`245e1a126f8920cc7f6fbb582fdc9fd110de7a30` に pin しました。この plumOS-built core は
+同じ `1st Division Manager` の場面で 50fps を確認済みです。
+
 2026-06-07 の旧 bulk build では `./scripts/docker-build.sh libretro-cores` により Class A/B の
 41 core を `dist/plumos-libretro-cores/plumos/retroarch/cores` に stage 済みで、
 `manifest.txt` は実成果物ベースで `built=41`, `failed=0`, `skipped=0` でした。

@@ -14,11 +14,14 @@
 #   or A30 measurement gives a reason to pin. Exact source commits are pinned
 #   when proven from Onion history or A30 regression testing.
 #
-# Sources:
+# Sources for version/provenance comparison only:
 #   - Onion prebuilt core set:
 #     artifacts/onion/Onion/static/build/RetroArch/.retroarch/cores
 #   - Onion builder recipes:
 #     artifacts/onion/Miyoo-Mini-Retroarch-builder/cores-onionos*
+#
+# plumOS packages must be built from source with this recipe table. Do not ship
+# Onion prebuilt core binaries as plumOS runtime cores.
 
 fceumm|A|https://github.com/libretro/libretro-fceumm.git|master||Makefile.libretro|platform=armv7-hardfloat-neon HAVE_NEON=1 ARCH=arm BUILTIN_GPU=neon
 nestopia|A|https://github.com/libretro/nestopia.git|master|libretro|Makefile|platform=classic_armv7_a7
@@ -84,7 +87,7 @@ fuse|O|https://github.com/libretro/fuse-libretro.git|master||Makefile|platform=a
 gearboy|O|https://github.com/drhelius/Gearboy.git|master|platforms/libretro|Makefile|platform=armv
 gearsystem|O|https://github.com/drhelius/Gearsystem.git|master|platforms/libretro|Makefile|platform=armv
 gme|O|https://github.com/libretro/libretro-gme.git|master||Makefile|platform=armv
-hatari|O|https://github.com/libretro/hatari.git|master||Makefile.libretro|platform=armv
+hatari|O|https://github.com/libretro/hatari.git|245e1a126f8920cc7f6fbb582fdc9fd110de7a30||Makefile.libretro|platform=armv
 lutro|O|https://github.com/libretro/libretro-lutro.git|master||Makefile|platform=armv7-hardfloat-neon
 lowresnx|O|https://github.com/timoinutilis/lowres-nx.git|retroarch|platform/LibRetro|Makefile|platform=armv
 mame2000|O|https://github.com/libretro/mame2000-libretro.git|master||Makefile|platform=armv

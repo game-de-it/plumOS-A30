@@ -62,7 +62,7 @@ fuse	O	Sinclair - ZX Spectrum (Fuse)	ZX Spectrum (various)	Emulator	tzx,tap,z80,
 gearboy	O	Nintendo - Game Boy / Color (Gearboy)	Game Boy/Game Boy Color	Emulator	gb,dmg,gbc,cgb,sgb	gb;gbc	GB;GBC	add_core	platform=armv	3	no	da2f96386d7f774467ebd9d9568732f6f34fbe9f	docs/build-logs/gearboy.log
 gearsystem	O	Sega - MS/GG/SG-1000 (Gearsystem)	Sega 8-bit (MS/GG/SG-1000)	Emulator	sms,gg,sg,mv,bin,rom	mastersystem;gamegear;sg1000	MS;GG;SEGASGONE	add_system	platform=armv	3	no	ac0740335c8c9fb6b4995e82a464f650d289b29d	docs/build-logs/gearsystem.log
 gme	O	Game Music Emu	Music	Music player	ay,gbs,gym,hes,kss,nsf,nsfe,sap,spc,vgm,vgz,zip	music	MUSIC	add_system	platform=armv	3	no	818629a9fbb9f99bd9c585395318834ae5c6434e	docs/build-logs/gme.log
-hatari	O	Atari - ST/STE/TT/Falcon (Hatari)	Atari ST/STE/TT/Falcon	Emulator	st,msa,zip,stx,dim,ipf,vhd,gem,ide,m3u	atarist	ATARIST	add_system	platform=armv	3	no	c605d3aa342f2ad8f915f94bf03bae018e1be7b7	docs/build-logs/hatari.log
+hatari	O	Atari - ST/STE/TT/Falcon (Hatari)	Atari ST/STE/TT/Falcon	Emulator	st,msa,zip,stx,dim,ipf,vhd,gem,ide,m3u	atarist	ATARIST	add_system	platform=armv	3	no	245e1a126f8920cc7f6fbb582fdc9fd110de7a30	docs/build-logs/hatari.log
 lutro	O	Lua Engine (Lutro)	Lutro	Game engine	lutro,love,lua	lutro	LUTRO	add_system	platform=armv7-hardfloat-neon	3	no	6d724ad3d52ba5e476502c256e91185f76047c1e	docs/build-logs/lutro.log
 lowresnx	O	LowRes NX	LowRes NX	Game engine	nx	lowresnx	LOWRESNX	add_system	platform=armv	3	no	12aeb1690108c5fe3f404475d59f86a12a21949d	docs/build-logs/lowresnx.log
 mame2000	O	Arcade (MAME 2000)	Arcade (various)	Emulator	zip,7z	arcade	ARCADE	add_core	platform=armv	3	no	d5e70102fb47a982971b8fc80607b357f8847433	docs/build-logs/mame2000.log

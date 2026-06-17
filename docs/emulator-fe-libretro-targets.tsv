@@ -184,7 +184,7 @@ atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	RA	retroarch:atari
 atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass	FE auto companion
 atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass	FE auto companion
-atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	RA	retroarch:hatari	hatari	yes	yes	yes	yes	yes	yes	untested	systems.json
+atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	RA	retroarch:hatari	hatari	yes	yes	yes	yes	yes	yes	pass	systems.json
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	PICO	picoarch:hatari	hatari	yes	yes	yes	yes	yes	no	untested	FE auto companion
 bk	Elektronika BK	BK;bk	bin	RA	retroarch:bk	bk	yes	yes	yes	yes	yes	yes	untested	systems.json
 bk	Elektronika BK	BK;bk	bin	PICO	picoarch:bk	bk	yes	yes	yes	yes	yes	no	untested	FE auto companion

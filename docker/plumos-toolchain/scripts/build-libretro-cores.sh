@@ -450,8 +450,12 @@ patch_core_source() {
       ;;
     hatari)
       if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" ]; then
-        patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch"
-        printf '\n[plumOS] patched hatari to skip empty media command-line options\n' >>"${log}"
+        if patch --dry-run -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" >/dev/null 2>>"${log}"; then
+          patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" >>"${log}" 2>&1
+          printf '\n[plumOS] patched hatari to skip empty media command-line options\n' >>"${log}"
+        else
+          printf '\n[plumOS] skipped hatari empty-media patch: source layout does not match\n' >>"${log}"
+        fi
       fi
       ;;
     lutro)

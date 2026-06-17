@@ -63,6 +63,14 @@ and plumOS recipe mappings are recorded in
 `docs/libretro-core-version-inventory.tsv`; see
 [libretro core version inventory](libretro-core-version-inventory.en.md).
 
+plumOS does not ship Onion prebuilt core binaries as runtime cores. Onion's
+working set is used only as source-version/provenance input, then plumOS builds
+the pinned source from `libretro-core-recipes.tsv` with the Docker toolchain.
+For Atari ST, the upstream master/c605d3a `hatari` build dropped to roughly
+22-26fps on A30, so the recipe is pinned to
+`245e1a126f8920cc7f6fbb582fdc9fd110de7a30`. The plumOS-built core from that
+commit was confirmed at 50fps in the same `1st Division Manager` scene.
+
 The older 2026-06-07 bulk build staged 41 Class A/B cores under
 `dist/plumos-libretro-cores/plumos/retroarch/cores`, and its manifest reported
 `built=41`, `failed=0`, and `skipped=0`. Keep that as a historical baseline; new
