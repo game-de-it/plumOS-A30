@@ -19,6 +19,11 @@ launch profile を突き合わせたものです。動作確認対象は `target
 - `fe_executable=yes`: FE が起動計画を作れる runtime/core/launcher が実機に存在する。
 - `target_for_verification=yes`: build、deploy、FE 実行可能条件がすべて揃っている。
 - `verification_status`: `docs/emulator-runtime-verification.tsv` の現在の検証状態。
+  - `pass`: video/audio/input/performance が実用範囲で確認済み。
+  - `pass_init`: 起動や初期表示は改善済みだが、入力や gameplay の追加確認が必要。
+  - `fail_perf`: 起動はするが performance、音声、フレーム pacing などが実用判定に届かない。
+  - `fail`: 画面非表示、起動不能など、実用確認に進めない。
+  - `untested`: FE から実行可能だが、まだ実機確認していない。
 
 PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
 `freeintv`、`mednafen_pce`、`nekop2`、`np2kai`、`quasi88`、`tgbdual` は既知問題があるため自動追加対象から外しています。

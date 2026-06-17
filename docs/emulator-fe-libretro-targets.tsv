@@ -9,10 +9,10 @@ arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	systems.json
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:mame2000	mame2000	yes	yes	yes	yes	yes	no	pass	systems.json
-arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
-arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2000	mame2000	yes	yes	yes	yes	yes	no	pass	FE auto companion
+arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	fail	FE auto companion
+arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
+arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
+arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2000	mame2000	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	RA	retroarch:stella2014	stella2014	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	PICO	picoarch:stella2014	stella2014	yes	yes	yes	yes	yes	no	pass	FE auto companion
 atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass	systems.json
