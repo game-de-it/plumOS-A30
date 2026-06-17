@@ -265,6 +265,41 @@ restore_framebuffer() {
   fi
 }
 
+find_resident_joystickd() {
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    pid=${f#/proc/}
+    pid=${pid%/cmdline}
+    [ "$pid" = "$$" ] && continue
+    cmd=$(tr '\0' ' ' <"$f" 2>/dev/null || true)
+    case "$cmd" in
+      *"${PLUMOS_ROOT}/bin/plumos-joystickd"*)
+        printf '%s\n' "$pid"
+        ;;
+    esac
+  done
+}
+
+stop_resident_joystickd() {
+  pids=$(find_resident_joystickd)
+  [ -n "$pids" ] || return 0
+  echo "stopping stale plumos-joystickd: $pids" >&2
+  kill -TERM $pids >/dev/null 2>&1 || true
+  sleep 1
+  kill -KILL $pids >/dev/null 2>&1 || true
+}
+
+find_plumos_gamepad_js() {
+  for js in /sys/class/input/js*; do
+    [ -e "$js" ] || continue
+    name=$(cat "$js/device/name" 2>/dev/null || true)
+    [ "$name" = "plumOS A30 Gamepad" ] || continue
+    printf '/dev/input/%s\n' "${js##*/}"
+    return 0
+  done
+  return 1
+}
+
 cleanup() {
   rc=$?
   trap - EXIT HUP INT TERM
@@ -373,6 +408,7 @@ apply_cpu_policy() {
 start_joystickd() {
   [ "${PLUMOS_PICOARCH_JOYSTICKD:-1}" != 0 ] || return 0
   [ -x "${PLUMOS_ROOT}/bin/plumos-joystickd" ] || return 0
+  stop_resident_joystickd
 
   joystickd_core_name=$(basename "${core_path}")
   joystickd_core_name=${joystickd_core_name%_libretro.so}
@@ -419,6 +455,11 @@ start_joystickd() {
     >"${LOG_DIR}/joystickd-last.log" 2>&1 &
   joystickd_pid=$!
   sleep 1
+  gamepad_js=$(find_plumos_gamepad_js || true)
+  if [ -n "${gamepad_js}" ]; then
+    SDL_JOYSTICK_DEVICE=${gamepad_js}
+    export SDL_JOYSTICK_DEVICE
+  fi
 }
 
 if [ ! -x "${LOADER}" ]; then

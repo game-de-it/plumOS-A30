@@ -81,6 +81,7 @@ is_display_cmd() {
     *"${PLUMOS_ROOT}/retroarch/bin/retroarch"*|\
     *"${PLUMOS_ROOT}/bin/plumos-standalone-launch"*|\
     *"${PLUMOS_ROOT}/bin/plumos-picoarch-launch"*|\
+    *"${PLUMOS_ROOT}/bin/plumos-joystickd"*|\
     *"${PLUMOS_ROOT}/emulators/picoarch/bin/picoarch"*|\
     *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*|*red-viper-a30*|*red-viper-sdlgl-a30*)
       return 0
