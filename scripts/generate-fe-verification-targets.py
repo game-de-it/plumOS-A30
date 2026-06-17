@@ -79,7 +79,10 @@ def read_built_cores(path: Path) -> set[str]:
 def load_systems(path: Path) -> list[dict]:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
-    return list(data.get("systems", []))
+    return sorted(
+        list(data.get("systems", [])),
+        key=lambda system: str(system.get("id", "")).lower(),
+    )
 
 
 def system_rom_dirs(system: dict) -> str:

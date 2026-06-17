@@ -1,116 +1,10 @@
 system_id	display_name	rom_dirs	extensions	runtime	launch_profile	core_id	built_core	deployed_core	fe_selectable	fe_executable	target_for_verification	default_profile	verification_status	notes
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	systems.json
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass	FE auto companion
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	FE auto companion
-fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
-fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
-fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2005	snes9x2005	yes	yes	yes	yes	yes	yes	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x	snes9x	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:chimerasnes	chimerasnes	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:mednafen_supafaust	mednafen_supafaust	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2002	snes9x2002	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2005_plus	snes9x2005_plus	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2010	snes9x2010	yes	yes	yes	yes	yes	no	pass	systems.json
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2005	snes9x2005	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x	snes9x	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:chimerasnes	chimerasnes	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:mednafen_supafaust	mednafen_supafaust	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2002	snes9x2002	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2005_plus	snes9x2005_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2010	snes9x2010	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass	systems.json
-gb	GB	GB;gb	gb;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	systems.json
-gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	systems.json
-gb	GB	GB;gb	gb;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
-gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass	systems.json
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	systems.json
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	systems.json
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	yes	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:meteor	meteor	yes	yes	yes	yes	yes	no	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:meteor	meteor	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
-megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
-megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
-megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	systems.json
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	systems.json
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
-sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	untested	systems.json
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	systems.json
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
-pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	systems.json
-pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	yes	untested	systems.json
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	systems.json
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
-pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json
-psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	PICO	picoarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	systems.json
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	pass	systems.json
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:neocd	neocd	yes	yes	yes	yes	yes	no	pass	systems.json
-neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:neocd	neocd	yes	yes	yes	yes	yes	no	pass	FE auto companion
-ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
-ngp	NGP	NGP;ngp	ngp;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
-ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
-ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
-wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
-wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
-wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
-wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
-lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	yes	pass	systems.json
-lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass	systems.json
-lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:handy	handy	yes	yes	yes	yes	yes	no	pass	FE auto companion
-virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	RA	retroarch:mednafen_vb	mednafen_vb	yes	yes	yes	yes	yes	yes	pass	systems.json
-virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	PICO	picoarch:mednafen_vb	mednafen_vb	yes	yes	yes	yes	yes	no	pass	FE auto companion
+2048	2048	2048		RA	retroarch:2048	2048	yes	yes	yes	yes	yes	yes	untested	systems.json
+2048	2048	2048		PICO	picoarch:2048	2048	yes	yes	yes	yes	yes	no	untested	FE auto companion
+3do	3DO	PANASONIC;3do	iso;chd;bin;cue	RA	retroarch:opera	opera	yes	yes	yes	yes	yes	yes	untested	systems.json
+3do	3DO	PANASONIC;3do	iso;chd;bin;cue	PICO	picoarch:opera	opera	yes	yes	yes	yes	yes	no	untested	FE auto companion
+amiga	Amiga	AMIGA;amiga	adf;adz;dms;fdi;ipf;hdf;hdz;lha;slave;info;cue;ccd;nrg;mds;iso;chd;uae;m3u;zip;7z;rp9	RA	retroarch:puae	puae	yes	yes	yes	yes	yes	yes	untested	systems.json
+amiga	Amiga	AMIGA;amiga	adf;adz;dms;fdi;ipf;hdf;hdz;lha;slave;info;cue;ccd;nrg;mds;iso;chd;uae;m3u;zip;7z;rp9	PICO	picoarch:puae	puae	yes	yes	yes	yes	yes	no	untested	FE auto companion
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	yes	pass	systems.json
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	systems.json
 arcade	Arcade	ARCADE;arcade	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
@@ -119,69 +13,12 @@ arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes
 arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
 arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
 arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2000	mame2000	yes	yes	yes	yes	yes	no	pass	FE auto companion
-fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	yes	pass	systems.json
-mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbalpha2012_cps1	fbalpha2012_cps1	yes	yes	yes	yes	yes	no	pass	systems.json
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbalpha2012_cps1	fbalpha2012_cps1	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbalpha2012_cps2	fbalpha2012_cps2	yes	yes	yes	yes	yes	no	pass	systems.json
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbalpha2012_cps2	fbalpha2012_cps2	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
-cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
-cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
-dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	pass	systems.json
-dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	pass	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	FE auto companion
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	systems.json
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	pass	systems.json
-x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	RA	retroarch:px68k	px68k	yes	yes	yes	yes	yes	yes	untested	systems.json
-x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	PICO	picoarch:px68k	px68k	yes	yes	yes	yes	yes	no	untested	FE auto companion
-tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
-tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	untested	FE auto companion
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	RA	retroarch:stella2014	stella2014	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	PICO	picoarch:stella2014	stella2014	yes	yes	yes	yes	yes	no	pass	FE auto companion
-atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	RA	retroarch:prosystem	prosystem	yes	yes	yes	yes	yes	yes	pass	systems.json
-atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	PICO	picoarch:prosystem	prosystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
-vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	pass	systems.json
-vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	PICO	picoarch:vecx	vecx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	untested	systems.json
-supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
-odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	untested	systems.json
-odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	untested	FE auto companion
-gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	pass	systems.json
-gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
-pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
-doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes	yes	yes	untested	systems.json
-doom	Doom	DOOM;doom	wad;iwad;pwad;zip	PICO	picoarch:prboom	prboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
-2048	2048	2048		RA	retroarch:2048	2048	yes	yes	yes	yes	yes	yes	untested	systems.json
-2048	2048	2048		PICO	picoarch:2048	2048	yes	yes	yes	yes	yes	no	untested	FE auto companion
-3do	3DO	PANASONIC;3do	iso;chd;bin;cue	RA	retroarch:opera	opera	yes	yes	yes	yes	yes	yes	untested	systems.json
-3do	3DO	PANASONIC;3do	iso;chd;bin;cue	PICO	picoarch:opera	opera	yes	yes	yes	yes	yes	no	untested	FE auto companion
-amiga	Amiga	AMIGA;amiga	adf;adz;dms;fdi;ipf;hdf;hdz;lha;slave;info;cue;ccd;nrg;mds;iso;chd;uae;m3u;zip;7z;rp9	RA	retroarch:puae	puae	yes	yes	yes	yes	yes	yes	untested	systems.json
-amiga	Amiga	AMIGA;amiga	adf;adz;dms;fdi;ipf;hdf;hdz;lha;slave;info;cue;ccd;nrg;mds;iso;chd;uae;m3u;zip;7z;rp9	PICO	picoarch:puae	puae	yes	yes	yes	yes	yes	no	untested	FE auto companion
 atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass	FE auto companion
+atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	RA	retroarch:prosystem	prosystem	yes	yes	yes	yes	yes	yes	pass	systems.json
+atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	PICO	picoarch:prosystem	prosystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
 atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass	FE auto companion
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	RA	retroarch:hatari	hatari	yes	yes	yes	yes	yes	yes	pass	systems.json
@@ -206,33 +43,186 @@ cpc	Amstrad CPC	CPC;amstradcpc	dsk;sna;zip;tap;cdt;voc;cpr;m3u;kcr	RA	retroarch:
 cpc	Amstrad CPC	CPC;amstradcpc	dsk;sna;zip;tap;cdt;voc;cpr;m3u;kcr	RA	retroarch:crocods	crocods	yes	yes	yes	yes	yes	yes	untested	systems.json
 cpc	Amstrad CPC	CPC;amstradcpc	dsk;sna;zip;tap;cdt;voc;cpr;m3u;kcr	PICO	picoarch:cap32	cap32	yes	yes	yes	yes	yes	no	untested	FE auto companion
 cpc	Amstrad CPC	CPC;amstradcpc	dsk;sna;zip;tap;cdt;voc;cpr;m3u;kcr	PICO	picoarch:crocods	crocods	yes	yes	yes	yes	yes	no	untested	FE auto companion
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	RA	retroarch:fbalpha2012_cps1	fbalpha2012_cps1	yes	yes	yes	yes	yes	no	pass	systems.json
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps1	CPS1	CPS1;ARCADE;cps1	zip;7z	PICO	picoarch:fbalpha2012_cps1	fbalpha2012_cps1	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	RA	retroarch:fbalpha2012_cps2	fbalpha2012_cps2	yes	yes	yes	yes	yes	no	pass	systems.json
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps2	CPS2	CPS2;ARCADE;cps2	zip;7z	PICO	picoarch:fbalpha2012_cps2	fbalpha2012_cps2	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
+cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+cps3	CPS3	CPS3;ARCADE;cps3	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
 daphne	Daphne	DAPHNE;daphne	zip	RA	retroarch:daphne	daphne	yes	yes	yes	yes	yes	yes	untested	systems.json
 daphne	Daphne	DAPHNE;daphne	zip	PICO	picoarch:daphne	daphne	yes	yes	yes	yes	yes	no	untested	FE auto companion
 dinothawr	Dinothawr	DINOTHAWR;dinothawr	game	RA	retroarch:dinothawr	dinothawr	yes	yes	yes	yes	yes	yes	untested	systems.json
 dinothawr	Dinothawr	DINOTHAWR;dinothawr	game	PICO	picoarch:dinothawr	dinothawr	yes	yes	yes	yes	yes	no	untested	FE auto companion
+doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes	yes	yes	untested	systems.json
+doom	Doom	DOOM;doom	wad;iwad;pwad;zip	PICO	picoarch:prboom	prboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
+dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	pass	systems.json
+dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	pass	FE auto companion
+easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	RA	retroarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	systems.json
+easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	PICO	picoarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	untested	FE auto companion
+fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
+fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
+fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
+fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	RA	retroarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	yes	untested	systems.json
 flashback	Flashback	FLASHBACK;flashback	map;aba;seq;lev	PICO	picoarch:reminiscence	reminiscence	yes	yes	yes	yes	yes	no	untested	FE auto companion
+gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	pass	systems.json
+gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	systems.json
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass	systems.json
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	systems.json
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	systems.json
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:tgbdual	tgbdual	yes	yes	yes	yes	yes	no	untested	systems.json
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
+gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	yes	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:meteor	meteor	yes	yes	yes	yes	yes	no	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:meteor	meteor	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:tgbdual	tgbdual	yes	yes	yes	yes	yes	no	untested	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	FE auto companion
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
 intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	pass	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	untested	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	untested	FE auto companion
+jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	RA	retroarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	yes	untested	systems.json
+jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	PICO	picoarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	no	untested	FE auto companion
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	untested	systems.json
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	PICO	picoarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	no	untested	FE auto companion
 lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	untested	systems.json
 lutro	Lutro	LUTRO;lutro	lutro;love;lua	PICO	picoarch:lutro	lutro	yes	yes	yes	yes	yes	no	untested	FE auto companion
+lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	yes	pass	systems.json
+lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass	systems.json
+lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:handy	handy	yes	yes	yes	yes	yes	no	pass	FE auto companion
+mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	yes	pass	systems.json
+mame2003plus	MAME 2003+	MAME2003PLUS;ARCADE;mame	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	systems.json
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
+mastersystem	Master System	MS;MD;mastersystem	sms;bin;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
+megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
+megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
+megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 microw8	MicroW8	MICROW8;microw8	uw8;wasm	RA	retroarch:uw8	uw8	yes	yes	yes	yes	yes	yes	untested	systems.json
 microw8	MicroW8	MICROW8;microw8	uw8;wasm	PICO	picoarch:uw8	uw8	yes	yes	yes	yes	yes	no	untested	FE auto companion
 mrboom	Mr.Boom	MRBOOM;mrboom	desktop	RA	retroarch:mrboom	mrboom	yes	yes	yes	yes	yes	yes	untested	systems.json
 mrboom	Mr.Boom	MRBOOM;mrboom	desktop	PICO	picoarch:mrboom	mrboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	RA	retroarch:gme	gme	yes	yes	yes	yes	yes	yes	untested	systems.json
 music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	PICO	picoarch:gme	gme	yes	yes	yes	yes	yes	no	untested	FE auto companion
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	systems.json
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	pass	systems.json
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	FE auto companion
+neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	PICO	picoarch:fbalpha2012_neogeo	fbalpha2012_neogeo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	RA	retroarch:neocd	neocd	yes	yes	yes	yes	yes	no	pass	systems.json
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
+neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:neocd	neocd	yes	yes	yes	yes	yes	no	pass	FE auto companion
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	systems.json
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass	FE auto companion
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	FE auto companion
+ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
+ngp	NGP	NGP;ngp	ngp;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
+ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
+ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
+odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	untested	systems.json
+odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	untested	FE auto companion
 palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	RA	retroarch:mu	mu	yes	yes	yes	yes	yes	yes	untested	systems.json
 palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	PICO	picoarch:mu	mu	yes	yes	yes	yes	yes	no	untested	FE auto companion
+pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
+pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
+pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	pass	systems.json
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	systems.json
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	untested	systems.json
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
+pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	untested	systems.json
+pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	RA	retroarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	yes	untested	systems.json
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	PICO	picoarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	pass	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
+pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
+psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json
+psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	PICO	picoarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	FE auto companion
 quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	yes	untested	systems.json
 quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	untested	FE auto companion
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	RA	retroarch:xrick	xrick	yes	yes	yes	yes	yes	yes	untested	systems.json
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	PICO	picoarch:xrick	xrick	yes	yes	yes	yes	yes	no	untested	FE auto companion
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	systems.json
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
+sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	untested	systems.json
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	systems.json
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2005	snes9x2005	yes	yes	yes	yes	yes	yes	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x	snes9x	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:chimerasnes	chimerasnes	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:mednafen_supafaust	mednafen_supafaust	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2002	snes9x2002	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2005_plus	snes9x2005_plus	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2010	snes9x2010	yes	yes	yes	yes	yes	no	pass	systems.json
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2005	snes9x2005	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x	snes9x	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:chimerasnes	chimerasnes	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:mednafen_supafaust	mednafen_supafaust	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2002	snes9x2002	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2005_plus	snes9x2005_plus	yes	yes	yes	yes	yes	no	pass	FE auto companion
+sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	PICO	picoarch:snes9x2010	snes9x2010	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	systems.json
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	yes	pass	systems.json
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	systems.json
@@ -243,18 +233,36 @@ sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:genesis_plus
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	RA	retroarch:x1	x1	yes	yes	yes	yes	yes	yes	untested	systems.json
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	PICO	picoarch:x1	x1	yes	yes	yes	yes	yes	no	untested	FE auto companion
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	yes	untested	systems.json
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	systems.json
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	FE auto companion
+supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	untested	systems.json
+supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	theodore	yes	yes	yes	yes	yes	yes	untested	systems.json
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	PICO	picoarch:theodore	theodore	yes	yes	yes	yes	yes	no	untested	FE auto companion
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	RA	retroarch:numero	numero	yes	yes	yes	yes	yes	yes	untested	systems.json
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	PICO	picoarch:numero	numero	yes	yes	yes	yes	yes	no	untested	FE auto companion
+tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
+tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	untested	FE auto companion
 uzebox	Uzebox	UZEBOX;uzebox	uze	RA	retroarch:uzem	uzem	yes	yes	yes	yes	yes	yes	untested	systems.json
 uzebox	Uzebox	UZEBOX;uzebox	uze	PICO	picoarch:uzem	uzem	yes	yes	yes	yes	yes	no	untested	FE auto companion
+vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	pass	systems.json
+vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	PICO	picoarch:vecx	vecx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 vic20	Commodore VIC-20	VIC20;vic20	d64;d6z;d71;d7z;d80;d81;d82;d8z;g64;g6z;g41;g4z;x64;x6z;nib;nbz;d2m;d4m;t64;tap;tcrt;prg;p00;crt;bin;cmd;m3u;vfl;vsf;zip;7z;gz;20;40;60;a0;b0;rom	RA	retroarch:vice_xvic	vice_xvic	yes	yes	yes	yes	yes	yes	untested	systems.json
 vic20	Commodore VIC-20	VIC20;vic20	d64;d6z;d71;d7z;d80;d81;d82;d8z;g64;g6z;g41;g4z;x64;x6z;nib;nbz;d2m;d4m;t64;tap;tcrt;prg;p00;crt;bin;cmd;m3u;vfl;vsf;zip;7z;gz;20;40;60;a0;b0;rom	PICO	picoarch:vice_xvic	vice_xvic	yes	yes	yes	yes	yes	no	untested	FE auto companion
+virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	RA	retroarch:mednafen_vb	mednafen_vb	yes	yes	yes	yes	yes	yes	pass	systems.json
+virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	PICO	picoarch:mednafen_vb	mednafen_vb	yes	yes	yes	yes	yes	no	pass	FE auto companion
 vmu	Dreamcast VMU	VMU;vmu	vms;dci;bin	RA	retroarch:vemulator	vemulator	yes	yes	yes	yes	yes	yes	untested	systems.json
 vmu	Dreamcast VMU	VMU;vmu	vms;dci;bin	PICO	picoarch:vemulator	vemulator	yes	yes	yes	yes	yes	no	untested	FE auto companion
 wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	RA	retroarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	yes	untested	systems.json
 wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	PICO	picoarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	no	untested	FE auto companion
+wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
+wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
+wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
+wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
+x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	RA	retroarch:px68k	px68k	yes	yes	yes	yes	yes	yes	untested	systems.json
+x68000	X68000	X68000;x68000	dim;hdf;xdf;m3u;zip;7z	PICO	picoarch:px68k	px68k	yes	yes	yes	yes	yes	no	untested	FE auto companion
 zx81	ZX-81	ZXEIGHTYONE;zx81	p;tzx;t81;zip	RA	retroarch:81	81	yes	yes	yes	yes	yes	yes	untested	systems.json
 zx81	ZX-81	ZXEIGHTYONE;zx81	p;tzx;t81;zip	PICO	picoarch:81	81	yes	yes	yes	yes	yes	no	untested	FE auto companion
 zxspectrum	ZX Spectrum	ZXS;zxspectrum	tzx;tap;z80;rzx;scl;trd;dsk;dck;sna;szx;zip;gz;udi;mgt;img	RA	retroarch:fuse	fuse	yes	yes	yes	yes	yes	yes	untested	systems.json
