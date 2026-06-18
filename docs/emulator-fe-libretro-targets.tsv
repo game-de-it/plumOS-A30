@@ -130,8 +130,8 @@ megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:gen
 megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
 megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-microw8	MicroW8	MICROW8;microw8	uw8;wasm	RA	retroarch:uw8	uw8	yes	yes	yes	yes	yes	yes	untested	systems.json
-microw8	MicroW8	MICROW8;microw8	uw8;wasm	PICO	picoarch:uw8	uw8	yes	yes	yes	yes	yes	no	untested	FE auto companion
+microw8	MicroW8	MICROW8;microw8	uw8;wasm	RA	retroarch:uw8	uw8	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
+microw8	MicroW8	MICROW8;microw8	uw8;wasm	PICO	picoarch:uw8	uw8	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
