@@ -12,10 +12,10 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 36 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 38 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 12 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_boot` | 10 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 4 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 4 | 起動はするが画面崩れや表示異常がある |
@@ -47,6 +47,7 @@
 | Fairchild Channel F | `retroarch:freechaf`, `picoarch:freechaf` | 実機に FreeChaF の必須 BIOS `sl31254.bin` と、`sl31253.bin` または `sl90025.bin` が無かった。core は実験的 HLE に fallback するが、検証 ROM `tents_CF.bin` では `Unsupported HLE function: 0xd0` で停止する。RA ではその後 dummy core に残るため、RA/PICO launcher で BIOS preflight を追加し、足りない場合は必要ファイル名と MD5 を出して `66` で即終了する。BIOS 入手後に再検証するため `untested` とする。 |
 | Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` 生成後も 320x200/RGB565 出力で stripe corruption が出ていた。`ecwolf-palette=xrgb8888` に切り替えると RA/PICO とも表示崩れが消えたため、RA/PICO launcher で ECWolf の既定 palette を XRGB8888 に seed する。2026-06-19 direct capture で RA title と PICO startup/credits を `pass_init`。 |
 | ZX-81 | `retroarch:81`, `picoarch:81` | EightyOne core は SELECT で仮想キーボードを開くが、plumOS RetroArch の SELECT hotkey enable と衝突していた。RA launcher は `81` core のときだけ hotkey enable を A30 Function/R3 button へ移し、SELECT を core へ返す。PICO は Function を menu、SELECT を core SELECT に bind 済み。PICO の一見崩れた画面は `81_fast_load=disabled` による実時間 tape loading 表示だったため、81 default seed は fast load enabled にした。2026-06-19 direct capture で RA/PICO とも `blocky.p` の game screen まで到達し `pass_init`。 |
+| PicoArch fceumm | NES/FDS の `picoarch:fceumm` | Onion-era の RA 用 `fceumm_libretro.so` は PicoArch では `retro_load_game` 周辺から戻らず、`Loading ...` で止まっていた。PicoArch 用に `Makefile.libretro platform=miyoomini` で build した `fceumm` commit `3f23e2b98f883be9c62a3fdb65c015d376dcd135` は NES/FDS とも `Screen: 256x224`、`Frame rate: 60.099827` まで到達するため、launcher は `picoarch:fceumm` だけ `/mnt/SDCARD/plumos/emulators/picoarch/cores/fceumm_libretro.so` を優先する。2026-06-19 direct smoke で `pass_init`。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -58,7 +59,6 @@
 
 | group | affected profiles | reason |
 | --- | --- | --- |
-| PicoArch fceumm | NES/FDS の `picoarch:fceumm` | RA fceumm と PICO nestopia/quicknes は動くため緊急度は低いが、PicoArch 起動引数や core option 問題の代表例になる。 |
 | mame2003_plus | Arcade/Neo Geo/MAME 2003+ | ROM set 差と performance 問題が混ざっている。Arcade 系は RA 代替があるため、DAT/ROM set 確認を優先する。 |
 | Neo Geo CD via FBNeo | `retroarch:fbneo`, `picoarch:fbneo` | `neocd` は通るため、FBNeo の media/BIOs/track layout 問題として扱う。 |
 | PICO-8 | `retroarch:retro8`, `picoarch:retro8`, `retroarch:fake08` | `picoarch:fake08` は pass。BGM 異常と fake08 RA 起動失敗を分けて調べる。 |

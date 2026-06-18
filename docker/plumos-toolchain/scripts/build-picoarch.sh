@@ -34,6 +34,7 @@ READELF=${READELF:-${CROSS_PREFIX}readelf}
 BIN_DIR="${TARGET_DIR}/plumos/bin"
 LOADER_DIR="${TARGET_DIR}/plumos/lib"
 PICOARCH_BIN_DIR="${TARGET_DIR}/plumos/emulators/picoarch/bin"
+PICOARCH_CORE_DIR="${TARGET_DIR}/plumos/emulators/picoarch/cores"
 PICOARCH_LIB_DIR="${TARGET_DIR}/plumos/emulators/picoarch/lib"
 PICOARCH_CONFIG_DIR="${TARGET_DIR}/plumos/config/standalone"
 DOC_DIR="${TARGET_DIR}/plumos/share/doc/picoarch"
@@ -174,6 +175,16 @@ build_picoarch() {
   "${STRIP}" "${SRC_DIR}/picoarch" 2>/dev/null || true
 }
 
+build_picoarch_fceumm_core() {
+  msg "building PicoArch-compatible fceumm core"
+  make -C "${SRC_DIR}/fceumm" -f Makefile.libretro clean >/dev/null 2>&1 || true
+  MAKEFLAGS= make -C "${SRC_DIR}/fceumm" -f Makefile.libretro \
+    platform=miyoomini \
+    CROSS_COMPILE="${CROSS_PREFIX}" \
+    -j1
+  "${STRIP}" "${SRC_DIR}/fceumm/fceumm_libretro.so" 2>/dev/null || true
+}
+
 write_launcher() {
   mkdir -p "${BIN_DIR}"
   cat >"${BIN_DIR}/plumos-picoarch-launch" <<'EOF'
@@ -201,6 +212,10 @@ Environment:
   PLUMOS_PICOARCH_A30_LINEAR     1 enables GL_LINEAR texture filtering. Default: 0.
   PLUMOS_PICOARCH_A30_FALLBACK_SDL
                                 1 allows stock SDL video fallback if presenter init fails. Default: 0.
+  PLUMOS_PICOARCH_CORE_DIR       PicoArch-specific compatibility core dir.
+                                Default: /mnt/SDCARD/plumos/emulators/picoarch/cores.
+  PLUMOS_PICOARCH_FCEUMM_CORE_PATH
+                                Override fceumm core path used by picoarch:fceumm.
   PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
   PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
@@ -264,13 +279,31 @@ load_env_file() {
 }
 
 load_env_file "${CONFIG_DIR}/picoarch.env"
+PICOARCH_CORE_DIR=${PLUMOS_PICOARCH_CORE_DIR:-${PLUMOS_ROOT}/emulators/picoarch/cores}
+
+picoarch_compat_core_path() {
+  core_id=$1
+  case "${core_id}" in
+    fceumm)
+      if [ -n "${PLUMOS_PICOARCH_FCEUMM_CORE_PATH:-}" ]; then
+        printf '%s\n' "${PLUMOS_PICOARCH_FCEUMM_CORE_PATH}"
+        return 0
+      fi
+      if [ -r "${PICOARCH_CORE_DIR}/fceumm_libretro.so" ]; then
+        printf '%s\n' "${PICOARCH_CORE_DIR}/fceumm_libretro.so"
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
 
 case "${core_arg}" in
   */*|*.so)
     core_path=${core_arg}
     ;;
   *)
-    core_path=${PLUMOS_ROOT}/retroarch/cores/${core_arg}_libretro.so
+    core_path=$(picoarch_compat_core_path "${core_arg}" || printf '%s\n' "${PLUMOS_ROOT}/retroarch/cores/${core_arg}_libretro.so")
     ;;
 esac
 
@@ -903,8 +936,8 @@ EOF
 
 prepare_dist() {
   rm -rf "${TARGET_DIR}"
-  mkdir -p "${PICOARCH_BIN_DIR}" "${DOC_DIR}" "${LOADER_DIR}" "${PICOARCH_LIB_DIR}" \
-    "${PICOARCH_CONFIG_DIR}"
+  mkdir -p "${PICOARCH_BIN_DIR}" "${PICOARCH_CORE_DIR}" "${DOC_DIR}" "${LOADER_DIR}" \
+    "${PICOARCH_LIB_DIR}" "${PICOARCH_CONFIG_DIR}"
 }
 
 write_default_config() {
@@ -926,8 +959,10 @@ stage_outputs() {
   local loader_path
 
   install -m 0755 "${SRC_DIR}/picoarch" "${PICOARCH_BIN_DIR}/picoarch"
+  install -m 0755 "${SRC_DIR}/fceumm/fceumm_libretro.so" "${PICOARCH_CORE_DIR}/fceumm_libretro.so"
   write_launcher
   copy_runtime_deps "${PICOARCH_BIN_DIR}/picoarch" "${PICOARCH_LIB_DIR}"
+  copy_runtime_deps "${PICOARCH_CORE_DIR}/fceumm_libretro.so" "${PICOARCH_LIB_DIR}"
   loader_path=$(find_target_lib ld-linux-armhf.so.3 || true)
   if [ -n "${loader_path}" ]; then
     copy_if_present "${loader_path}" "${LOADER_DIR}" "ld-linux-armhf.so.3"
@@ -955,6 +990,9 @@ stage_outputs() {
     echo "a30_mali_default_rotation=ccw"
     echo "a30_mali_default_vsync=1"
     echo "a30_mali_default_filter=nearest"
+    echo "picoarch_core_dir=plumos/emulators/picoarch/cores"
+    echo "fceumm_core_ref=$(git -C "${SRC_DIR}/fceumm" rev-parse HEAD 2>/dev/null || true)"
+    echo "fceumm_core_platform=miyoomini"
     echo "config=plumos/config/standalone/picoarch.env"
     echo "cc=$("${CC}" --version | head -n 1)"
     echo "target_dir=${TARGET_DIR}"
@@ -962,12 +1000,15 @@ stage_outputs() {
     echo "binary:"
     "${READELF}" -d "${PICOARCH_BIN_DIR}/picoarch" | grep NEEDED || true
     echo
-    sha256sum "${PICOARCH_BIN_DIR}/picoarch" "${BIN_DIR}/plumos-picoarch-launch"
+    sha256sum "${PICOARCH_BIN_DIR}/picoarch" \
+      "${PICOARCH_CORE_DIR}/fceumm_libretro.so" \
+      "${BIN_DIR}/plumos-picoarch-launch"
   } >"${MANIFEST}"
 }
 
 checkout_source
 build_picoarch
+build_picoarch_fceumm_core
 prepare_dist
 stage_outputs
 msg "wrote ${TARGET_DIR}"

@@ -187,10 +187,14 @@ shallow `Makefile*`, `*.mk`, and `*.mak` files inside the core tree. This avoids
 cases like `gambatte`, where the wrapper `Makefile` includes `Makefile.libretro`
 and the included file appends upstream `-O2` after plumOS' `-O3`/`-Ofast`.
 
-PicoArch is treated as an alternative frontend to RetroArch, not as a libretro
-core recipe. `./scripts/docker-build.sh picoarch` builds only the PicoArch
-binary; it references existing libretro cores under
-`/mnt/SDCARD/plumos/retroarch/cores`. The PicoArch binary runs with plumOS glibc
+PicoArch is treated as an alternative frontend to RetroArch, and is generally
+not a libretro core recipe. `./scripts/docker-build.sh picoarch` builds the
+PicoArch binary; it references existing libretro cores under
+`/mnt/SDCARD/plumos/retroarch/cores`. The exception is `fceumm`: the Onion-era RA
+core does not return from the PicoArch `retro_load_game` path, so the PicoArch
+package stages a compatible core and the launcher prefers
+`/mnt/SDCARD/plumos/emulators/picoarch/cores/fceumm_libretro.so` only for
+`picoarch:fceumm`. The PicoArch binary runs with plumOS glibc
 2.36, while SDL1 comes from the A30 stockOS fbcon runtime. If the generic Docker
 `libSDL-1.2.so.0` is loaded first, SDL can block in `VT_WAITACTIVE`, so the
 PicoArch package stages only glibc/libpng/zlib into an emulator-specific libdir
@@ -206,6 +210,9 @@ failure is the stock SDL1 `640x480` fbcon mode set versus A30 LCD scanout, not t
 libretro core build. CPU-side rotation was also not performant enough, so the
 2026-06-15 fix is to route PicoArch's final frame into a dedicated A30 Mali/EGL
 presenter instead of rotating the SDL1 surface on the CPU.
+The 2026-06-19 recheck confirmed that using this compatible core through the A30
+Mali presenter lets NES/FDS `picoarch:fceumm` reach the initial game screen and
+log 60.099827 fps.
 
 The new `plat_a30_mali.c` path keeps menu rendering on PicoArch's software
 640x480 RGB565 surface, but in-game frames bypass PicoArch's CPU scaler and go

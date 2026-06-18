@@ -65,7 +65,7 @@ fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	y
 fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
 fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
 fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
-fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher uses PicoArch-compatible fceumm core under emulators/picoarch/cores
 fds	FDS	FDS;FC;fds	fds;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	RA	retroarch:gw	gw	yes	yes	yes	yes	yes	yes	pass	systems.json
 gameandwatch	Game & Watch	GW;GAMEANDWATCH;gameandwatch	mgw;zip;7z	PICO	picoarch:gw	gw	yes	yes	yes	yes	yes	no	pass	FE auto companion
@@ -153,7 +153,7 @@ neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:neocd	neocd	yes	yes	yes
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	systems.json
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher uses PicoArch-compatible fceumm core under emulators/picoarch/cores
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
