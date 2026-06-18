@@ -12,15 +12,15 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 18 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 22 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 28 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_boot` | 22 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 6 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 8 | 起動はするが画面崩れや表示異常がある |
 | `retired` | 12 | 方針判断済みで通常 FE/動作確認対象から外した |
-| `untested` | 2 | 必要 BIOS/ROM がなく未確認 |
+| `untested` | 4 | 必要 BIOS/ROM がなく未確認 |
 
 ## 切り分け方針
 
@@ -39,6 +39,7 @@
 | group | affected profiles | resolution |
 | --- | --- | --- |
 | Atari 5200 / Atari 8-bit | `retroarch:atari800`, `picoarch:atari800` | `atari800` は system 別 core option が必要だった。RA は `Atari800-atari5200.opt` / `Atari800-atari800.opt` を起動時に選び、PICO は `PLUMOS_PICOARCH_SYSTEM` で cfg seed を切り替える。2026-06-18 direct smoke で `pass_init`。 |
+| mGBA | GB/GBA の `retroarch:mgba`, `picoarch:mgba` | mGBA core の CMake source list から `version.c` と `src/platform/posix/memory.c` を外していたため、`projectName` / `anonymousMemoryMap` が未解決になっていた。不要な除外をやめ、PicoArch の library path は plumOS lib を system lib より先に見る順序へ変更。2026-06-18 direct smoke で GB/GBA は `pass_init`。GBC は実機に `.gbc` ROM がなく `untested`。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -56,7 +57,6 @@
 
 | group | affected profiles | reason |
 | --- | --- | --- |
-| mGBA | GB/GBC/GBA の `retroarch:mgba`, `picoarch:mgba` | 同じ core が複数 system で fail_boot。`gpsp` や `gambatte` はあるが、accuracy fallback として直す価値がある。 |
 | PicoArch fceumm | NES/FDS の `picoarch:fceumm` | RA fceumm と PICO nestopia/quicknes は動くため緊急度は低いが、PicoArch 起動引数や core option 問題の代表例になる。 |
 | mame2003_plus | Arcade/Neo Geo/MAME 2003+ | ROM set 差と performance 問題が混ざっている。Arcade 系は RA 代替があるため、DAT/ROM set 確認を優先する。 |
 | Neo Geo CD via FBNeo | `retroarch:fbneo`, `picoarch:fbneo` | `neocd` は通るため、FBNeo の media/BIOs/track layout 問題として扱う。 |
@@ -88,11 +88,9 @@
 
 ## 最初に実施する調査順
 
-1. `mgba` fail_boot を調べる。
-   複数 system で同じ失敗なので、build recipe または runtime dependency 起因なら一度で潰せる。
-2. PicoArch 共通入力問題を調べる。
+1. PicoArch 共通入力問題を調べる。
    `hatari`、`prboom`、`dosbox_pure` の axis rotation は per-core input transform でまとめて直せる可能性が高い。
-3. C64 video corruption を調べる。
+2. C64 video corruption を調べる。
    RA/PICO 両方で壊れるため、core build/core option の切り分けに向いている。
-4. BIOS/layout 系をまとめて見る。
+3. BIOS/layout 系をまとめて見る。
    `px68k`、`ecwolf`、`freechaf`、`tic80` は missing BIOS/data layout/working directory の確認を優先する。

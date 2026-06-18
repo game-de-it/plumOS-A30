@@ -504,10 +504,11 @@ export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
 export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
 export PLUMOS_PICOARCH_A30_LINEAR=${PLUMOS_PICOARCH_A30_LINEAR:-0}
+export PLUMOS_PICOARCH_LIBRARY_PATH="${PLUMOS_PICOARCH_LIBRARY_PATH:-${PICOARCH_LIB}:${PLUMOS_LIB}:/mnt/SDCARD/miyoo/lib:/usr/lib:/lib}"
 
 run_picoarch() {
   exec "${LOADER}" \
-    --library-path "${PICOARCH_LIB}:/usr/lib:/lib:/mnt/SDCARD/miyoo/lib:${PLUMOS_LIB}" \
+    --library-path "${PLUMOS_PICOARCH_LIBRARY_PATH}" \
     "${PICOARCH_BIN}" "${core_path}" "${rom_path}" "${scale_effect}"
 }
 

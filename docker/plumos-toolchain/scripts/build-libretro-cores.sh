@@ -435,10 +435,7 @@ patch_core_source() {
       fi
       if [ -f "${src}/CMakeLists.txt" ]; then
         sed -i -E \
-          -e '/list\(APPEND UTIL_SRC \$\{CMAKE_CURRENT_BINARY_DIR\}\/version\.c\)/d' \
           -e 's|add_library\(\$\{BINARY_NAME\}_libretro SHARED \$\{CORE_SRC\} \$\{RETRO_SRC\} \$\{CORE_VFS_SRC\}\)|add_library(${BINARY_NAME}_libretro SHARED ${CORE_SRC} ${RETRO_SRC} ${CORE_VFS_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/util/vfs/vfs-fd.c)|' \
-          -e '/file\(GLOB OS_SRC \$\{CMAKE_CURRENT_SOURCE_DIR\}\/src\/platform\/posix\/\*\.c\)/a\
-	list(REMOVE_ITEM OS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/posix/memory.c)' \
           "${src}/CMakeLists.txt"
         printf '[plumOS] patched mgba libretro CMake source list for duplicate/missing VFS symbols\n' >>"${log}"
       fi

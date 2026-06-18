@@ -76,33 +76,33 @@ gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:genesis_plus_
 gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gamegear	Game Gear	GG;GameGear;MD;gamegear	gg;zip;7z	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass	systems.json
-gb	GB	GB;gb	gb;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	fail_boot	systems.json
+gb	GB	GB;gb	gb;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass_init	systems.json
 gb	GB	GB;gb	gb;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	systems.json
 gb	GB	GB;gb	gb;zip;7z	RA	retroarch:tgbdual	tgbdual	yes	yes	yes	yes	yes	no	pass	systems.json
 gb	GB	GB;gb	gb;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	systems.json
 gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gb	GB	GB;gb	gb;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass	FE auto companion
-gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
+gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	yes	pass_init	systems.json
 gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	systems.json
 gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:meteor	meteor	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 gba	GBA	GBA;gba	gba;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	fail_perf	systems.json
-gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:gpsp	gpsp	yes	yes	yes	yes	yes	no	pass	FE auto companion
 gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:mednafen_gba	mednafen_gba	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:meteor	meteor	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vba_next	vba_next	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 gba	GBA	GBA;gba	gba;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gambatte	gambatte	yes	yes	yes	yes	yes	yes	pass_init	systems.json
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	fail_boot	systems.json
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:mgba	mgba	yes	yes	yes	yes	yes	no	untested	systems.json
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass_init	systems.json
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:tgbdual	tgbdual	yes	yes	yes	yes	yes	no	pass_init	systems.json
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	RA	retroarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass_init	systems.json
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gambatte	gambatte	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	untested	FE auto companion
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	pass_init	systems.json
