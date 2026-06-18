@@ -1569,7 +1569,7 @@
       "short_name": "3DO",
       "sort_order": 500,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "PANASONIC", "source": "onion", "priority": 10},
