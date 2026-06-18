@@ -106,14 +106,14 @@ gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:mgba	mgba	yes	yes	yes	yes	yes	no	fai
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	pass_init	systems.json
-j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	untested	systems.json
-j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	untested	FE auto companion
+j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	pass	systems.json
+j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	RA	retroarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
 jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	PICO	picoarch:virtualjaguar	virtualjaguar	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	untested	systems.json
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	PICO	picoarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	untested	systems.json
-lutro	Lutro	LUTRO;lutro	lutro;love;lua	PICO	picoarch:lutro	lutro	yes	yes	yes	yes	yes	no	untested	FE auto companion
+lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	fail_video	systems.json
+lutro	Lutro	LUTRO;lutro	lutro;love;lua	PICO	picoarch:lutro	lutro	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	yes	pass_init	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass_init	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
