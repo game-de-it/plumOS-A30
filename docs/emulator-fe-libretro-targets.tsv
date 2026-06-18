@@ -217,20 +217,20 @@ sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:genesis_plus
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	RA	retroarch:x1	x1	yes	yes	yes	yes	yes	yes	pass_init	systems.json
 sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	PICO	picoarch:x1	x1	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	yes	untested	systems.json
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	systems.json
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	FE auto companion
-supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	untested	systems.json
-supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	yes	pass	systems.json
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	systems.json
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
+supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	pass	systems.json
+supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	pass	FE auto companion
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	theodore	yes	yes	yes	yes	yes	yes	pass	systems.json
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	PICO	picoarch:theodore	theodore	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	RA	retroarch:numero	numero	yes	yes	yes	yes	yes	yes	untested	systems.json
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	PICO	picoarch:numero	numero	yes	yes	yes	yes	yes	no	untested	FE auto companion
-tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
-tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	untested	FE auto companion
-uzebox	Uzebox	UZEBOX;uzebox	uze	RA	retroarch:uzem	uzem	yes	yes	yes	yes	yes	yes	untested	systems.json
-uzebox	Uzebox	UZEBOX;uzebox	uze	PICO	picoarch:uzem	uzem	yes	yes	yes	yes	yes	no	untested	FE auto companion
+tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
+tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+uzebox	Uzebox	UZEBOX;uzebox	uze	RA	retroarch:uzem	uzem	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
+uzebox	Uzebox	UZEBOX;uzebox	uze	PICO	picoarch:uzem	uzem	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	pass	systems.json
 vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	PICO	picoarch:vecx	vecx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 vic20	Commodore VIC-20	VIC20;vic20	d64;d6z;d71;d7z;d80;d81;d82;d8z;g64;g6z;g41;g4z;x64;x6z;nib;nbz;d2m;d4m;t64;tap;tcrt;prg;p00;crt;bin;cmd;m3u;vfl;vsf;zip;7z;gz;20;40;60;a0;b0;rom	RA	retroarch:vice_xvic	vice_xvic	yes	yes	yes	yes	yes	yes	untested	systems.json
