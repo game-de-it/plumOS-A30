@@ -202,6 +202,7 @@ Environment:
   PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y 1 inverts virtual gamepad Y axis.
+  PLUMOS_PICOARCH_SYSTEM       plumOS system id, used for system-specific core defaults.
   PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE
                                 ScummVM-only X source override. Default: axisYR.
   PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE
@@ -537,6 +538,62 @@ picoarch_tag_name() {
   printf '%s\n' "${tag}"
 }
 
+set_picoarch_config_value() {
+  config_path=$1
+  key=$2
+  value=$3
+  tmp_path=${config_path}.tmp.$$
+
+  if grep -q "^${key} = " "${config_path}" 2>/dev/null; then
+    sed "s|^${key} = .*|${key} = ${value}|" "${config_path}" >"${tmp_path}" &&
+      mv "${tmp_path}" "${config_path}" || {
+        rm -f "${tmp_path}"
+        return 1
+      }
+  else
+    printf '%s = %s\n' "${key}" "${value}" >>"${config_path}"
+  fi
+}
+
+seed_picoarch_system_core_options() {
+  config_path=$1
+
+  [ "${core_log_name}" = "atari800" ] || return 0
+  case "${PLUMOS_PICOARCH_SYSTEM:-}" in
+    atari5200)
+      set_picoarch_config_value "${config_path}" atari800_artifacting disabled
+      set_picoarch_config_value "${config_path}" atari800_cassboot disabled
+      set_picoarch_config_value "${config_path}" atari800_internalbasic disabled
+      set_picoarch_config_value "${config_path}" atari800_keyboard poll
+      set_picoarch_config_value "${config_path}" atari800_ntscpal NTSC
+      set_picoarch_config_value "${config_path}" atari800_opt1 enabled
+      set_picoarch_config_value "${config_path}" atari800_opt2 disabled
+      set_picoarch_config_value "${config_path}" atari800_resolution 336x240
+      set_picoarch_config_value "${config_path}" atari800_sioaccel enabled
+      set_picoarch_config_value "${config_path}" atari800_system 5200
+      ;;
+    atari800)
+      set_picoarch_config_value "${config_path}" atari800_artifacting disabled
+      set_picoarch_config_value "${config_path}" atari800_cassboot disabled
+      set_picoarch_config_value "${config_path}" atari800_internalbasic disabled
+      set_picoarch_config_value "${config_path}" atari800_keyboard poll
+      set_picoarch_config_value "${config_path}" atari800_ntscpal PAL
+      set_picoarch_config_value "${config_path}" atari800_opt1 disabled
+      set_picoarch_config_value "${config_path}" atari800_opt2 disabled
+      set_picoarch_config_value "${config_path}" atari800_resolution 336x240
+      set_picoarch_config_value "${config_path}" atari800_sioaccel enabled
+      set_picoarch_config_value "${config_path}" atari800_system "Modern XL/XE(1088K)"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  if [ -n "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
+    set_picoarch_config_value "${config_path}" bios_dir "${PLUMOS_PICOARCH_BIOS_DIR}"
+  fi
+}
+
 seed_picoarch_input_config() {
   tag_name=$(picoarch_tag_name "${rom_path}")
   [ -n "${tag_name}" ] || return 0
@@ -613,6 +670,8 @@ bind escape = menu
 bind \xAA = menu
 CFG
   fi
+
+  seed_picoarch_system_core_options "${config_path}"
 }
 
 uses_shared_bios_root() {

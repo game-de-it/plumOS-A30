@@ -2991,6 +2991,12 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
         return 0;
       }
     }
+    if (!append_string(plan->command, sizeof(plan->command), &pos,
+                       "PLUMOS_PICOARCH_SYSTEM=") ||
+        !append_shell_quoted(plan->command, sizeof(plan->command), &pos, system_id) ||
+        !append_string(plan->command, sizeof(plan->command), &pos, " ")) {
+      return 0;
+    }
     if (!append_shell_quoted(plan->command, sizeof(plan->command), &pos,
                              plan->picoarch_launcher_path) ||
         !append_string(plan->command, sizeof(plan->command), &pos, " ") ||

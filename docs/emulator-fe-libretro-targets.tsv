@@ -11,12 +11,12 @@ arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:fbalpha2012	fbalpha2012	yes	yes
 arcade	Arcade	ARCADE;arcade	zip;7z	PICO	picoarch:mame2000	mame2000	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	RA	retroarch:stella2014	stella2014	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari2600	Atari 2600	ATARI2600;atari2600	a26;bin;zip;7z	PICO	picoarch:stella2014	stella2014	yes	yes	yes	yes	yes	no	pass	FE auto companion
-atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
-atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+atari5200	Atari 5200	FIFTYTWOHUNDRED;atari5200	a52;bin;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	RA	retroarch:prosystem	prosystem	yes	yes	yes	yes	yes	yes	pass	systems.json
 atari7800	Atari 7800	ATARI7800;atari7800	a78;bin;cdf;zip;7z	PICO	picoarch:prosystem	prosystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
-atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
-atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	RA	retroarch:atari800	atari800	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	RA	retroarch:hatari	hatari	yes	yes	yes	yes	yes	yes	pass	systems.json
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	PICO	picoarch:hatari	hatari	yes	yes	yes	yes	yes	no	fail_input	FE auto companion
 c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	RA	retroarch:frodo	frodo	yes	yes	yes	yes	yes	no	fail_video	systems.json

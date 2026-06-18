@@ -12,10 +12,10 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 14 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 18 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 32 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_boot` | 28 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 6 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 8 | 起動はするが画面崩れや表示異常がある |
@@ -34,11 +34,16 @@
 - 調査で改善できた場合は runtime TSV と FE target TSV を更新する。改善できない理由が確定した
   場合は `retired` または非 default として扱う。
 
+## 解決済み
+
+| group | affected profiles | resolution |
+| --- | --- | --- |
+| Atari 5200 / Atari 8-bit | `retroarch:atari800`, `picoarch:atari800` | `atari800` は system 別 core option が必要だった。RA は `Atari800-atari5200.opt` / `Atari800-atari800.opt` を起動時に選び、PICO は `PLUMOS_PICOARCH_SYSTEM` で cfg seed を切り替える。2026-06-18 direct smoke で `pass_init`。 |
+
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
 | group | affected profiles | first hypothesis | first action |
 | --- | --- | --- | --- |
-| Atari 5200 / Atari 8-bit | `retroarch:atari800`, `picoarch:atari800` | Onion-era refresh 後の regression。BIOS path、machine type、core option、content extension 判定のどれかが崩れた可能性が高い。 | 以前 pass した時期の launch log/core options と現在の log を比較し、direct RetroArch と FE 経路で同じ ROM を起動する。 |
 | Commodore 64 | `retroarch:frodo`, `retroarch:vice_x64`, `picoarch:frodo`, `picoarch:vice_x64` | RA/PICO 両方で video が壊れるため、core output format、machine/video standard、または build option 起因の可能性が高い。 | capture と RA log を取り、PAL/NTSC、VIC model、pixel format、core options を固定して再試験する。 |
 | ChaiLove | `retroarch:chailove`, `picoarch:chailove` | RA log で SDL video device 初期化失敗が出ており、libretro core 内部で SDL window を開こうとしている可能性がある。 | core が pure libretro として動けるか確認し、無理なら通常候補から外す。 |
 | Fairchild Channel F | `retroarch:freechaf`, `picoarch:freechaf` | BIOS/ROM format、mapper、または core option の可能性。 | freechaf の BIOS 要件と対象 ROM の header/extension を確認する。 |
@@ -83,13 +88,11 @@
 
 ## 最初に実施する調査順
 
-1. Atari 5200 / Atari 8-bit `atari800` regression を調べる。
-   以前 pass していたため、最も「直る可能性が高く、原因も追いやすい」。
-2. `mgba` fail_boot を調べる。
+1. `mgba` fail_boot を調べる。
    複数 system で同じ失敗なので、build recipe または runtime dependency 起因なら一度で潰せる。
-3. PicoArch 共通入力問題を調べる。
+2. PicoArch 共通入力問題を調べる。
    `hatari`、`prboom`、`dosbox_pure` の axis rotation は per-core input transform でまとめて直せる可能性が高い。
-4. C64 video corruption を調べる。
+3. C64 video corruption を調べる。
    RA/PICO 両方で壊れるため、core build/core option の切り分けに向いている。
-5. BIOS/layout 系をまとめて見る。
+4. BIOS/layout 系をまとめて見る。
    `px68k`、`ecwolf`、`freechaf`、`tic80` は missing BIOS/data layout/working directory の確認を優先する。

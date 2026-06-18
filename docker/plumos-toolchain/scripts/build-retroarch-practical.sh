@@ -544,6 +544,7 @@ JOY="$PLUMOS_ROOT/bin/plumos-joystickd"
 UDP="$PLUMOS_ROOT/bin/plumos-udp-send"
 VOLUME_CONTROL="$PLUMOS_ROOT/bin/plumos-volume-control"
 LOG_DIR="$PLUMOS_ROOT/retroarch/logs"
+RA_HOME="$PLUMOS_ROOT/retroarch/home"
 APPEND="/tmp/plumos-retroarch-launch-$$.cfg"
 CPU_STATE="/tmp/plumos-retroarch-launch-cpustate-$$"
 SYSTEM_SETTINGS="$PLUMOS_ROOT/config/system/settings.json"
@@ -880,6 +881,55 @@ core_id_from_path() {
   printf '%s\n' "$name"
 }
 
+seed_atari800_core_options() {
+  options_dir="$RA_HOME/.config/retroarch/config/Atari800"
+  options_path="$options_dir/Atari800-${SYSTEM}.opt"
+
+  case "$SYSTEM" in
+    atari5200|atari800) ;;
+    *) return 0 ;;
+  esac
+
+  mkdir -p "$options_dir"
+  if [ ! -s "$options_path" ]; then
+    case "$SYSTEM" in
+      atari5200)
+        cat > "$options_path" <<OPTIONS
+atari800_artifacting = "disabled"
+atari800_cassboot = "disabled"
+atari800_internalbasic = "disabled"
+atari800_keyboard = "poll"
+atari800_ntscpal = "NTSC"
+atari800_opt1 = "enabled"
+atari800_opt2 = "disabled"
+atari800_resolution = "336x240"
+atari800_sioaccel = "enabled"
+atari800_system = "5200"
+OPTIONS
+        ;;
+      atari800)
+        cat > "$options_path" <<OPTIONS
+atari800_artifacting = "disabled"
+atari800_cassboot = "disabled"
+atari800_internalbasic = "disabled"
+atari800_keyboard = "poll"
+atari800_ntscpal = "PAL"
+atari800_opt1 = "disabled"
+atari800_opt2 = "disabled"
+atari800_resolution = "336x240"
+atari800_sioaccel = "enabled"
+atari800_system = "Modern XL/XE(1088K)"
+OPTIONS
+        ;;
+    esac
+  fi
+
+  cat >> "$APPEND" <<APPEND
+global_core_options = "true"
+core_options_path = "$options_path"
+APPEND
+}
+
 cleanup() {
   rc=$?
   trap - EXIT HUP INT TERM
@@ -1142,6 +1192,9 @@ fi
 
 CORE_ID="$(core_id_from_path "$CORE")"
 case "$CORE_ID" in
+  atari800)
+    seed_atari800_core_options
+    ;;
   np2kai)
     cat >> "$APPEND" <<APPEND
 np2kai_joymode = "Arrows"
