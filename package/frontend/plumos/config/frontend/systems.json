@@ -2179,7 +2179,7 @@
       "short_name": "Mr.Boom",
       "sort_order": 720,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "MRBOOM", "source": "plumos", "priority": 10},
@@ -2233,7 +2233,7 @@
       "short_name": "Palm",
       "sort_order": 740,
       "hardware": "portable",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "PALM", "source": "plumos", "priority": 10},

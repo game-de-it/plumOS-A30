@@ -132,14 +132,12 @@ megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:ge
 megadrive	Mega Drive	MD;megadrive;genesis	gen;md;smd;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 microw8	MicroW8	MICROW8;microw8	uw8;wasm	RA	retroarch:uw8	uw8	yes	yes	yes	yes	yes	yes	untested	systems.json
 microw8	MicroW8	MICROW8;microw8	uw8;wasm	PICO	picoarch:uw8	uw8	yes	yes	yes	yes	yes	no	untested	FE auto companion
-mrboom	Mr.Boom	MRBOOM;mrboom	desktop	RA	retroarch:mrboom	mrboom	yes	yes	yes	yes	yes	yes	untested	systems.json
-mrboom	Mr.Boom	MRBOOM;mrboom	desktop	PICO	picoarch:mrboom	mrboom	yes	yes	yes	yes	yes	no	untested	FE auto companion
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	RA	retroarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	systems.json
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 msx	MSX	MSX;msx	rom;mx1;mx2;dsk;cas;zip;7z	PICO	picoarch:fmsx	fmsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
-music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	RA	retroarch:gme	gme	yes	yes	yes	yes	yes	yes	untested	systems.json
-music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	PICO	picoarch:gme	gme	yes	yes	yes	yes	yes	no	untested	FE auto companion
+music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	RA	retroarch:gme	gme	yes	yes	yes	yes	yes	yes	pass	systems.json
+music	Game Music Emu	MUSIC;music	ay;gbs;gym;hes;kss;nsf;nsfe;sap;spc;vgm;vgz;zip	PICO	picoarch:gme	gme	yes	yes	yes	yes	yes	no	pass	FE auto companion
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:mame2003_plus	mame2003_plus	yes	yes	yes	yes	yes	no	fail_boot	systems.json
 neogeo	Neo Geo	NEOGEO;neogeo	zip;7z	RA	retroarch:fbalpha2012	fbalpha2012	yes	yes	yes	yes	yes	no	pass	systems.json
@@ -164,8 +162,6 @@ ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	y
 ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	pass	systems.json
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	pass	FE auto companion
-palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	RA	retroarch:mu	mu	yes	yes	yes	yes	yes	yes	untested	systems.json
-palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	PICO	picoarch:mu	mu	yes	yes	yes	yes	yes	no	untested	FE auto companion
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	fail_input	systems.json
