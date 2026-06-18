@@ -189,9 +189,9 @@ pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:med
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	RA	retroarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	yes	untested	systems.json
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	PICO	picoarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	pass	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	pass	FE auto companion
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	fail_audio	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	fail_boot	systems.json
+pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	fail_audio	FE auto companion
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
@@ -201,14 +201,14 @@ quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	y
 quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	untested	FE auto companion
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	RA	retroarch:xrick	xrick	yes	yes	yes	yes	yes	yes	untested	systems.json
 rickdangerous	Rick Dangerous	XRICK;xrick	zip	PICO	picoarch:xrick	xrick	yes	yes	yes	yes	yes	no	untested	FE auto companion
-scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	systems.json
+scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
 sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	untested	systems.json
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	systems.json
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	untested	FE auto companion
-segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	untested	FE auto companion
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	yes	pass	systems.json
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	systems.json
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
+segacd	Sega CD	SEGACD;segacd;megacd	cue;chd;iso;m3u;bin	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x2005	snes9x2005	yes	yes	yes	yes	yes	yes	pass	systems.json
 sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:snes9x	snes9x	yes	yes	yes	yes	yes	no	pass	systems.json
 sfc	SFC	SFC;sfc;snes	sfc;smc;fig;bs;swc;zip;7z	RA	retroarch:chimerasnes	chimerasnes	yes	yes	yes	yes	yes	no	pass	systems.json
