@@ -2314,7 +2314,7 @@
       "short_name": "XRick",
       "sort_order": 770,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "XRICK", "source": "plumos", "priority": 10},

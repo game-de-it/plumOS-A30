@@ -173,8 +173,8 @@ pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_super
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
-pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	RA	retroarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	yes	untested	systems.json
-pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	PICO	picoarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	no	untested	FE auto companion
+pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	RA	retroarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
+pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	PICO	picoarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	fail_audio	systems.json
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	fail_boot	systems.json
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	fail_audio	FE auto companion
@@ -183,10 +183,8 @@ pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemin
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	PICO	picoarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	FE auto companion
-quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	yes	untested	systems.json
-quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	untested	FE auto companion
-rickdangerous	Rick Dangerous	XRICK;xrick	zip	RA	retroarch:xrick	xrick	yes	yes	yes	yes	yes	yes	untested	systems.json
-rickdangerous	Rick Dangerous	XRICK;xrick	zip	PICO	picoarch:xrick	xrick	yes	yes	yes	yes	yes	no	untested	FE auto companion
+quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	yes	pass	systems.json
+quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
@@ -217,8 +215,8 @@ sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:bluemsx	blue
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:gearsystem	gearsystem	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:genesis_plus_gx	genesis_plus_gx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sg1000	SG-1000	SEGASGONE;sg-1000	sg;mv;bin;rom;sms;gg	PICO	picoarch:picodrive	picodrive	yes	yes	yes	yes	yes	no	pass	FE auto companion
-sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	RA	retroarch:x1	x1	yes	yes	yes	yes	yes	yes	untested	systems.json
-sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	PICO	picoarch:x1	x1	yes	yes	yes	yes	yes	no	untested	FE auto companion
+sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	RA	retroarch:x1	x1	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+sharpx1	Sharp X1	XONE;x1	dx1;zip;2d;2hd;tfd;d88;88d;hdm;xdf;dup;tap;cmd	PICO	picoarch:x1	x1	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	yes	untested	systems.json
 supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	systems.json
 supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	untested	FE auto companion
