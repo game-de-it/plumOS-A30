@@ -770,6 +770,19 @@ uses_shared_bios_root() {
   return 1
 }
 
+freechaf_bios_ready() {
+  bios_dir=${PLUMOS_PICOARCH_BIOS_DIR:-${SDCARD_ROOT}/Bios}
+  [ -r "${bios_dir}/sl31254.bin" ] || return 1
+  [ -r "${bios_dir}/sl31253.bin" ] || [ -r "${bios_dir}/sl90025.bin" ] || return 1
+  return 0
+}
+
+freechaf_bios_error() {
+  bios_dir=${PLUMOS_PICOARCH_BIOS_DIR:-${SDCARD_ROOT}/Bios}
+  printf 'error: FreeChaF requires BIOS in %s: sl31254.bin and one of sl31253.bin or sl90025.bin\n' "${bios_dir}"
+  printf 'expected md5: sl31254=da98f4bb3242ab80d76629021bb27585, sl31253=ac9804d4c0e9d07e33472e3726ed15c3, sl90025=95d339631d867c8f1d15a5f2ec26069d\n'
+}
+
 if [ -z "${PLUMOS_PICOARCH_BIOS_DIR:-}" ]; then
   case "${core_log_name}" in
     quasi88)
@@ -795,6 +808,10 @@ run_log=${LOG_DIR}/${core_log_name}-last.log
 latest_log=${LOG_DIR}/last.log
 
 if [ "${PLUMOS_PICOARCH_LOG:-1}" = 0 ]; then
+  if [ "${core_log_name}" = freechaf ] && ! freechaf_bios_ready; then
+    freechaf_bios_error >&2
+    exit 66
+  fi
   run_picoarch &
   picoarch_pid=$!
   wait "${picoarch_pid}"
@@ -823,6 +840,13 @@ fi
   printf 'bios_dir=%s\n' "${PLUMOS_PICOARCH_BIOS_DIR:-}"
   printf '%s\n' '---'
 } >"${run_log}"
+
+if [ "${core_log_name}" = freechaf ] && ! freechaf_bios_ready; then
+  freechaf_bios_error >&2
+  freechaf_bios_error >>"${run_log}"
+  cp "${run_log}" "${latest_log}" 2>/dev/null || true
+  exit 66
+fi
 
 run_picoarch >>"${run_log}" 2>&1 &
 picoarch_pid=$!

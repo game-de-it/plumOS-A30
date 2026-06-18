@@ -29,8 +29,8 @@ cavestory	Cave Story	CAVESTORY;cavestory	exe	RA	retroarch:nxengine	nxengine	yes	
 cavestory	Cave Story	CAVESTORY;cavestory	exe	PICO	picoarch:nxengine	nxengine	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 chailove	ChaiLove	CHAILOVE;chailove	chai;chailove	RA	retroarch:chailove	chailove	yes	yes	yes	yes	yes	yes	pass_init	systems.json; launcher sets SDL_VIDEODRIVER=LIBRETROvideo for ChaiLove
 chailove	ChaiLove	CHAILOVE;chailove	chai;chailove	PICO	picoarch:chailove	chailove	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher sets SDL_VIDEODRIVER=LIBRETROvideo for ChaiLove
-channelf	Fairchild Channel F	FAIRCHILD;channelf	bin;chf;rom;zip	RA	retroarch:freechaf	freechaf	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
-channelf	Fairchild Channel F	FAIRCHILD;channelf	bin;chf;rom;zip	PICO	picoarch:freechaf	freechaf	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+channelf	Fairchild Channel F	FAIRCHILD;channelf	bin;chf;rom;zip	RA	retroarch:freechaf	freechaf	yes	yes	yes	yes	yes	yes	untested	systems.json; requires sl31254.bin plus sl31253.bin or sl90025.bin in /mnt/SDCARD/Bios
+channelf	Fairchild Channel F	FAIRCHILD;channelf	bin;chf;rom;zip	PICO	picoarch:freechaf	freechaf	yes	yes	yes	yes	yes	no	untested	FE auto companion; requires sl31254.bin plus sl31253.bin or sl90025.bin in /mnt/SDCARD/Bios
 colecovision	ColecoVision	COLECO;coleco	rom;ri;mx1;mx2;col;dsk;cas;sg;sc;m3u;zip;7z	RA	retroarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	yes	pass	systems.json
 colecovision	ColecoVision	COLECO;coleco	rom;ri;mx1;mx2;col;dsk;cas;sg;sc;m3u;zip;7z	PICO	picoarch:bluemsx	bluemsx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 cpc	Amstrad CPC	CPC;amstradcpc	dsk;sna;zip;tap;cdt;voc;cpr;m3u;kcr	RA	retroarch:cap32	cap32	yes	yes	yes	yes	yes	no	pass	systems.json

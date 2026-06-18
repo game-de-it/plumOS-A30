@@ -548,6 +548,7 @@ RA_HOME="$PLUMOS_ROOT/retroarch/home"
 APPEND="/tmp/plumos-retroarch-launch-$$.cfg"
 CPU_STATE="/tmp/plumos-retroarch-launch-cpustate-$$"
 SYSTEM_SETTINGS="$PLUMOS_ROOT/config/system/settings.json"
+BIOS_ROOT="${PLUMOS_BIOS_DIR:-/mnt/SDCARD/Bios}"
 RA_LOG="$LOG_DIR/launch-last.log"
 JOY_LOG="$LOG_DIR/launch-joystickd-last.log"
 NETCMD_LOG="$LOG_DIR/launch-netcmd-last.log"
@@ -881,6 +882,24 @@ core_id_from_path() {
   printf '%s\n' "$name"
 }
 
+freechaf_bios_ready() {
+  [ -r "$BIOS_ROOT/sl31254.bin" ] || return 1
+  [ -r "$BIOS_ROOT/sl31253.bin" ] || [ -r "$BIOS_ROOT/sl90025.bin" ] || return 1
+  return 0
+}
+
+freechaf_bios_error() {
+  printf 'error: FreeChaF requires BIOS in %s: sl31254.bin and one of sl31253.bin or sl90025.bin\n' "$BIOS_ROOT"
+  printf 'expected md5: sl31254=da98f4bb3242ab80d76629021bb27585, sl31253=ac9804d4c0e9d07e33472e3726ed15c3, sl90025=95d339631d867c8f1d15a5f2ec26069d\n'
+}
+
+require_freechaf_bios() {
+  freechaf_bios_ready && return 0
+  freechaf_bios_error >&2
+  freechaf_bios_error >>"$RA_LOG"
+  exit 66
+}
+
 seed_atari800_core_options() {
   options_dir="$RA_HOME/.config/retroarch/config/Atari800"
   options_path="$options_dir/Atari800-${SYSTEM}.opt"
@@ -1194,6 +1213,9 @@ CORE_ID="$(core_id_from_path "$CORE")"
 case "$CORE_ID" in
   chailove)
     export SDL_VIDEODRIVER=LIBRETROvideo
+    ;;
+  freechaf)
+    require_freechaf_bios
     ;;
   atari800)
     seed_atari800_core_options
