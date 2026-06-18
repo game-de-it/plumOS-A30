@@ -323,6 +323,9 @@ these cores at the shared BIOS root. A per core/ROM directory `bios_dir` in
 | SNES special carts | `snes9x` | Read BS-X / Sufami Turbo BIOS files from `/mnt/SDCARD/Bios`. |
 | PC-88 | `quasi88` | Exception: use `/mnt/SDCARD/Bios/quasi88`. |
 
+ECWolf shows stripe corruption on the A30 RGB565 path for its 320x200 output,
+so the RA/PICO launchers seed `ecwolf-palette=xrgb8888` by default.
+
 The first 2026-06-13 probe used `scripts/probe-libretro-core-options.sh` on
 `nestopia`, `quicknes`, `snes9x2005`, `mednafen_pce_fast`, and
 `mednafen_supergrafx`. `nestopia`, `quicknes`, `mednafen_pce_fast`, and

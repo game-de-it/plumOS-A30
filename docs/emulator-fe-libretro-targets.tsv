@@ -239,8 +239,8 @@ virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	RA	retroarch:mednafen_vb
 virtualboy	Virtual Boy	VB;virtualboy	vb;vboy;bin;zip;7z	PICO	picoarch:mednafen_vb	mednafen_vb	yes	yes	yes	yes	yes	no	pass	FE auto companion
 vmu	Dreamcast VMU	VMU;vmu	vms;dci;bin	RA	retroarch:vemulator	vemulator	yes	yes	yes	yes	yes	yes	fail_video	systems.json
 vmu	Dreamcast VMU	VMU;vmu	vms;dci;bin	PICO	picoarch:vemulator	vemulator	yes	yes	yes	yes	yes	no	pass	FE auto companion
-wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	RA	retroarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	yes	fail_video	systems.json
-wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	PICO	picoarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	no	fail_video	FE auto companion
+wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	RA	retroarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	yes	pass_init	systems.json; ecwolf-palette=xrgb8888 required on A30 to avoid RGB565 stripe corruption
+wolf3d	Wolfenstein 3D	WOLF3D;wolf3d	wl6;n3d;sod;sdm;wl1;pk3;exe	PICO	picoarch:ecwolf	ecwolf	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; ecwolf-palette=xrgb8888 required on A30 to avoid RGB565 stripe corruption
 wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json
 wonderswan	WonderSwan	WS;WSC;wonderswan	ws;zip;7z	PICO	picoarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	no	pass	FE auto companion
 wonderswancolor	WonderSwan Color	WSC;wonderswancolor	wsc;zip;7z	RA	retroarch:mednafen_wswan	mednafen_wswan	yes	yes	yes	yes	yes	yes	pass	systems.json

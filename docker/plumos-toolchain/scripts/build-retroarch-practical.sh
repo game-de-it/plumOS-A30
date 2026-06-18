@@ -900,6 +900,32 @@ require_freechaf_bios() {
   exit 66
 }
 
+set_ra_core_option() {
+  options_path=$1
+  key=$2
+  value=$3
+  tmp_path=${options_path}.tmp.$$
+
+  if grep -q "^${key} = " "$options_path" 2>/dev/null; then
+    sed "s|^${key} = .*|${key} = \"${value}\"|" "$options_path" >"$tmp_path" &&
+      mv "$tmp_path" "$options_path" || {
+        rm -f "$tmp_path"
+        return 1
+      }
+  else
+    printf '%s = "%s"\n' "$key" "$value" >>"$options_path"
+  fi
+}
+
+seed_ecwolf_core_options() {
+  options_dir="$RA_HOME/.config/retroarch/config/ecwolf"
+  options_path="$options_dir/ecwolf.opt"
+
+  mkdir -p "$options_dir"
+  [ -f "$options_path" ] || : >"$options_path"
+  set_ra_core_option "$options_path" ecwolf-palette xrgb8888
+}
+
 seed_atari800_core_options() {
   options_dir="$RA_HOME/.config/retroarch/config/Atari800"
   options_path="$options_dir/Atari800-${SYSTEM}.opt"
@@ -1216,6 +1242,9 @@ case "$CORE_ID" in
     ;;
   freechaf)
     require_freechaf_bios
+    ;;
+  ecwolf)
+    seed_ecwolf_core_options
     ;;
   atari800)
     seed_atari800_core_options

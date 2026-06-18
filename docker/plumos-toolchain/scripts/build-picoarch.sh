@@ -630,7 +630,15 @@ set_picoarch_config_value() {
 seed_picoarch_system_core_options() {
   config_path=$1
 
-  [ "${core_log_name}" = "atari800" ] || return 0
+  case "${core_log_name}" in
+    ecwolf)
+      set_picoarch_config_value "${config_path}" ecwolf-palette xrgb8888
+      return 0
+      ;;
+    atari800) ;;
+    *) return 0 ;;
+  esac
+
   case "${PLUMOS_PICOARCH_SYSTEM:-}" in
     atari5200)
       set_picoarch_config_value "${config_path}" atari800_artifacting disabled

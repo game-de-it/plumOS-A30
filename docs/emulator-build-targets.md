@@ -275,6 +275,9 @@ BIOS pack の多くは Onion/Miyoo 互換の共有 BIOS root `/mnt/SDCARD/Bios` 
 | SNES special carts | `snes9x` | BS-X / Sufami Turbo BIOS を `/mnt/SDCARD/Bios` から読む。 |
 | PC-88 | `quasi88` | 例外として `/mnt/SDCARD/Bios/quasi88` を使う。 |
 
+ECWolf は A30 の RGB565 経路で 320x200 画面に stripe corruption が出るため、
+RA/PICO launcher は `ecwolf-palette=xrgb8888` を既定 seed とします。
+
 2026-06-13 の first probe では、`scripts/probe-libretro-core-options.sh` で
 `nestopia`、`quicknes`、`snes9x2005`、`mednafen_pce_fast`、
 `mednafen_supergrafx` を比較しました。`nestopia`、`quicknes`、

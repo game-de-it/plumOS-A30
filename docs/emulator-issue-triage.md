@@ -12,13 +12,13 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 32 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 34 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
 | `fail_boot` | 12 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 6 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
-| `fail_video` | 6 | 起動はするが画面崩れや表示異常がある |
+| `fail_video` | 4 | 起動はするが画面崩れや表示異常がある |
 | `retired` | 12 | 方針判断済みで通常 FE/動作確認対象から外した |
 | `untested` | 6 | 必要 BIOS/ROM がなく未確認 |
 
@@ -45,12 +45,12 @@
 | TIC-80 | `retroarch:tic80`, `picoarch:tic80` | PicoArch 側は `RETRO_ENVIRONMENT_SET_FRAME_TIME_CALLBACK` 未対応で content load 前に失敗していたため、PicoArch に frame-time callback dispatch を追加。さらに TIC-80 core は `BUILD_STATIC=OFF` だと `script.c` の Lua backend が `Scripts[]` に登録されず、初回 `tic_init_vm()` へ進んだところで実行 backend が空になるため、TIC-80 CMake build に `-DBUILD_STATIC=ON` を追加した。2026-06-19 direct smoke で RA は `--max-frames 120` 正常終了、PICO は連続 `VIDEO_REFRESH` を確認し `pass_init`。 |
 | ChaiLove | `retroarch:chailove`, `picoarch:chailove` | ChaiLove core は内部で SDL1 を使い、`SDL_VIDEODRIVER` が未指定または `fbcon` のままだと同梱 SDL の libretro video driver が選ばれず `Unable to initialize SDL No available video device` で失敗した。RA/PICO launcher で `chailove` のときだけ `SDL_VIDEODRIVER=LIBRETROvideo` を export するようにし、RA は 120 frames 正常終了、PICO は content load、`Screen: 480x480`、`Frame rate: 60` まで確認して `pass_init`。 |
 | Fairchild Channel F | `retroarch:freechaf`, `picoarch:freechaf` | 実機に FreeChaF の必須 BIOS `sl31254.bin` と、`sl31253.bin` または `sl90025.bin` が無かった。core は実験的 HLE に fallback するが、検証 ROM `tents_CF.bin` では `Unsupported HLE function: 0xd0` で停止する。RA ではその後 dummy core に残るため、RA/PICO launcher で BIOS preflight を追加し、足りない場合は必要ファイル名と MD5 を出して `66` で即終了する。BIOS 入手後に再検証するため `untested` とする。 |
+| Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` 生成後も 320x200/RGB565 出力で stripe corruption が出ていた。`ecwolf-palette=xrgb8888` に切り替えると RA/PICO とも表示崩れが消えたため、RA/PICO launcher で ECWolf の既定 palette を XRGB8888 に seed する。2026-06-19 direct capture で RA title と PICO startup/credits を `pass_init`。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
 | group | affected profiles | first hypothesis | first action |
 | --- | --- | --- | --- |
-| Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` missing は解消し、shareware data load と menu setup までは成立した。残る問題は 320x200/RGB565 画面の縦帯 corruption。 | RA/PICO で同じ崩れ方をするため、まず ECWolf core の pitch/stride/pixel format 更新、または frontend 側の 320x200 surface handling を見る。 |
 | ZX-81 | `retroarch:81`, `picoarch:81` | 起動はするが video/input が崩れるため、keyboard/joystick mode、model、display timing、rotation/scale の複合問題の可能性。 | core option と input mapping を固定し、まず RA 単体で video と input を分けて確認する。 |
 
 ## 優先度 P2: 代替はあるが、直ると選択肢が増える問題
@@ -88,7 +88,7 @@
 
 ## 最初に実施する調査順
 
-1. PicoArch 共通入力問題を調べる。
+1. ZX-81 の video/input を RA 単体で分離して確認する。
+   `retroarch:81` と `picoarch:81` の両方で画面と操作が崩れるため、まず core option、keyboard/joystick mode、model を固定して最小再現を見る。
+2. PicoArch 共通入力問題を調べる。
    `hatari`、`prboom`、`dosbox_pure` の axis rotation は per-core input transform でまとめて直せる可能性が高い。
-2. BIOS/layout 系をまとめて見る。
-   `ecwolf`、`freechaf`、`tic80` は missing BIOS/data layout/working directory の確認を優先する。
