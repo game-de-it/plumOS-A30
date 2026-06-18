@@ -554,12 +554,24 @@ apply_cpu_policy "${PLUMOS_PICOARCH_CPU_POLICY:-keep}" \
   "${PLUMOS_PICOARCH_CPU_CORES:-keep}"
 start_joystickd
 
+core_log_name=$(basename "${core_path}")
+core_log_name=${core_log_name%_libretro.so}
+core_log_name=${core_log_name%.so}
+core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
+
 export HOME=${STATE_DIR}
 export XDG_CONFIG_HOME=${STATE_DIR}/xdg-config
 export XDG_DATA_HOME=${STATE_DIR}/xdg-data
 export XDG_CACHE_HOME=${STATE_DIR}/xdg-cache
 export SDCARD_PATH=${SDCARD_ROOT}
-export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-fbcon}
+case "${core_log_name}" in
+  chailove)
+    export SDL_VIDEODRIVER=LIBRETROvideo
+    ;;
+  *)
+    export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-fbcon}
+    ;;
+esac
 export SDL_FBDEV=${SDL_FBDEV:-/dev/fb0}
 export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
@@ -575,11 +587,6 @@ run_picoarch() {
     --library-path "${PLUMOS_PICOARCH_LIBRARY_PATH}" \
     "${PICOARCH_BIN}" "${core_path}" "${rom_path}" "${scale_effect}"
 }
-
-core_log_name=$(basename "${core_path}")
-core_log_name=${core_log_name%_libretro.so}
-core_log_name=${core_log_name%.so}
-core_log_name=$(printf '%s' "${core_log_name}" | tr -c 'A-Za-z0-9_.-' '_')
 
 picoarch_tag_name() {
   path=$1

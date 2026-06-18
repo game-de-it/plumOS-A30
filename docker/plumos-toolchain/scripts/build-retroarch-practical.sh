@@ -1192,6 +1192,9 @@ fi
 
 CORE_ID="$(core_id_from_path "$CORE")"
 case "$CORE_ID" in
+  chailove)
+    export SDL_VIDEODRIVER=LIBRETROvideo
+    ;;
   atari800)
     seed_atari800_core_options
     ;;
