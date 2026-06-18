@@ -1543,8 +1543,8 @@
       "short_name": "2048",
       "sort_order": 490,
       "hardware": "app",
-      "enabled": true,
-      "pinned": true,
+      "enabled": false,
+      "pinned": false,
       "directory_aliases": [
         {"name": "2048", "source": "plumos", "priority": 10}
       ],
