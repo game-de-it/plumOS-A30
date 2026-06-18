@@ -197,6 +197,10 @@ presenter 初期化失敗時は通常失敗扱いにし、明示的に
 GPU 側の矩形で処理します。`Screen effect` は `None`、`Scanline`、`DMG`、`LCD` を
 GPU 側で処理します。`DMG` は白寄せの液晶ブレンド、`LCD` は RGB サブピクセル風の
 周期パターンとして shader で近似し、PicoArch の software scaler へ戻らないようにします。
+2026-06-19 には frameskip 時の duplicate frame も A30 Mali presenter 側で扱うようにしました。
+libretro core が `video_refresh(NULL, ...)` を返した場合、前回 upload 済み texture を再描画して
+`eglSwapBuffers` します。これにより、frameskip 有効時に swap が抜けて表示や frame pacing が
+乱れる経路を避けます。
 古い/ユーザー編集済み `picoarch.cfg` で Gamepad 側の Function menu bind が欠落していても、
 起動時に全 SDL input device へ既定の menu bind を再付与します。`EACTION_MENU` は
 PicoArch の config 保存 action table にも追加し、既存 config に `bind escape = menu` /

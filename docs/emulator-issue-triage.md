@@ -48,6 +48,7 @@
 | Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` 生成後も 320x200/RGB565 出力で stripe corruption が出ていた。`ecwolf-palette=xrgb8888` に切り替えると RA/PICO とも表示崩れが消えたため、RA/PICO launcher で ECWolf の既定 palette を XRGB8888 に seed する。2026-06-19 direct capture で RA title と PICO startup/credits を `pass_init`。 |
 | ZX-81 | `retroarch:81`, `picoarch:81` | EightyOne core は SELECT で仮想キーボードを開くが、plumOS RetroArch の SELECT hotkey enable と衝突していた。RA launcher は `81` core のときだけ hotkey enable を A30 Function/R3 button へ移し、SELECT を core へ返す。PICO は Function を menu、SELECT を core SELECT に bind 済み。PICO の一見崩れた画面は `81_fast_load=disabled` による実時間 tape loading 表示だったため、81 default seed は fast load enabled にした。2026-06-19 direct capture で RA/PICO とも `blocky.p` の game screen まで到達し `pass_init`。 |
 | PicoArch fceumm | NES/FDS の `picoarch:fceumm` | Onion-era の RA 用 `fceumm_libretro.so` は PicoArch では `retro_load_game` 周辺から戻らず、`Loading ...` で止まっていた。PicoArch 用に `Makefile.libretro platform=miyoomini` で build した `fceumm` commit `3f23e2b98f883be9c62a3fdb65c015d376dcd135` は NES/FDS とも `Screen: 256x224`、`Frame rate: 60.099827` まで到達するため、launcher は `picoarch:fceumm` だけ `/mnt/SDCARD/plumos/emulators/picoarch/cores/fceumm_libretro.so` を優先する。2026-06-19 direct smoke で `pass_init`。 |
+| PicoArch frameskip duplicate frame | frameskip 有効時に `video_refresh(NULL, ...)` を返す core | A30 Mali presenter では `data == NULL` frame で何も描画せず `eglSwapBuffers` もしなかったため、frameskip 時の点滅や frame pacing 崩れにつながり得た。`data == NULL` のときは前回 upload 済み texture を再描画して swap するように変更。2026-06-19 direct trace で `mame2000` が `data=(nil)` を返すことを確認し、`kungfum.zip` capture で正常表示を確認。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -70,7 +71,7 @@
 | symptom | affected profiles | direction |
 | --- | --- | --- |
 | analog axis rotation | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | PicoArch launcher 側で `axisYR`/`axisXR` の rotated-axis default を適用済み。launcher/joystickd log では補正適用を確認済みで、実操作の目視確認待ち。 |
-| lower FPS / frameskip flicker | Arcade PICO profiles, `picoarch:mame2003_plus` | RA との差分として audio sync、frame limiter、frameskip path、present timing を測る。 |
+| lower FPS / frameskip flicker | Arcade PICO profiles, `picoarch:mame2003_plus` | `video_refresh(NULL, ...)` 時に前回 texture を repeat/swap する修正は入った。次は実機目視で flicker 低減を確認し、残る低 FPS は RA との差分として audio sync、frame limiter、present timing を測る。 |
 | PICO-only fail_boot | `picoarch:tyrquake`, `picoarch:lutro`, `picoarch:easyrpg`, `picoarch:squirreljme` など | PicoArch の content path、system dir、core option 初期化、working directory を RA と比較する。 |
 
 ## 優先度 P4: 性能限界として扱う候補

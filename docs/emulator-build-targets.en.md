@@ -231,6 +231,10 @@ The direct path handles PicoArch `Screen size` values `Native`, `Aspect`, and
 and `LCD` stay on the GPU path. `DMG` approximates the original white-biased LCD
 blend and `LCD` approximates the RGB subpixel pattern in the fragment shader, so
 these effects do not return to PicoArch's software scaler on A30.
+On 2026-06-19, duplicate frames from frameskip were also moved into the A30 Mali
+presenter path. When a libretro core calls `video_refresh(NULL, ...)`, PicoArch
+now redraws the previously uploaded texture and calls `eglSwapBuffers`, avoiding
+the no-swap path that could disturb frameskip display and frame pacing.
 When an old or user-edited `picoarch.cfg` lacks the Gamepad-side Function menu
 binding, startup restores the default menu binding across all SDL input devices.
 `EACTION_MENU` is also present in PicoArch's config-save action table, and if an

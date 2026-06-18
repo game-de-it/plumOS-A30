@@ -1,0 +1,108 @@
+--- a/plat_sdl.c
++++ b/plat_sdl.c
+@@ -453,6 +453,7 @@
+ #ifdef PICOARCH_A30_MALI
+ 	if (a30_mali_active) {
+ 		if (a30_direct.duplicate) {
++			picoarch_a30_mali_repeat_frame();
+ 			a30_direct.duplicate = 0;
+ 			return screen->pixels;
+ 		}
+--- a/plat_a30_mali.c
++++ b/plat_a30_mali.c
+@@ -798,28 +798,20 @@
+ 	}
+ }
+ 
+-static void draw_rect(GLuint *texture, int *texture_w, int *texture_h,
+-		      const void *pixels_in, int pitch, int width, int height, int pixel_format,
+-		      int logical_x, int logical_y, int logical_w, int logical_h,
+-		      int effect)
++static void draw_texture(GLuint texture, int width, int height,
++			 int logical_x, int logical_y, int logical_w, int logical_h,
++			 int effect)
+ {
+ 	GLfloat vertices[16];
+-	const void *pixels;
+ 	int sx;
+ 	int sy;
+ 	int effect_period;
+ 
+-	if (!g_a30.initialized || !pixels_in)
++	if (!g_a30.initialized || !texture || width <= 0 || height <= 0)
+ 		return;
+-	if (width <= 0 || height <= 0) {
+-		fprintf(stderr, "picoarch-a30: invalid present size %dx%d\n", width, height);
+-		return;
+-	}
+ 
+-	pixels = prepare_rgb565_pixels(pixels_in, pitch, width, height, pixel_format);
+-	ensure_texture_size(texture, texture_w, texture_h, width, height);
+-	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+-			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, texture);
+ 	sx = width > 0 ? logical_w / width : 1;
+ 	sy = height > 0 ? logical_h / height : 1;
+ 	effect_period = sx < sy ? sx : sy;
+@@ -846,6 +838,27 @@
+ 	g_a30.gl.DisableVertexAttribArray(0);
+ }
+ 
++static void draw_rect(GLuint *texture, int *texture_w, int *texture_h,
++		      const void *pixels_in, int pitch, int width, int height, int pixel_format,
++		      int logical_x, int logical_y, int logical_w, int logical_h,
++		      int effect)
++{
++	const void *pixels;
++
++	if (!g_a30.initialized || !pixels_in)
++		return;
++	if (width <= 0 || height <= 0) {
++		fprintf(stderr, "picoarch-a30: invalid present size %dx%d\n", width, height);
++		return;
++	}
++
++	pixels = prepare_rgb565_pixels(pixels_in, pitch, width, height, pixel_format);
++	ensure_texture_size(texture, texture_w, texture_h, width, height);
++	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
++			       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels);
++	draw_texture(*texture, width, height, logical_x, logical_y, logical_w, logical_h, effect);
++}
++
+ static void begin_present(void)
+ {
+ 	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
+@@ -913,6 +926,22 @@
+ 	end_present();
+ }
+ 
++void picoarch_a30_mali_repeat_frame(void)
++{
++	int x;
++	int y;
++	int w;
++	int h;
++
++	if (!g_a30.initialized || !g_a30.texture || g_a30.texture_w <= 0 || g_a30.texture_h <= 0)
++		return;
++
++	compute_frame_rect(g_a30.texture_w, g_a30.texture_h, &x, &y, &w, &h);
++	begin_present();
++	draw_texture(g_a30.texture, g_a30.texture_w, g_a30.texture_h, x, y, w, h, scale_effect);
++	end_present();
++}
++
+ void picoarch_a30_mali_finish(void)
+ {
+ 	if (g_a30.display != EGL_NO_DISPLAY) {
+--- a/plat_a30_mali.h
++++ b/plat_a30_mali.h
+@@ -16,6 +16,7 @@
+ void picoarch_a30_mali_present_frame_hud_ex(const void *pixels, int pitch, int width, int height,
+ 					    int pixel_format, const void *hud_rgb565,
+ 					    int hud_pitch, int hud_width, int hud_height);
++void picoarch_a30_mali_repeat_frame(void);
+ void picoarch_a30_mali_finish(void);
+ 
+ #endif
