@@ -452,6 +452,12 @@ patch_core_source() {
         printf '\n[plumOS] patched nekop2 joypad-to-keyboard mapping\n' >>"${log}"
       fi
       ;;
+    px68k)
+      if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/px68k-libretro-uppercase-bios.patch" ]; then
+        patch -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/px68k-libretro-uppercase-bios.patch" >>"${log}" 2>&1
+        printf '\n[plumOS] patched px68k uppercase BIOS filename fallbacks\n' >>"${log}"
+      fi
+      ;;
     hatari)
       if [ -f "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" ]; then
         if patch --dry-run -d "${src}" -p1 < "${ROOT_DIR}/docker/plumos-toolchain/patches/hatari-libretro-skip-empty-media-options.patch" >/dev/null 2>>"${log}"; then
@@ -841,6 +847,51 @@ stage_core_outputs() {
   return 0
 }
 
+stage_core_assets() {
+  local id=$1
+  local src=$2
+  local log=$3
+  local asset_src asset_dst asset_md5
+
+  case "${id}" in
+    ecwolf)
+      asset_src="${src}/wadsrc/static"
+      asset_dst="${TARGET_DIR}/Bios/ecwolf.pk3"
+      if [ ! -d "${asset_src}" ]; then
+        printf '\n[plumOS] ecwolf asset source missing: %s\n' "${asset_src}" >>"${log}"
+        return 1
+      fi
+      mkdir -p "$(dirname "${asset_dst}")"
+      python3 - "${asset_src}" "${asset_dst}" <<'PY'
+import os
+import sys
+import zipfile
+
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(dst, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    for root, dirs, files in os.walk(src):
+        dirs.sort()
+        files.sort()
+        for name in files:
+            path = os.path.join(root, name)
+            arcname = os.path.relpath(path, src)
+            zf.write(path, arcname)
+PY
+      if [ ! -s "${asset_dst}" ]; then
+        printf '\n[plumOS] failed to generate ecwolf.pk3\n' >>"${log}"
+        return 1
+      fi
+      asset_md5=$(md5sum "${asset_dst}" 2>/dev/null | awk '{print $1}' || true)
+      printf '\n[plumOS] generated ecwolf.pk3 from wadsrc/static\n' >>"${log}"
+      printf '  asset=%s\n' "Bios/ecwolf.pk3" >>"${MANIFEST}"
+      if [ -n "${asset_md5}" ]; then
+        printf '  asset_md5=%s\n' "${asset_md5}" >>"${MANIFEST}"
+      fi
+      ;;
+  esac
+  return 0
+}
+
 stage_license_files() {
   local id=$1
   local work=$2
@@ -910,14 +961,14 @@ build_one_core() {
     append_manifest "make_args=cmake/configure"
     append_manifest "make_jobs=${LAST_SUCCESSFUL_JOBS:-${ACTIVE_JOBS}}"
     append_manifest "status=built"
-    if stage_core_outputs "${id}" "${src}"; then
+    if stage_core_outputs "${id}" "${src}" && stage_core_assets "${id}" "${src}" "${log}"; then
       stage_license_files "${id}" "${src}"
       BUILT_COUNT=$((BUILT_COUNT + 1))
       msg "built ${id}"
     else
-      msg "FAILED ${id}: no *_libretro.so output"
+      msg "FAILED ${id}: missing core output or asset"
       append_manifest "status=failed_after_build"
-      append_manifest "reason=no_output"
+      append_manifest "reason=no_output_or_asset"
       FAILED_COUNT=$((FAILED_COUNT + 1))
     fi
     return 0
@@ -972,14 +1023,14 @@ build_one_core() {
   fi
 
   append_manifest "status=built"
-  if stage_core_outputs "${id}" "${src}"; then
+  if stage_core_outputs "${id}" "${src}" && stage_core_assets "${id}" "${src}" "${log}"; then
     stage_license_files "${id}" "${src}"
     BUILT_COUNT=$((BUILT_COUNT + 1))
     msg "built ${id}"
   else
-    msg "FAILED ${id}: no *_libretro.so output"
+    msg "FAILED ${id}: missing core output or asset"
     append_manifest "status=failed_after_build"
-    append_manifest "reason=no_output"
+    append_manifest "reason=no_output_or_asset"
     FAILED_COUNT=$((FAILED_COUNT + 1))
   fi
 }
@@ -994,6 +1045,7 @@ core_table() {
 prepare_dist() {
   rm -rf "${TARGET_DIR}"
   mkdir -p \
+    "${TARGET_DIR}/Bios" \
     "${TARGET_DIR}/plumos/lib" \
     "${TARGET_DIR}/plumos/retroarch/cores" \
     "${TARGET_DIR}/plumos/retroarch/info" \
@@ -1050,6 +1102,7 @@ clone_core_info() {
 prepare_core_job_dist() {
   rm -rf "${TARGET_DIR}"
   mkdir -p \
+    "${TARGET_DIR}/Bios" \
     "${TARGET_DIR}/plumos/lib" \
     "${TARGET_DIR}/plumos/retroarch/cores" \
     "${TARGET_DIR}/plumos/retroarch/info" \
@@ -1157,6 +1210,7 @@ merge_core_job() {
   copy_dir_contents "${job_target}/plumos/lib" "${TARGET_DIR}/plumos/lib"
   copy_dir_contents "${job_target}/plumos/retroarch/cores" "${TARGET_DIR}/plumos/retroarch/cores"
   copy_dir_contents "${job_target}/plumos/retroarch/info" "${TARGET_DIR}/plumos/retroarch/info"
+  copy_dir_contents "${job_target}/Bios" "${TARGET_DIR}/Bios"
   copy_dir_contents "${job_target}/docs/build-logs" "${TARGET_DIR}/docs/build-logs"
   if [ -d "${job_target}/docs" ]; then
     find "${job_target}/docs" -mindepth 1 -maxdepth 1 -type f ! -name manifest.txt -exec cp -a {} "${TARGET_DIR}/docs/" \;
