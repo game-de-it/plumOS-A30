@@ -627,12 +627,46 @@ set_picoarch_config_value() {
   fi
 }
 
+set_picoarch_config_default() {
+  config_path=$1
+  key=$2
+  value=$3
+
+  if ! grep -q "^${key} = " "${config_path}" 2>/dev/null; then
+    printf '%s = %s\n' "${key}" "${value}" >>"${config_path}"
+  fi
+}
+
 seed_picoarch_system_core_options() {
   config_path=$1
 
   case "${core_log_name}" in
     ecwolf)
       set_picoarch_config_value "${config_path}" ecwolf-palette xrgb8888
+      return 0
+      ;;
+    81)
+      set_picoarch_config_default "${config_path}" 81_8_16_contents auto
+      set_picoarch_config_default "${config_path}" 81_chroma_81 auto
+      set_picoarch_config_default "${config_path}" 81_fast_load enabled
+      set_picoarch_config_default "${config_path}" 81_hide_border disabled
+      set_picoarch_config_default "${config_path}" 81_highres auto
+      set_picoarch_config_default "${config_path}" 81_joypad_a auto
+      set_picoarch_config_default "${config_path}" 81_joypad_b auto
+      set_picoarch_config_default "${config_path}" 81_joypad_down auto
+      set_picoarch_config_default "${config_path}" 81_joypad_l auto
+      set_picoarch_config_default "${config_path}" 81_joypad_l2 auto
+      set_picoarch_config_default "${config_path}" 81_joypad_left auto
+      set_picoarch_config_default "${config_path}" 81_joypad_r auto
+      set_picoarch_config_default "${config_path}" 81_joypad_r2 auto
+      set_picoarch_config_default "${config_path}" 81_joypad_right auto
+      set_picoarch_config_default "${config_path}" 81_joypad_up auto
+      set_picoarch_config_default "${config_path}" 81_joypad_x auto
+      set_picoarch_config_default "${config_path}" 81_joypad_y auto
+      set_picoarch_config_default "${config_path}" 81_key_hold_time 100
+      set_picoarch_config_default "${config_path}" 81_keybovl_transp enabled
+      set_picoarch_config_default "${config_path}" 81_sound auto
+      set_picoarch_config_default "${config_path}" 81_video_presets clean
       return 0
       ;;
     atari800) ;;

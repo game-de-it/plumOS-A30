@@ -12,11 +12,11 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 34 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 36 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
 | `fail_boot` | 12 | FE から起動は試せるが content/game 起動へ進めない |
-| `fail_input` | 6 | 表示や起動は成立するが入力が実用判定に届かない |
+| `fail_input` | 4 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 4 | 起動はするが画面崩れや表示異常がある |
 | `retired` | 12 | 方針判断済みで通常 FE/動作確認対象から外した |
@@ -46,12 +46,13 @@
 | ChaiLove | `retroarch:chailove`, `picoarch:chailove` | ChaiLove core は内部で SDL1 を使い、`SDL_VIDEODRIVER` が未指定または `fbcon` のままだと同梱 SDL の libretro video driver が選ばれず `Unable to initialize SDL No available video device` で失敗した。RA/PICO launcher で `chailove` のときだけ `SDL_VIDEODRIVER=LIBRETROvideo` を export するようにし、RA は 120 frames 正常終了、PICO は content load、`Screen: 480x480`、`Frame rate: 60` まで確認して `pass_init`。 |
 | Fairchild Channel F | `retroarch:freechaf`, `picoarch:freechaf` | 実機に FreeChaF の必須 BIOS `sl31254.bin` と、`sl31253.bin` または `sl90025.bin` が無かった。core は実験的 HLE に fallback するが、検証 ROM `tents_CF.bin` では `Unsupported HLE function: 0xd0` で停止する。RA ではその後 dummy core に残るため、RA/PICO launcher で BIOS preflight を追加し、足りない場合は必要ファイル名と MD5 を出して `66` で即終了する。BIOS 入手後に再検証するため `untested` とする。 |
 | Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` 生成後も 320x200/RGB565 出力で stripe corruption が出ていた。`ecwolf-palette=xrgb8888` に切り替えると RA/PICO とも表示崩れが消えたため、RA/PICO launcher で ECWolf の既定 palette を XRGB8888 に seed する。2026-06-19 direct capture で RA title と PICO startup/credits を `pass_init`。 |
+| ZX-81 | `retroarch:81`, `picoarch:81` | EightyOne core は SELECT で仮想キーボードを開くが、plumOS RetroArch の SELECT hotkey enable と衝突していた。RA launcher は `81` core のときだけ hotkey enable を A30 Function/R3 button へ移し、SELECT を core へ返す。PICO は Function を menu、SELECT を core SELECT に bind 済み。PICO の一見崩れた画面は `81_fast_load=disabled` による実時間 tape loading 表示だったため、81 default seed は fast load enabled にした。2026-06-19 direct capture で RA/PICO とも `blocky.p` の game screen まで到達し `pass_init`。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
 | group | affected profiles | first hypothesis | first action |
 | --- | --- | --- | --- |
-| ZX-81 | `retroarch:81`, `picoarch:81` | 起動はするが video/input が崩れるため、keyboard/joystick mode、model、display timing、rotation/scale の複合問題の可能性。 | core option と input mapping を固定し、まず RA 単体で video と input を分けて確認する。 |
+| なし | - | - | - |
 
 ## 優先度 P2: 代替はあるが、直ると選択肢が増える問題
 
@@ -88,7 +89,5 @@
 
 ## 最初に実施する調査順
 
-1. ZX-81 の video/input を RA 単体で分離して確認する。
-   `retroarch:81` と `picoarch:81` の両方で画面と操作が崩れるため、まず core option、keyboard/joystick mode、model を固定して最小再現を見る。
-2. PicoArch 共通入力問題を調べる。
+1. PicoArch 共通入力問題を調べる。
    `hatari`、`prboom`、`dosbox_pure` の axis rotation は per-core input transform でまとめて直せる可能性が高い。

@@ -926,6 +926,46 @@ seed_ecwolf_core_options() {
   set_ra_core_option "$options_path" ecwolf-palette xrgb8888
 }
 
+seed_eightyone_core_options() {
+  options_dir="$RA_HOME/.config/retroarch/config/EightyOne"
+  options_path="$options_dir/EightyOne.opt"
+
+  mkdir -p "$options_dir"
+  if [ ! -s "$options_path" ]; then
+    cat > "$options_path" <<OPTIONS
+81_8_16_contents = "auto"
+81_chroma_81 = "auto"
+81_fast_load = "enabled"
+81_hide_border = "disabled"
+81_highres = "auto"
+81_joypad_a = "auto"
+81_joypad_b = "auto"
+81_joypad_down = "auto"
+81_joypad_l = "auto"
+81_joypad_l2 = "auto"
+81_joypad_left = "auto"
+81_joypad_r = "auto"
+81_joypad_r2 = "auto"
+81_joypad_right = "auto"
+81_joypad_up = "auto"
+81_joypad_x = "auto"
+81_joypad_y = "auto"
+81_key_hold_time = "100"
+81_keybovl_transp = "enabled"
+81_sound = "auto"
+81_video_presets = "clean"
+OPTIONS
+  fi
+
+  # EightyOne uses SELECT to toggle its virtual keyboard. Keep SELECT available
+  # to the core and move RetroArch combos to the A30 Function/R3 button.
+  cat >> "$APPEND" <<APPEND
+input_enable_hotkey_btn = "8"
+input_menu_toggle_btn = "0"
+input_exit_emulator_btn = "6"
+APPEND
+}
+
 seed_atari800_core_options() {
   options_dir="$RA_HOME/.config/retroarch/config/Atari800"
   options_path="$options_dir/Atari800-${SYSTEM}.opt"
@@ -1245,6 +1285,9 @@ case "$CORE_ID" in
     ;;
   ecwolf)
     seed_ecwolf_core_options
+    ;;
+  81)
+    seed_eightyone_core_options
     ;;
   atari800)
     seed_atari800_core_options
