@@ -165,28 +165,28 @@ neogeocd	Neo Geo CD	NEOCD;neogeocd	cue;chd	PICO	picoarch:neocd	neocd	yes	yes	yes
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	systems.json
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	RA	retroarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	systems.json
-nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	pass	FE auto companion
+nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:fceumm	fceumm	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:nestopia	nestopia	yes	yes	yes	yes	yes	no	pass	FE auto companion
 nes	NES	FC;nes;famicom	nes;unf;unif;zip;7z	PICO	picoarch:quicknes	quicknes	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ngp	NGP	NGP;ngp	ngp;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
 ngp	NGP	NGP;ngp	ngp;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	RA	retroarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	yes	pass	systems.json
 ngpc	NGPC	NGPC;NGP;ngpc	ngc;ngpc;zip;7z	PICO	picoarch:mednafen_ngp	mednafen_ngp	yes	yes	yes	yes	yes	no	pass	FE auto companion
-odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	untested	systems.json
-odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	untested	FE auto companion
+odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	yes	yes	yes	yes	yes	yes	pass	systems.json
+odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	pass	FE auto companion
 palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	RA	retroarch:mu	mu	yes	yes	yes	yes	yes	yes	untested	systems.json
 palm	Palm OS	PALM;palm	prc;pqa;img;pdb;zip	PICO	picoarch:mu	mu	yes	yes	yes	yes	yes	no	untested	FE auto companion
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	pass	systems.json
+pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	fail_input	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	systems.json
-pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	untested	systems.json
+pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
-pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	untested	systems.json
-pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
+pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce	mednafen_pce	yes	yes	yes	yes	yes	no	fail_perf	systems.json
+pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	RA	retroarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	yes	untested	systems.json
 pcfx	PC-FX	PCFX;pcfx	cue;ccd;toc;chd;zip;bin	PICO	picoarch:mednafen_pcfx	mednafen_pcfx	yes	yes	yes	yes	yes	no	untested	FE auto companion
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	yes	pass	systems.json
