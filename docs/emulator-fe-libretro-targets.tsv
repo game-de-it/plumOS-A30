@@ -227,8 +227,8 @@ thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	the
 thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	PICO	picoarch:theodore	theodore	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	RA	retroarch:numero	numero	yes	yes	yes	yes	yes	yes	untested	systems.json
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	PICO	picoarch:numero	numero	yes	yes	yes	yes	yes	no	untested	FE auto companion
-tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	fail_boot	systems.json
-tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+tic80	TIC-80	TIC;tic-80	tic	PICO	picoarch:tic80	tic80	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 uzebox	Uzebox	UZEBOX;uzebox	uze	RA	retroarch:uzem	uzem	yes	yes	yes	yes	yes	yes	fail_perf	systems.json
 uzebox	Uzebox	UZEBOX;uzebox	uze	PICO	picoarch:uzem	uzem	yes	yes	yes	yes	yes	no	fail_perf	FE auto companion
 vectrex	Vectrex	VECTREX;vectrex	vec;bin;zip;7z	RA	retroarch:vecx	vecx	yes	yes	yes	yes	yes	yes	pass	systems.json

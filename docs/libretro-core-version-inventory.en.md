@@ -82,7 +82,9 @@ buildable source tree. Those rows are marked with `source_override` in
 - `scummvm`: the Onion-window source lacks the current libretro backend, so
   plumOS pins a buildable libretro backend commit.
 - `tic80`: the `nesbox/TIC-80` 0.80-era source references an unfetchable submodule,
-  so plumOS builds from the libretro wrapper repository.
+  so plumOS builds from the libretro wrapper repository. The wrapper CMake default
+  uses `BUILD_STATIC=OFF`, which leaves the Lua script backend unregistered, so the
+  plumOS build adds `-DBUILD_STATIC=ON`.
 
 As of 2026-06-18, applying this source lock to
 `docker/plumos-toolchain/libretro-core-recipes.tsv` and running

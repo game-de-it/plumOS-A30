@@ -7,15 +7,15 @@
 
 ## 現在の集計
 
-2026-06-18 時点の `emulator-runtime-verification.tsv` は以下の状態です。
+2026-06-19 時点の `emulator-runtime-verification.tsv` は以下の状態です。
 
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 28 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 30 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
 | `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 18 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_boot` | 16 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 6 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 6 | 起動はするが画面崩れや表示異常がある |
@@ -42,6 +42,7 @@
 | mGBA | GB/GBA の `retroarch:mgba`, `picoarch:mgba` | mGBA core の CMake source list から `version.c` と `src/platform/posix/memory.c` を外していたため、`projectName` / `anonymousMemoryMap` が未解決になっていた。不要な除外をやめ、PicoArch の library path は plumOS lib を system lib より先に見る順序へ変更。2026-06-18 direct smoke で GB/GBA は `pass_init`。GBC は実機に `.gbc` ROM がなく `untested`。 |
 | Commodore 64 | `retroarch:frodo`, `retroarch:vice_x64`, `picoarch:frodo`, `picoarch:vice_x64` | `vice_x64` は ROM なし起動と最小 `.prg` autostart で RA/PICO とも正常表示。`frodo` は最小 `.p00` で RA/PICO とも C64 BASIC 画面を正常表示。Pacmania.zip は中身が `.tap` で、`frodo` は TAP 非対応、`vice_x64` は `Datasette: Cannot read in tap-file` を出すため、画面破損ではなく検証 ROM 形式/内容の相性問題として `pass_init` に戻した。capture は `artifacts/c64-video-20260618-234134-vice-nogame/`、`artifacts/c64-video-20260618-234449-vice-prg/`、`artifacts/c64-video-20260618-234759-frodo-p00/`。 |
 | X68000 | `retroarch:px68k`, `picoarch:px68k` | 実機の `/mnt/SDCARD/Bios/keropi` は `IPLROM.DAT` / `CGROM.DAT` のような大文字名で、PX68k core は小文字名だけを探していた。`px68k-libretro-uppercase-bios.patch` で大文字 BIOS 名も候補に入れ、RA/PICO とも `CH68_110.xdf` で Human68k boot 画面まで到達。capture は `artifacts/layout-triage-20260619-000721-px68k-ra-corepatch/`、`artifacts/layout-triage-20260619-000826-px68k-pico-20s/`。PICO 側の性能と gameplay は追加確認余地あり。 |
+| TIC-80 | `retroarch:tic80`, `picoarch:tic80` | PicoArch 側は `RETRO_ENVIRONMENT_SET_FRAME_TIME_CALLBACK` 未対応で content load 前に失敗していたため、PicoArch に frame-time callback dispatch を追加。さらに TIC-80 core は `BUILD_STATIC=OFF` だと `script.c` の Lua backend が `Scripts[]` に登録されず、初回 `tic_init_vm()` へ進んだところで実行 backend が空になるため、TIC-80 CMake build に `-DBUILD_STATIC=ON` を追加した。2026-06-19 direct smoke で RA は `--max-frames 120` 正常終了、PICO は連続 `VIDEO_REFRESH` を確認し `pass_init`。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -49,7 +50,6 @@
 | --- | --- | --- | --- |
 | ChaiLove | `retroarch:chailove`, `picoarch:chailove` | RA log で SDL video device 初期化失敗が出ており、libretro core 内部で SDL window を開こうとしている可能性がある。 | core が pure libretro として動けるか確認し、無理なら通常候補から外す。 |
 | Fairchild Channel F | `retroarch:freechaf`, `picoarch:freechaf` | BIOS/ROM format、mapper、または core option の可能性。 | freechaf の BIOS 要件と対象 ROM の header/extension を確認する。 |
-| TIC-80 | `retroarch:tic80`, `picoarch:tic80` | content layout、core asset、または古い source/build 由来の起動問題。 | core info と log を確認し、`.tic` の読み込み失敗か runtime 初期化失敗か分ける。 |
 | Wolfenstein 3D | `retroarch:ecwolf`, `picoarch:ecwolf` | `ecwolf.pk3` missing は解消し、shareware data load と menu setup までは成立した。残る問題は 320x200/RGB565 画面の縦帯 corruption。 | RA/PICO で同じ崩れ方をするため、まず ECWolf core の pitch/stride/pixel format 更新、または frontend 側の 320x200 surface handling を見る。 |
 | ZX-81 | `retroarch:81`, `picoarch:81` | 起動はするが video/input が崩れるため、keyboard/joystick mode、model、display timing、rotation/scale の複合問題の可能性。 | core option と input mapping を固定し、まず RA 単体で video と input を分けて確認する。 |
 

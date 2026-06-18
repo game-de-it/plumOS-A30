@@ -23,6 +23,8 @@ PICOARCH_A30_LOG_FLUSH_PATCH=${PICOARCH_A30_LOG_FLUSH_PATCH:-"${PATCH_DIR}/picoa
 PICOARCH_A30_LIBRETRO_COMPAT_PATCH=${PICOARCH_A30_LIBRETRO_COMPAT_PATCH:-"${PATCH_DIR}/picoarch-a30-libretro-compat.patch"}
 PICOARCH_A30_VFS_NORMALIZE_PATCH=${PICOARCH_A30_VFS_NORMALIZE_PATCH:-"${PATCH_DIR}/picoarch-a30-vfs-normalize.patch"}
 PICOARCH_A30_KEYBOARD_INPUT_PATCH=${PICOARCH_A30_KEYBOARD_INPUT_PATCH:-"${PATCH_DIR}/picoarch-a30-keyboard-input.patch"}
+PICOARCH_A30_FRAME_TIME_CALLBACK_PATCH=${PICOARCH_A30_FRAME_TIME_CALLBACK_PATCH:-"${PATCH_DIR}/picoarch-a30-frame-time-callback.patch"}
+PICOARCH_A30_VIDEO_TRACE_PATCH=${PICOARCH_A30_VIDEO_TRACE_PATCH:-"${PATCH_DIR}/picoarch-a30-video-trace.patch"}
 
 CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
@@ -150,6 +152,8 @@ checkout_source() {
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_LIBRETRO_COMPAT_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_VFS_NORMALIZE_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_KEYBOARD_INPUT_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_FRAME_TIME_CALLBACK_PATCH}"
+  patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_VIDEO_TRACE_PATCH}"
   if find "${SRC_DIR}" -name '*.rej' -print -quit | grep -q .; then
     msg "error: patch rejects remain under ${SRC_DIR}"
     find "${SRC_DIR}" -name '*.rej' -print >&2
@@ -300,6 +304,31 @@ stop_resident_joystickd() {
   kill -KILL $pids >/dev/null 2>&1 || true
 }
 
+find_resident_picoarch() {
+  for f in /proc/[0-9]*/cmdline; do
+    [ -e "$f" ] || continue
+    pid=${f#/proc/}
+    pid=${pid%/cmdline}
+    [ "$pid" = "$$" ] && continue
+    [ -n "${picoarch_pid}" ] && [ "$pid" = "${picoarch_pid}" ] && continue
+    cmd=$(tr '\0' ' ' <"$f" 2>/dev/null || true)
+    case "$cmd" in
+      *"${PICOARCH_BIN}"*)
+        printf '%s\n' "$pid"
+        ;;
+    esac
+  done
+}
+
+stop_resident_picoarch() {
+  pids=$(find_resident_picoarch)
+  [ -n "$pids" ] || return 0
+  echo "stopping stale picoarch: $pids" >&2
+  kill -TERM $pids >/dev/null 2>&1 || true
+  sleep 1
+  kill -KILL $pids >/dev/null 2>&1 || true
+}
+
 find_plumos_gamepad_js() {
   for js in /sys/class/input/js*; do
     [ -e "$js" ] || continue
@@ -321,6 +350,7 @@ cleanup() {
     wait "${picoarch_pid}" 2>/dev/null || true
     picoarch_pid=
   fi
+  stop_resident_picoarch
   if [ -n "${joystickd_pid}" ]; then
     kill -TERM "${joystickd_pid}" >/dev/null 2>&1 || true
     sleep 1
@@ -517,6 +547,7 @@ mkdir -p "${STATE_DIR}" "${LOG_DIR}" \
   "${STATE_DIR}/xdg-config" "${STATE_DIR}/xdg-data" "${STATE_DIR}/xdg-cache"
 trap cleanup EXIT HUP INT TERM
 
+stop_resident_picoarch
 restore_framebuffer
 apply_cpu_policy "${PLUMOS_PICOARCH_CPU_POLICY:-keep}" \
   "${PLUMOS_PICOARCH_CPU_FREQ:-648000}" \

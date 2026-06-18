@@ -738,6 +738,7 @@ build_special_core() {
         tic80_src="${src}/core"
       fi
       run_cmake_build_with_job_retry "${tic80_src}" "${src}/build-libretro" tic80_libretro MinSizeRel "${log}" \
+        -DBUILD_STATIC=ON \
         -DBUILD_PLAYER=OFF \
         -DBUILD_SDL=OFF \
         -DBUILD_SDLGPU=OFF \

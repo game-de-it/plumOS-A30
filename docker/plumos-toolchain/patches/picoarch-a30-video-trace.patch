@@ -1,0 +1,47 @@
+--- a/core.c
++++ b/core.c
+@@ -1009,10 +1009,44 @@ void core_apply_cheats(struct cheats *cheats) {
+ 	}
+ }
+ 
++static void pa_trace_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
++{
++	static int enabled = -1;
++	static unsigned count;
++	const uint8_t *bytes = (const uint8_t *)data;
++	size_t total;
++	size_t limit;
++	size_t i;
++	unsigned sum = 0;
++	unsigned nonzero = 0;
++
++	if (enabled < 0) {
++		const char *env = getenv("PLUMOS_PICOARCH_VIDEO_TRACE");
++		enabled = env && env[0] && strcmp(env, "0") != 0;
++	}
++	if (!enabled || count >= 24)
++		return;
++	count++;
++	total = pitch * (size_t)height;
++	limit = total < 64 ? total : 64;
++	for (i = 0; data && i < limit; i++) {
++		sum += bytes[i];
++		if (bytes[i])
++			nonzero++;
++	}
++	PA_INFO("VIDEO_REFRESH #%u data=%p size=%ux%u pitch=%zu fmt=%d sample_sum=%u nonzero=%u first=%02x %02x %02x %02x\n",
++		count, data, width, height, pitch, core_pixel_format, sum, nonzero,
++		data && total > 0 ? bytes[0] : 0,
++		data && total > 1 ? bytes[1] : 0,
++		data && total > 2 ? bytes[2] : 0,
++		data && total > 3 ? bytes[3] : 0);
++}
++
+ static void pa_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch) {
+ 	if (!should_quit) {
+ 		if (data)
+ 			pa_track_render();
++		pa_trace_video_refresh(data, width, height, pitch);
+ 		plat_video_process(data, width, height, pitch);
+ 	}
+ }
