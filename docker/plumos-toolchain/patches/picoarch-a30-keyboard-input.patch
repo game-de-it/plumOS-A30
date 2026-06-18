@@ -1,9 +1,10 @@
 --- a/core.c
 +++ b/core.c
-@@ -40,6 +40,42 @@
+@@ -40,6 +40,81 @@
  static struct retro_disk_control_ext_callback disk_control_ext;
  
  static uint32_t buttons = 0;
++static struct retro_keyboard_callback keyboard_cb;
 +static bool keyboard_state(unsigned key)
 +{
 +	switch (key) {
@@ -40,10 +41,62 @@
 +		return false;
 +	}
 +}
++
++static void keyboard_notify(bool down, unsigned key)
++{
++	if (keyboard_cb.callback)
++		keyboard_cb.callback(down, key, 0, 0);
++}
++
++static void keyboard_notify_button(uint32_t old_buttons, uint32_t new_buttons,
++	unsigned button, unsigned key)
++{
++	uint32_t mask = 1U << button;
++	bool was_down = (old_buttons & mask) != 0;
++	bool is_down = (new_buttons & mask) != 0;
++
++	if (was_down != is_down)
++		keyboard_notify(is_down, key);
++}
++
++static void keyboard_update(uint32_t old_buttons, uint32_t new_buttons)
++{
++	if (!keyboard_cb.callback || old_buttons == new_buttons)
++		return;
++
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_UP, RETROK_UP);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_DOWN, RETROK_DOWN);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_LEFT, RETROK_LEFT);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_RIGHT, RETROK_RIGHT);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_A, RETROK_SPACE);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_B, RETROK_LCTRL);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_X, RETROK_LSHIFT);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_Y, RETROK_LALT);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_START, RETROK_RETURN);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_SELECT, RETROK_ESCAPE);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_L, RETROK_TAB);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_R, RETROK_BACKSPACE);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_L2, RETROK_e);
++	keyboard_notify_button(old_buttons, new_buttons, RETRO_DEVICE_ID_JOYPAD_R2, RETROK_t);
++}
  
  static int core_load_game_info(struct content *content, struct retro_game_info *game_info) {
  	struct retro_system_info info = {};
-@@ -559,7 +595,7 @@
+@@ -552,6 +637,13 @@
+ 		}
+ 	case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: /* 11 */
+ 		break;
++	case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: { /* 12 */
++		if (data)
++			memcpy(&keyboard_cb, data, sizeof(keyboard_cb));
++		else
++			memset(&keyboard_cb, 0, sizeof(keyboard_cb));
++		break;
++	}
+ 	case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: /* 18 */
+ 		support_no_game = data ? *(const bool *)data : false;
+ 		break;
+@@ -559,7 +651,7 @@
  	case RETRO_ENVIRONMENT_GET_INPUT_DEVICE_CAPABILITIES: { /* 24 */
  		uint64_t *out = (uint64_t *)data;
  		if (out)
@@ -52,7 +105,23 @@
  		break;
  	}
  	case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: { /* 27 */
-@@ -806,6 +842,8 @@
+@@ -783,6 +875,7 @@
+ }
+ 
+ static void pa_input_poll(void) {
++	uint32_t old_buttons = buttons;
+ 	int actions[IN_BINDTYPE_COUNT] = { 0, };
+ 	unsigned int emu_act;
+ 	int which = EACTION_NONE;
+@@ -802,6 +895,7 @@
+ 	handle_emu_action(which);
+ 
+ 	buttons = actions[IN_BINDTYPE_PLAYER12];
++	keyboard_update(old_buttons, buttons);
+ }
+ 
+ void core_poll_input(void)
+@@ -816,6 +910,8 @@
  
  		return (buttons >> id) & 1;
  	}

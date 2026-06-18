@@ -1,0 +1,17 @@
+--- a/core.c
++++ b/core.c
+@@ -836,10 +836,10 @@ static bool pa_environment(unsigned cmd, void *data) {
+ 	}
+ 	case RETRO_ENVIRONMENT_GET_VARIABLE: { /* 15 */
+ 		struct retro_variable *var = (struct retro_variable *)data;
+-		if (var && var->key) {
+-			var->value = options_get_value(var->key);
+-		}
+-		break;
++		if (!var || !var->key)
++			return false;
++		var->value = options_get_value(var->key);
++		return var->value != NULL;
+ 	}
+ 	case RETRO_ENVIRONMENT_SET_VARIABLES: { /* 16 */
+ 		const struct retro_variable *vars = (const struct retro_variable *)data;

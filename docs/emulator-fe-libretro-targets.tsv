@@ -184,7 +184,7 @@ pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemi
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	PICO	picoarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	FE auto companion
 quake	Quake	QUAKE;quake	pak	RA	retroarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	yes	pass	systems.json
-quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+quake	Quake	QUAKE;quake	pak	PICO	picoarch:tyrquake	tyrquake	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; direct smoke fixed SIGSEGV-at-load by deferring TyrQuake controller setup until after content load
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	RA	retroarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	fail_perf	systems.json
 scummvm	ScummVM	SCUMMVM;scummvm	scummvm;svm	PICO	picoarch:scummvm	scummvm	yes	yes	yes	yes	yes	no	pass	FE auto companion
 sega32x	32X	THIRTYTWOX;MD;sega32x	32x;bin;zip;7z	RA	retroarch:picodrive	picodrive	yes	yes	yes	yes	yes	yes	pass	systems.json
