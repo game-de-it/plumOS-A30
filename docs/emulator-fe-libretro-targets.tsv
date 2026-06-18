@@ -113,7 +113,7 @@ jaguar	Atari Jaguar	JAGUAR;atarijaguar	j64;jag;rom;abs;cof;bin;prg	PICO	picoarch
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	pass	systems.json
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	PICO	picoarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	no	fail_video	FE auto companion
 lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	fail_video	systems.json
-lutro	Lutro	LUTRO;lutro	lutro;love;lua	PICO	picoarch:lutro	lutro	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion
+lutro	Lutro	LUTRO;lutro	lutro;love;lua	PICO	picoarch:lutro	lutro	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; PicoArch now provides libretro perf interface required by Lutro
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	yes	pass_init	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	RA	retroarch:handy	handy	yes	yes	yes	yes	yes	no	pass_init	systems.json
 lynx	Atari Lynx	LYNX;lynx	lnx;lyx;bll;o;zip;7z	PICO	picoarch:mednafen_lynx	mednafen_lynx	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
