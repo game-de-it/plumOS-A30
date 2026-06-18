@@ -239,8 +239,8 @@ supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_s
 supergrafx	SuperGrafx	SGX;PCE;supergrafx	sgx;pce;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	untested	FE auto companion
 supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	RA	retroarch:potator	potator	yes	yes	yes	yes	yes	yes	untested	systems.json
 supervision	Supervision	SUPERVISION;supervision	sv;bin;zip;7z	PICO	picoarch:potator	potator	yes	yes	yes	yes	yes	no	untested	FE auto companion
-thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	theodore	yes	yes	yes	yes	yes	yes	untested	systems.json
-thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	PICO	picoarch:theodore	theodore	yes	yes	yes	yes	yes	no	untested	FE auto companion
+thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	RA	retroarch:theodore	theodore	yes	yes	yes	yes	yes	yes	pass	systems.json
+thomson	Thomson MO/TO	THOMSON;moto	fd;sap;k7;m7;m5;rom	PICO	picoarch:theodore	theodore	yes	yes	yes	yes	yes	no	pass	FE auto companion
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	RA	retroarch:numero	numero	yes	yes	yes	yes	yes	yes	untested	systems.json
 ti83	TI-83	TI83;ti83	8xp;8xk;8xg	PICO	picoarch:numero	numero	yes	yes	yes	yes	yes	no	untested	FE auto companion
 tic80	TIC-80	TIC;tic-80	tic	RA	retroarch:tic80	tic80	yes	yes	yes	yes	yes	yes	untested	systems.json
