@@ -1708,7 +1708,7 @@
       "short_name": "BK",
       "sort_order": 550,
       "hardware": "computer",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "BK", "source": "plumos", "priority": 10},
@@ -1930,7 +1930,7 @@
       "short_name": "Daphne",
       "sort_order": 630,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "DAPHNE", "source": "plumos", "priority": 10},
@@ -1984,7 +1984,7 @@
       "short_name": "Flashback",
       "sort_order": 650,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "FLASHBACK", "source": "plumos", "priority": 10},

@@ -27,6 +27,7 @@ launch profile を突き合わせたものです。動作確認対象は `target
   - `fail_perf`: 起動はするが performance、音声、フレーム pacing などが実用判定に届かない。
   - `fail_video`: 起動はするが、画面崩れや表示異常で実用判定に届かない。
   - `fail`: 画面非表示、起動不能など、実用確認に進めない。
+  - `retired`: 検証や方針判断の結果、通常FE/動作確認対象から外した。
   - `untested`: FE から実行可能だが、まだ実機確認していない。
 
 PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
