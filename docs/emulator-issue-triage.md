@@ -12,11 +12,11 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 40 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
+| `pass_init` | 43 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail` | 1 | 複合的に実用確認へ進めない |
-| `fail_audio` | 3 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 8 | FE から起動は試せるが content/game 起動へ進めない |
-| `fail_input` | 4 | 表示や起動は成立するが入力が実用判定に届かない |
+| `fail_audio` | 4 | 起動/表示は成立するが音声が実用判定に届かない |
+| `fail_boot` | 7 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_input` | 1 | 表示や起動は成立するが入力が実用判定に届かない |
 | `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 4 | 起動はするが画面崩れや表示異常がある |
 | `retired` | 12 | 方針判断済みで通常 FE/動作確認対象から外した |
@@ -49,8 +49,12 @@
 | ZX-81 | `retroarch:81`, `picoarch:81` | EightyOne core は SELECT で仮想キーボードを開くが、plumOS RetroArch の SELECT hotkey enable と衝突していた。RA launcher は `81` core のときだけ hotkey enable を A30 Function/R3 button へ移し、SELECT を core へ返す。PICO は Function を menu、SELECT を core SELECT に bind 済み。PICO の一見崩れた画面は `81_fast_load=disabled` による実時間 tape loading 表示だったため、81 default seed は fast load enabled にした。2026-06-19 direct capture で RA/PICO とも `blocky.p` の game screen まで到達し `pass_init`。 |
 | PicoArch fceumm | NES/FDS の `picoarch:fceumm` | Onion-era の RA 用 `fceumm_libretro.so` は PicoArch では `retro_load_game` 周辺から戻らず、`Loading ...` で止まっていた。PicoArch 用に `Makefile.libretro platform=miyoomini` で build した `fceumm` commit `3f23e2b98f883be9c62a3fdb65c015d376dcd135` は NES/FDS とも `Screen: 256x224`、`Frame rate: 60.099827` まで到達するため、launcher は `picoarch:fceumm` だけ `/mnt/SDCARD/plumos/emulators/picoarch/cores/fceumm_libretro.so` を優先する。2026-06-19 direct smoke で `pass_init`。 |
 | PicoArch frameskip duplicate frame | frameskip 有効時に `video_refresh(NULL, ...)` を返す core | A30 Mali presenter では `data == NULL` frame で何も描画せず `eglSwapBuffers` もしなかったため、frameskip 時の点滅や frame pacing 崩れにつながり得た。`data == NULL` のときは前回 upload 済み texture を再描画して swap するように変更。2026-06-19 direct trace で `mame2000` が `data=(nil)` を返すことを確認し、`kungfum.zip` capture で正常表示を確認。 |
+| PicoArch mame2000 frameskip default | Arcade の `picoarch:mame2000` | `mame2000-frameskip=auto` は起動直後から `video_refresh(NULL, ...)` を返し、画面更新間引きと音声 underrun の切り分けを難しくしていた。PicoArch presenter は skipped frame を repeat/swap し、mame2000 の既定値は `disabled` に変更。残る Arcade PICO の低 FPS は per-core/ROM の `fail_perf` として扱う。 |
 | PicoArch TyrQuake | `picoarch:tyrquake` | PicoArch が `retro_load_game()` 前に `retro_set_controller_port_device()` を呼ぶ一方、TyrQuake はその中で Quake console bind を実行するため、`Host_Init()` 前の command path で SIGSEGV していた。TyrQuake だけ controller setup を content load 後へ遅延し、2026-06-19 direct smoke で `139` が消え、`Screen: 320x200` と連続 `VIDEO_REFRESH`、gameplay framebuffer capture を確認して `pass_init`。 |
 | PicoArch Lutro | `picoarch:lutro` | Lutro は `RETRO_ENVIRONMENT_GET_PERF_INTERFACE` を必須扱いにしており、PicoArch が未対応だったため content load 前に `Core needs the perf interface` で失敗していた。PicoArch に `get_time_usec`、counter、CPU feature、perf register/start/stop/log の最小実装を追加し、2026-06-19 direct smoke で `Screen: 320x240`、XRGB8888 video refresh、Pong gameplay capture を確認して `pass_init`。 |
+| PicoArch rotated-axis input | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | launcher の rotated-axis default で `axisYR` / `axisXR` を joystickd へ渡す。2026-06-19 direct launch で 3 core とも launcher log と `joystickd-last.log` の `x_source=axisYR y_source=axisXR` を確認し、runtime TSV は `pass_init` へ戻した。 |
+| PicoArch EasyRPG boot classification | `picoarch:easyrpg` | 2026-06-19 direct RA/PICO 比較で、PICO も `Screen: 320x240`、`Frame rate: 60`、EasyRPG startup まで到達することを確認。起動不能ではなく RA と同じ MP3 BGM unsupported warning が残るため `fail_audio` に再分類した。 |
+| SquirrelJME PICO-only classification | `picoarch:squirreljme` | `Cento.jar` は RA/PICO とも `SquirrelJME Init` 後に `JVM Exec Error: -7` を返す。PicoArch 共通層の P3 問題ではなく、core/content 互換性問題として扱う。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -72,9 +76,7 @@
 
 | symptom | affected profiles | direction |
 | --- | --- | --- |
-| analog axis rotation | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | PicoArch launcher 側で `axisYR`/`axisXR` の rotated-axis default を適用済み。launcher/joystickd log では補正適用を確認済みで、実操作の目視確認待ち。 |
-| lower FPS / frameskip flicker | Arcade PICO profiles, `picoarch:mame2003_plus` | `video_refresh(NULL, ...)` 時に前回 texture を repeat/swap する修正は入った。次は実機目視で flicker 低減を確認し、残る低 FPS は RA との差分として audio sync、frame limiter、present timing を測る。 |
-| PICO-only fail_boot | `picoarch:easyrpg`, `picoarch:squirreljme` など | PicoArch の content path、system dir、core option 初期化、working directory を RA と比較する。 |
+| なし | - | PicoArch 共通層として扱っていた P3 は解決済み、または core/content/per-system 問題へ再分類済み。 |
 
 ## 優先度 P4: 性能限界として扱う候補
 
@@ -90,7 +92,7 @@
 - RetroArch `scummvm`
 - `mame2003_plus` の重い ROM
 
-## 最初に実施する調査順
+## 次に実施する調査順
 
-1. PicoArch 共通入力問題を調べる。
-   `hatari`、`prboom`、`dosbox_pure` の axis rotation は per-core input transform でまとめて直せる可能性が高い。
+1. P2 の system/core 個別問題を扱う。
+   `mame2003_plus`、Neo Geo CD via FBNeo、PICO-8、Cave Story、RA Lutro / LowRes NX / VMU は PicoArch 共通層とは切り離して調査する。
