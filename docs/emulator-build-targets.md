@@ -235,7 +235,10 @@ MSX PICO の `bluemsx` / `fmsx` はどちらも起動OKです。
 `fbneo`、`mame2003_plus`、`fbalpha2012`、`mame2000` の arcade ROM 初期化まで確認済みです。
 `scummvm` libretro は analog cursor を gamepad axis から読むため、A30 の PicoArch launcher では
 この core だけ既定で joystickd の X/Y source を `axisYR`/`axisXR` に差し替えます。2026-06-17 の
-実機確認で ScummVM PICO の analog cursor 補正は OK です。
+実機確認で ScummVM PICO の analog cursor 補正は OK です。2026-06-18 には同じ 90 度回転症状が
+`hatari`、`prboom`、`dosbox_pure` でも残っていたため、rotated-axis core group として
+`axisYR`/`axisXR` を既定にしました。各 core は
+`PLUMOS_PICOARCH_HATARI_JOYSTICKD_X_SOURCE` などの per-core env で個別上書きできます。
 なお RA/PICO どちらでも `mame2000` の Irem M92 系 driver には core 側で
 `GAME_NO_SOUND` 指定の title があり、その場合の無音は plumOS audio 経路の不具合ではありません。
 同日の PS1 追加検証では、PICO `pcsx_rearmed` が BIOS 検出後に `cdrom read failed for lba 4` で

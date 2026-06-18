@@ -68,7 +68,7 @@
 
 | symptom | affected profiles | direction |
 | --- | --- | --- |
-| analog axis rotation | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | PicoArch 側 input transform を per core/system で上書きできるようにする。 |
+| analog axis rotation | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | PicoArch launcher 側で `axisYR`/`axisXR` の rotated-axis default を適用済み。launcher/joystickd log では補正適用を確認済みで、実操作の目視確認待ち。 |
 | lower FPS / frameskip flicker | Arcade PICO profiles, `picoarch:mame2003_plus` | RA との差分として audio sync、frame limiter、frameskip path、present timing を測る。 |
 | PICO-only fail_boot | `picoarch:tyrquake`, `picoarch:lutro`, `picoarch:easyrpg`, `picoarch:squirreljme` など | PicoArch の content path、system dir、core option 初期化、working directory を RA と比較する。 |
 

@@ -271,7 +271,11 @@ confirms both MSX PICO `bluemsx` and `fmsx` now launch content correctly.
 `scummvm` libretro reads the analog cursor through gamepad axes, so the A30
 PicoArch launcher swaps joystickd X/Y sources to `axisYR`/`axisXR` for that core
 by default. The 2026-06-17 hardware check confirms the corrected ScummVM PICO
-analog cursor path works.
+analog cursor path works. On 2026-06-18 the same 90-degree rotated-axis symptom
+was still present in `hatari`, `prboom`, and `dosbox_pure`, so they now share the
+same rotated-axis default of `axisYR`/`axisXR`. Each core can still override the
+sources with per-core environment variables such as
+`PLUMOS_PICOARCH_HATARI_JOYSTICKD_X_SOURCE`.
 On 2026-06-16, `XeGrader100001.d88` reached the same title screen in both RA and
 PICO, with no visible color difference in that comparison.
 The same-day arcade validation found another VFS gap: PicoArch did not normalize

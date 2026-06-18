@@ -203,10 +203,20 @@ Environment:
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y 1 inverts virtual gamepad Y axis.
   PLUMOS_PICOARCH_SYSTEM       plumOS system id, used for system-specific core defaults.
+  PLUMOS_PICOARCH_ROTATED_JOYSTICKD_X_SOURCE
+                                Default X source for rotated-axis cores. Default: axisYR.
+  PLUMOS_PICOARCH_ROTATED_JOYSTICKD_Y_SOURCE
+                                Default Y source for rotated-axis cores. Default: axisXR.
   PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE
                                 ScummVM-only X source override. Default: axisYR.
   PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE
                                 ScummVM-only Y source override. Default: axisXR.
+  PLUMOS_PICOARCH_HATARI_JOYSTICKD_X_SOURCE, PLUMOS_PICOARCH_PRBOOM_JOYSTICKD_X_SOURCE,
+  PLUMOS_PICOARCH_DOSBOX_PURE_JOYSTICKD_X_SOURCE
+                                Per-core X source override for rotated-axis cores.
+  PLUMOS_PICOARCH_HATARI_JOYSTICKD_Y_SOURCE, PLUMOS_PICOARCH_PRBOOM_JOYSTICKD_Y_SOURCE,
+  PLUMOS_PICOARCH_DOSBOX_PURE_JOYSTICKD_Y_SOURCE
+                                Per-core Y source override for rotated-axis cores.
   PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
   PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
   PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
@@ -406,6 +416,21 @@ apply_cpu_policy() {
   esac
 }
 
+apply_rotated_joystickd_sources() {
+  core_prefix=$1
+  default_x=${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_X_SOURCE:-axisYR}
+  default_y=${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_Y_SOURCE:-axisXR}
+  eval core_x="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_X_SOURCE:-}"
+  eval core_y="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_Y_SOURCE:-}"
+  eval core_invert_x="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_INVERT_X:-}"
+  eval core_invert_y="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_INVERT_Y:-}"
+
+  PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${core_x:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-${default_x}}}
+  PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${core_y:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-${default_y}}}
+  PLUMOS_PICOARCH_JOYSTICKD_INVERT_X=${core_invert_x:-${PLUMOS_PICOARCH_JOYSTICKD_INVERT_X:-0}}
+  PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y=${core_invert_y:-${PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y:-0}}
+}
+
 start_joystickd() {
   [ "${PLUMOS_PICOARCH_JOYSTICKD:-1}" != 0 ] || return 0
   [ -x "${PLUMOS_ROOT}/bin/plumos-joystickd" ] || return 0
@@ -416,8 +441,16 @@ start_joystickd() {
   joystickd_core_name=${joystickd_core_name%.so}
   case "${joystickd_core_name}" in
     scummvm)
-      PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-axisYR}}
-      PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-axisXR}}
+      apply_rotated_joystickd_sources SCUMMVM
+      ;;
+    hatari)
+      apply_rotated_joystickd_sources HATARI
+      ;;
+    prboom)
+      apply_rotated_joystickd_sources PRBOOM
+      ;;
+    dosbox_pure)
+      apply_rotated_joystickd_sources DOSBOX_PURE
       ;;
   esac
 
