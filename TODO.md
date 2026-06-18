@@ -115,7 +115,8 @@
 - [x] ScummVM、EasyRPG Player、PCSX-ReARMed、DOSBox-Pure の起動方針を固める。
 - [x] standalone DOSBox Staging を通常配布対象から外し、DOSBox-Pure を DOS 標準候補にする。
 - [x] FE-owned launcher の CPU restore、joystickd 停止、fb restore、FE 復帰を実装する。
-- [ ] build 済み Class A/B core を system ごとに deploy/validate する。
+- [x] build 済み Class A/B core を system ごとに deploy/validate する。
+- [ ] 問題が残る emulator/core を症状別に切り分け、修正または通常候補からの除外判断を行う。
 - [ ] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
       `libretro-core-recipes.tsv` に追加する。
 - [ ] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
