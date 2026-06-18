@@ -19,10 +19,10 @@ atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;x
 atari800	Atari 8-bit	EIGHTHUNDRED;atari800	atr;xfd;dcm;cas;bin;atx;car;rom;com;xex;m3u;zip;7z	PICO	picoarch:atari800	atari800	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	RA	retroarch:hatari	hatari	yes	yes	yes	yes	yes	yes	pass	systems.json
 atarist	Atari ST	ATARIST;atarist	st;msa;zip;stx;dim;ipf;vhd;gem;ide;m3u	PICO	picoarch:hatari	hatari	yes	yes	yes	yes	yes	no	fail_input	FE auto companion
-c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	RA	retroarch:frodo	frodo	yes	yes	yes	yes	yes	no	fail_video	systems.json
-c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	RA	retroarch:vice_x64	vice_x64	yes	yes	yes	yes	yes	yes	fail_video	systems.json
-c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	PICO	picoarch:frodo	frodo	yes	yes	yes	yes	yes	no	fail_video	FE auto companion
-c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	PICO	picoarch:vice_x64	vice_x64	yes	yes	yes	yes	yes	no	fail_video	FE auto companion
+c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	RA	retroarch:frodo	frodo	yes	yes	yes	yes	yes	no	pass_init	systems.json
+c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	RA	retroarch:vice_x64	vice_x64	yes	yes	yes	yes	yes	yes	pass_init	systems.json
+c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	PICO	picoarch:frodo	frodo	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
+c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	PICO	picoarch:vice_x64	vice_x64	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 cannonball	Cannonball	CANNONBALL;cannonball	game;88	RA	retroarch:cannonball	cannonball	yes	yes	yes	yes	yes	yes	pass	systems.json
 cannonball	Cannonball	CANNONBALL;cannonball	game;88	PICO	picoarch:cannonball	cannonball	yes	yes	yes	yes	yes	no	pass	FE auto companion
 cavestory	Cave Story	CAVESTORY;cavestory	exe	RA	retroarch:nxengine	nxengine	yes	yes	yes	yes	yes	yes	fail_video	systems.json
