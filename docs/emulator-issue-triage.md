@@ -12,13 +12,9 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 47 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
-| `fail_audio` | 4 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 1 | FE から起動は試せるが content/game 起動へ進めない |
-| `fail_input` | 1 | 表示や起動は成立するが入力が実用判定に届かない |
+| `pass_init` | 46 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail_perf` | 3 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
-| `fail_video` | 1 | 起動はするが画面崩れや表示異常がある |
-| `retired` | 41 | 方針判断済みで通常 FE/動作確認対象から外した |
+| `retired` | 49 | 方針判断済みで通常 FE/動作確認対象から外した |
 | `untested` | 6 | 必要 BIOS/ROM がなく未確認 |
 
 ## 切り分け方針
@@ -52,14 +48,15 @@
 | PicoArch TyrQuake | `picoarch:tyrquake` | PicoArch が `retro_load_game()` 前に `retro_set_controller_port_device()` を呼ぶ一方、TyrQuake はその中で Quake console bind を実行するため、`Host_Init()` 前の command path で SIGSEGV していた。TyrQuake だけ controller setup を content load 後へ遅延し、2026-06-19 direct smoke で `139` が消え、`Screen: 320x200` と連続 `VIDEO_REFRESH`、gameplay framebuffer capture を確認して `pass_init`。 |
 | PicoArch Lutro | `picoarch:lutro` | Lutro は `RETRO_ENVIRONMENT_GET_PERF_INTERFACE` を必須扱いにしており、PicoArch が未対応だったため content load 前に `Core needs the perf interface` で失敗していた。PicoArch に `get_time_usec`、counter、CPU feature、perf register/start/stop/log の最小実装を追加し、2026-06-19 direct smoke で `Screen: 320x240`、XRGB8888 video refresh、Pong gameplay capture を確認して `pass_init`。 |
 | PicoArch rotated-axis input | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | launcher の rotated-axis default で `axisYR` / `axisXR` を joystickd へ渡す。2026-06-19 direct launch で 3 core とも launcher log と `joystickd-last.log` の `x_source=axisYR y_source=axisXR` を確認し、runtime TSV は `pass_init` へ戻した。 |
-| PicoArch EasyRPG boot classification | `picoarch:easyrpg` | 2026-06-19 direct RA/PICO 比較で、PICO も `Screen: 320x240`、`Frame rate: 60`、EasyRPG startup まで到達することを確認。起動不能ではなく RA と同じ MP3 BGM unsupported warning が残るため `fail_audio` に再分類した。 |
-| SquirrelJME PICO-only classification | `picoarch:squirreljme` | `Cento.jar` は RA/PICO とも `SquirrelJME Init` 後に `JVM Exec Error: -7` を返す。PicoArch 共通層の P3 問題ではなく、core/content 互換性問題として扱う。 |
+| PicoArch EasyRPG boot classification | `picoarch:easyrpg` | 2026-06-19 direct RA/PICO 比較で、PICO も `Screen: 320x240`、`Frame rate: 60`、EasyRPG startup まで到達することを確認。起動不能ではないが、RA/PICO とも libretro route は MP3 BGM unsupported warning が残る。standalone が user-confirmed pass のため libretro route は通常候補から外した。 |
+| SquirrelJME PICO-only classification | `picoarch:squirreljme` | `Cento.jar` は RA/PICO とも `SquirrelJME Init` 後に `JVM Exec Error: -7` を返す。PicoArch 共通層の P3 問題ではなく、core/content 互換性問題として扱う。RetroArch は user-confirmed pass のため、PicoArch companion は通常候補から外した。 |
 | MAME2003+ / Neo Geo set split | Arcade/Neo Geo/MAME 2003+ の `mame2003_plus` | `ddragon.zip` は RA/PICO とも起動する一方、Neo Geo の `fatfury1.zip` は MAME2003+ で `sfix.sfx`、`mame.sm1`、`033-m1.bin`、`mamelo.lo` が不足し、ROM set mismatch と確定。Neo Geo では `fbneo` / `fbalpha2012` が pass のため `mame2003_plus` を通常 FE profile から外した。Arcade/MAME2003+ の重い ROM は `fail_perf` として残す。 |
 | Neo Geo CD via FBNeo | `retroarch:fbneo`, `picoarch:fbneo` | FBNeo は 800x600 metadata までは到達するが、user-confirmed gameplay は `neocd` のみ。Neo Geo CD の default と通常 profile は `retroarch:neocd` に寄せ、FBNeo route は `retired`。 |
-| PICO-8 default route | `retroarch:fake08`, `picoarch:fake08`, `retroarch:retro8`, `picoarch:retro8` | `retroarch:fake08` は `Celeste.p8` の bounded direct smoke で `pass_init`。ただし `picoarch:fake08` は既に user-confirmed `pass` のため、PICO-8 の default は `picoarch:fake08` に変更。`retro8` は BGM 異常が残る非 default 候補として `fail_audio`。 |
-| Cave Story / NXEngine | `retroarch:nxengine`, `picoarch:nxengine` | `picoarch:nxengine` は direct smoke で 320x240/60fps metadata まで到達し、boot failure ではないと確認。日本語文字化けは RA/PICO 共通で、NXEngine が想定する data language/asset layout の問題として `retroarch:nxengine` は `fail_video` のまま扱う。 |
+| PICO-8 default route | `retroarch:fake08`, `picoarch:fake08`, `retroarch:retro8`, `picoarch:retro8` | `retroarch:fake08` は `Celeste.p8` の bounded direct smoke で `pass_init`。ただし `picoarch:fake08` は既に user-confirmed `pass` のため、PICO-8 の default は `picoarch:fake08` に変更。`retro8` は BGM 異常が残るため通常候補から外した。 |
+| Cave Story / NXEngine | `retroarch:nxengine`, `picoarch:nxengine` | `picoarch:nxengine` は direct smoke で 320x240/60fps metadata まで到達し、boot failure ではないと確認。ただし NXEngine README は Cave Story 1.0.0.6 + Aeon Genesis translation を要求しており、日本語版データの文字化けは RA/PICO 共通。現行 route は通常候補から外し、Cave Story system は disable にした。 |
 | Lutro / LowRes NX / VMU video routes | `retroarch:lutro`, `picoarch:lowresnx`, `retroarch:vemulator`, `picoarch:vemulator` | Lutro RA は capture で中央線が表示され `pass_init`。LowRes NX PICO は `SET_PIXEL_FORMAT` が `retro_init()` 前に来る core で XRGB8888 が 0RGB1555 に戻る不具合を修正し、capture で正常表示。VMU は RA が unload 時 abort 134 のため `retired`、user-confirmed pass の `picoarch:vemulator` を default にした。 |
 | P4 performance limit after HW display check | `opera`, `virtualjaguar`, `mednafen_pcfx`, `uw8`, `uzem`, GBA heavy cores, non-fast `mednafen_pce`, RetroArch `scummvm`, heavy `mame2003_plus` routes | RetroArch practical config と直近 log で `video_driver=gl`、`video_context_driver=mali_fbdev`、`fbdev_mali`、`Mali-400 MP` を確認。PicoArch logs でも P4 対象を含む各 core で `a30_mali=1` と `picoarch-a30: mali presenter ... vsync=1` を確認。HW 表示経路でも性能不足が残るため、代替のある system は重い profile を外し、代替のない system は disabled/retired にした。 |
+| Non-performance fail cleanup | `retroarch:easyrpg`, `picoarch:easyrpg`, `picoarch:squirreljme`, `retroarch:nekop2`, `retroarch:retro8`, `picoarch:retro8`, `retroarch:nxengine`, `picoarch:nxengine` | `fail_perf` 以外で残っていた失敗 profile は、正常な代替 route があるものを通常候補から外し、Cave Story は現行 NXEngine data-language 条件が plumOS の通常対象に合わないため system disable とした。自動 PicoArch companion のブロックリストも同期済み。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -85,4 +82,4 @@
 
 ## 次に実施する調査順
 
-1. P2/P3/P4 は完了。残件は BIOS/合法 ROM 待ち、Arcade PICO の ROM 依存性能、または user gameplay での `pass_init` 確認へ回す。
+1. P2/P3/P4 と `fail_perf` 以外の失敗 profile 整理は完了。残件は BIOS/合法 ROM 待ち、Arcade PICO の ROM 依存性能、または user gameplay での `pass_init` 確認へ回す。

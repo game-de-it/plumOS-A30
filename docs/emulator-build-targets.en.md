@@ -577,7 +577,7 @@ initial plumOS emulator/core build plan.
 | Game & Watch | `gw` | backup `gw` | Low load. |
 | Pokemon Mini | `pokemini` | backup `pokemini` | Low load. |
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
-| PICO-8 carts | `fake08`, optional `retro8` | `RApp/retro8`, installed `fake08` | Active launch uses `picoarch:fake08`; `retro8` remains a comparison target because BGM behavior is unstable. |
+| PICO-8 carts | `fake08` | installed `fake08` | Active launch uses `picoarch:fake08`; `retro8` is removed from normal candidates because BGM behavior remains unstable. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
 | ScummVM | `standalone:scummvm`, `picoarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. PicoArch is also hardware-confirmed after analog-axis correction. RetroArch ScummVM is removed from normal candidates because it remains too heavy through the HW display path. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
@@ -593,7 +593,7 @@ These may work, but the satisfaction threshold depends on title, profile, or UX.
 | --- | --- | --- |
 | CPS3 | `fbalpha2012`, `fbneo` | 2D but heavier. Decide from representative titles. |
 | SNES enhancement-chip titles | `snes9x`, `snes9x2005-plus`, `mednafen_supafaust` | SA-1/SuperFX/etc. need title-level performance checks. |
-| PC-88 / PC-98 | `quasi88`, `np2kai`, `nekop2` | Input/keyboard UX may be harder than CPU load. RA `np2kai` appends `np2kai_joymode=Arrows`; RA `nekop2` keeps the normal gamepad path and uses a core-side joypad-to-keyboard patch. The user confirmed Desire.hdi passes hit-any-key with `np2kai` set to `Keypad 3button`. PicoArch `quasi88` is removed because of the palette mismatch, and PicoArch `np2kai` / `nekop2` are removed because they do not sustain 60fps. PC-98 text rendering needs a `FONT.ROM` equivalent in each core's BIOS/font directory. |
+| PC-88 / PC-98 | `quasi88`, `np2kai` | Input/keyboard UX may be harder than CPU load. RA `np2kai` appends `np2kai_joymode=Arrows`. The user confirmed Desire.hdi passes hit-any-key with `np2kai` set to `Keypad 3button`. RA `nekop2` is removed from normal candidates because input remains broken. PicoArch `quasi88` is removed because of the palette mismatch, and PicoArch `np2kai` / `nekop2` are removed because they do not sustain 60fps. PC-98 text rendering needs a `FONT.ROM` equivalent in each core's BIOS/font directory. |
 | Virtual Boy | `retroarch:mednafen_vb` | The plumOS-built `mednafen_vb` core pinned to Onion-proven commit `162918f` has confirmed Bad Apple gameplay on A30. Red Viper's StockOS-derived rendering path now has correct orientation/fit and single-eye rendering, but heavy-scene audio dropout remains, so it is removed from the FE profile list. |
 | lightweight PSP | `standalone:ppsspp` | Test 2D/light titles only; do not promise PSP as a whole. A30 input/menu/display are first-pass OK. |
 | old computer engines | `crocods`, `gme`, other installed cores | Depends on ROM demand and input profiles. |
@@ -637,7 +637,7 @@ order after deploying the staged package:
 6. Lightweight systems promoted from stock backup/installed cores:
    `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
    `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `prboom`,
-   `dosbox_pure`, `retro8`/`fake08`.
+   `dosbox_pure`, `fake08`.
 7. Conditional checks:
    CPS3, SNES enhancement-chip titles, PC-88/PC-98, lightweight PSP.
 

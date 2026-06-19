@@ -1019,7 +1019,7 @@
           {"root": "sdcard", "path": "Images/easyrpg"}
         ]
       },
-      "launch_profiles": ["standalone:easyrpg", "retroarch:easyrpg"],
+      "launch_profiles": ["standalone:easyrpg"],
       "default_launch_profile": "standalone:easyrpg",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -1047,7 +1047,7 @@
           {"root": "sdcard", "path": "Images/pico8"}
         ]
       },
-      "launch_profiles": ["picoarch:fake08", "retroarch:fake08", "retroarch:retro8"],
+      "launch_profiles": ["picoarch:fake08", "retroarch:fake08"],
       "default_launch_profile": "picoarch:fake08",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -1213,7 +1213,7 @@
           {"root": "sdcard", "path": "Images/pc98"}
         ]
       },
-      "launch_profiles": ["retroarch:np2kai", "retroarch:nekop2"],
+      "launch_profiles": ["retroarch:np2kai"],
       "default_launch_profile": "retroarch:np2kai",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -1789,7 +1789,7 @@
       "short_name": "Cave",
       "sort_order": 580,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "CAVESTORY", "source": "plumos", "priority": 10},

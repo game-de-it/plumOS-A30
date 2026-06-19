@@ -10,12 +10,16 @@ from pathlib import Path
 
 
 PICOARCH_BLOCKED_CORES = {
+    "easyrpg",
     "freeintv",
     "mame2003_plus",
     "mednafen_pce",
     "nekop2",
+    "nxengine",
     "np2kai",
     "quasi88",
+    "retro8",
+    "squirreljme",
     "tgbdual",
 }
 

@@ -24,8 +24,6 @@ c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;c
 c64	Commodore 64	COMMODORE;c64	d64;d71;d80;d81;d82;g64;g41;x64;t64;tap;prg;p00;crt;bin;zip;gz;m3u	PICO	picoarch:vice_x64	vice_x64	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 cannonball	Cannonball	CANNONBALL;cannonball	game;88	RA	retroarch:cannonball	cannonball	yes	yes	yes	yes	yes	yes	pass	systems.json
 cannonball	Cannonball	CANNONBALL;cannonball	game;88	PICO	picoarch:cannonball	cannonball	yes	yes	yes	yes	yes	no	pass	FE auto companion
-cavestory	Cave Story	CAVESTORY;cavestory	exe	RA	retroarch:nxengine	nxengine	yes	yes	yes	yes	yes	yes	fail_video	systems.json
-cavestory	Cave Story	CAVESTORY;cavestory	exe	PICO	picoarch:nxengine	nxengine	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; Direct PicoArch smoke reached NXEngine 320x240 video and 60 fps metadata with Doukutsu.exe. The remaining Japanese text garbling is shared with RetroArch and is treated as an NXEngine/data-language compatibility issue, not a PicoArch boot issue.
 chailove	ChaiLove	CHAILOVE;chailove	chai;chailove	RA	retroarch:chailove	chailove	yes	yes	yes	yes	yes	yes	pass_init	systems.json; launcher sets SDL_VIDEODRIVER=LIBRETROvideo for ChaiLove
 chailove	ChaiLove	CHAILOVE;chailove	chai;chailove	PICO	picoarch:chailove	chailove	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher sets SDL_VIDEODRIVER=LIBRETROvideo for ChaiLove
 channelf	Fairchild Channel F	FAIRCHILD;channelf	bin;chf;rom;zip	RA	retroarch:freechaf	freechaf	yes	yes	yes	yes	yes	yes	untested	systems.json; requires sl31254.bin plus sl31253.bin or sl90025.bin in /mnt/SDCARD/Bios
@@ -58,8 +56,6 @@ doom	Doom	DOOM;doom	wad;iwad;pwad;zip	RA	retroarch:prboom	prboom	yes	yes	yes	yes
 doom	Doom	DOOM;doom	wad;iwad;pwad;zip	PICO	picoarch:prboom	prboom	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher applies rotated joystickd sources axisYR/axisXR
 dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	RA	retroarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	yes	pass	systems.json
 dos	DOS	DOS;pc	dosz;conf;exe;bat;zip	PICO	picoarch:dosbox_pure	dosbox_pure	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; launcher applies rotated joystickd sources axisYR/axisXR
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	RA	retroarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	fail_audio	systems.json
-easyrpg	EasyRPG	EASYRPG;easyrpg	easyrpg;ldb;zip	PICO	picoarch:easyrpg	easyrpg	yes	yes	yes	yes	yes	no	fail_audio	FE auto companion; direct smoke reaches startup, but EasyRPG MP3 BGM remains unsupported
 fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	RA	retroarch:fbneo	fbneo	yes	yes	yes	yes	yes	yes	pass	systems.json
 fbneo	FBNeo	FBNEO;ARCADE;fbneo	zip;7z	PICO	picoarch:fbneo	fbneo	yes	yes	yes	yes	yes	no	pass	FE auto companion
 fds	FDS	FDS;FC;fds	fds;zip;7z	RA	retroarch:fceumm	fceumm	yes	yes	yes	yes	yes	yes	pass	systems.json
@@ -98,7 +94,6 @@ gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:gearboy	gearboy	yes	yes	yes	yes	yes	
 gbc	GBC	GBC;GB;gbc	gbc;zip;7z	PICO	picoarch:vbam	vbam	yes	yes	yes	yes	yes	no	pass_init	FE auto companion
 intellivision	Intellivision	INTELLIVISION;intellivision	int;bin;rom;zip;7z	RA	retroarch:freeintv	freeintv	yes	yes	yes	yes	yes	yes	pass_init	systems.json
 j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	RA	retroarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	yes	pass	systems.json
-j2me	Java ME	J2ME;j2me	jar;sqc;jam;jad;kjx;adf;sec;sto;sp;sp0;sp1;sp2;sp3;sp4;sp5;sp6;sp7;sp8;sp9	PICO	picoarch:squirreljme	squirreljme	yes	yes	yes	yes	yes	no	fail_boot	FE auto companion; Cento.jar fails with the same SquirrelJME JVM error in RA and PICO, so this is not PICO-only
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	RA	retroarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	yes	pass	systems.json
 lowresnx	LowRes NX	LOWRESNX;lowresnx	nx	PICO	picoarch:lowresnx	lowresnx	yes	yes	yes	yes	yes	no	pass_init	FE auto companion; PicoArch had reset the core pixel format to 0RGB1555 after LowRes NX set XRGB8888, causing stripe corruption. The reset now happens before retro_set_environment; trace keeps fmt=1 and capture artifacts/p2-triage-20260619/lowres-pico-fixed shows the cube screen correctly.
 lutro	Lutro	LUTRO;lutro	lutro;love;lua	RA	retroarch:lutro	lutro	yes	yes	yes	yes	yes	yes	pass_init	systems.json; Direct RetroArch capture artifacts/p2-triage-20260619/lutro-ra shows Pong gameplay with the center vertical line present. Keep pass_init until audio/input/performance are reconfirmed by user gameplay.
@@ -145,7 +140,6 @@ odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	RA	retroarch:o2em	o2em	y
 odyssey2	Odyssey2	ODYSSEY2;VIDEOPAC;odyssey2	bin;zip;7z	PICO	picoarch:o2em	o2em	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pc88	PC-88	PC88;pc-8800	d88;u88;m3u;zip	RA	retroarch:quasi88	quasi88	yes	yes	yes	yes	yes	yes	pass	systems.json
 pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:np2kai	np2kai	yes	yes	yes	yes	yes	yes	pass	systems.json
-pc98	PC-98	PC98;pc-9800	d88;fdi;hdi;fdd;nhd;hdd;m3u;zip	RA	retroarch:nekop2	nekop2	yes	yes	yes	yes	yes	no	fail_input	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	RA	retroarch:mednafen_supergrafx	mednafen_supergrafx	yes	yes	yes	yes	yes	no	pass	systems.json
 pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
@@ -153,9 +147,7 @@ pcengine	PC Engine	PCE;pcengine;tg16	pce;sgx;zip;7z	PICO	picoarch:mednafen_super
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	RA	retroarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	yes	pass	systems.json
 pcenginecd	PC Engine CD	PCECD;pcenginecd;tg16cd	cue;chd;iso;m3u	PICO	picoarch:mednafen_pce_fast	mednafen_pce_fast	yes	yes	yes	yes	yes	no	pass	FE auto companion
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:fake08	fake08	yes	yes	yes	yes	yes	no	pass_init	systems.json; Direct RetroArch fake08 smoke reaches 128x128 video, 60 fps metadata, and exits cleanly after the bounded run. PICO-8 now defaults to picoarch:fake08 because that route already has user-confirmed audio/input/performance.
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	RA	retroarch:retro8	retro8	yes	yes	yes	yes	yes	no	fail_audio	systems.json
 pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:fake08	fake08	yes	yes	yes	yes	yes	yes	pass	systems.json
-pico8	PICO-8	PICO8;PICO;pico-8	p8;png	PICO	picoarch:retro8	retro8	yes	yes	yes	yes	yes	no	fail_audio	FE auto companion
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	RA	retroarch:pokemini	pokemini	yes	yes	yes	yes	yes	yes	pass	systems.json
 pokemini	Pokemon Mini	POKEMINI;pokemini	min;zip;7z	PICO	picoarch:pokemini	pokemini	yes	yes	yes	yes	yes	no	pass	FE auto companion
 psx	PlayStation	PS;PSX;psx	cue;chd;pbp;m3u;iso;img;bin	RA	retroarch:pcsx_rearmed	pcsx_rearmed	yes	yes	yes	yes	yes	no	pass	systems.json

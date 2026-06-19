@@ -29,12 +29,12 @@ cps1	CPS1	CPS1	ARCADE;cps1	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps1,fbneo	add_c
 cps2	CPS2	CPS2	ARCADE;cps2	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps2,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps2
 cps3	CPS3	CPS3	ARCADE;cps3	zip,7z	fbneo	fbalpha2012,fbneo	existing	systems.json	-
 dos	DOS	DOS	pc	dosz,conf,exe,bat,zip	dosbox_pure	dosbox_pure	existing	systems.json	-
-easyrpg	EasyRPG	EASYRPG	easyrpg	easyrpg,ldb,zip	easyrpg	easyrpg	existing	systems.json	-
-pico8	PICO-8	PICO8	PICO;pico-8	p8,png	fake08	fake08,retro8	existing	systems.json	FE default is picoarch:fake08; retro8 remains non-default because BGM behavior is abnormal.
+easyrpg	EasyRPG	EASYRPG	easyrpg	easyrpg,ldb,zip	easyrpg	easyrpg	existing	systems.json	normal route is standalone:easyrpg only; retire libretro RA/PICO because MP3 BGM is unsupported there
+pico8	PICO-8	PICO8	PICO;pico-8	p8,png	fake08	fake08	existing	systems.json	FE default is picoarch:fake08; retire retro8 because BGM behavior remains abnormal
 scummvm	ScummVM	SCUMMVM	scummvm	scummvm,svm	scummvm	scummvm	existing	systems.json	standalone and picoarch are normal routes; retire retroarch:scummvm because it remains too heavy on HW display path
 msx	MSX	MSX	msx	rom,mx1,mx2,dsk,cas,zip,7z	bluemsx	bluemsx,fmsx	existing	systems.json	-
 pc88	PC-88	PC88	pc-8800	d88,u88,m3u,zip	quasi88	quasi88	existing	systems.json	-
-pc98	PC-98	PC98	pc-9800	d88,fdi,hdi,fdd,nhd,hdd,m3u,zip	np2kai	nekop2,np2kai	add_core	systems.json	add candidates: nekop2
+pc98	PC-98	PC98	pc-9800	d88,fdi,hdi,fdd,nhd,hdd,m3u,zip	np2kai	np2kai	existing	systems.json	retire nekop2 because input remains broken while np2kai is user-confirmed pass
 x68000	X68000	X68000	x68000	dim,hdf,xdf,m3u,zip,7z	px68k	px68k	existing	systems.json	-
 tic80	TIC-80	TIC	tic-80	tic	tic80	tic80	existing	systems.json	-
 atari2600	Atari 2600	ATARI2600	atari2600	a26,bin,zip,7z	stella2014	stella2014	existing	systems.json	-
@@ -54,7 +54,7 @@ atarist	Atari ST	ATARIST	atarist	st,msa,zip,stx,dim,ipf,vhd,gem,ide,m3u	hatari	h
 bk	Elektronika BK	BK	bk	bin	bk	bk	add_system	proposal	proposed plumOS folder
 c64	Commodore 64	COMMODORE	c64	d64,d71,d80,d81,d82,g64,g41,x64,t64,tap,prg,p00,crt,bin,zip,gz,m3u	vice_x64	frodo,vice_x64	add_system	proposal	Onion folder COMMODORE
 cannonball	Cannonball	CANNONBALL	cannonball	game,88	cannonball	cannonball	add_system	proposal	OutRun engine; requires game data policy
-cavestory	Cave Story	CAVESTORY	cavestory	exe	nxengine	nxengine	add_system	proposal	NXEngine; requires data layout policy
+cavestory	Cave Story	CAVESTORY	cavestory	exe	nxengine	nxengine	retired	systems.json	NXEngine requires Cave Story 1.0.0.6 with the Aeon Genesis translation; Japanese data remains garbled, so disable until a supported data policy or replacement route is selected
 chailove	ChaiLove	CHAILOVE	chailove	chai,chailove	chailove	chailove	add_system	proposal	homebrew engine
 channelf	Fairchild Channel F	FAIRCHILD	channelf	bin,chf,rom,zip	freechaf	freechaf	add_system	proposal	Onion folder FAIRCHILD
 colecovision	ColecoVision	COLECO	coleco	rom,ri,mx1,mx2,col,dsk,cas,sg,sc,m3u,zip,7z	bluemsx	bluemsx	add_system	proposal	Onion folder COLECO
@@ -63,7 +63,7 @@ daphne	Daphne	DAPHNE	daphne	zip	daphne	daphne	add_system	proposal	laserdisc data
 dinothawr	Dinothawr	DINOTHAWR	dinothawr	game	dinothawr	dinothawr	add_system	proposal	homebrew game engine
 flashback	Flashback	FLASHBACK	flashback	map,aba,seq,lev	reminiscence	reminiscence	add_system	proposal	REminiscence data layout policy pending
 intellivision	Intellivision	INTELLIVISION	intellivision	int,bin,rom,zip,7z	freeintv	freeintv	add_system	proposal	Onion folder INTELLIVISION; BIOS required
-j2me	Java ME	J2ME	j2me	jar,sqc,jam,jad,kjx,adf,sec,sto,sp,sp0,sp1,sp2,sp3,sp4,sp5,sp6,sp7,sp8,sp9	squirreljme	squirreljme	add_system	proposal	SquirrelJME; controls/config policy pending
+j2me	Java ME	J2ME	j2me	jar,sqc,jam,jad,kjx,adf,sec,sto,sp,sp0,sp1,sp2,sp3,sp4,sp5,sp6,sp7,sp8,sp9	squirreljme	squirreljme	add_system	proposal	RetroArch SquirrelJME remains normal; block PicoArch companion until a known-good MIDlet is verified there
 jaguar	Atari Jaguar	JAGUAR	atarijaguar	j64,jag,rom,abs,cof,bin,prg	virtualjaguar	virtualjaguar	retired	systems.json	disabled after HW display path confirmation; virtualjaguar remains too slow on A30
 lowresnx	LowRes NX	LOWRESNX	lowresnx	nx	lowresnx	lowresnx	add_system	proposal	homebrew engine
 lutro	Lutro	LUTRO	lutro	lutro,love,lua	lutro	lutro	add_system	proposal	Lua engine
