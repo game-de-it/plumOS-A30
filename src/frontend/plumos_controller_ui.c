@@ -7023,6 +7023,8 @@ static void render_brightness_test_settings(struct ui_state *ui) {
 
   ui_printf(ui, "plumOS controller UI - %s\n",
             settings_category_title(ui, ui->settings_category));
+  ui_printf(ui, "settings_screen=1\n");
+  ui_printf(ui, "brightness_test=1\n");
   ui_printf(ui, "A: apply  B: back  UP/DOWN/LEFT/RIGHT: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
             ui->setting_count ? ui->settings_cursor + 1 : 0);
@@ -7085,6 +7087,7 @@ static void render_settings(struct ui_state *ui) {
 
   ui_printf(ui, "plumOS controller UI - %s\n",
             settings_category_title(ui, ui->settings_category));
+  ui_printf(ui, "settings_screen=1\n");
   ui_printf(ui, "A: toggle/run  B: back  LEFT/RIGHT: change  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
             ui->setting_count ? ui->settings_cursor + 1 : 0);

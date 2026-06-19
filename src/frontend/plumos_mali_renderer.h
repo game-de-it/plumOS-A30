@@ -2446,7 +2446,8 @@ static int plumos_mali_make_safe_entry(const char *line, char *out, size_t out_s
 }
 
 static void plumos_mali_make_entry(const char *line, const char *screen_title,
-                                   char *out, size_t out_size) {
+                                   int settings_family_hint, char *out,
+                                   size_t out_size) {
   char compact[160];
   char *profile;
 
@@ -2467,7 +2468,8 @@ static void plumos_mali_make_entry(const char *line, const char *screen_title,
     *profile = '\0';
   }
   snprintf(out, out_size, "%s", compact);
-  if (strstr(screen_title, "START") || strstr(screen_title, "Apps") ||
+  if (settings_family_hint || strstr(screen_title, "START") ||
+      strstr(screen_title, "Apps") ||
       strstr(screen_title, "APPS") || strstr(screen_title, "Settings") ||
       strstr(screen_title, "SETTINGS") || strstr(screen_title, "HELP") ||
       strstr(screen_title, "Thumbnail Results") ||
@@ -3710,6 +3712,8 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
                                       size_t *entry_count_out) {
   size_t i;
   size_t entry_count = 0;
+  int settings_family_hint =
+      plumos_mali_has_prefixed_line(lines, line_count, "settings_screen=1");
 
   if (title && title_size > 0) {
     title[0] = '\0';
@@ -3740,6 +3744,10 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
     if (plumos_mali_starts_with(line, "usb_disk_starting=")) {
       continue;
     }
+    if (plumos_mali_starts_with(line, "settings_screen=") ||
+        plumos_mali_starts_with(line, "brightness_test=")) {
+      continue;
+    }
     if (plumos_mali_starts_with(line, "footer1=") ||
         plumos_mali_starts_with(line, "footer2=")) {
       continue;
@@ -3765,7 +3773,8 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
       continue;
     }
     if (plumos_mali_is_entry_line(line) && entry_count < entry_capacity) {
-      plumos_mali_make_entry(line, title, entries[entry_count], sizeof(entries[entry_count]));
+      plumos_mali_make_entry(line, title, settings_family_hint,
+                             entries[entry_count], sizeof(entries[entry_count]));
       entry_count++;
     }
   }
@@ -4059,7 +4068,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   char prompt_path[PLUMOS_MALI_RENDER_LINE_MAX];
   char prompt_line1[160];
   char prompt_line2[160];
-  char title[80];
+  char title[160];
   char meta[160];
   char status[160];
   char footer1[160];
@@ -4092,7 +4101,9 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   int is_settings;
   int is_settings_family;
   int is_settings_page;
+  int is_settings_marker;
   int is_brightness_test;
+  int is_brightness_test_marker;
   int show_prompt;
   int is_usb_disk_starting;
   int is_top_refresh_running;
@@ -4269,10 +4280,15 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   }
   is_rom_list = plumos_mali_title_is_rom_list(title);
   is_top = plumos_mali_title_is_top(title);
-  is_settings = plumos_mali_title_is_settings(title);
-  is_settings_family = plumos_mali_title_is_settings_family(title);
-  is_settings_page = strstr(title, "Settings") != NULL;
-  is_brightness_test = plumos_mali_title_is_brightness_test(title);
+  is_settings_marker = plumos_mali_has_prefixed_line(lines, line_count,
+                                                     "settings_screen=1");
+  is_brightness_test_marker = plumos_mali_has_prefixed_line(lines, line_count,
+                                                            "brightness_test=1");
+  is_settings = is_settings_marker || plumos_mali_title_is_settings(title);
+  is_settings_family = is_settings_marker || plumos_mali_title_is_settings_family(title);
+  is_settings_page = is_settings_marker || strstr(title, "Settings") != NULL;
+  is_brightness_test = is_brightness_test_marker ||
+                       plumos_mali_title_is_brightness_test(title);
   show_prompt = !is_settings_family;
   if (is_brightness_test) {
     const char *prefix = "brightness_tile=";
@@ -4379,8 +4395,8 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     }
     y = 104.0f;
   } else {
-    plumos_mali_text(renderer, title, 14.0f, 48.0f, 2,
-                     0.72f, 0.88f, 1.0f, 1.0f);
+    plumos_mali_text_limited(renderer, title, 14.0f, 48.0f, 2, 1, 0.0f,
+                             0.72f, 0.88f, 1.0f, 1.0f);
     y = 82.0f;
   }
 
@@ -4453,14 +4469,14 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                        (float)renderer->width, 2.0f,
                        0.06f, 0.18f, 0.25f, 1.0f);
       if (footer1[0]) {
-        plumos_mali_text(renderer, footer1, 14.0f,
-                         (float)renderer->height - 56.0f, 2,
-                         0.64f, 0.82f, 0.92f, 1.0f);
+        plumos_mali_text_limited(renderer, footer1, 14.0f,
+                                 (float)renderer->height - 56.0f, 2, 1,
+                                 0.0f, 0.64f, 0.82f, 0.92f, 1.0f);
       }
       if (footer2[0]) {
-        plumos_mali_text(renderer, footer2, 14.0f,
-                         (float)renderer->height - 34.0f, 2,
-                         0.64f, 0.82f, 0.92f, 1.0f);
+        plumos_mali_text_limited(renderer, footer2, 14.0f,
+                                 (float)renderer->height - 34.0f, 2, 1,
+                                 0.0f, 0.64f, 0.82f, 0.92f, 1.0f);
       }
     }
     (void)status;
@@ -4587,12 +4603,15 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
 	        }
 		        plumos_mali_copy_utf8_cells(setting_label, visible_label, sizeof(visible_label),
 		                                    label_cells);
-		        plumos_mali_text(renderer, visible_label, name_x, y, entry_scale, r, g, b, 1.0f);
+		        plumos_mali_text_limited(renderer, visible_label, name_x, y,
+		                                 entry_scale, 1, control_x - (float)cell_width,
+		                                 r, g, b, 1.0f);
 		        plumos_mali_text_setting_control(renderer, setting_control, control_x, y,
 		                                         entry_scale, flash_direction, r, g, b,
 		                                         1.0f);
 		      } else {
-	        plumos_mali_text(renderer, visible_name, name_x, y, entry_scale, r, g, b, 1.0f);
+	        plumos_mali_text_limited(renderer, visible_name, name_x, y, entry_scale,
+	                                 1, name_right_x, r, g, b, 1.0f);
 	      }
 	    } else {
 	      plumos_mali_text(renderer, visible_name, name_x, y, entry_scale, r, g, b, 1.0f);
@@ -4626,12 +4645,14 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                        (float)renderer->height - 56.0f,
                        2, 1.0f, 0.08f, 0.04f, 1.0f);
     } else if (footer1[0]) {
-      plumos_mali_text(renderer, footer1, 14.0f, (float)renderer->height - 56.0f,
-                       2, 0.64f, 0.82f, 0.92f, 1.0f);
+      plumos_mali_text_limited(renderer, footer1, 14.0f,
+                               (float)renderer->height - 56.0f,
+                               2, 1, 0.0f, 0.64f, 0.82f, 0.92f, 1.0f);
     }
     if (footer2[0]) {
-      plumos_mali_text(renderer, footer2, 14.0f, (float)renderer->height - 34.0f,
-                       2, 0.64f, 0.82f, 0.92f, 1.0f);
+      plumos_mali_text_limited(renderer, footer2, 14.0f,
+                               (float)renderer->height - 34.0f,
+                               2, 1, 0.0f, 0.64f, 0.82f, 0.92f, 1.0f);
     }
   }
   (void)status;
