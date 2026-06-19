@@ -35,6 +35,7 @@ launch profile を突き合わせたものです。動作確認対象は `target
 PicoArch profile は `systems.json` に `picoarch:*` として明示できます。明示 profile がない core のうち、
 PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
 `easyrpg`、`freeintv`、`mame2003_plus`、`mednafen_pce`、`nekop2`、`nxengine`、`np2kai`、`quasi88`、`retro8`、`squirreljme`、`tgbdual` は既知問題または別の実用 route があるため自動追加対象から外しています。
+また `arcade` system では `fbneo`、`fbalpha2012`、`mame2000` の PicoArch companion も通常候補から外しています。これらの core は他 system では PICO 実機確認済みのものがあるため、core 全体ではなく system+core 単位で除外します。
 
 N64 は Class C の実験対象でしたが、性能と描画経路の都合で正式な検証対象から外しました。
 stockOS 由来の N64 core は plumOS の build/deploy 一覧に含めません。

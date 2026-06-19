@@ -1170,7 +1170,7 @@ static int add_core_profile(struct core_system_def *system, const char *profile)
   return 1;
 }
 
-static int picoarch_companion_core_allowed(const char *core_id) {
+static int picoarch_companion_core_allowed(const char *system_id, const char *core_id) {
   static const char *blocked_core_ids[] = {
       "easyrpg",
       "freeintv",
@@ -1184,6 +1184,14 @@ static int picoarch_companion_core_allowed(const char *core_id) {
       "squirreljme",
       "tgbdual",
   };
+  static const struct {
+    const char *system_id;
+    const char *core_id;
+  } blocked_system_cores[] = {
+      {"arcade", "fbalpha2012"},
+      {"arcade", "fbneo"},
+      {"arcade", "mame2000"},
+  };
   size_t i;
 
   if (!core_id || !core_id[0]) {
@@ -1191,6 +1199,12 @@ static int picoarch_companion_core_allowed(const char *core_id) {
   }
   for (i = 0; i < sizeof(blocked_core_ids) / sizeof(blocked_core_ids[0]); i++) {
     if (strcmp(core_id, blocked_core_ids[i]) == 0) {
+      return 0;
+    }
+  }
+  for (i = 0; i < sizeof(blocked_system_cores) / sizeof(blocked_system_cores[0]); i++) {
+    if (system_id && strcmp(system_id, blocked_system_cores[i].system_id) == 0 &&
+        strcmp(core_id, blocked_system_cores[i].core_id) == 0) {
       return 0;
     }
   }
@@ -1217,7 +1231,7 @@ static void add_picoarch_companion_profiles(struct core_system_def *system) {
     if (!core_id[0]) {
       continue;
     }
-    if (!picoarch_companion_core_allowed(core_id)) {
+    if (!picoarch_companion_core_allowed(system->id, core_id)) {
       continue;
     }
     if (snprintf(pico_profile, sizeof(pico_profile), "picoarch:%s", core_id) >=

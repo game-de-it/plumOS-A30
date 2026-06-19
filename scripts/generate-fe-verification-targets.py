@@ -23,6 +23,12 @@ PICOARCH_BLOCKED_CORES = {
     "tgbdual",
 }
 
+PICOARCH_BLOCKED_SYSTEM_CORES = {
+    ("arcade", "fbalpha2012"),
+    ("arcade", "fbneo"),
+    ("arcade", "mame2000"),
+}
+
 STANDALONE_BINARIES = {
     "dosbox": ["/mnt/SDCARD/plumos/emulators/dosbox-staging/bin/dosbox"],
     "dosbox-staging": ["/mnt/SDCARD/plumos/emulators/dosbox-staging/bin/dosbox"],
@@ -230,6 +236,8 @@ def libretro_rows(
         for profile in retroarch_profiles:
             core_id = profile.split(":", 1)[1]
             if core_id in PICOARCH_BLOCKED_CORES:
+                continue
+            if (system_id, core_id) in PICOARCH_BLOCKED_SYSTEM_CORES:
                 continue
             pico_profile = f"picoarch:{core_id}"
             if pico_profile in picoarch_profiles:

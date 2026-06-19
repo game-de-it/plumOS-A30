@@ -22,7 +22,7 @@ wonderswan	WonderSwan	WS	WSC;wonderswan	ws,zip,7z	mednafen_wswan	mednafen_wswan	
 wonderswancolor	WonderSwan Color	WSC	wonderswancolor	wsc,zip,7z	mednafen_wswan	mednafen_wswan	existing	systems.json	-
 lynx	Atari Lynx	LYNX	lynx	lnx,lyx,bll,o,zip,7z	mednafen_lynx	handy,mednafen_lynx	existing	systems.json	-
 virtualboy	Virtual Boy	VB	virtualboy	vb,vboy,bin,zip,7z	mednafen_vb	mednafen_vb	existing	systems.json	-
-arcade	Arcade	ARCADE	arcade	zip,7z	mame2003_plus	fbalpha2012,fbneo,mame2000,mame2003_plus	add_core	systems.json	add candidates: mame2000
+arcade	Arcade	ARCADE	arcade	zip,7z	mame2003_plus	fbalpha2012,fbneo,mame2000,mame2003_plus	existing	systems.json	RA routes remain normal; retire Arcade PicoArch companions because RA is more stable for Arcade frame pacing/audio on A30
 fbneo	FBNeo	FBNEO	ARCADE;fbneo	zip,7z	fbneo	fbneo	existing	systems.json	-
 mame2003plus	MAME 2003+	MAME2003PLUS	ARCADE;mame	zip,7z	mame2003_plus	mame2003_plus	retired	systems.json	dedicated MAME 2003+ entry is disabled after HW display path confirmation; Arcade keeps passing RA mame2003_plus route
 cps1	CPS1	CPS1	ARCADE;cps1	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps1,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps1
