@@ -7,7 +7,8 @@ launch profile を突き合わせたものです。動作確認対象は `target
 
 - `docs/emulator-fe-libretro-targets.tsv`
   - RetroArch (`RA`) と PicoArch (`PICO`) の FE 実行可能 profile。
-  - PicoArch は FE が RetroArch profile から自動追加する companion profile も含みます。
+  - `picoarch:*` として明示された profile と、FE が RetroArch profile から自動追加する
+    companion profile の両方を含みます。
 - `docs/emulator-fe-standalone-targets.tsv`
   - `standalone:*` と、libretro ではない `pyxel:a30` の FE 実行可能 profile。
 
@@ -17,7 +18,8 @@ launch profile を突き合わせたものです。動作確認対象は `target
 - `deployed_core=yes`: 実機 `/mnt/SDCARD/plumos/retroarch/cores/*_libretro.so` に存在する。
 - `fe_selectable=yes`: enabled system の launch profile、または FE が追加する PicoArch companion。
 - `fe_executable=yes`: FE が起動計画を作れる runtime/core/launcher が実機に存在する。
-- `target_for_verification=yes`: build、deploy、FE 実行可能条件がすべて揃っている。
+- `target_for_verification=yes`: build、deploy、FE 実行可能条件がすべて揃っていて、
+  `verification_status` が `retired` ではない。
 - `verification_status`: `docs/emulator-runtime-verification.tsv` の現在の検証状態。
   - `pass`: video/audio/input/performance が実用範囲で確認済み。
   - `pass_init`: 起動や初期表示は改善済みだが、入力や gameplay の追加確認が必要。
@@ -30,6 +32,7 @@ launch profile を突き合わせたものです。動作確認対象は `target
   - `retired`: 検証や方針判断の結果、通常FE/動作確認対象から外した。
   - `untested`: FE から実行可能だが、まだ実機確認していない。
 
+PicoArch profile は `systems.json` に `picoarch:*` として明示できます。明示 profile がない core のうち、
 PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
 `freeintv`、`mednafen_pce`、`nekop2`、`np2kai`、`quasi88`、`tgbdual` は既知問題があるため自動追加対象から外しています。
 

@@ -588,7 +588,7 @@
           {"root": "sdcard", "path": "Images/neogeo"}
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:mame2003_plus", "retroarch:fbalpha2012", "retroarch:fbalpha2012_neogeo"],
+      "launch_profiles": ["retroarch:fbneo", "retroarch:fbalpha2012", "retroarch:fbalpha2012_neogeo"],
       "default_launch_profile": "retroarch:fbneo",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -615,8 +615,8 @@
           {"root": "sdcard", "path": "Images/neogeocd"}
         ]
       },
-      "launch_profiles": ["retroarch:fbneo", "retroarch:neocd"],
-      "default_launch_profile": "retroarch:fbneo",
+      "launch_profiles": ["retroarch:neocd"],
+      "default_launch_profile": "retroarch:neocd",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
@@ -1047,8 +1047,8 @@
           {"root": "sdcard", "path": "Images/pico8"}
         ]
       },
-      "launch_profiles": ["retroarch:retro8", "retroarch:fake08"],
-      "default_launch_profile": "retroarch:retro8",
+      "launch_profiles": ["picoarch:fake08", "retroarch:fake08", "retroarch:retro8"],
+      "default_launch_profile": "picoarch:fake08",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
@@ -2518,8 +2518,8 @@
           {"root": "sdcard", "path": "Images/vmu"}
         ]
       },
-      "launch_profiles": ["retroarch:vemulator"],
-      "default_launch_profile": "retroarch:vemulator",
+      "launch_profiles": ["picoarch:vemulator", "retroarch:vemulator"],
+      "default_launch_profile": "picoarch:vemulator",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {

@@ -12,14 +12,13 @@
 | status | count | meaning |
 | --- | ---: | --- |
 | `pass` | 168 | video/audio/input/performance が実用範囲で確認済み |
-| `pass_init` | 43 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
-| `fail` | 1 | 複合的に実用確認へ進めない |
+| `pass_init` | 47 | 起動や初期表示は成立したが、gameplay/入力/音声/性能の追加確認余地あり |
 | `fail_audio` | 4 | 起動/表示は成立するが音声が実用判定に届かない |
-| `fail_boot` | 7 | FE から起動は試せるが content/game 起動へ進めない |
+| `fail_boot` | 1 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 1 | 表示や起動は成立するが入力が実用判定に届かない |
-| `fail_perf` | 26 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
-| `fail_video` | 4 | 起動はするが画面崩れや表示異常がある |
-| `retired` | 12 | 方針判断済みで通常 FE/動作確認対象から外した |
+| `fail_perf` | 27 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
+| `fail_video` | 1 | 起動はするが画面崩れや表示異常がある |
+| `retired` | 17 | 方針判断済みで通常 FE/動作確認対象から外した |
 | `untested` | 6 | 必要 BIOS/ROM がなく未確認 |
 
 ## 切り分け方針
@@ -55,6 +54,11 @@
 | PicoArch rotated-axis input | `picoarch:hatari`, `picoarch:prboom`, `picoarch:dosbox_pure` | launcher の rotated-axis default で `axisYR` / `axisXR` を joystickd へ渡す。2026-06-19 direct launch で 3 core とも launcher log と `joystickd-last.log` の `x_source=axisYR y_source=axisXR` を確認し、runtime TSV は `pass_init` へ戻した。 |
 | PicoArch EasyRPG boot classification | `picoarch:easyrpg` | 2026-06-19 direct RA/PICO 比較で、PICO も `Screen: 320x240`、`Frame rate: 60`、EasyRPG startup まで到達することを確認。起動不能ではなく RA と同じ MP3 BGM unsupported warning が残るため `fail_audio` に再分類した。 |
 | SquirrelJME PICO-only classification | `picoarch:squirreljme` | `Cento.jar` は RA/PICO とも `SquirrelJME Init` 後に `JVM Exec Error: -7` を返す。PicoArch 共通層の P3 問題ではなく、core/content 互換性問題として扱う。 |
+| MAME2003+ / Neo Geo set split | Arcade/Neo Geo/MAME 2003+ の `mame2003_plus` | `ddragon.zip` は RA/PICO とも起動する一方、Neo Geo の `fatfury1.zip` は MAME2003+ で `sfix.sfx`、`mame.sm1`、`033-m1.bin`、`mamelo.lo` が不足し、ROM set mismatch と確定。Neo Geo では `fbneo` / `fbalpha2012` が pass のため `mame2003_plus` を通常 FE profile から外した。Arcade/MAME2003+ の重い ROM は `fail_perf` として残す。 |
+| Neo Geo CD via FBNeo | `retroarch:fbneo`, `picoarch:fbneo` | FBNeo は 800x600 metadata までは到達するが、user-confirmed gameplay は `neocd` のみ。Neo Geo CD の default と通常 profile は `retroarch:neocd` に寄せ、FBNeo route は `retired`。 |
+| PICO-8 default route | `retroarch:fake08`, `picoarch:fake08`, `retroarch:retro8`, `picoarch:retro8` | `retroarch:fake08` は `Celeste.p8` の bounded direct smoke で `pass_init`。ただし `picoarch:fake08` は既に user-confirmed `pass` のため、PICO-8 の default は `picoarch:fake08` に変更。`retro8` は BGM 異常が残る非 default 候補として `fail_audio`。 |
+| Cave Story / NXEngine | `retroarch:nxengine`, `picoarch:nxengine` | `picoarch:nxengine` は direct smoke で 320x240/60fps metadata まで到達し、boot failure ではないと確認。日本語文字化けは RA/PICO 共通で、NXEngine が想定する data language/asset layout の問題として `retroarch:nxengine` は `fail_video` のまま扱う。 |
+| Lutro / LowRes NX / VMU video routes | `retroarch:lutro`, `picoarch:lowresnx`, `retroarch:vemulator`, `picoarch:vemulator` | Lutro RA は capture で中央線が表示され `pass_init`。LowRes NX PICO は `SET_PIXEL_FORMAT` が `retro_init()` 前に来る core で XRGB8888 が 0RGB1555 に戻る不具合を修正し、capture で正常表示。VMU は RA が unload 時 abort 134 のため `retired`、user-confirmed pass の `picoarch:vemulator` を default にした。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -66,11 +70,7 @@
 
 | group | affected profiles | reason |
 | --- | --- | --- |
-| mame2003_plus | Arcade/Neo Geo/MAME 2003+ | ROM set 差と performance 問題が混ざっている。Arcade 系は RA 代替があるため、DAT/ROM set 確認を優先する。 |
-| Neo Geo CD via FBNeo | `retroarch:fbneo`, `picoarch:fbneo` | `neocd` は通るため、FBNeo の media/BIOs/track layout 問題として扱う。 |
-| PICO-8 | `retroarch:retro8`, `picoarch:retro8`, `retroarch:fake08` | `picoarch:fake08` は pass。BGM 異常と fake08 RA 起動失敗を分けて調べる。 |
-| Cave Story | `retroarch:nxengine`, `picoarch:nxengine` | 日本語文字化けと PICO boot failure。data language/asset 対応問題の可能性が高い。 |
-| RA Lutro / LowRes NX / VMU | `retroarch:lutro`, `lowresnx`, `vemulator` | 画面差分系。pixel format、palette、presenter 経路の検証対象にする。 |
+| なし | - | P2 は解決、または default/profile 方針へ反映済み。 |
 
 ## 優先度 P3: PicoArch 共通層の問題
 
@@ -94,5 +94,4 @@
 
 ## 次に実施する調査順
 
-1. P2 の system/core 個別問題を扱う。
-   `mame2003_plus`、Neo Geo CD via FBNeo、PICO-8、Cave Story、RA Lutro / LowRes NX / VMU は PicoArch 共通層とは切り離して調査する。
+1. P2 は完了。残件は P4 の性能限界候補、BIOS/合法 ROM 待ち、または user gameplay での `pass_init` 確認へ回す。

@@ -564,8 +564,8 @@ initial plumOS emulator/core build plan.
 | PC Engine / TurboGrafx-16 | `mednafen_pce_fast` | `Emu/PCE`, `RApp/mednafen_pce_fast` | Low load. |
 | PC Engine CD | `mednafen_pce_fast` | backup `mednafen_pce_cd` | Strong non-PS1 CD candidate. Needs BIOS/CHD/CUE checks. |
 | SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Enhanced PC Engine-compatible hardware, not an overseas name. A PC Engine content check validates only the PC Engine profile; SuperGrafx-exclusive content needs a separate check. |
-| Neo Geo cartridge | `fbneo`, `mame2003_plus`, `fbalpha2012`, `fbalpha2012_neogeo` | `Emu/NEOGEO`, `RApp/fbneo` | Confirmed on real hardware through both RA and PICO. Game ROM sets still have to match each core DAT. |
-| Neo Geo CD | `fbneo`, `neocd` | `RApp/neocd` | Confirmed on real hardware through both RA and PICO. `neocd` does not support MP3 CUE media, so use compatible WAV/FLAC/OGG/CHD media for that core; ISO+MP3 CUE defaults to FBNeo. |
+| Neo Geo cartridge | `fbneo`, `fbalpha2012`, `fbalpha2012_neogeo` | `Emu/NEOGEO`, `RApp/fbneo` | Confirmed on real hardware through both RA and PICO. Game ROM sets still have to match each core DAT. `mame2003_plus` is removed from the normal Neo Geo candidate set. |
+| Neo Geo CD | `neocd` | `RApp/neocd` | Confirmed on real hardware through both RA and PICO. `neocd` does not support MP3 CUE media, so use compatible WAV/FLAC/OGG/CHD media for that core. FBNeo Neo Geo CD routes are removed from normal candidates. |
 | Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
 | PS1 | `standalone:pcsx_rearmed`, `retroarch:pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Standalone is hardware-tested and is the initial default candidate. Decide BIOS/save/state paths early. |
 | NGP / NGPC | `mednafen_ngp` | `Emu/NGP`, `RApp/mednafen_ngp` | Low load. |
@@ -577,7 +577,7 @@ initial plumOS emulator/core build plan.
 | Game & Watch | `gw` | backup `gw` | Low load. |
 | Pokemon Mini | `pokemini` | backup `pokemini` | Low load. |
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
-| PICO-8 carts | `retro8`, optional standalone `fake08` | `RApp/retro8`, installed `fake08` | Active stock launch uses `retro8`; standalone `fake08` is a comparison target. |
+| PICO-8 carts | `fake08`, optional `retro8` | `RApp/retro8`, installed `fake08` | Active launch uses `picoarch:fake08`; `retro8` remains a comparison target because BGM behavior is unstable. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
 | ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion is also hardware-confirmed after analog-axis correction. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
@@ -630,7 +630,7 @@ order after deploying the staged package:
    `gpsp`, `mgba`, `pcsx_rearmed`, `picodrive`, `mame2003-plus`, `fbalpha2012`.
 5. CD systems that are still realistic:
    PS1 via `pcsx_rearmed`, PC Engine CD via `mednafen_pce_fast`,
-   Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `fbneo` or `neocd`.
+   Mega CD via `genesis_plus_gx`/`picodrive`, Neo Geo CD via `neocd`.
 6. Lightweight systems promoted from stock backup/installed cores:
    `bluemsx`, `mednafen_lynx`/`handy`, `stella2014`, `prosystem`, `vecx`,
    `potator`, `gw`, `pokemini`, `tic80`, `scummvm`, `prboom`,

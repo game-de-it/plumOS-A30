@@ -38,14 +38,14 @@
  		plat_video_process(data, width, height, pitch);
  	}
  }
-@@ -657,6 +666,7 @@
- }
+@@ -622,6 +631,7 @@
+ 	set_input_poll = dlsym(current_core.handle, "retro_set_input_poll");
+ 	set_input_state = dlsym(current_core.handle, "retro_set_input_state");
  
- void core_load(void) {
 +	core_pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
- 	current_core.retro_init();
- 	current_core.initialized = true;
- 	PA_INFO("Finished loading core\n");
+ 	set_environment(pa_environment);
+ 	set_video_refresh(pa_video_refresh);
+ 	set_audio_sample(pa_audio_sample);
 --- a/core.h
 +++ b/core.h
 @@ -42,6 +42,7 @@

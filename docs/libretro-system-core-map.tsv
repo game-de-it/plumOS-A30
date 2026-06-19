@@ -14,8 +14,8 @@ pcengine	PC Engine	PCE	pcengine;tg16	pce,sgx,zip,7z	mednafen_pce_fast	mednafen_p
 supergrafx	SuperGrafx	SGX	PCE;supergrafx	sgx,pce,zip,7z	mednafen_supergrafx	mednafen_pce_fast,mednafen_supergrafx	existing	systems.json	exclude mednafen_pce due runtime load
 pcenginecd	PC Engine CD	PCECD	pcenginecd;tg16cd	cue,chd,iso,m3u	mednafen_pce_fast	mednafen_pce_fast	existing	systems.json	exclude mednafen_pce due runtime load
 psx	PlayStation	PS	PSX;psx	cue,chd,pbp,m3u,iso,img,bin	pcsx_rearmed	pcsx_rearmed	existing	systems.json	-
-neogeo	Neo Geo	NEOGEO	neogeo	zip,7z	fbneo	fbalpha2012,fbalpha2012_neogeo,fbneo,mame2003_plus	add_core	systems.json	add candidates: fbalpha2012,fbalpha2012_neogeo,mame2003_plus
-neogeocd	Neo Geo CD	NEOCD	neogeocd	cue,chd	fbneo	fbneo,neocd	existing	systems.json	FBNeo accepts the tested ISO+MP3 CUE; neocd needs WAV/FLAC/OGG/CHD media.
+neogeo	Neo Geo	NEOGEO	neogeo	zip,7z	fbneo	fbalpha2012,fbalpha2012_neogeo,fbneo	add_core	systems.json	add candidates: fbalpha2012,fbalpha2012_neogeo; exclude mame2003_plus from normal Neo Geo profile due ROM-set/BIOS mismatch
+neogeocd	Neo Geo CD	NEOCD	neogeocd	cue,chd	neocd	neocd	existing	systems.json	neocd is the normal route; use WAV/FLAC/OGG/CHD or otherwise compatible media. FBNeo Neo Geo CD routes are retired.
 ngp	NGP	NGP	ngp	ngp,zip,7z	mednafen_ngp	mednafen_ngp	existing	systems.json	-
 ngpc	NGPC	NGPC	NGP;ngpc	ngc,ngpc,zip,7z	mednafen_ngp	mednafen_ngp	existing	systems.json	-
 wonderswan	WonderSwan	WS	WSC;wonderswan	ws,zip,7z	mednafen_wswan	mednafen_wswan	existing	systems.json	-
@@ -30,7 +30,7 @@ cps2	CPS2	CPS2	ARCADE;cps2	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps2,fbneo	add_c
 cps3	CPS3	CPS3	ARCADE;cps3	zip,7z	fbneo	fbalpha2012,fbneo	existing	systems.json	-
 dos	DOS	DOS	pc	dosz,conf,exe,bat,zip	dosbox_pure	dosbox_pure	existing	systems.json	-
 easyrpg	EasyRPG	EASYRPG	easyrpg	easyrpg,ldb,zip	easyrpg	easyrpg	existing	systems.json	-
-pico8	PICO-8	PICO8	PICO;pico-8	p8,png	retro8	fake08,retro8	existing	systems.json	-
+pico8	PICO-8	PICO8	PICO;pico-8	p8,png	fake08	fake08,retro8	existing	systems.json	FE default is picoarch:fake08; retro8 remains non-default because BGM behavior is abnormal.
 scummvm	ScummVM	SCUMMVM	scummvm	scummvm,svm	scummvm	scummvm	existing	systems.json	-
 msx	MSX	MSX	msx	rom,mx1,mx2,dsk,cas,zip,7z	bluemsx	bluemsx,fmsx	existing	systems.json	-
 pc88	PC-88	PC88	pc-8800	d88,u88,m3u,zip	quasi88	quasi88	existing	systems.json	-
@@ -80,7 +80,7 @@ thomson	Thomson MO/TO	THOMSON	moto	fd,sap,k7,m7,m5,rom	theodore	theodore	add_sys
 ti83	TI-83	TI83	ti83	8xp,8xk,8xg	numero	numero	add_system	proposal	calculator core
 uzebox	Uzebox	UZEBOX	uzebox	uze	uzem	uzem	add_system	proposal	homebrew console
 vic20	Commodore VIC-20	VIC20	vic20	d64,d6z,d71,d7z,d80,d81,d82,d8z,g64,g6z,g41,g4z,x64,x6z,nib,nbz,d2m,d4m,t64,tap,tcrt,prg,p00,crt,bin,cmd,m3u,vfl,vsf,zip,7z,gz,20,40,60,a0,b0,rom	vice_xvic	vice_xvic	add_system	proposal	Onion folder VIC20
-vmu	Dreamcast VMU	VMU	vmu	vms,dci,bin	vemulator	vemulator	add_system	proposal	VeMUlator; FE UX policy pending
+vmu	Dreamcast VMU	VMU	vmu	vms,dci,bin	vemulator	vemulator	add_system	proposal	FE default is picoarch:vemulator; RA route is retired after video/audio unload instability.
 wolf3d	Wolfenstein 3D	WOLF3D	wolf3d	wl6,n3d,sod,sdm,wl1,pk3,exe	ecwolf	ecwolf	add_system	proposal	ECWolf data layout policy pending
 zx81	ZX-81	ZXEIGHTYONE	zx81	p,tzx,t81,zip	81	81	add_system	proposal	Onion folder ZXEIGHTYONE
 zxspectrum	ZX Spectrum	ZXS	zxspectrum	tzx,tap,z80,rzx,scl,trd,dsk,dck,sna,szx,zip,gz,udi,mgt,img	fuse	fuse	add_system	proposal	Onion folder ZXS

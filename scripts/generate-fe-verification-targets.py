@@ -95,18 +95,66 @@ def system_extensions(system: dict) -> str:
     return ";".join(str(ext) for ext in system.get("extensions", []) if ext)
 
 
-def load_statuses(path: Path) -> dict[tuple[str, str], str]:
+def load_runtime_records(path: Path) -> dict[tuple[str, str], dict[str, str]]:
     if not path.exists():
         return {}
-    statuses: dict[tuple[str, str], str] = {}
+    records: dict[tuple[str, str], dict[str, str]] = {}
     with path.open("r", encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             system_id = row.get("system_id", "")
             profile = row.get("launch_profile", "") or row.get("profile", "")
             status = row.get("status", "")
             if system_id and profile and status:
-                statuses[(system_id, profile)] = status
-    return statuses
+                records[(system_id, profile)] = {
+                    "status": status,
+                    "notes": row.get("notes", ""),
+                }
+    return records
+
+
+def load_previous_records(path: Path) -> dict[tuple[str, str], dict[str, str]]:
+    if not path.exists():
+        return {}
+    records: dict[tuple[str, str], dict[str, str]] = {}
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            system_id = row.get("system_id", "")
+            profile = row.get("launch_profile", "")
+            if system_id and profile:
+                records[(system_id, profile)] = {
+                    "status": row.get("verification_status", ""),
+                    "notes": row.get("notes", ""),
+                }
+    return records
+
+
+def verification_status(
+    runtime_records: dict[tuple[str, str], dict[str, str]],
+    system_id: str,
+    profile: str,
+) -> str:
+    return runtime_records.get((system_id, profile), {}).get("status", "untracked")
+
+
+def row_notes(
+    source: str,
+    system_id: str,
+    profile: str,
+    status: str,
+    runtime_records: dict[tuple[str, str], dict[str, str]],
+    previous_records: dict[tuple[str, str], dict[str, str]],
+) -> list[str]:
+    key = (system_id, profile)
+    previous = previous_records.get(key, {})
+    previous_notes = previous.get("notes", "")
+    previous_status = previous.get("status", "")
+    runtime_notes = runtime_records.get(key, {}).get("notes", "")
+
+    if previous_status == status and previous_notes and ";" in previous_notes:
+        return [previous_notes]
+    if previous_status and previous_status != status and runtime_notes:
+        return [f"{source}; {runtime_notes}"]
+    return [source]
 
 
 def add_profile(profiles: list[str], profile: str) -> None:
@@ -119,7 +167,8 @@ def libretro_rows(
     built_cores: set[str],
     deployed_cores: set[str],
     deployed_paths: set[str],
-    statuses: dict[tuple[str, str], str],
+    runtime_records: dict[tuple[str, str], dict[str, str]],
+    previous_records: dict[tuple[str, str], dict[str, str]],
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     picoarch_deployed = "/mnt/SDCARD/plumos/bin/plumos-picoarch-launch" in deployed_paths
@@ -136,6 +185,7 @@ def libretro_rows(
         add_profile(profiles, default_profile)
 
         retroarch_profiles = [profile for profile in profiles if profile.startswith("retroarch:")]
+        picoarch_profiles = [profile for profile in profiles if profile.startswith("picoarch:")]
         for profile in retroarch_profiles:
             add_libretro_row(
                 rows,
@@ -149,7 +199,26 @@ def libretro_rows(
                 built_cores,
                 deployed_cores,
                 True,
-                statuses,
+                runtime_records,
+                previous_records,
+                "systems.json",
+            )
+
+        for profile in picoarch_profiles:
+            add_libretro_row(
+                rows,
+                system,
+                system_id,
+                display_name,
+                default_profile,
+                "PICO",
+                profile,
+                profile.split(":", 1)[1],
+                built_cores,
+                deployed_cores,
+                picoarch_deployed,
+                runtime_records,
+                previous_records,
                 "systems.json",
             )
 
@@ -158,6 +227,8 @@ def libretro_rows(
             if core_id in PICOARCH_BLOCKED_CORES:
                 continue
             pico_profile = f"picoarch:{core_id}"
+            if pico_profile in picoarch_profiles:
+                continue
             add_libretro_row(
                 rows,
                 system,
@@ -170,7 +241,8 @@ def libretro_rows(
                 built_cores,
                 deployed_cores,
                 picoarch_deployed,
-                statuses,
+                runtime_records,
+                previous_records,
                 "FE auto companion",
             )
 
@@ -189,14 +261,16 @@ def add_libretro_row(
     built_cores: set[str],
     deployed_cores: set[str],
     runtime_deployed: bool,
-    statuses: dict[tuple[str, str], str],
+    runtime_records: dict[tuple[str, str], dict[str, str]],
+    previous_records: dict[tuple[str, str], dict[str, str]],
     source: str,
 ) -> None:
     built = core_id in built_cores
     deployed = core_id in deployed_cores
     fe_executable = runtime_deployed and deployed
-    target = built and deployed and fe_executable
-    notes: list[str] = [source]
+    status = verification_status(runtime_records, system_id, profile)
+    target = built and deployed and fe_executable and status != "retired"
+    notes = row_notes(source, system_id, profile, status, runtime_records, previous_records)
     if not built:
         notes.append("missing_plumos_build")
     if not deployed:
@@ -218,7 +292,7 @@ def add_libretro_row(
             "fe_executable": yes_no(fe_executable),
             "target_for_verification": yes_no(target),
             "default_profile": yes_no(profile == default_profile),
-            "verification_status": statuses.get((system_id, profile), "untracked"),
+            "verification_status": status,
             "notes": ";".join(notes),
         }
     )
@@ -227,7 +301,8 @@ def add_libretro_row(
 def non_libretro_rows(
     systems: list[dict],
     deployed_paths: set[str],
-    statuses: dict[tuple[str, str], str],
+    runtime_records: dict[tuple[str, str], dict[str, str]],
+    previous_records: dict[tuple[str, str], dict[str, str]],
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     standalone_launcher = "/mnt/SDCARD/plumos/bin/plumos-standalone-launch" in deployed_paths
@@ -248,7 +323,16 @@ def non_libretro_rows(
                 candidates = STANDALONE_BINARIES.get(emulator_id, [])
                 runtime_binary = any(path in deployed_paths for path in candidates)
                 fe_executable = standalone_launcher
-                target = fe_executable and runtime_binary
+                status = verification_status(runtime_records, system_id, profile)
+                target = fe_executable and runtime_binary and status != "retired"
+                notes = row_notes(
+                    "systems.json",
+                    system_id,
+                    profile,
+                    status,
+                    runtime_records,
+                    previous_records,
+                )
                 rows.append(
                     {
                         "system_id": system_id,
@@ -264,13 +348,22 @@ def non_libretro_rows(
                         "fe_executable": yes_no(fe_executable),
                         "target_for_verification": yes_no(target),
                         "default_profile": yes_no(profile == default_profile),
-                        "verification_status": statuses.get((system_id, profile), "untracked"),
-                        "notes": "systems.json",
+                        "verification_status": status,
+                        "notes": ";".join(notes),
                     }
                 )
             elif profile in NON_LIBRETRO_LAUNCHERS:
                 launcher = NON_LIBRETRO_LAUNCHERS[profile]
                 deployed = launcher in deployed_paths
+                status = verification_status(runtime_records, system_id, profile)
+                notes = row_notes(
+                    "systems.json",
+                    system_id,
+                    profile,
+                    status,
+                    runtime_records,
+                    previous_records,
+                )
                 rows.append(
                     {
                         "system_id": system_id,
@@ -284,10 +377,10 @@ def non_libretro_rows(
                         "runtime_binary_deployed": yes_no(deployed),
                         "fe_selectable": "yes",
                         "fe_executable": yes_no(deployed),
-                        "target_for_verification": yes_no(deployed),
+                        "target_for_verification": yes_no(deployed and status != "retired"),
                         "default_profile": yes_no(profile == default_profile),
-                        "verification_status": statuses.get((system_id, profile), "untracked"),
-                        "notes": "systems.json",
+                        "verification_status": status,
+                        "notes": ";".join(notes),
                     }
                 )
 
@@ -326,6 +419,16 @@ def parse_args() -> argparse.Namespace:
         "--standalone-out",
         default=str(root / "docs/emulator-fe-standalone-targets.tsv"),
     )
+    parser.add_argument(
+        "--previous-libretro",
+        default=None,
+        help="Existing libretro FE TSV to preserve unchanged-row notes from.",
+    )
+    parser.add_argument(
+        "--previous-standalone",
+        default=None,
+        help="Existing standalone FE TSV to preserve unchanged-row notes from.",
+    )
     return parser.parse_args()
 
 
@@ -335,13 +438,34 @@ def main() -> int:
     built_cores = read_built_cores(Path(args.built_cores))
     deployed_cores = read_lines(Path(args.deployed_cores))
     deployed_paths = read_lines(Path(args.deployed_paths))
-    statuses = load_statuses(Path(args.runtime_status))
+    runtime_records = load_runtime_records(Path(args.runtime_status))
 
-    libretro = libretro_rows(systems, built_cores, deployed_cores, deployed_paths, statuses)
-    standalone = non_libretro_rows(systems, deployed_paths, statuses)
+    libretro_out = Path(args.libretro_out)
+    standalone_out = Path(args.standalone_out)
+    previous_libretro = load_previous_records(
+        Path(args.previous_libretro) if args.previous_libretro else libretro_out
+    )
+    previous_standalone = load_previous_records(
+        Path(args.previous_standalone) if args.previous_standalone else standalone_out
+    )
+
+    libretro = libretro_rows(
+        systems,
+        built_cores,
+        deployed_cores,
+        deployed_paths,
+        runtime_records,
+        previous_libretro,
+    )
+    standalone = non_libretro_rows(
+        systems,
+        deployed_paths,
+        runtime_records,
+        previous_standalone,
+    )
 
     write_tsv(
-        Path(args.libretro_out),
+        libretro_out,
         libretro,
         [
             "system_id",
@@ -362,7 +486,7 @@ def main() -> int:
         ],
     )
     write_tsv(
-        Path(args.standalone_out),
+        standalone_out,
         standalone,
         [
             "system_id",
