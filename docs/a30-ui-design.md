@@ -80,7 +80,8 @@
   優先する。theme 由来の状態など読み取り専用情報は checkbox や `< value >` 風に
   見せず、通常の情報行として表示する。
 - UI Settings の先頭には `Refresh TOP` を置き、A で TOP 用の full scan と reload を
-  明示的に実行できるようにする。START menu を閉じるだけでは TOP refresh を行わない。
+  明示的に実行できるようにする。実行中は専用の更新中画面を挟み、処理がすぐ終わる場合でも
+  最低1秒は表示する。START menu を閉じるだけでは TOP refresh を行わない。
 - Graphic theme 関連は `UI Settings` 直下に並べず、`Theme Settings` サブ項目へ
   まとめる。選択中 theme を変更する行の項目名は、右側の値と衝突しないよう
   `Graphic Theme` ではなく `Theme` と表示する。

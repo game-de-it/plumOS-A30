@@ -97,7 +97,9 @@ The current Linux-console-style TOP/list UI should follow these rules.
   controller UI behavior. Read-only theme-derived state should be shown as
   normal information rows, not as checkbox or `< value >` controls.
 - Put `Refresh TOP` at the top of UI Settings, and use A to explicitly run the
-  TOP full scan and reload. Closing the START menu alone must not refresh TOP.
+  TOP full scan and reload. Show a dedicated running screen for at least one
+  second even when the refresh finishes immediately. Closing the START menu
+  alone must not refresh TOP.
 - Keep Graphic theme rows under a `Theme Settings` subpage instead of listing
   them directly in `UI Settings`. Label the selected-theme choice `Theme`, not
   `Graphic Theme`, so the right-aligned value does not collide with the label.

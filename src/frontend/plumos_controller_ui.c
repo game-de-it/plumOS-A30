@@ -183,6 +183,7 @@ struct input_event {
 #define UI_WIFI_COMMAND_ROW 6
 #define UI_WIFI_COMMAND_COUNT 5
 #define UI_USB_DISK_START_DELAY_MS 2000
+#define UI_TOP_REFRESH_MIN_VISIBLE_MS 1000
 #define UI_THUMBNAIL_RESULT_WINDOW 11
 #define UI_SCRAPING_FIELD_COUNT 3
 #define UI_SCRAPING_FIELD_IMAGE 0
@@ -430,7 +431,8 @@ enum ui_screen {
   SCREEN_THUMBNAIL_RESULTS = 13,
   SCREEN_THUMBNAIL_RUNNING = 14,
   SCREEN_SCRAPING = 15,
-  SCREEN_GALLERY = 16
+  SCREEN_GALLERY = 16,
+  SCREEN_TOP_REFRESH_RUNNING = 17
 };
 
 enum wifi_connect_stage {
@@ -691,6 +693,18 @@ static long long current_time_ms(void) {
     return (long long)time(NULL) * 1000LL;
   }
   return (long long)tv.tv_sec * 1000LL + (long long)(tv.tv_usec / 1000);
+}
+
+static void wait_until_ms(long long deadline_ms) {
+  long long now;
+
+  while ((now = current_time_ms()) < deadline_ms) {
+    long long remaining = deadline_ms - now;
+    if (remaining > 1000) {
+      remaining = 1000;
+    }
+    poll(NULL, 0, (int)remaining);
+  }
 }
 
 static int copy_string(char *out, size_t out_size, const char *in) {
@@ -7278,6 +7292,23 @@ static void render_usb_disk_starting(struct ui_state *ui) {
   }
 }
 
+static void render_top_refresh_running(struct ui_state *ui) {
+  ui_printf(ui, "plumOS controller UI - Refresh TOP\n");
+  ui_printf(ui, "top_refresh_running=1\n");
+  ui_printf(ui, "entries=5 cursor=1\n");
+  ui_printf(ui, "\n");
+  ui_printf(ui, ">   1  REFRESH TOP\n");
+  ui_printf(ui, "    2  Scanning systems\n");
+  ui_printf(ui, "    3  Reloading TOP list\n");
+  ui_printf(ui, "    4  Please wait\n");
+  ui_printf(ui, "    5  Do not power off\n");
+  ui_printf(ui, "footer1=%s\n", "Updating the TOP system list.");
+  ui_printf(ui, "footer2=%s\n", "This screen stays visible for at least 1 second.");
+  if (ui->status[0]) {
+    ui_printf(ui, "\nstatus: %s\n", ui->status);
+  }
+}
+
 static void render_ui(struct ui_state *ui) {
   clear_screen(ui);
   if (ui->screen != SCREEN_TOP) {
@@ -7318,6 +7349,8 @@ static void render_ui(struct ui_state *ui) {
     render_usb_disk_confirm(ui);
   } else if (ui->screen == SCREEN_USB_DISK_STARTING) {
     render_usb_disk_starting(ui);
+  } else if (ui->screen == SCREEN_TOP_REFRESH_RUNNING) {
+    render_top_refresh_running(ui);
   } else {
     render_top(ui);
   }
@@ -9162,16 +9195,34 @@ static int refresh_top_entries_preserve_cursor(struct ui_state *ui) {
 }
 
 static void refresh_top_entries_manual(struct ui_state *ui) {
+  enum ui_screen back_screen;
+  enum settings_category back_category;
+  size_t back_cursor;
+  long long visible_until;
   int reload_ok;
   int scan_ok;
 
   if (!ui) {
     return;
   }
+  back_screen = ui->screen;
+  back_category = ui->settings_category;
+  back_cursor = ui->settings_cursor;
+  visible_until = current_time_ms() + UI_TOP_REFRESH_MIN_VISIBLE_MS;
+  ui->screen = SCREEN_TOP_REFRESH_RUNNING;
   set_status(ui, "refreshing TOP");
   render_ui(ui);
   scan_ok = run_scanner(ui->plumos_root, ui->sdcard_root, NULL, 0);
   reload_ok = refresh_top_entries_preserve_cursor(ui);
+  wait_until_ms(visible_until);
+  ui->screen = back_screen;
+  ui->settings_category = back_category;
+  if (ui->setting_count > 0) {
+    ui->settings_cursor = back_cursor < ui->setting_count ? back_cursor
+                                                          : ui->setting_count - 1;
+  } else {
+    ui->settings_cursor = 0;
+  }
   if (!reload_ok) {
     set_status(ui, scan_ok ? "TOP scan done; reload failed"
                            : "TOP refresh failed; using cached counts");

@@ -4095,6 +4095,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   int is_brightness_test;
   int show_prompt;
   int is_usb_disk_starting;
+  int is_top_refresh_running;
   int is_thumbnail_running;
   int wifi_keyboard_row = -1;
   int wifi_keyboard_col = -1;
@@ -4137,6 +4138,8 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
                                  sizeof(thumbnail_running_stats));
   is_usb_disk_starting = plumos_mali_has_prefixed_line(lines, line_count,
                                                        "usb_disk_starting=1");
+  is_top_refresh_running = plumos_mali_has_prefixed_line(lines, line_count,
+                                                         "top_refresh_running=1");
   is_thumbnail_running = plumos_mali_has_prefixed_line(lines, line_count,
                                                        "thumbnail_running=1") ||
                          (title[0] && strstr(title, "Thumbnail Running") != NULL);
@@ -4161,6 +4164,42 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
     plumos_mali_text(renderer, line1, x1, y1, scale1, 1.0f, 0.04f, 0.02f, 1.0f);
     plumos_mali_text(renderer, line2, x2, y2, scale2, 1.0f, 0.04f, 0.02f, 1.0f);
     plumos_mali_text(renderer, line3, x3, y3, scale3, 1.0f, 0.04f, 0.02f, 1.0f);
+    renderer->gl.Finish();
+    return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
+  }
+  if (is_top_refresh_running) {
+    const char *line1 = "REFRESH TOP";
+    const char *line2 = "PLEASE WAIT";
+    const char *line3 = "SCANNING SYSTEMS";
+    const char *line4 = "RELOADING TOP LIST";
+    const int scale1 = 4;
+    const int scale2 = 4;
+    const int scale3 = 2;
+    const int scale4 = 2;
+    float y1 = (float)renderer->height * 0.5f - 112.0f;
+    float y2 = y1 + 64.0f;
+    float y3 = y2 + 76.0f;
+    float y4 = y3 + 34.0f;
+    float x1 = ((float)renderer->width - (float)plumos_mali_text_width(line1, scale1)) * 0.5f;
+    float x2 = ((float)renderer->width - (float)plumos_mali_text_width(line2, scale2)) * 0.5f;
+    float x3 = ((float)renderer->width - (float)plumos_mali_text_width(line3, scale3)) * 0.5f;
+    float x4 = ((float)renderer->width - (float)plumos_mali_text_width(line4, scale4)) * 0.5f;
+
+    renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
+    renderer->gl.UseProgram(renderer->program);
+    renderer->gl.ClearColor(0.0f, 0.006f, 0.005f, 1.0f);
+    renderer->gl.Clear(GL_COLOR_BUFFER_BIT);
+    plumos_mali_tty_top_bar(renderer);
+    plumos_mali_rect(renderer, 0.0f, 0.0f, 7.0f, (float)renderer->height,
+                     0.22f, 0.58f, 1.0f, 1.0f);
+    plumos_mali_text(renderer, line1, x1, y1, scale1,
+                     0.22f, 0.58f, 1.0f, 1.0f);
+    plumos_mali_text(renderer, line2, x2, y2, scale2,
+                     1.0f, 0.86f, 0.28f, 1.0f);
+    plumos_mali_text(renderer, line3, x3 < 14.0f ? 14.0f : x3, y3, scale3,
+                     0.78f, 0.94f, 0.90f, 1.0f);
+    plumos_mali_text(renderer, line4, x4 < 14.0f ? 14.0f : x4, y4, scale4,
+                     0.78f, 0.94f, 0.90f, 1.0f);
     renderer->gl.Finish();
     return renderer->egl.SwapBuffers(renderer->display, renderer->surface) == EGL_TRUE;
   }

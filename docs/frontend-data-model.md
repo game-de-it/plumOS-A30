@@ -472,7 +472,7 @@ ROM list は機種を選択して ROM list screen に入るたびに、その機
 
 - TOP 画面では重い full scan をしない
 - UI Settings の `Refresh TOP` を実行した時だけ full scan と TOP reload を行い、
-  追加された ROM を FE 再起動なしで反映する
+  追加された ROM を FE 再起動なしで反映する。実行中は最低1秒の更新中画面を表示する
 - TOP 画面には ROM 数を表示しない
 - ROM list 側では、機種選択時の scan/list load 後の件数を表示する
 - 機種選択時に対象 system だけを scan する

@@ -486,7 +486,8 @@ Initial policy:
 
 - Avoid heavy full scans on the TOP screen.
 - Run a full scan and reload TOP only from `Refresh TOP` in UI Settings, so newly
-  copied ROMs appear without restarting the FE.
+  copied ROMs appear without restarting the FE. Keep the running screen visible
+  for at least one second.
 - Do not show ROM counts on the TOP screen.
 - On ROM lists, show the count after the selected system scan/list load.
 - Scan only the selected system when entering it.
