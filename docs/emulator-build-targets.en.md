@@ -555,7 +555,7 @@ initial plumOS emulator/core build plan.
 | --- | --- | --- | --- |
 | FC / NES / FDS | `fceumm`, `nestopia`, optional `quicknes` | `Emu/FC`, `RApp/fceumm`, `RApp/nestopia`, plumOS `quicknes` | Prefer Onion-adopted cores, but keep QuickNES as a plumOS-only lightweight candidate. |
 | GB / GBC | `gambatte`, optional `mgba` | `Emu/GB`, `RApp/gambatte`, backup `gambatte_color` | Low load. |
-| GBA | `gpsp`, `mgba`, optional `vba_next` | `Emu/GBA`, `RApp/gpsp`, `RApp/mgba`, backup `vba_next` | `gpsp` for performance, `mgba` for accuracy fallback. |
+| GBA | `gpsp`, `mgba` | `Emu/GBA`, `RApp/gpsp`, `RApp/mgba` | `gpsp` for performance, `mgba` for accuracy fallback. `mednafen_gba` / `meteor` / `vba_next` / `vbam` are removed from normal candidates because they remain too heavy through the HW display path. |
 | Master System / Game Gear / SG-1000 | `genesis_plus_gx` | `Emu/MS`, `RApp/genesis_plus_gx_gg`, backup `genesis_plus_gx_ms/sg` | Can share Sega profiles. |
 | Mega Drive / Genesis | `genesis_plus_gx`, `picodrive` | `Emu/MD`, `RApp/genesis_plus_gx`, `RApp/picodrive` | Keep 32X/Mega CD as separate profiles. |
 | Mega CD / Sega CD | `genesis_plus_gx`, `picodrive` | `RApp/picodrive`, backup `picodrive_cd` | CD-based but realistic on A30. |
@@ -566,7 +566,7 @@ initial plumOS emulator/core build plan.
 | SuperGrafx | `mednafen_supergrafx` or `mednafen_pce_fast` | backup `mednafen_supergrafx` | Enhanced PC Engine-compatible hardware, not an overseas name. A PC Engine content check validates only the PC Engine profile; SuperGrafx-exclusive content needs a separate check. |
 | Neo Geo cartridge | `fbneo`, `fbalpha2012`, `fbalpha2012_neogeo` | `Emu/NEOGEO`, `RApp/fbneo` | Confirmed on real hardware through both RA and PICO. Game ROM sets still have to match each core DAT. `mame2003_plus` is removed from the normal Neo Geo candidate set. |
 | Neo Geo CD | `neocd` | `RApp/neocd` | Confirmed on real hardware through both RA and PICO. `neocd` does not support MP3 CUE media, so use compatible WAV/FLAC/OGG/CHD media for that core. FBNeo Neo Geo CD routes are removed from normal candidates. |
-| Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. |
+| Arcade 2D | `fbneo`, `fbalpha2012`, `mame2003-plus` | `Emu/ARCADE`, `Emu/Shoot`, `RApp/fbneo`, `RApp/mame2003_plus` | Focus on CPS1/CPS2/Neo Geo/older MAME. The PicoArch `mame2003_plus` companion and dedicated MAME 2003+ system are removed from normal candidates because they remain too heavy through the HW display path. |
 | PS1 | `standalone:pcsx_rearmed`, `retroarch:pcsx_rearmed` | `Emu/PS`, `RApp/pcsx_rearmed` | Realistic on A30. Standalone is hardware-tested and is the initial default candidate. Decide BIOS/save/state paths early. |
 | NGP / NGPC | `mednafen_ngp` | `Emu/NGP`, `RApp/mednafen_ngp` | Low load. |
 | WonderSwan / WonderSwan Color | `mednafen_wswan` | `Emu/WSC`, `RApp/mednafen_wswan` | Low load. |
@@ -579,7 +579,7 @@ initial plumOS emulator/core build plan.
 | Doom / WAD | `prboom` | `RApp/prboom` | Practical candidate. |
 | PICO-8 carts | `fake08`, optional `retro8` | `RApp/retro8`, installed `fake08` | Active launch uses `picoarch:fake08`; `retro8` remains a comparison target because BGM behavior is unstable. |
 | TIC-80 | `tic80` | backup `tic80` | Not stock top-level, but practical. |
-| ScummVM | `standalone:scummvm`, optional `retroarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. The PicoArch companion is also hardware-confirmed after analog-axis correction. |
+| ScummVM | `standalone:scummvm`, `picoarch:scummvm` | installed core | Standalone has A30 rotation/mouse/theme fixes and is the initial default candidate. PicoArch is also hardware-confirmed after analog-axis correction. RetroArch ScummVM is removed from normal candidates because it remains too heavy through the HW display path. |
 | EasyRPG | `standalone:easyrpg` | `RApp/easyrpg` | Keep only the standalone path as the normal candidate. Retire libretro RA/PICO for EasyRPG. |
 | OpenBOR | `standalone:openbor` | upstream OpenBOR engine | Build v6391 for A30 armhf and launch the FE-selected `.pak` directly. SDL stays on the plumOS side for input/audio, while completed OpenBOR frames are sent directly to a fbdev + Mali EGL presenter for final rotation/fit. |
 | DOS classics | `retroarch:dosbox_pure` | `RApp/dos` | Limit to lightweight DOS games. Standalone DOSBox Staging is not a normal target. Needs keyboard profiles. |
@@ -609,8 +609,11 @@ an experimental target or a known-light title.
 | Dreamcast | `flycast` | Expected to be too heavy for satisfying play on A30. |
 | Nintendo 64 | `mupen64plus`, `parallel_n64` | A few light titles may run, but broad support is unlikely to satisfy. |
 | Sega Saturn | `yabause`, `yabasanshiro`, `mednafen_saturn` | Too heavy for A30. |
-| 3DO | `opera` | Expected to be too heavy. |
-| PC-FX | `mednafen_pcfx` | Expected to be too heavy. |
+| 3DO | `opera` | RA/PICO are both too slow through the HW display path. Removed from normal candidates. |
+| Atari Jaguar | `virtualjaguar` | RA/PICO are both too slow through the HW display path. Removed from normal candidates. |
+| MicroW8 | `uw8` | RA/PICO stay around 10fps through the HW display path. Removed from normal candidates. |
+| PC-FX | `mednafen_pcfx` | RA/PICO are both too slow through the HW display path. Removed from normal candidates. |
+| Uzebox | `uzem` | RA/PICO are both too slow through the HW display path. Removed from normal candidates. |
 | current MAME / newer 3D arcade | `mame`, `mame2015` | Class A covers older 2D arcade; newer MAME should wait. |
 | heavy PSP | PPSSPP standalone/libretro | PSP as a whole is not a target. Light titles only stay in Class B. |
 

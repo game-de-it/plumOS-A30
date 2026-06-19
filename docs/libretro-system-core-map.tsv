@@ -4,7 +4,7 @@ fds	FDS	FDS	FC;fds	fds,zip,7z	fceumm	fceumm,nestopia	existing	systems.json	-
 sfc	SFC	SFC	sfc;snes	sfc,smc,fig,bs,swc,zip,7z	snes9x2005	chimerasnes,mednafen_supafaust,snes9x,snes9x2002,snes9x2005,snes9x2005_plus,snes9x2010	add_core	systems.json	add candidates: chimerasnes,mednafen_supafaust,snes9x2002,snes9x2005_plus,snes9x2010
 gb	GB	GB	gb	gb,zip,7z	gambatte	gambatte,gearboy,mgba,vbam	add_core	systems.json	add candidates: gearboy,vbam; exclude tgbdual
 gbc	GBC	GBC	GB;gbc	gbc,zip,7z	gambatte	gambatte,gearboy,mgba,vbam	add_core	systems.json	add candidates: gearboy,vbam; exclude tgbdual
-gba	GBA	GBA	gba	gba,zip,7z	mgba	gpsp,mednafen_gba,meteor,mgba,vba_next,vbam	add_core	systems.json	add candidates: mednafen_gba,meteor,vba_next,vbam
+gba	GBA	GBA	gba	gba,zip,7z	mgba	gpsp,mgba	existing	systems.json	retire mednafen_gba,meteor,vba_next,vbam for GBA after confirming HW display path; gpsp is performance-first and mgba is accuracy fallback
 megadrive	Mega Drive	MD	megadrive;genesis	gen,md,smd,bin,zip,7z	genesis_plus_gx	genesis_plus_gx,picodrive	existing	systems.json	-
 mastersystem	Master System	MS	MD;mastersystem	sms,bin,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem
 gamegear	Game Gear	GG	GameGear;MD;gamegear	gg,zip,7z	genesis_plus_gx	gearsystem,genesis_plus_gx,picodrive	add_core	systems.json	add candidates: gearsystem
@@ -24,14 +24,14 @@ lynx	Atari Lynx	LYNX	lynx	lnx,lyx,bll,o,zip,7z	mednafen_lynx	handy,mednafen_lynx
 virtualboy	Virtual Boy	VB	virtualboy	vb,vboy,bin,zip,7z	mednafen_vb	mednafen_vb	existing	systems.json	-
 arcade	Arcade	ARCADE	arcade	zip,7z	mame2003_plus	fbalpha2012,fbneo,mame2000,mame2003_plus	add_core	systems.json	add candidates: mame2000
 fbneo	FBNeo	FBNEO	ARCADE;fbneo	zip,7z	fbneo	fbneo	existing	systems.json	-
-mame2003plus	MAME 2003+	MAME2003PLUS	ARCADE;mame	zip,7z	mame2003_plus	mame2003_plus	existing	systems.json	-
+mame2003plus	MAME 2003+	MAME2003PLUS	ARCADE;mame	zip,7z	mame2003_plus	mame2003_plus	retired	systems.json	dedicated MAME 2003+ entry is disabled after HW display path confirmation; Arcade keeps passing RA mame2003_plus route
 cps1	CPS1	CPS1	ARCADE;cps1	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps1,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps1
 cps2	CPS2	CPS2	ARCADE;cps2	zip,7z	fbneo	fbalpha2012,fbalpha2012_cps2,fbneo	add_core	systems.json	add candidates: fbalpha2012_cps2
 cps3	CPS3	CPS3	ARCADE;cps3	zip,7z	fbneo	fbalpha2012,fbneo	existing	systems.json	-
 dos	DOS	DOS	pc	dosz,conf,exe,bat,zip	dosbox_pure	dosbox_pure	existing	systems.json	-
 easyrpg	EasyRPG	EASYRPG	easyrpg	easyrpg,ldb,zip	easyrpg	easyrpg	existing	systems.json	-
 pico8	PICO-8	PICO8	PICO;pico-8	p8,png	fake08	fake08,retro8	existing	systems.json	FE default is picoarch:fake08; retro8 remains non-default because BGM behavior is abnormal.
-scummvm	ScummVM	SCUMMVM	scummvm	scummvm,svm	scummvm	scummvm	existing	systems.json	-
+scummvm	ScummVM	SCUMMVM	scummvm	scummvm,svm	scummvm	scummvm	existing	systems.json	standalone and picoarch are normal routes; retire retroarch:scummvm because it remains too heavy on HW display path
 msx	MSX	MSX	msx	rom,mx1,mx2,dsk,cas,zip,7z	bluemsx	bluemsx,fmsx	existing	systems.json	-
 pc88	PC-88	PC88	pc-8800	d88,u88,m3u,zip	quasi88	quasi88	existing	systems.json	-
 pc98	PC-98	PC98	pc-9800	d88,fdi,hdi,fdd,nhd,hdd,m3u,zip	np2kai	nekop2,np2kai	add_core	systems.json	add candidates: nekop2
@@ -64,21 +64,21 @@ dinothawr	Dinothawr	DINOTHAWR	dinothawr	game	dinothawr	dinothawr	add_system	prop
 flashback	Flashback	FLASHBACK	flashback	map,aba,seq,lev	reminiscence	reminiscence	add_system	proposal	REminiscence data layout policy pending
 intellivision	Intellivision	INTELLIVISION	intellivision	int,bin,rom,zip,7z	freeintv	freeintv	add_system	proposal	Onion folder INTELLIVISION; BIOS required
 j2me	Java ME	J2ME	j2me	jar,sqc,jam,jad,kjx,adf,sec,sto,sp,sp0,sp1,sp2,sp3,sp4,sp5,sp6,sp7,sp8,sp9	squirreljme	squirreljme	add_system	proposal	SquirrelJME; controls/config policy pending
-jaguar	Atari Jaguar	JAGUAR	atarijaguar	j64,jag,rom,abs,cof,bin,prg	virtualjaguar	virtualjaguar	add_system	proposal	Onion folder JAGUAR; expected heavy
+jaguar	Atari Jaguar	JAGUAR	atarijaguar	j64,jag,rom,abs,cof,bin,prg	virtualjaguar	virtualjaguar	retired	systems.json	disabled after HW display path confirmation; virtualjaguar remains too slow on A30
 lowresnx	LowRes NX	LOWRESNX	lowresnx	nx	lowresnx	lowresnx	add_system	proposal	homebrew engine
 lutro	Lutro	LUTRO	lutro	lutro,love,lua	lutro	lutro	add_system	proposal	Lua engine
-microw8	MicroW8	MICROW8	microw8	uw8,wasm	uw8	uw8	add_system	proposal	fantasy console
+microw8	MicroW8	MICROW8	microw8	uw8,wasm	uw8	uw8	retired	systems.json	disabled after HW display path confirmation; uw8 remains around 10 FPS on A30
 mrboom	Mr.Boom	MRBOOM	mrboom	desktop	mrboom	mrboom	add_system	proposal	content/data policy pending
 music	Game Music Emu	MUSIC	music	ay,gbs,gym,hes,kss,nsf,nsfe,sap,spc,vgm,vgz,zip	gme	gme	add_system	proposal	music player; FE UX policy pending
 palm	Palm OS	PALM	palm	prc,pqa,img,pdb,zip	mu	mu	add_system	proposal	Mu; BIOS/ROM policy pending
-pcfx	PC-FX	PCFX	pcfx	cue,ccd,toc,chd,zip,bin	mednafen_pcfx	mednafen_pcfx	add_system	proposal	Onion folder PCFX; BIOS required
+pcfx	PC-FX	PCFX	pcfx	cue,ccd,toc,chd,zip,bin	mednafen_pcfx	mednafen_pcfx	retired	systems.json	disabled after HW display path confirmation; mednafen_pcfx remains too slow on A30
 quake	Quake	QUAKE	quake	pak	tyrquake	tyrquake	add_system	proposal	TyrQuake; data layout policy pending
 rickdangerous	Rick Dangerous	XRICK	xrick	zip	xrick	xrick	add_system	proposal	XRick data policy pending
 sg1000	SG-1000	SEGASGONE	sg-1000	sg,mv,bin,rom,sms,gg	gearsystem	bluemsx,gearsystem,genesis_plus_gx,picodrive	add_system	proposal	Onion folder SEGASGONE
 sharpx1	Sharp X1	XONE	x1	dx1,zip,2d,2hd,tfd,d88,88d,hdm,xdf,dup,tap,cmd	x1	x1	add_system	proposal	Onion folder XONE; BIOS required
 thomson	Thomson MO/TO	THOMSON	moto	fd,sap,k7,m7,m5,rom	theodore	theodore	add_system	proposal	proposed plumOS folder
 ti83	TI-83	TI83	ti83	8xp,8xk,8xg	numero	numero	add_system	proposal	calculator core
-uzebox	Uzebox	UZEBOX	uzebox	uze	uzem	uzem	add_system	proposal	homebrew console
+uzebox	Uzebox	UZEBOX	uzebox	uze	uzem	uzem	retired	systems.json	disabled after HW display path confirmation; uzem remains too slow on A30
 vic20	Commodore VIC-20	VIC20	vic20	d64,d6z,d71,d7z,d80,d81,d82,d8z,g64,g6z,g41,g4z,x64,x6z,nib,nbz,d2m,d4m,t64,tap,tcrt,prg,p00,crt,bin,cmd,m3u,vfl,vsf,zip,7z,gz,20,40,60,a0,b0,rom	vice_xvic	vice_xvic	add_system	proposal	Onion folder VIC20
 vmu	Dreamcast VMU	VMU	vmu	vms,dci,bin	vemulator	vemulator	add_system	proposal	FE default is picoarch:vemulator; RA route is retired after video/audio unload instability.
 wolf3d	Wolfenstein 3D	WOLF3D	wolf3d	wl6,n3d,sod,sdm,wl1,pk3,exe	ecwolf	ecwolf	add_system	proposal	ECWolf data layout policy pending

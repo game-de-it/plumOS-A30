@@ -173,7 +173,7 @@
           {"root": "sdcard", "path": "Images/gba"}
         ]
       },
-      "launch_profiles": ["retroarch:mgba", "retroarch:gpsp", "retroarch:mednafen_gba", "retroarch:meteor", "retroarch:vba_next", "retroarch:vbam"],
+      "launch_profiles": ["retroarch:mgba", "retroarch:gpsp"],
       "default_launch_profile": "retroarch:mgba",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -357,7 +357,7 @@
           {"root": "sdcard", "path": "Images/pcengine"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx", "retroarch:mednafen_pce"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_supergrafx"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -419,7 +419,7 @@
           {"root": "sdcard", "path": "Images/pcenginecd"}
         ]
       },
-      "launch_profiles": ["retroarch:mednafen_pce_fast", "retroarch:mednafen_pce"],
+      "launch_profiles": ["retroarch:mednafen_pce_fast"],
       "default_launch_profile": "retroarch:mednafen_pce_fast",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -867,7 +867,7 @@
       "short_name": "MAME",
       "sort_order": 260,
       "hardware": "arcade",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "MAME2003PLUS", "source": "miyoo", "priority": 10},
@@ -1075,7 +1075,7 @@
           {"root": "sdcard", "path": "Images/scummvm"}
         ]
       },
-      "launch_profiles": ["standalone:scummvm", "retroarch:scummvm"],
+      "launch_profiles": ["standalone:scummvm", "picoarch:scummvm"],
       "default_launch_profile": "standalone:scummvm",
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
@@ -2068,7 +2068,7 @@
       "short_name": "Jaguar",
       "sort_order": 680,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "JAGUAR", "source": "onion", "priority": 10},
@@ -2152,7 +2152,7 @@
       "short_name": "MicroW8",
       "sort_order": 710,
       "hardware": "engine",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "MICROW8", "source": "plumos", "priority": 10},
@@ -2260,7 +2260,7 @@
       "short_name": "PC-FX",
       "sort_order": 750,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "PCFX", "source": "onion", "priority": 10},
@@ -2452,7 +2452,7 @@
       "short_name": "Uzebox",
       "sort_order": 820,
       "hardware": "console",
-      "enabled": true,
+      "enabled": false,
       "pinned": false,
       "directory_aliases": [
         {"name": "UZEBOX", "source": "plumos", "priority": 10},

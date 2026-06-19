@@ -16,9 +16,9 @@
 | `fail_audio` | 4 | 起動/表示は成立するが音声が実用判定に届かない |
 | `fail_boot` | 1 | FE から起動は試せるが content/game 起動へ進めない |
 | `fail_input` | 1 | 表示や起動は成立するが入力が実用判定に届かない |
-| `fail_perf` | 27 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
+| `fail_perf` | 3 | 起動はするが性能、音声途切れ、frame pacing が実用判定に届かない |
 | `fail_video` | 1 | 起動はするが画面崩れや表示異常がある |
-| `retired` | 17 | 方針判断済みで通常 FE/動作確認対象から外した |
+| `retired` | 41 | 方針判断済みで通常 FE/動作確認対象から外した |
 | `untested` | 6 | 必要 BIOS/ROM がなく未確認 |
 
 ## 切り分け方針
@@ -59,6 +59,7 @@
 | PICO-8 default route | `retroarch:fake08`, `picoarch:fake08`, `retroarch:retro8`, `picoarch:retro8` | `retroarch:fake08` は `Celeste.p8` の bounded direct smoke で `pass_init`。ただし `picoarch:fake08` は既に user-confirmed `pass` のため、PICO-8 の default は `picoarch:fake08` に変更。`retro8` は BGM 異常が残る非 default 候補として `fail_audio`。 |
 | Cave Story / NXEngine | `retroarch:nxengine`, `picoarch:nxengine` | `picoarch:nxengine` は direct smoke で 320x240/60fps metadata まで到達し、boot failure ではないと確認。日本語文字化けは RA/PICO 共通で、NXEngine が想定する data language/asset layout の問題として `retroarch:nxengine` は `fail_video` のまま扱う。 |
 | Lutro / LowRes NX / VMU video routes | `retroarch:lutro`, `picoarch:lowresnx`, `retroarch:vemulator`, `picoarch:vemulator` | Lutro RA は capture で中央線が表示され `pass_init`。LowRes NX PICO は `SET_PIXEL_FORMAT` が `retro_init()` 前に来る core で XRGB8888 が 0RGB1555 に戻る不具合を修正し、capture で正常表示。VMU は RA が unload 時 abort 134 のため `retired`、user-confirmed pass の `picoarch:vemulator` を default にした。 |
+| P4 performance limit after HW display check | `opera`, `virtualjaguar`, `mednafen_pcfx`, `uw8`, `uzem`, GBA heavy cores, non-fast `mednafen_pce`, RetroArch `scummvm`, heavy `mame2003_plus` routes | RetroArch practical config と直近 log で `video_driver=gl`、`video_context_driver=mali_fbdev`、`fbdev_mali`、`Mali-400 MP` を確認。PicoArch logs でも P4 対象を含む各 core で `a30_mali=1` と `picoarch-a30: mali presenter ... vsync=1` を確認。HW 表示経路でも性能不足が残るため、代替のある system は重い profile を外し、代替のない system は disabled/retired にした。 |
 
 ## 優先度 P1: system 全体が使えない、または代替が弱い問題
 
@@ -80,18 +81,8 @@
 
 ## 優先度 P4: 性能限界として扱う候補
 
-以下は A30 の CPU/GPU 性能に対して重い可能性が高く、代替がない場合でも深追いしすぎない。
-
-- `opera` / 3DO
-- `virtualjaguar` / Atari Jaguar
-- `mednafen_pcfx` / PC-FX
-- `uw8` / MicroW8
-- `uzem` / Uzebox
-- GBA の `mednafen_gba`, `meteor`, `vba_next`, `vbam`
-- PC Engine の非 fast `mednafen_pce`
-- RetroArch `scummvm`
-- `mame2003_plus` の重い ROM
+なし。P4 候補は HW 表示経路に乗っていることを確認済みで、性能不足として通常 FE/動作確認対象から外した。
 
 ## 次に実施する調査順
 
-1. P2 は完了。残件は P4 の性能限界候補、BIOS/合法 ROM 待ち、または user gameplay での `pass_init` 確認へ回す。
+1. P2/P3/P4 は完了。残件は BIOS/合法 ROM 待ち、Arcade PICO の ROM 依存性能、または user gameplay での `pass_init` 確認へ回す。

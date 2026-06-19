@@ -11,6 +11,7 @@ from pathlib import Path
 
 PICOARCH_BLOCKED_CORES = {
     "freeintv",
+    "mame2003_plus",
     "mednafen_pce",
     "nekop2",
     "np2kai",
