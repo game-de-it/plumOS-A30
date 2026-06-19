@@ -2209,7 +2209,7 @@ write_standalone_config_defaults() {
 # PPSSPP launcher overrides for Miyoo A30.
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
-PLUMOS_STANDALONE_USE_STOCK_SDL=1
+PLUMOS_STANDALONE_USE_STOCK_SDL=0
 
 PLUMOS_A30_PSP_CPU_POLICY=fixed
 PLUMOS_A30_PSP_CPU_FREQ=1344000
