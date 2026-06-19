@@ -35,6 +35,10 @@ plumOS configuration.
 - `/mnt/SDCARD/plumos/config/system/settings.json`
   - plumOS-owned device settings: Volume, Brightness, Lumination, Display Color,
     Time Settings, and Language.
+- `/mnt/SDCARD/plumos/share/frontend/lang/*.lang`
+  - Frontend UI string dictionaries. The `language` setting selects one of
+    these `key=value` files for item labels and help text. Missing keys fall
+    back to English strings compiled into the FE.
 
 ## Future Candidates
 
@@ -77,11 +81,13 @@ Current keys:
 - `contrast`: `0..20`
 - `hue`: `0..20`
 - `saturation`: `0..20`
-- `language`: `en.lang`, `ja.lang`, etc.
+- `language`: `en.lang`, `ja.lang`, etc. Matching dictionaries are loaded from
+  `/mnt/SDCARD/plumos/share/frontend/lang/`.
 - `timezone`: POSIX TZ string. Default is `JST-9`
 
-As of 2026-06-11, values other than `Language` are applied to the
-A30 runtime when saved and once during FE startup. `volume` is applied through
+As of 2026-06-20, `Language` selects the frontend `.lang` dictionary and is
+applied to Settings item labels and help text. Values other than `Language` are
+applied to the A30 runtime when saved and once during FE startup. `volume` is applied through
 `plumos-volume-control` to the ALSA default PCM `Soft Volume Master`, and
 RetroArch/standalone emulators use ALSA `default` so they share the same volume
 setting. `brightness` uses `/sys/devices/virtual/disp/disp/attr/lcdbl`, and

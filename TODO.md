@@ -95,7 +95,7 @@
 - [ ] CRC miss 時の filename 候補 rescue option を FE に追加する。
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
 - [ ] brightness hotkey を System Settings と連動する。
-- [ ] UI 文言の language localization を実装する。
+- [ ] Settings 以外の UI 文言にも language localization を広げる。
 - [ ] Theme selection の候補名/path/適用範囲を決める。
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
 - [x] Connect Wi-Fi の SSID 検索、password 入力、DHCP、gateway ping、IP 表示を実機で確認する。

@@ -299,6 +299,14 @@ struct setting_choice {
 };
 
 #define UI_GRAPHIC_THEME_CHOICE_MAX 32
+#define UI_TRANSLATION_MAX 512
+#define UI_TRANSLATION_KEY_MAX 96
+#define UI_TRANSLATION_VALUE_MAX 256
+
+struct translation_entry {
+  char key[UI_TRANSLATION_KEY_MAX];
+  char value[UI_TRANSLATION_VALUE_MAX];
+};
 
 struct graphic_theme_choice {
   char raw[64];
@@ -628,6 +636,10 @@ struct ui_state {
   char performance_cpu_label[64];
   long performance_cpu_freq_khz;
   long performance_cpu_cores;
+  struct translation_entry translations[UI_TRANSLATION_MAX];
+  size_t translation_count;
+  char translation_language[64];
+  char translation_status[128];
   char status[256];
 };
 
@@ -935,6 +947,168 @@ static char *read_file(const char *path, size_t *size_out) {
     *size_out = (size_t)size;
   }
   return buf;
+}
+
+static char *trim_ascii_ws(char *s) {
+  char *end;
+
+  if (!s) {
+    return s;
+  }
+  while (*s && isspace((unsigned char)*s)) {
+    s++;
+  }
+  end = s + strlen(s);
+  while (end > s && isspace((unsigned char)end[-1])) {
+    end--;
+  }
+  *end = '\0';
+  return s;
+}
+
+static int valid_language_filename(const char *s) {
+  if (!s || !s[0] || strchr(s, '/') || strchr(s, '\\')) {
+    return 0;
+  }
+  while (*s) {
+    unsigned char c = (unsigned char)*s++;
+    if (!(isalnum(c) || c == '_' || c == '-' || c == '.')) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int translation_set(struct ui_state *ui, const char *key, const char *value) {
+  size_t i;
+
+  if (!ui || !key || !key[0] || !value) {
+    return 0;
+  }
+  for (i = 0; i < ui->translation_count; i++) {
+    if (strcmp(ui->translations[i].key, key) == 0) {
+      return copy_string(ui->translations[i].value,
+                         sizeof(ui->translations[i].value), value);
+    }
+  }
+  if (ui->translation_count >= UI_TRANSLATION_MAX) {
+    return 0;
+  }
+  if (!copy_string(ui->translations[ui->translation_count].key,
+                   sizeof(ui->translations[ui->translation_count].key), key) ||
+      !copy_string(ui->translations[ui->translation_count].value,
+                   sizeof(ui->translations[ui->translation_count].value), value)) {
+    return 0;
+  }
+  ui->translation_count++;
+  return 1;
+}
+
+static int load_translation_file(struct ui_state *ui, const char *path) {
+  char *text;
+  char *p;
+  int loaded = 0;
+
+  if (!ui || !path || !path[0]) {
+    return 0;
+  }
+  text = read_file(path, NULL);
+  if (!text) {
+    return 0;
+  }
+  p = text;
+  while (p && *p) {
+    char *line = p;
+    char *next = strchr(p, '\n');
+    char *eq;
+    char *key;
+    char *value;
+
+    if (next) {
+      *next = '\0';
+      p = next + 1;
+    } else {
+      p += strlen(p);
+    }
+    if ((unsigned char)line[0] == 0xef &&
+        line[1] && (unsigned char)line[1] == 0xbb &&
+        line[2] && (unsigned char)line[2] == 0xbf) {
+      line += 3;
+    }
+    key = trim_ascii_ws(line);
+    if (!key[0] || key[0] == '#') {
+      continue;
+    }
+    eq = strchr(key, '=');
+    if (!eq) {
+      continue;
+    }
+    *eq = '\0';
+    value = trim_ascii_ws(eq + 1);
+    key = trim_ascii_ws(key);
+    if (!key[0]) {
+      continue;
+    }
+    if (translation_set(ui, key, value)) {
+      loaded = 1;
+    }
+  }
+  free(text);
+  return loaded;
+}
+
+static int load_translations(struct ui_state *ui) {
+  char lang_dir[PATH_MAX];
+  char lang_path[PATH_MAX];
+  const char *language;
+  int loaded = 0;
+
+  if (!ui) {
+    return 0;
+  }
+  ui->translation_count = 0;
+  ui->translation_language[0] = '\0';
+  ui->translation_status[0] = '\0';
+
+  language = valid_language_filename(ui->device.language)
+                 ? ui->device.language
+                 : "en.lang";
+  if (!join_path(lang_dir, sizeof(lang_dir), ui->plumos_root, "share/frontend/lang")) {
+    copy_string(ui->translation_status, sizeof(ui->translation_status),
+                "language path too long");
+    return 0;
+  }
+  if (join_path(lang_path, sizeof(lang_path), lang_dir, "en.lang")) {
+    loaded = load_translation_file(ui, lang_path);
+  }
+  if (strcmp(language, "en.lang") != 0 &&
+      join_path(lang_path, sizeof(lang_path), lang_dir, language)) {
+    loaded = load_translation_file(ui, lang_path) || loaded;
+  }
+  copy_string(ui->translation_language, sizeof(ui->translation_language), language);
+  snprintf(ui->translation_status, sizeof(ui->translation_status), "%s %s",
+           loaded ? "language loaded" : "language fallback",
+           language);
+  return loaded;
+}
+
+static const char *tr(const struct ui_state *ui, const char *key,
+                      const char *fallback) {
+  size_t i;
+
+  if (!fallback) {
+    fallback = "";
+  }
+  if (!ui || !key || !key[0]) {
+    return fallback;
+  }
+  for (i = 0; i < ui->translation_count; i++) {
+    if (strcmp(ui->translations[i].key, key) == 0 &&
+        ui->translations[i].value[0]) {
+      return ui->translations[i].value;
+    }
+  }
+  return fallback;
 }
 
 static int read_key_value_file(const char *path, const char *key, char *out, size_t out_size) {
@@ -3414,13 +3588,20 @@ static int choose_mali_font_path(struct ui_state *ui, const char *requested,
 static void add_setting_entry(struct ui_state *ui, const char *id, const char *name,
                               const char *value) {
   struct setting_entry *entry;
+  char key[128];
   if (ui->setting_count >= UI_MAX_SETTINGS) {
     return;
   }
   entry = &ui->setting_entries[ui->setting_count++];
   memset(entry, 0, sizeof(*entry));
   copy_string(entry->id, sizeof(entry->id), id);
-  copy_string(entry->display_name, sizeof(entry->display_name), name);
+  if (id && id[0]) {
+    snprintf(key, sizeof(key), "settings.item.%s.name", id);
+    copy_string(entry->display_name, sizeof(entry->display_name),
+                tr(ui, key, name));
+  } else {
+    copy_string(entry->display_name, sizeof(entry->display_name), name);
+  }
   copy_string(entry->value, sizeof(entry->value), value && value[0] ? value : "-");
 }
 
@@ -3759,33 +3940,41 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "performance_cpu_cores") == 0);
 }
 
-static const char *settings_category_title(enum settings_category category) {
+static const char *settings_category_title(const struct ui_state *ui,
+                                           enum settings_category category) {
   switch (category) {
   case SETTINGS_CATEGORY_SYSTEM_DISPLAY_COLOR:
-    return "System Settings - Display Color";
+    return tr(ui, "settings.category.system_display_color",
+              "System Settings - Display Color");
   case SETTINGS_CATEGORY_SYSTEM_BRIGHTNESS_TEST:
-    return "System Settings - Brightness Test";
+    return tr(ui, "settings.category.system_brightness_test",
+              "System Settings - Brightness Test");
   case SETTINGS_CATEGORY_SYSTEM_TIME:
-    return "System Settings - Time Settings";
+    return tr(ui, "settings.category.system_time",
+              "System Settings - Time Settings");
   case SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL:
-    return "System Settings - Manual Time";
+    return tr(ui, "settings.category.system_time_manual",
+              "System Settings - Manual Time");
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
-    return "System Settings - INFORMATION";
+    return tr(ui, "settings.category.system_information",
+              "System Settings - INFORMATION");
   case SETTINGS_CATEGORY_SYSTEM:
-    return "System Settings";
+    return tr(ui, "settings.category.system", "System Settings");
   case SETTINGS_CATEGORY_NETWORK:
-    return "Network Settings";
+    return tr(ui, "settings.category.network", "Network Settings");
   case SETTINGS_CATEGORY_NETWORK_SERVICE:
-    return "Network Settings - NW Service";
+    return tr(ui, "settings.category.network_service",
+              "Network Settings - NW Service");
   case SETTINGS_CATEGORY_NETWORK_INFORMATION:
-    return "Network Settings - INFORMATION";
+    return tr(ui, "settings.category.network_information",
+              "Network Settings - INFORMATION");
   case SETTINGS_CATEGORY_PERFORMANCE:
-    return "Performance Settings";
+    return tr(ui, "settings.category.performance", "Performance Settings");
   case SETTINGS_CATEGORY_UI_THEME:
-    return "Theme Settings";
+    return tr(ui, "settings.category.ui_theme", "Theme Settings");
   case SETTINGS_CATEGORY_UI:
   default:
-    return "UI Settings";
+    return tr(ui, "settings.category.ui", "UI Settings");
   }
 }
 
@@ -6563,11 +6752,13 @@ static void format_setting_row_mali(const struct ui_state *ui, const struct sett
   }
 }
 
-static void setting_help_lines(const struct setting_entry *entry,
+static void setting_help_lines(const struct ui_state *ui,
+                               const struct setting_entry *entry,
                                char *line1, size_t line1_size,
                                char *line2, size_t line2_size) {
   const char *id = entry ? entry->id : "";
   enum setting_control_type control = setting_control_type_for_id(id);
+  char key[128];
 
   if (line1 && line1_size > 0) {
     line1[0] = '\0';
@@ -6790,6 +6981,17 @@ static void setting_help_lines(const struct setting_entry *entry,
     copy_string(line1, line1_size, "Read-only information for this screen.");
     copy_string(line2, line2_size, "Write support will be added after backend checks.");
   }
+
+  if (id[0]) {
+    if (line1 && line1_size > 0) {
+      snprintf(key, sizeof(key), "settings.item.%s.help1", id);
+      copy_string(line1, line1_size, tr(ui, key, line1));
+    }
+    if (line2 && line2_size > 0) {
+      snprintf(key, sizeof(key), "settings.item.%s.help2", id);
+      copy_string(line2, line2_size, tr(ui, key, line2));
+    }
+  }
 }
 
 static size_t brightness_test_nearest_index(long brightness) {
@@ -6820,7 +7022,7 @@ static void render_brightness_test_settings(struct ui_state *ui) {
   }
 
   ui_printf(ui, "plumOS controller UI - %s\n",
-            settings_category_title(ui->settings_category));
+            settings_category_title(ui, ui->settings_category));
   ui_printf(ui, "A: apply  B: back  UP/DOWN/LEFT/RIGHT: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
             ui->setting_count ? ui->settings_cursor + 1 : 0);
@@ -6865,8 +7067,8 @@ static void render_settings(struct ui_state *ui) {
   size_t window = ui_list_window_size(ui);
   size_t start = 0;
   size_t end;
-  char help1[128];
-  char help2[128];
+  char help1[256];
+  char help2[256];
 
   if (window == 0) {
     window = 1;
@@ -6881,7 +7083,8 @@ static void render_settings(struct ui_state *ui) {
     end = ui->setting_count;
   }
 
-  ui_printf(ui, "plumOS controller UI - %s\n", settings_category_title(ui->settings_category));
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            settings_category_title(ui, ui->settings_category));
   ui_printf(ui, "A: toggle/run  B: back  LEFT/RIGHT: change  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->setting_count,
             ui->setting_count ? ui->settings_cursor + 1 : 0);
@@ -6908,7 +7111,7 @@ static void render_settings(struct ui_state *ui) {
   }
   if (ui->renderer_mali && ui->setting_count > 0) {
     const struct setting_entry *entry = &ui->setting_entries[ui->settings_cursor];
-    setting_help_lines(entry, help1, sizeof(help1), help2, sizeof(help2));
+    setting_help_lines(ui, entry, help1, sizeof(help1), help2, sizeof(help2));
     ui_printf(ui, "footer1=%s\n", help1);
     ui_printf(ui, "footer2=%s\n", help2);
   }
@@ -7543,7 +7746,7 @@ static void open_settings_screen(struct ui_state *ui, enum settings_category cat
 
   ui->settings_category = category;
   ui->screen = SCREEN_SETTINGS;
-  title = settings_category_title(ui->settings_category);
+  title = settings_category_title(ui, ui->settings_category);
   if (!load_settings_entries(ui)) {
     snprintf(ui->status, sizeof(ui->status), "cannot load %s", title);
   } else {
@@ -9622,6 +9825,8 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
       set_status(ui, "plumOS system config write failed");
       return 0;
     }
+    copy_string(ui->device.language, sizeof(ui->device.language), raw);
+    load_translations(ui);
     update_settings_entries_after_save(ui);
     settings_start_arrow_blink(ui, direction);
     snprintf(ui->status, sizeof(ui->status), "saved %s=%s", id, choices[index].display);
@@ -11824,6 +12029,7 @@ int main(int argc, char **argv) {
   if (load_device_settings(&ui)) {
     apply_device_runtime_settings(&ui.device, NULL, NULL, 0);
   }
+  load_translations(&ui);
 
   memset(&initial_settings, 0, sizeof(initial_settings));
   initial_settings_loaded = load_settings(ui.settings_path, &initial_settings);
