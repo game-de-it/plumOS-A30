@@ -47,6 +47,15 @@ STANDALONE_BINARY_PATHS = {
     "scummvm": "plumos/emulators/scummvm/bin/scummvm",
 }
 
+BASE_RUNTIME_PATHS = [
+    "plumos/ssh/start-ssh.sh",
+    "plumos/ssh/stop-ssh.sh",
+    "plumos/ssh/bin/dropbear",
+    "plumos/ssh/bin/dropbearkey",
+    "plumos/ssh/bin/scp",
+    "plumos/ssh/etc/authorized_keys",
+]
+
 
 @dataclass(frozen=True)
 class Component:
@@ -116,6 +125,7 @@ def components(standalone_dir: Path) -> list[Component]:
         Component("frontend", dist / "plumos-frontend"),
         Component("joystickd", dist / "plumos-joystickd"),
         Component("network-services", dist / "plumos-network-services"),
+        Component("ssh-kit", dist / "plumos-a30-ssh-kit"),
         Component("retroarch-practical", dist / "plumos-retroarch-practical"),
         Component("sdl2-runtime", dist / "plumos-sdl2-runtime"),
         Component("python-runtime", dist / "plumos-python-runtime"),
@@ -186,6 +196,10 @@ def read_runtime_manifest(path: Path) -> list[dict[str, str]]:
 def verify_runtime_payload(package_dir: Path, manifest_path: Path) -> list[str]:
     errors: list[str] = []
     rows = read_runtime_manifest(manifest_path)
+    for rel in BASE_RUNTIME_PATHS:
+        if not (package_dir / rel).exists():
+            errors.append(f"missing base runtime path: {rel}")
+
     for runtime in sorted({row["runtime"] for row in rows}):
         for rel in REQUIRED_RUNTIME_PATHS.get(runtime, []):
             if not (package_dir / rel).exists():

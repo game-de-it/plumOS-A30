@@ -40,6 +40,7 @@ sha256sum.txt
 
 - `miyoo/app/MainUI`: plumOS `MainUI.wrapper`
 - `plumos/`: frontend、runtime、emulator、core、config default、helper
+- `plumos/ssh/`: Dropbear SSH、起動/停止 script、`authorized_keys`
 - `Bios/`, `Imgs/`, `Roms/`, `Saves/`: 空の placeholder
 - `README.txt`
 - `manifest.txt`
@@ -72,6 +73,8 @@ fresh SD card package には stock `MainUI.stock` を含めない。したがっ
 - `plumos/bootstrap/MainUI.wrapper` と `miyoo/app/MainUI` が同一内容である。
 - `plumos/bin/plumos-controller-ui-mali` が存在する。
 - `plumos/config/frontend/systems.json` が存在する。
+- `plumos/ssh/start-ssh.sh` と `plumos/ssh/bin/dropbear` が存在する。
+- `plumos/ssh/etc/authorized_keys` に接続元 PC の公開鍵が入っている。
 - `Roms/`、`Bios/` などには placeholder 以外のユーザーデータが含まれない。
 - archive を空 directory に展開すると、その directory が SD card root と同じ構成になる。
 - fresh SD card 相当の実機で boot する。

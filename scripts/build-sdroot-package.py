@@ -128,6 +128,12 @@ def verify_payload(output_dir: Path) -> list[str]:
         "plumos/bin/plumos-controller-ui-mali",
         "plumos/bin/plumos-env",
         "plumos/config/frontend/systems.json",
+        "plumos/ssh/start-ssh.sh",
+        "plumos/ssh/stop-ssh.sh",
+        "plumos/ssh/bin/dropbear",
+        "plumos/ssh/bin/dropbearkey",
+        "plumos/ssh/bin/scp",
+        "plumos/ssh/etc/authorized_keys",
     ]
     errors: list[str] = []
     for rel in required:

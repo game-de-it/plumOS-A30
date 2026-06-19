@@ -26,6 +26,7 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - Pyxel runtime
 - SDL/Mali runtime
 - joystick/network/userland helper
+- Dropbear SSH kit
 - empty `Roms/`, `Bios/`, `Imgs/`, `Saves/` placeholder
 - SD root manifest/checksum
 
@@ -38,6 +39,9 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - build cache
 - 開発用 source tree
 - stock `MainUI.stock`
+
+SSH は公開鍵認証のみを使う。配布用 archive を作る前に `dist/plumos-a30-ssh-kit` の
+`plumos/ssh/etc/authorized_keys` に接続元 PC の公開鍵が入っていることを確認する。
 
 既存 SD card へ安全に上書き更新する用途では、内部成果物として `dist/plumos-runtime-package.tar.gz`
 も生成できる。これは `install-plumos-runtime.sh` で既存設定や save/state を保持する更新用 package であり、
@@ -112,7 +116,9 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 ## 生成順
 
 1. clean working tree にする。
-2. runtime package の入力 artifact を build する。
+2. runtime package の入力 artifact を build する。SSH 接続確認用には
+   `A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh` で
+   `dist/plumos-a30-ssh-kit` を作る。
 3. `./scripts/build-runtime-package.py` を実行する。
 4. `./scripts/build-sdroot-package.py` を実行する。
 5. `./scripts/build-dev-package.py` を実行する。
