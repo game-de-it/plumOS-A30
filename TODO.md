@@ -23,7 +23,7 @@
 
 ## Phase 2 - plumOS Runtime Layout
 
-- [ ] `/mnt/SDCARD/plumos` 配下の runtime directory 構成を package 化する。
+- [x] `/mnt/SDCARD/plumos` 配下の runtime directory 構成を package 化する。
 - [x] `config/frontend`, `config/system`, `config/network`, `config/performance` の責務を分ける。
 - [x] stock `/mnt/SDCARD/miyoo/lib` に依存しない `plumos-env` を用意する。
 - [x] plumOS 用 static BusyBox と vfat-safe wrapper applets を用意する。
@@ -143,7 +143,7 @@
 
 ## Phase 9 - Packaging and Release
 
-- [ ] SD カードへ展開する runtime package を作る。
+- [x] SD カードへ展開する runtime package を作る。
 - [ ] 開発者向け Docker/toolchain package を作る。
 - [ ] end-user release と developer release の分け方を決める。
 - [ ] StockOS と plumOS の差分を整理する。
