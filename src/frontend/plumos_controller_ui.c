@@ -3653,6 +3653,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "network_services") == 0 ||
       strcmp(id, "network_usb_disk_mode") == 0 ||
       strcmp(id, "network_information") == 0 ||
+      strcmp(id, "refresh_top") == 0 ||
       strcmp(id, "ui_theme_settings") == 0 ||
       strcmp(id, "system_display_color") == 0 ||
       strcmp(id, "system_time_settings") == 0 ||
@@ -3776,6 +3777,7 @@ static const char *settings_category_title(enum settings_category category) {
 
 static void add_ui_settings_entries(struct ui_state *ui,
                                     const struct frontend_settings *settings) {
+  add_setting_entry(ui, "refresh_top", "Refresh TOP", "");
   add_setting_entry(ui, "ui_mode", "UI Mode",
                     setting_choice_display_value("ui_mode", settings->ui_mode));
   add_bool_setting_entry(ui, "show_empty_systems", "Show Empty Systems",
@@ -6587,6 +6589,9 @@ static void setting_help_lines(const struct setting_entry *entry,
   } else if (strcmp(id, "rom_scan_policy") == 0) {
     copy_string(line1, line1_size, "Scan ROM folders when entering a system.");
     copy_string(line2, line2_size, "Off keeps cached lists until refresh.");
+  } else if (strcmp(id, "refresh_top") == 0) {
+    copy_string(line1, line1_size, "Re-scan systems and reload the TOP list.");
+    copy_string(line2, line2_size, "Use after adding ROM folders or changing files.");
   } else if (strcmp(id, "ui_theme_settings") == 0) {
     copy_string(line1, line1_size, "Open Graphic theme settings.");
     copy_string(line2, line2_size, "Theme selection affects Graphic mode only.");
@@ -9156,7 +9161,7 @@ static int refresh_top_entries_preserve_cursor(struct ui_state *ui) {
   return 1;
 }
 
-static void refresh_top_entries_from_start_close(struct ui_state *ui) {
+static void refresh_top_entries_manual(struct ui_state *ui) {
   int reload_ok;
   int scan_ok;
 
@@ -9899,6 +9904,10 @@ static int is_ui_theme_settings_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "ui_theme_settings") == 0;
 }
 
+static int is_refresh_top_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "refresh_top") == 0;
+}
+
 static int is_network_connect_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "network_connect_wifi") == 0;
 }
@@ -10582,11 +10591,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         return;
       }
       ui->screen = ui->back_screen;
-      if (ui->screen == SCREEN_TOP) {
-        refresh_top_entries_from_start_close(ui);
-      } else {
-        set_status(ui, "close START menu");
-      }
+      set_status(ui, "close START menu");
       return;
     }
     if (action == ACTION_A) {
@@ -10714,6 +10719,10 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_ui_theme_settings_entry(entry)) {
         open_settings_screen(ui, SETTINGS_CATEGORY_UI_THEME);
+        return;
+      }
+      if (is_refresh_top_entry(entry)) {
+        refresh_top_entries_manual(ui);
         return;
       }
       if (is_network_connect_entry(entry)) {

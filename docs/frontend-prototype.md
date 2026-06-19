@@ -452,7 +452,8 @@ SAFE menu:
   物理 trigger は電源ボタンへ移行。ゲーム中 overlay menu は未完了
 
 Settings 画面では plumOS frontend 設定と theme 状態に加えて、plumOS-owned な
-system 設定も表示します。UI Settings の `Show Empty Systems`、
+system 設定も表示します。UI Settings の先頭には `Refresh TOP` を置き、
+TOP 用 full scan と reload を明示的に実行します。`Show Empty Systems`、
 `Favorites On TOP`、`Recent On TOP`、`Sort Systems`、`Sort ROMs`、`Scan On Enter`、
 `Boot Resume Mode` は保存後の controller UI に反映します。System Settings は
 `/mnt/SDCARD/plumos/config/system/settings.json` から volume、brightness、lumination、

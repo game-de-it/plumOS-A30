@@ -485,8 +485,8 @@ enters that ROM list screen. Newly copied ROMs should appear without a manual
 Initial policy:
 
 - Avoid heavy full scans on the TOP screen.
-- Run a full scan and reload TOP only when closing the START menu back to TOP,
-  so newly copied ROMs appear without restarting the FE.
+- Run a full scan and reload TOP only from `Refresh TOP` in UI Settings, so newly
+  copied ROMs appear without restarting the FE.
 - Do not show ROM counts on the TOP screen.
 - On ROM lists, show the count after the selected system scan/list load.
 - Scan only the selected system when entering it.

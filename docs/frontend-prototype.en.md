@@ -459,9 +459,10 @@ Controls:
 - SELECT: system/per-ROM core menu.
 - Function: open the SAFE menu. SAFE menu contains `Sleep`, `Shutdown`, and
   `Cancel`.
-- UI Settings: checkboxes save through A/Left/Right, and choices save through
-  Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot resume are
-  reflected in runtime behavior after saving.
+- UI Settings: `Refresh TOP` is the first action and explicitly runs a TOP full
+  scan and reload. Checkboxes save through A/Left/Right, and choices save
+  through Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot
+  resume are reflected in runtime behavior after saving.
 - Network Settings: the first layer contains `Wi-Fi`, `Connect Wi-Fi`,
   `NW Service`, and `INFORMATION`. `Wi-Fi` OFF stops the runtime, connection
   starts through `Connect Wi-Fi`, and `NW Service` owns SSH/FTP/SFTP/Samba/USB Disk
