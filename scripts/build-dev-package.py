@@ -20,10 +20,12 @@ REQUIRED_SOURCE_PATHS = [
     "AGENTS.md",
     "TODO.md",
     "docs/docker-toolchain.md",
+    "docs/release-artifacts.md",
     "docs/runtime-package.md",
     "docker/plumos-toolchain/Dockerfile",
     "docker/plumos-toolchain/libretro-core-recipes.tsv",
     "scripts/docker-build.sh",
+    "scripts/build-release-bundle.py",
     "scripts/build-runtime-package.py",
     "scripts/build-dev-package.py",
 ]

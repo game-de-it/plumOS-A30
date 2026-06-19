@@ -145,10 +145,10 @@
 
 - [x] SD カードへ展開する runtime package を作る。
 - [x] 開発者向け Docker/toolchain package を作る。
-- [ ] end-user release と developer release の分け方を決める。
+- [x] end-user release と developer release の分け方を決める。
 - [ ] StockOS と plumOS の差分を整理する。
 - [ ] plumOS 導入メリットを end-user 向けにまとめる。
 - [ ] StockOS から plumOS へ移行する際の制約/トレードオフを整理する。
 - [ ] license notice と upstream attribution を整理する。
-- [ ] GitHub Release 用 package/artifact workflow を作る。
+- [x] GitHub Release 用 package/artifact workflow を作る。
 - [ ] fresh SD card 相当の環境で install/rollback を検証する。

@@ -50,6 +50,14 @@ runtime package を作る場合は、必要な `dist/` artifact を build した
 
 runtime package の詳細は `docs/runtime-package.md` を参照する。
 
+GitHub Release 用の asset 一式を作る場合は、runtime package と developer package を生成した後に以下を実行する。
+
+```sh
+./scripts/build-release-bundle.py --version <version>
+```
+
+release artifact の分け方は `docs/release-artifacts.md` を参照する。
+
 ## provenance
 
 `manifest.txt` には以下を記録する。
