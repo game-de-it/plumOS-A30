@@ -50,7 +50,15 @@ runtime package を作る場合は、必要な `dist/` artifact を build した
 
 runtime package の詳細は `docs/runtime-package.md` を参照する。
 
-GitHub Release 用の asset 一式を作る場合は、runtime package と developer package を生成した後に以下を実行する。
+ユーザー配布用の SD root package を作る場合は、runtime package 生成後に以下を実行する。
+
+```sh
+./scripts/build-sdroot-package.py
+```
+
+SD root package の詳細は `docs/sdroot-package.md` を参照する。
+
+GitHub Release 用の asset 一式を作る場合は、SD root package と developer package を生成した後に以下を実行する。
 
 ```sh
 ./scripts/build-release-bundle.py --version <version>
@@ -76,4 +84,4 @@ release artifact の分け方は `docs/release-artifacts.md` を参照する。
 
 developer package は Docker image tarball を含めない。Docker image は host 環境差が大きく、巨大になりやすいため、`source/docker/plumos-toolchain/Dockerfile` から再 build する。
 
-配布時に「すぐ実機へ入れる package」が必要な場合は runtime package を使う。developer package は build 再現用であり、A30 の `/mnt/SDCARD/plumos` へ直接展開しない。
+配布時に「すぐ実機へ入れる package」が必要な場合は SD root package を使う。developer package は build 再現用であり、A30 の `/mnt/SDCARD/plumos` へ直接展開しない。

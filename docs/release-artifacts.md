@@ -8,14 +8,15 @@ plumOS は end-user release と developer release を分ける。
 
 ### End-user release
 
-end-user release は、A30 の SD カードへ展開するための runtime package である。
+end-user release は、A30 の SD カード root へそのまま展開する SD root package である。
 
 配布 asset:
 
-- `plumos-a30-runtime-<version>.tar.gz`
+- `plumos-a30-sdroot-<version>.tar.gz`
 
 含むもの:
 
+- `miyoo/app/MainUI` plumOS boot wrapper
 - frontend
 - launcher
 - RetroArch runtime
@@ -25,8 +26,8 @@ end-user release は、A30 の SD カードへ展開するための runtime pack
 - Pyxel runtime
 - SDL/Mali runtime
 - joystick/network/userland helper
-- install script
-- runtime manifest/checksum
+- empty `Roms/`, `Bios/`, `Imgs/`, `Saves/` placeholder
+- SD root manifest/checksum
 
 含めないもの:
 
@@ -36,10 +37,15 @@ end-user release は、A30 の SD カードへ展開するための runtime pack
 - network secret
 - build cache
 - 開発用 source tree
+- stock `MainUI.stock`
+
+既存 SD card へ安全に上書き更新する用途では、内部成果物として `dist/plumos-runtime-package.tar.gz`
+も生成できる。これは `install-plumos-runtime.sh` で既存設定や save/state を保持する更新用 package であり、
+GitHub Release の通常ユーザー向け primary asset にはしない。
 
 ### Developer release
 
-developer release は、runtime package を再 build するための source/toolchain package である。
+developer release は、SD root package と runtime package を再 build するための source/toolchain package である。
 
 配布 asset:
 
@@ -74,14 +80,14 @@ GitHub Release に載せる asset directory は以下で生成する。
 
 既定では以下を入力にする。
 
-- `dist/plumos-runtime-package.tar.gz`
+- `dist/plumos-sdroot-package.tar.gz`
 - `dist/plumos-dev-package.tar.gz`
 
 出力例:
 
 ```text
 dist/plumos-release-<version>/
-  plumos-a30-runtime-<version>.tar.gz
+  plumos-a30-sdroot-<version>.tar.gz
   plumos-a30-developer-<version>.tar.gz
   RELEASE_NOTES.md
   manifest.txt
@@ -95,7 +101,7 @@ release 用 bundle は clean working tree で生成する。preview だけが必
 
 GitHub Release の asset は以下に固定する。
 
-- `plumos-a30-runtime-<version>.tar.gz`
+- `plumos-a30-sdroot-<version>.tar.gz`
 - `plumos-a30-developer-<version>.tar.gz`
 - `SHA256SUMS`
 - `manifest.txt`
@@ -108,20 +114,23 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 1. clean working tree にする。
 2. runtime package の入力 artifact を build する。
 3. `./scripts/build-runtime-package.py` を実行する。
-4. `./scripts/build-dev-package.py` を実行する。
-5. `./scripts/build-release-bundle.py --version <version>` を実行する。
-6. `SHA256SUMS` を検証する。
-7. fresh SD card 相当の環境で runtime install/rollback を検証する。
-8. GitHub Release へ release bundle 内の asset を upload する。
+4. `./scripts/build-sdroot-package.py` を実行する。
+5. `./scripts/build-dev-package.py` を実行する。
+6. `./scripts/build-release-bundle.py --version <version>` を実行する。
+7. `SHA256SUMS` を検証する。
+8. fresh SD card 相当の環境で SD root package の boot を検証する。
+9. 必要に応じて既存 SD card 向け runtime install/rollback を検証する。
+10. GitHub Release へ release bundle 内の asset を upload する。
 
 ## 完了条件
 
 正式 release は以下を満たす必要がある。
 
 - runtime package が `docs/emulator-runtime-manifest.tsv` の runtime/core/binary 検証を通過している。
+- SD root package が `miyoo/app/MainUI` と `plumos/` runtime を含み、ROM/BIOS/user data を含まない。
 - developer package の manifest が `git_dirty=no` である。
 - release bundle の manifest が `git_dirty=no` である。
 - `SHA256SUMS` が全 asset で検証できる。
-- fresh SD card 相当の install/rollback 検証が完了している。
+- fresh SD card 相当の boot 検証が完了している。
 
 fresh SD card 検証が未完了の間は、GitHub Release を draft または pre-release として扱う。

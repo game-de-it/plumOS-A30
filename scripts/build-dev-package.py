@@ -22,11 +22,13 @@ REQUIRED_SOURCE_PATHS = [
     "docs/docker-toolchain.md",
     "docs/release-artifacts.md",
     "docs/runtime-package.md",
+    "docs/sdroot-package.md",
     "docker/plumos-toolchain/Dockerfile",
     "docker/plumos-toolchain/libretro-core-recipes.tsv",
     "scripts/docker-build.sh",
     "scripts/build-release-bundle.py",
     "scripts/build-runtime-package.py",
+    "scripts/build-sdroot-package.py",
     "scripts/build-dev-package.py",
 ]
 
@@ -178,6 +180,7 @@ cd source
 ./scripts/docker-build.sh libretro-cores
 ```
 
+End-user SD-root package generation is documented in `source/docs/sdroot-package.md`.
 Runtime package generation is documented in `source/docs/runtime-package.md`.
 Docker/toolchain details are documented in `source/docs/docker-toolchain.md`.
 """,

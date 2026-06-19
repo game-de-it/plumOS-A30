@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Copy runtime/developer packages into a release asset directory."
+        description="Copy SD-root/developer packages into a release asset directory."
     )
     parser.add_argument(
         "--version",
@@ -31,9 +31,9 @@ def parse_args() -> argparse.Namespace:
         help="Output directory. Defaults to dist/plumos-release-<version>.",
     )
     parser.add_argument(
-        "--runtime-archive",
+        "--sdroot-archive",
         type=Path,
-        default=ROOT / "dist/plumos-runtime-package.tar.gz",
+        default=ROOT / "dist/plumos-sdroot-package.tar.gz",
     )
     parser.add_argument(
         "--developer-archive",
@@ -108,28 +108,26 @@ def copy_asset(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
-def write_release_notes(path: Path, version: str, runtime_name: str, developer_name: str) -> None:
+def write_release_notes(path: Path, version: str, sdroot_name: str, developer_name: str) -> None:
     path.write_text(
         f"""# plumOS A30 {version}
 
 ## Assets
 
-- `{runtime_name}`: end-user SD-card runtime package.
+- `{sdroot_name}`: end-user SD-card root package.
 - `{developer_name}`: developer source/toolchain package.
 - `SHA256SUMS`: checksums for release assets and release metadata.
 - `manifest.txt`: provenance for this release asset set.
 
 ## Install
 
-End users should download only `{runtime_name}` unless they need to rebuild plumOS.
+End users should download only `{sdroot_name}` unless they need to rebuild plumOS.
 
 ```sh
-tar -xzf {runtime_name}
-cd plumos-runtime-package
-./install-plumos-runtime.sh /mnt/SDCARD
+tar -xzf {sdroot_name} -C /path/to/SDCARD
 ```
 
-The runtime installer preserves user settings, logs, RetroArch saves/states, playlists, and standalone emulator state paths documented in `docs/runtime-package.md`.
+The archive expands directly into SD card root entries such as `miyoo/app/MainUI`, `plumos/`, `Roms/`, and `Bios/`.
 
 ## Developer Rebuild
 
@@ -143,7 +141,7 @@ cd plumos-dev-package/source
 
 ## Excluded Data
 
-ROMs, BIOS files, user save data, state files, network secrets, and generated build caches are not release assets.
+ROMs, BIOS files, user save data, state files, screenshots, videos, network secrets, and generated build caches are not release assets.
 """,
         encoding="utf-8",
     )
@@ -183,24 +181,24 @@ def main() -> int:
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True)
 
-    runtime_name = f"plumos-a30-runtime-{version}.tar.gz"
+    sdroot_name = f"plumos-a30-sdroot-{version}.tar.gz"
     developer_name = f"plumos-a30-developer-{version}.tar.gz"
-    runtime_out = output_dir / runtime_name
+    sdroot_out = output_dir / sdroot_name
     developer_out = output_dir / developer_name
-    copy_asset(args.runtime_archive, runtime_out)
+    copy_asset(args.sdroot_archive, sdroot_out)
     copy_asset(args.developer_archive, developer_out)
 
     notes = output_dir / "RELEASE_NOTES.md"
     manifest = output_dir / "manifest.txt"
     checksums = output_dir / "SHA256SUMS"
-    write_release_notes(notes, version, runtime_name, developer_name)
-    write_manifest(manifest, version, status, [runtime_out, developer_out])
-    write_sha256(checksums, [runtime_out, developer_out, notes, manifest])
+    write_release_notes(notes, version, sdroot_name, developer_name)
+    write_manifest(manifest, version, status, [sdroot_out, developer_out])
+    write_sha256(checksums, [sdroot_out, developer_out, notes, manifest])
 
     print(f"release_dir={output_dir}")
     print(f"version={version}")
-    print(f"runtime={runtime_out}")
-    print(f"runtime_sha256={sha256_file(runtime_out)}")
+    print(f"sdroot={sdroot_out}")
+    print(f"sdroot_sha256={sha256_file(sdroot_out)}")
     print(f"developer={developer_out}")
     print(f"developer_sha256={sha256_file(developer_out)}")
     print(f"git_dirty={'yes' if status else 'no'}")

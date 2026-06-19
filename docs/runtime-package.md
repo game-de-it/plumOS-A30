@@ -6,6 +6,8 @@
 
 `dist/plumos-runtime-package` は、実機の `/mnt/SDCARD/plumos` 配下へ展開する runtime 一式である。FE、launcher、RetroArch、libretro core、PicoArch、standalone emulator、Pyxel runtime、SDL/Mali runtime、補助 userland を 1 つの配布単位にまとめる。
 
+通常ユーザー向けの release asset は、この runtime package を入力にした `dist/plumos-sdroot-package.tar.gz` とする。runtime package は、既存 SD card へ安全に上書き更新する場合や、SD root package の中間成果物として使う。
+
 ROM、BIOS、ユーザーの save/state、既存設定、log は package の責務に含めない。installer は既存の mutable path を退避してから payload を上書きし、退避した path を戻す。
 
 ## 入力 artifact
@@ -92,3 +94,5 @@ installer は以下を保持する。
 package 生成時に `docs/emulator-runtime-manifest.tsv` を読み、FE から実行可能な runtime profile に必要な launcher、core、standalone binary が payload に存在することを検証する。
 
 fresh SD card 相当の install/rollback 検証は release 前に別途行う。
+
+SD card root へそのまま展開できるユーザー配布形は `docs/sdroot-package.md` を参照する。
