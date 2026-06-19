@@ -144,7 +144,7 @@
 ## Phase 9 - Packaging and Release
 
 - [x] SD カードへ展開する runtime package を作る。
-- [ ] 開発者向け Docker/toolchain package を作る。
+- [x] 開発者向け Docker/toolchain package を作る。
 - [ ] end-user release と developer release の分け方を決める。
 - [ ] StockOS と plumOS の差分を整理する。
 - [ ] plumOS 導入メリットを end-user 向けにまとめる。
