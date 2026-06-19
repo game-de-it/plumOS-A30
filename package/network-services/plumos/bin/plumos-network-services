@@ -29,6 +29,17 @@ log() {
   printf '%s service=%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || true)" "${2:-network}" "$1" >> "$LOG_FILE"
 }
 
+close_inherited_display_fds() {
+  for fd in 3 4 5 6 7 8 9; do
+    target="$(readlink "/proc/$$/fd/${fd}" 2>/dev/null || true)"
+    case "$target" in
+      /dev/fb0)
+        eval "exec ${fd}<&- ${fd}>&-" 2>/dev/null || true
+        ;;
+    esac
+  done
+}
+
 pid_alive() {
   pid_file="$1"
   [ -s "$pid_file" ] || return 1
@@ -223,8 +234,11 @@ start_ftp() {
     return 0
   fi
   log "start port=${FTP_PORT} max=${TRANSFER_MAX_CONNECTIONS} share=${SHARE_DIR}" ftp
-  "$TCPSVD" -vE -c "$TRANSFER_MAX_CONNECTIONS" 0.0.0.0 "$FTP_PORT" \
-    "$FTPD" -w -A -t 300 -T 3600 "$SHARE_DIR" >> "$LOG_FILE" 2>&1 &
+  (
+    close_inherited_display_fds
+    exec "$TCPSVD" -vE -c "$TRANSFER_MAX_CONNECTIONS" 0.0.0.0 "$FTP_PORT" \
+      "$FTPD" -w -A -t 300 -T 3600 "$SHARE_DIR" >> "$LOG_FILE" 2>&1 < /dev/null
+  ) &
   echo "$!" > "$(ftp_pid_file)"
   sleep 1
   status_ftp
@@ -363,7 +377,10 @@ start_samba() {
   fi
   write_smb_conf
   log "start max=${TRANSFER_MAX_CONNECTIONS} share=${SHARE_DIR}" samba
-  "$SMBD" -D -s "$SMB_CONF" >> "$LOG_FILE" 2>&1 || true
+  (
+    close_inherited_display_fds
+    exec "$SMBD" -D -s "$SMB_CONF" >> "$LOG_FILE" 2>&1 < /dev/null
+  ) || true
   sleep 1
   status_samba
 }
