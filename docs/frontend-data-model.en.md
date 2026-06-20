@@ -294,15 +294,16 @@ Example:
 Rules:
 
 - `crc_workers.default` is the normal UI initial value. Unvalidated systems use
-  `1`.
+  `8`.
 - `crc_workers.bulk` is used for explicit bulk scraping. Unvalidated systems use
-  `2`.
+  `8`.
 - `crc_workers.max` is the per-system cap determined by real A30 validation.
-  Unvalidated systems use `2`.
-- Validation may test `1..5`, but the normal FE UI must not exceed the
-  per-system `max`.
-- `download_workers` uses system-wide initial values of `default=2`, `bulk=3`,
-  and `max=4` unless a later measurement says otherwise.
+  Unvalidated systems use `8`.
+- `download_workers` uses system-wide initial values of `default=6`, `bulk=6`,
+  and `max=6` unless a later measurement says otherwise.
+- Systems that become slower in real-device benchmarks are lowered as
+  per-system exceptions. As of 2026-06-21, GBA uses
+  `crc_workers=4/4/4` and `download_workers=4/4/4`.
 - Update per-system `crc_workers` only after saving
   `scripts/benchmark-a30-crc-workers.sh` results under `artifacts/`.
 - During FE-launched scraping, temporarily pin the CPU to `1200 MHz` /

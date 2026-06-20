@@ -193,18 +193,17 @@ The scraper uses separate CRC and download queues.
 Initial values:
 
 ```text
-CRC workers default: 1
-CRC workers bulk:    2
-PNG download default: 2
-PNG download bulk:    3
-PNG download hard cap: 4
+CRC workers default: 8
+CRC workers bulk:    8
+PNG download default: 6
+PNG download bulk:    6
+PNG download hard cap: 6
 ```
 
-CRC workers are overridable per system. Systems with many small ROMs can be
-raised after real-device validation, while large-ROM systems such as N64 can
-stay at `1`. Unvalidated systems use `default=1`, `bulk=2`, and `max=2`.
-Validation can probe up to `max=5`, but the normal FE UI should not expose
-unbounded values.
+CRC and download workers are overridable per system. Unvalidated simple-ROM CRC
+systems default to `crc_workers=8/8/8` and `download_workers=6/6/6`. Systems
+that become slower in real-device benchmarks are lowered as per-system
+exceptions. As of 2026-06-21, GBA is the `4/4` exception.
 
 When scraping is launched from the FE, it does not inherit the normal FE
 low-power policy. The FE temporarily pins the CPU to `1200 MHz` and `4 cores`,
@@ -213,10 +212,9 @@ then restores the previous CPU policy after scraping exits. The
 real-device measurements.
 
 `package/frontend/plumos/config/frontend/systems.json` is the source of truth
-for scraper eligibility. Initial scraper targets use `enabled=true` with
-`reason=simple_rom_crc`. Because they are still unvalidated on-device,
-`crc_workers.max` starts at `2`; per-system max values can be raised after A30
-benchmarking.
+for scraper eligibility. Scraper targets use `enabled=true` with
+`reason=simple_rom_crc`; targets whose systems are disabled must also keep
+`scraper.enabled=false`.
 `scraper.extensions` lists the extensions the initial scraper may CRC. Even when
 the system-wide `extensions` include `7z` or disk images, extensions omitted from
 this scraper list are not scraped.
@@ -230,8 +228,8 @@ Enabled-system example:
     "enabled": true,
     "reason": "simple_rom_crc",
     "extensions": ["nes", "unf", "unif", "zip"],
-    "crc_workers": { "default": 1, "bulk": 2, "max": 2 },
-    "download_workers": { "default": 2, "bulk": 3, "max": 4 }
+    "crc_workers": { "default": 8, "bulk": 8, "max": 8 },
+    "download_workers": { "default": 6, "bulk": 6, "max": 6 }
   }
 }
 ```

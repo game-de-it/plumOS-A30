@@ -59,8 +59,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["fds", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -90,8 +90,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sfc", "smc", "fig", "bs", "swc", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -151,8 +151,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gbc", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -212,8 +212,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gen", "md", "smd", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -243,8 +243,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sms", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -275,8 +275,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gg", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -306,8 +306,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["32x", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -365,8 +365,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["pce", "sgx", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -396,8 +396,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sgx", "pce", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -647,8 +647,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ngp", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -678,8 +678,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ngc", "ngpc", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -709,8 +709,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["ws", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -739,8 +739,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["wsc", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -769,8 +769,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["lnx", "lyx", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -799,8 +799,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["vb", "vboy", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1161,8 +1161,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["rom", "mx1", "mx2", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1299,8 +1299,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["a26", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1329,8 +1329,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["a78", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1359,8 +1359,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["vec", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1389,8 +1389,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sv", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1420,8 +1420,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1478,8 +1478,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["min", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1640,8 +1640,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["a52", "bin", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1860,8 +1860,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["bin", "chf", "rom", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -1890,8 +1890,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["rom", "ri", "mx1", "mx2", "col", "sg", "sc", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -2028,8 +2028,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["int", "bin", "rom", "zip"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {
@@ -2082,8 +2082,8 @@
       "default_cpu_policy": "fixed",
       "default_cpu_freq_khz": 648000,
       "scraper": {
-        "enabled": true,
-        "reason": "simple_rom_crc",
+        "enabled": false,
+        "reason": "frontend_disabled",
         "extensions": ["j64", "jag", "rom", "abs", "cof", "bin", "prg"],
         "crc_workers": {"default": 1, "bulk": 2, "max": 2},
         "download_workers": {"default": 2, "bulk": 3, "max": 4}
@@ -2358,8 +2358,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["sg", "mv", "bin", "rom", "sms", "gg"],
-        "crc_workers": {"default": 1, "bulk": 2, "max": 2},
-        "download_workers": {"default": 2, "bulk": 3, "max": 4}
+        "crc_workers": {"default": 8, "bulk": 8, "max": 8},
+        "download_workers": {"default": 6, "bulk": 6, "max": 6}
       }
     },
     {

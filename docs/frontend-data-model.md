@@ -276,11 +276,12 @@ runner/UI はこの field を scraper 対象可否の正本として扱います
 
 rules:
 
-- `crc_workers.default` は通常UIの初期値。未検証 system は `1`
-- `crc_workers.bulk` はユーザーが明示した一括取得時の値。未検証 system は `2`
-- `crc_workers.max` は実機検証で決める system 別上限。未検証 system は `2`
-- 検証用には `1..5` を測ってよいが、FE の通常UIで `max` を超えた値は使わない
-- `download_workers` は system 共通の初期値 `default=2`, `bulk=3`, `max=4` を基本にする
+- `crc_workers.default` は通常UIの初期値。未検証 system は `8`
+- `crc_workers.bulk` はユーザーが明示した一括取得時の値。未検証 system は `8`
+- `crc_workers.max` は実機検証で決める system 別上限。未検証 system は `8`
+- `download_workers` は system 共通の初期値 `default=6`, `bulk=6`, `max=6` を基本にする
+- 実機 benchmark で遅くなる system は system 別例外として下げる。2026-06-21 時点では
+  GBA が `crc_workers=4/4/4`, `download_workers=4/4/4`
 - system 別 `crc_workers` は A30 実機の `scripts/benchmark-a30-crc-workers.sh` 結果を
   `artifacts/` に残してから更新する
 - FE から scraping を実行する間は CPU を `1200 MHz` / `4 cores` に一時固定し、
