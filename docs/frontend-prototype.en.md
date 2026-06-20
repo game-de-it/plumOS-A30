@@ -26,6 +26,7 @@ dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali
 dist/plumos-frontend/plumos/bin/plumos-controller-ui-mali.bin
 dist/plumos-frontend/plumos/bin/plumos-safe-hotkeyd
 dist/plumos-frontend/plumos/bin/plumos-safe-shutdown
+dist/plumos-frontend/plumos/bin/plumos-power-menu-overlay
 dist/plumos-frontend/plumos/config/frontend/systems.json
 dist/plumos-frontend/plumos/config/frontend/menus.json
 dist/plumos-frontend/plumos/config/frontend/apps.json
@@ -306,19 +307,19 @@ SELECT=`KEY_RIGHTCTRL`. A short power-button press (`KEY_POWER`) is the Power
 menu trigger. Function=`KEY_ESC` is reserved for emulator-side menus and is not
 the frontend Power menu trigger.
 
-`plumos-safe-hotkeyd` is the power-action helper for the period where the frontend
-is blocked by RetroArch. By default it watches `/dev/input/event0`
-(`axp22-supplyer`) and runs `plumos-safe-shutdown --shutdown --no-poweroff`
-`--no-hold-resume` when a short power-button press emits `KEY_POWER`. It also reads
-`gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively for volume
-keys. `SIGUSR1` uses the same trigger path, so it can be tested without a
+`plumos-safe-hotkeyd` is the power/volume helper for periods where the frontend is
+blocked by an emulator. By default it watches `/dev/input/event0`
+(`axp22-supplyer`) and launches `plumos-power-menu-overlay` when a short
+power-button press emits `KEY_POWER`. The overlay temporarily stops the emulator
+`/dev/fb0` owner, draws the Power menu, and resumes the emulator on Cancel. It
+also reads `gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively for
+volume keys. `SIGUSR1` uses the same trigger path, so it can be tested without a
 physical button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
 completed the old power action, resume hold, CPU restore, and frontend restart. The
 artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
-`plumos-text-ui launch --execute` automatically starts
-`plumos-safe-hotkeyd --oneshot` while a RetroArch launch is running, and starts
-`plumos-safe-hotkeyd --volume-only` while a standalone emulator is running. Set
+`plumos-text-ui launch --execute` automatically starts `plumos-safe-hotkeyd`
+during RetroArch, PicoArch, and standalone emulator launches. Set
 `PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable this. The auto-started RetroArch
 hotkeyd `SIGUSR1` trigger is verified in
 `artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
@@ -331,8 +332,8 @@ creation, and a pending resume plan using `--entry-slot 999`. The current power
 action flow does not use those behaviors.
 The old physical Function trigger was verified in
 `artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`;
-the current physical trigger is the power button `KEY_POWER`. An in-game Power
-overlay menu remains to be validated.
+the current physical trigger is the power button `KEY_POWER`. The in-game Power
+menu is shown through `plumos-power-menu-overlay`.
 
 `plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
 It uses `/dev/fb0` and `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so`, without
@@ -387,7 +388,7 @@ On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
 The Mali renderer was then changed to an A30-oriented compact layout. Long help
 lines are moved into two bottom hint lines, and list rows are space-compacted
 with profile details omitted so they fit the 480px width. `--exercise 3`
-automatically walked through TOP/ROM/Settings/SAFE, and a 30-second hold while
+automatically walked through TOP/ROM/Settings/Power, and a 30-second hold while
 stock `MainUI.stock` and `keymon` were still running also finished with
 `result=frontend_mali_renderer_rc_0`.
 `--stop-mainui --stop-keymon --no-restart-stock --rotation auto --exercise 2`
@@ -454,8 +455,8 @@ Controls:
   `INFORMATION` subpage returns to Network Settings. START returns to the
   previous screen.
 - START: open START menu.
-- START menu: Settings/Favorites/Recent open real screens; Shutdown runs
-  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`; other actions show previews.
+- START menu: Settings/Favorites/Recent open real screens; Shutdown runs the
+  same shutdown backend as the Power menu; other actions show previews.
 - Left/Right are never confirm/run/back/cancel. A confirms/runs and B
   backs/cancels.
 - SELECT: system/per-ROM core menu.
@@ -483,9 +484,9 @@ Power menu:
 - Power/sleep backend selection is wired in `plumos-safe-shutdown`. The Power
   menu does not create saves or resume holds; it only runs `sync` and backend
   dispatch.
-- While RetroArch is running, the direct `plumos-safe-hotkeyd` power-action path
-  is verified first. The physical trigger has moved to the power button. The
-  in-game overlay menu still needs validation.
+- While an emulator is running, `plumos-safe-hotkeyd` launches
+  `plumos-power-menu-overlay`, which temporarily stops the emulator `/dev/fb0`
+  owner and draws the Power menu on top.
 
 The Settings screen also shows plumOS-owned system settings, separate from
 frontend settings and theme state. UI Settings entries such

@@ -238,7 +238,7 @@ shim が渡す `PLUMOS_A30MALI_LOGICAL_SIZE` を優先する。Pyxel package 自
 - `PLUMOS_PYXEL_CPU_POLICY` / `PLUMOS_PYXEL_CPU_FREQ` / `PLUMOS_PYXEL_CPU_CORES` が指定された場合の CPU policy 適用と終了時復元
 - `plumos-volume-control apply` / `persist-runtime`
 - `plumos-joystickd --device-mode xbox --trigger-mode buttons --shoulder-layout user`
-- `plumos-safe-hotkeyd --volume-only`
+- `plumos-safe-hotkeyd`
 - 終了時の `joystickd` / `safe-hotkeyd` cleanup
 
 CPU 設定は `keep|performance|fixed` と `keep|2|4` を独立して扱う。FE の Core menu から
@@ -401,8 +401,8 @@ artifacts/pyxel-demo/lastemulator-sdl3-prologue-compare/sdl3-vs-patched-plus-dif
   `plumOS A30 Gamepad` を同時に使う。
 - `plumos-joystickd --device-mode xbox` は `plumOS A30 Gamepad` を `/dev/input/js0` /
   `/dev/input/event4` として作成する。
-- `plumos-safe-hotkeyd --volume-only` は Pyxel 実行中に `/dev/input/event3` を読み、
-  `volume_up` / `volume_down` を `plumos-volume-control runtime-up/down` として処理できる。
+- `plumos-safe-hotkeyd` は Pyxel 実行中に `/dev/input/event3` の音量キーと
+  `/dev/input/event0` の電源キーを読み、音量変更と Power menu overlay を処理できる。
 - wrapper 終了後、`plumos-joystickd`、`plumos-safe-hotkeyd`、Pyxel process の残留はない。
 - `plumos-volume-control persist-runtime` で runtime volume は終了時に保存される。
 

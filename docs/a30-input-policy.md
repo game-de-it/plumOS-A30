@@ -110,9 +110,11 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
   競合しないように予約します。
 - 電源ボタン短押しは `/dev/input/event0` (`axp22-supplyer`) の `KEY_POWER` として
   読めます。plumOS の電源操作 menu は Function ではなく電源ボタンを使います。
+- FE は通常ボタン用の `/dev/input/event3` に加えて、電源ボタン用の `/dev/input/event0`
+  も監視します。ゲーム中は `plumos-safe-hotkeyd` が電源ボタンと音量キーを監視し、
+  電源ボタンでは `plumos-power-menu-overlay` を起動します。
 - 音量ボタンは plumOS の `volume 0..20` を1段階ずつ更新し、ALSA `Soft Volume Master`
-  へ即時反映します。RetroArch 実行中は `plumos-safe-hotkeyd --oneshot`、standalone
-  emulator 実行中は `plumos-safe-hotkeyd --volume-only` が同じ処理を担当します。
+  へ即時反映します。ゲーム中も `plumos-safe-hotkeyd` が同じ処理を担当します。
 - X/Y/L/R/L2/R2 は probe では識別しますが、現時点の controller UI では通常操作に
   割り当てません。
 - 電源ボタン長押しや stock 側の power policy は別途確認対象ですが、plumOS 常用 FE

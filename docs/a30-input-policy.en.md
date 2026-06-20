@@ -114,11 +114,13 @@ Notes:
 - A short power-button press is readable as `KEY_POWER` through
   `/dev/input/event0` (`axp22-supplyer`). plumOS uses the power button rather
   than Function for power-menu actions.
+- The FE watches `/dev/input/event3` for normal buttons and `/dev/input/event0`
+  for the power button. During gameplay, `plumos-safe-hotkeyd` watches both the
+  power button and volume keys, and launches `plumos-power-menu-overlay` for the
+  power button.
 - The volume buttons update plumOS `volume 0..20` one step at a time and apply
-  it immediately to ALSA `Soft Volume Master`. While RetroArch is running,
-  `plumos-safe-hotkeyd --oneshot` handles the same path. While standalone
-  emulators are running, `plumos-safe-hotkeyd --volume-only` handles only the
-  volume keys.
+  it immediately to ALSA `Soft Volume Master`. During gameplay,
+  `plumos-safe-hotkeyd` handles the same volume path.
 - X/Y/L/R/L2/R2 are identified by the probe but are not assigned to normal
   controller UI actions yet.
 - Long-press power behavior and stock-side power policy remain separate checks,

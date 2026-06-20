@@ -169,10 +169,9 @@ short silence playback when needed. RetroArch and standalone emulator launchers
 default to ALSA `default` so they share this softvol. Explicit RetroArch OSS
 launches are kept as a compatibility fallback, and only that path maps the
 saved value into RetroArch software volume. During FE screens, the controller UI
-handles the physical volume buttons. While RetroArch is running,
-`plumos-safe-hotkeyd --oneshot` calls the equivalent of
-`plumos-volume-control up|down`; while standalone emulators are running,
-`plumos-safe-hotkeyd --volume-only` handles only the volume keys. In the
+handles the physical volume buttons. While emulators are running,
+`plumos-safe-hotkeyd` calls the equivalent of `plumos-volume-control up|down`
+and also launches `plumos-power-menu-overlay` for a short power-button press. In the
 emulator hotkey path, only ALSA softvol and temporary `/tmp` runtime state are
 updated immediately; the `settings.json` write and `sync` are deferred until the
 launcher runs `persist-runtime` after the emulator exits.

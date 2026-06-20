@@ -349,11 +349,11 @@ case "${PLUMOS_PYXEL_JOYSTICKD:-auto}" in
     ;;
 esac
 
-case "${PLUMOS_PYXEL_VOLUME_HOTKEYD:-auto}" in
+case "${PLUMOS_PYXEL_HOTKEYD:-${PLUMOS_PYXEL_VOLUME_HOTKEYD:-auto}}" in
   0|no|NO|false|FALSE|none) ;;
   *)
     if [ -x "${PLUMOS_ROOT}/bin/plumos-safe-hotkeyd" ]; then
-      "${PLUMOS_ROOT}/bin/plumos-safe-hotkeyd" --volume-only \
+      "${PLUMOS_ROOT}/bin/plumos-safe-hotkeyd" \
         --log "${LOG_DIR}/${RUN_ID}-safe-hotkeyd.log" \
         >"${LOG_DIR}/${RUN_ID}-safe-hotkeyd.stdout" 2>&1 &
       hotkeyd_pid=$!

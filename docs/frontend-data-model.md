@@ -628,13 +628,14 @@ rules:
   連動させない。保存や state 作成はユーザー操作または emulator/core の通常動作に任せる
 - 電源操作 menu の trigger は Function ではなく電源ボタン短押しを使う。A30 では
   `/dev/input/event0` (`axp22-supplyer`) から `KEY_POWER` として読める。
-- FE が RetroArch 待ちでブロックされる間は、`plumos-safe-hotkeyd` が電源ボタン event と
-  `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視する。現行互換経路では電源ボタンから
-  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` を起動し、`KEY_VOLUMEUP` /
+- FE が emulator 待ちでブロックされる間は、`plumos-safe-hotkeyd` が電源ボタン event と
+  `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視する。電源ボタンからは
+  `plumos-power-menu-overlay` を起動し、emulator の `/dev/fb0` owner を一時停止して
+  Power menu を描画する。Cancel なら emulator を再開し、Sleep/Shutdown なら
+  `plumos-safe-shutdown` の power action へ進む。`KEY_VOLUMEUP` /
   `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱う。
-  `plumos-text-ui launch --execute` は RetroArch launch 中に
-  `plumos-safe-hotkeyd --oneshot` を自動起動する。standalone emulator では
-  `plumos-safe-hotkeyd --volume-only` を自動起動し、音量キーだけを扱う。
+  `plumos-text-ui launch --execute` は emulator launch 中に `plumos-safe-hotkeyd` を
+  自動起動する。
   ゲーム中の音量変更は runtime softvol だけを即時反映し、永続設定への保存は
   emulator 終了後に遅延する。`SIGUSR1` trigger は引き続き電源 hotkey path の
   物理ボタンなし実機試験に使える。
@@ -665,6 +666,7 @@ rules:
 - `Sleep` は `sync` 後に選択された sleep backend を呼ぶ。保存処理は行わない
 - `Shutdown` は `sync` 後に poweroff backend を呼ぶ。保存処理は行わない
 - `Cancel` と B は元の画面へ戻る
+- emulator 実行中は overlay helper が emulator を一時停止して menu を表示し、Cancel で再開する
 - 互換上、内部 helper 名として `plumos-safe-shutdown` は残るが、resume hold や
   state slot 作成は行わない
 

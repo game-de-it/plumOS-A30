@@ -1,0 +1,71 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+LOG_DIR="${PLUMOS_ROOT}/logs"
+LOG_FILE="${PLUMOS_POWER_MENU_OVERLAY_LOG:-${LOG_DIR}/power-menu-overlay.log}"
+MENU="${PLUMOS_POWER_MENU_OVERLAY_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
+MENU_ARGS="${PLUMOS_POWER_MENU_OVERLAY_UI_ARGS:---power-overlay --renderer mali --rotation auto --tty-entry-scale 2}"
+PAUSED_PIDS=""
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+log() {
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown-time)" "$*" >>"$LOG_FILE" 2>/dev/null || true
+}
+
+add_pid() {
+  pid="$1"
+  case "$pid" in
+    ""|*[!0-9]*)
+      return 0
+      ;;
+  esac
+  [ "$pid" = "$$" ] && return 0
+  [ "$pid" = "${PPID:-}" ] && return 0
+  case " $PAUSED_PIDS " in
+    *" $pid "*)
+      return 0
+      ;;
+  esac
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -STOP "$pid" 2>/dev/null || return 0
+    PAUSED_PIDS="${PAUSED_PIDS} ${pid}"
+  fi
+}
+
+pause_fb0_owners() {
+  for fd in /proc/[0-9]*/fd/*; do
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    [ "$target" = /dev/fb0 ] || continue
+    pid="${fd#/proc/}"
+    pid="${pid%%/*}"
+    add_pid "$pid"
+  done
+  log "paused pids=$(printf '%s' "$PAUSED_PIDS" | sed 's/^ *//;s/ *$//')"
+}
+
+resume_paused() {
+  [ -n "$PAUSED_PIDS" ] || return 0
+  log "resume pids=$(printf '%s' "$PAUSED_PIDS" | sed 's/^ *//;s/ *$//')"
+  kill -CONT $PAUSED_PIDS 2>/dev/null || true
+  PAUSED_PIDS=""
+}
+
+trap 'resume_paused; exit 130' INT
+trap 'resume_paused; exit 143' TERM
+trap 'resume_paused' EXIT
+
+if [ ! -x "$MENU" ]; then
+  log "error menu_missing path=${MENU}"
+  exit 127
+fi
+
+pause_fb0_owners
+log "menu begin"
+PLUMOS_FRONTEND_MODE=manual PLUMOS_ROOT="$PLUMOS_ROOT" \
+  "$MENU" $MENU_ARGS
+rc=$?
+log "menu end rc=${rc}"
+resume_paused
+exit "$rc"

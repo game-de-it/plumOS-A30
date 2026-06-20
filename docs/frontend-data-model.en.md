@@ -653,14 +653,14 @@ Rules:
 - Use a short power-button press, not Function, as the power menu trigger. On the
   A30 this is readable as `KEY_POWER` from `/dev/input/event0`
   (`axp22-supplyer`).
-- While the frontend is blocked waiting for RetroArch, `plumos-safe-hotkeyd`
+- While the frontend is blocked waiting for an emulator, `plumos-safe-hotkeyd`
   watches the power-button event and `/dev/input/event3` (`gpio-keys-polled`)
-  non-exclusively. The current compatibility path runs
-  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`, while `KEY_VOLUMEUP` /
-  `KEY_VOLUMEDOWN` are handled like `plumos-volume-control up|down`.
-  `plumos-text-ui launch --execute` auto-starts `plumos-safe-hotkeyd --oneshot`
-  during RetroArch launches. Standalone emulators auto-start
-  `plumos-safe-hotkeyd --volume-only`, which handles only the volume keys.
+  non-exclusively. The power button launches `plumos-power-menu-overlay`, which
+  temporarily stops the emulator `/dev/fb0` owner and draws the Power menu.
+  Cancel resumes the emulator; Sleep/Shutdown continue through the
+  `plumos-safe-shutdown` power action. `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` are
+  handled like `plumos-volume-control up|down`. `plumos-text-ui launch --execute`
+  auto-starts `plumos-safe-hotkeyd` during emulator launches.
   Volume changes during gameplay update runtime softvol immediately and defer
   persistent settings writes until after the emulator exits. `SIGUSR1` remains
   available for tests of the power hotkey path without a physical
@@ -694,6 +694,8 @@ Rules:
 - `Shutdown` runs `sync` and then the configured poweroff backend. It does not
   save.
 - `Cancel` and B return to the previous screen.
+- During emulator execution, the overlay helper temporarily stops the emulator,
+  shows the menu, and resumes the emulator on Cancel.
 - For compatibility the internal helper is still named `plumos-safe-shutdown`,
   but it no longer writes resume-hold state or creates state-slot saves.
 

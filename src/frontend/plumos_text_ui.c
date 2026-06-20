@@ -997,11 +997,7 @@ static pid_t start_safe_hotkeyd(const char *plumos_root, const struct launch_pla
   }
   if (pid == 0) {
     redirect_stdio_to_devnull();
-    if (strcmp(plan->kind, "standalone") == 0 || strcmp(plan->kind, "picoarch") == 0) {
-      execl(hotkeyd_path, hotkeyd_path, "--volume-only", (char *)NULL);
-    } else {
-      execl(hotkeyd_path, hotkeyd_path, "--oneshot", (char *)NULL);
-    }
+    execl(hotkeyd_path, hotkeyd_path, (char *)NULL);
     _exit(127);
   }
 
@@ -1022,13 +1018,15 @@ static void stop_safe_hotkeyd(pid_t pid) {
     return;
   }
 
-  if (path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
+  if (path_exists_any("/tmp/plumos-power-action.lock") ||
+      path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
     for (int i = 0; i < 350; i++) {
       pid_t rc = waitpid(pid, &status, WNOHANG);
       if (rc == pid || (rc < 0 && errno == ECHILD)) {
         return;
       }
-      if (!path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
+      if (!path_exists_any("/tmp/plumos-power-action.lock") &&
+          !path_exists_any("/tmp/plumos-safe-shutdown.lock")) {
         break;
       }
       usleep(100000);

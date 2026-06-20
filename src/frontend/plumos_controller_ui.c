@@ -500,6 +500,8 @@ struct ui_state {
   int refresh;
   int no_clear;
   int once;
+  int power_overlay;
+  int exit_requested;
   int renderer_mali;
   int rescue_network;
   int render_failed;
@@ -588,7 +590,9 @@ struct ui_state {
   struct theme_state theme;
   struct device_settings device;
   char input_event_path[PATH_MAX];
+  char power_event_path[PATH_MAX];
   int input_event_fd;
+  int power_event_fd;
   long long ignore_input_until_ms;
   enum ui_action repeat_action;
   unsigned int repeat_key_code;
@@ -8070,6 +8074,9 @@ static void capture_power_target(struct ui_state *ui) {
 }
 
 static void close_power_menu(struct ui_state *ui, const char *status) {
+  if (ui->power_overlay) {
+    ui->exit_requested = 1;
+  }
   ui->screen = ui->power_back_screen;
   set_status(ui, status);
 }
@@ -10859,6 +10866,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (action == ACTION_QUIT) {
     set_status(ui, "quit");
+    ui->exit_requested = 1;
     return;
   }
   if (ui->rescue_network) {
@@ -10901,6 +10909,9 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       run_power_action(ui, entry->id, strcmp(entry->id, "shutdown") == 0);
       ui->screen = ui->power_back_screen;
+      if (ui->power_overlay) {
+        ui->exit_requested = 1;
+      }
       return;
     }
     return;
@@ -11739,25 +11750,26 @@ static int action_repeat_interval_ms(const struct ui_state *ui,
   return 0;
 }
 
-static int discover_input_event(char *out, size_t out_size) {
+static int discover_named_input_event(char *out, size_t out_size, const char *target_name,
+                                      const char *fallback_path) {
   FILE *f;
   char line[512];
-  int in_gpio = 0;
+  int in_target = 0;
 
   f = fopen("/proc/bus/input/devices", "rb");
   if (!f) {
-    return copy_string(out, out_size, "/dev/input/event3");
+    return copy_string(out, out_size, fallback_path);
   }
   while (fgets(line, sizeof(line), f)) {
     if (line[0] == '\n') {
-      in_gpio = 0;
+      in_target = 0;
       continue;
     }
-    if (strstr(line, "Name=\"gpio-keys-polled\"")) {
-      in_gpio = 1;
+    if (target_name && strstr(line, "Name=\"") && strstr(line, target_name)) {
+      in_target = 1;
       continue;
     }
-    if (in_gpio && strstr(line, "Handlers=")) {
+    if (in_target && strstr(line, "Handlers=")) {
       char *event = strstr(line, "event");
       if (event) {
         char name[32];
@@ -11773,7 +11785,19 @@ static int discover_input_event(char *out, size_t out_size) {
     }
   }
   fclose(f);
-  return copy_string(out, out_size, "/dev/input/event3");
+  return copy_string(out, out_size, fallback_path);
+}
+
+static int discover_input_event(char *out, size_t out_size) {
+  return discover_named_input_event(out, out_size, "gpio-keys-polled", "/dev/input/event3");
+}
+
+static int discover_power_input_event(char *out, size_t out_size) {
+  return discover_named_input_event(out, out_size, "axp22-supplyer", "/dev/input/event0");
+}
+
+static int same_path(const char *a, const char *b) {
+  return a && b && strcmp(a, b) == 0;
 }
 
 static void dump_input_events(const char *event_path, int timeout_sec) {
@@ -11816,6 +11840,49 @@ static void drain_input_fd(int fd) {
   }
 }
 
+static void read_input_actions(struct ui_state *ui, int fd, int power_only,
+                               enum ui_action *action) {
+  struct input_event ev;
+
+  if (!ui || fd < 0 || !action) {
+    return;
+  }
+  while (read(fd, &ev, sizeof(ev)) == (ssize_t)sizeof(ev)) {
+    if (ev.type == EV_KEY) {
+      enum ui_action event_action;
+      if (power_only && ev.code != KEY_POWER) {
+        continue;
+      }
+      event_action = action_from_key_code(ev.code);
+      if (ev.value == 0) {
+        if (!power_only && ui->repeat_action != ACTION_NONE &&
+            ui->repeat_key_code == ev.code) {
+          ui->repeat_action = ACTION_NONE;
+          ui->repeat_key_code = 0;
+          ui->repeat_next_ms = 0;
+        }
+        continue;
+      }
+      if (ev.value == 1 || ev.value == 2) {
+        int repeat_interval_ms;
+        *action = event_action;
+        repeat_interval_ms = power_only ? 0 : action_repeat_interval_ms(ui, event_action);
+        if (repeat_interval_ms > 0) {
+          ui->repeat_action = event_action;
+          ui->repeat_key_code = ev.code;
+          ui->repeat_next_ms = current_time_ms() +
+                               (ev.value == 1 ? UI_KEY_REPEAT_DELAY_MS
+                                              : repeat_interval_ms);
+        }
+      }
+      if (event_action == ACTION_NONE && ev.value == 1 && !power_only) {
+        snprintf(ui->status, sizeof(ui->status), "unmapped key code=%u value=%d", ev.code,
+                 ev.value);
+      }
+    }
+  }
+}
+
 static void settle_input_after_child(struct ui_state *ui) {
   long long deadline;
   long long quiet_until;
@@ -11832,6 +11899,7 @@ static void settle_input_after_child(struct ui_state *ui) {
   }
 
   drain_input_fd(fd);
+  drain_input_fd(ui->power_event_fd);
   now = current_time_ms();
   deadline = now + 1500;
   quiet_until = now + 250;
@@ -11936,6 +12004,7 @@ static int ui_periodic_refresh_interval_ms(const struct ui_state *ui) {
 
 static int run_event_loop(struct ui_state *ui, const char *event_path) {
   int event_fd = -1;
+  int power_fd = -1;
   int stdin_fd = STDIN_FILENO;
   int stdin_active = 1;
   int old_flags = -1;
@@ -11949,6 +12018,14 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     }
   }
   ui->input_event_fd = event_fd;
+  if (ui->power_event_path[0] &&
+      (!event_path || !event_path[0] || !same_path(event_path, ui->power_event_path))) {
+    power_fd = open(ui->power_event_path, O_RDONLY | O_NONBLOCK);
+    if (power_fd < 0 && !ui->status[0]) {
+      snprintf(ui->status, sizeof(ui->status), "power input open failed: %s", strerror(errno));
+    }
+  }
+  ui->power_event_fd = power_fd;
   old_flags = fcntl(stdin_fd, F_GETFL, 0);
   if (old_flags >= 0) {
     fcntl(stdin_fd, F_SETFL, old_flags | O_NONBLOCK);
@@ -11965,9 +12042,10 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
   }
   while (1) {
-    struct pollfd pfds[2];
+    struct pollfd pfds[3];
     nfds_t count = 0;
     nfds_t event_index = (nfds_t)-1;
+    nfds_t power_index = (nfds_t)-1;
     nfds_t stdin_index = (nfds_t)-1;
     int rc;
     enum ui_action action = ACTION_NONE;
@@ -12010,6 +12088,13 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     if (event_fd >= 0) {
       event_index = count;
       pfds[count].fd = event_fd;
+      pfds[count].events = POLLIN;
+      pfds[count].revents = 0;
+      count++;
+    }
+    if (power_fd >= 0) {
+      power_index = count;
+      pfds[count].fd = power_fd;
       pfds[count].events = POLLIN;
       pfds[count].revents = 0;
       count++;
@@ -12064,6 +12149,9 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       if (event_index != (nfds_t)-1 && (pfds[event_index].revents & POLLIN)) {
         drain_input_fd(event_fd);
       }
+      if (power_index != (nfds_t)-1 && (pfds[power_index].revents & POLLIN)) {
+        drain_input_fd(power_fd);
+      }
       if (ui_needs_periodic_refresh(ui)) {
         now_ms = current_time_ms();
         if (next_refresh_ms <= 0 || now_ms >= next_refresh_ms) {
@@ -12075,36 +12163,10 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
     }
 
     if (event_index != (nfds_t)-1 && (pfds[event_index].revents & POLLIN)) {
-      struct input_event ev;
-      while (read(event_fd, &ev, sizeof(ev)) == (ssize_t)sizeof(ev)) {
-        if (ev.type == EV_KEY) {
-          enum ui_action event_action = action_from_key_code(ev.code);
-          if (ev.value == 0) {
-            if (ui->repeat_action != ACTION_NONE && ui->repeat_key_code == ev.code) {
-              ui->repeat_action = ACTION_NONE;
-              ui->repeat_key_code = 0;
-              ui->repeat_next_ms = 0;
-            }
-            continue;
-          }
-          if (ev.value == 1 || ev.value == 2) {
-            int repeat_interval_ms;
-            action = event_action;
-            repeat_interval_ms = action_repeat_interval_ms(ui, event_action);
-            if (repeat_interval_ms > 0) {
-              ui->repeat_action = event_action;
-              ui->repeat_key_code = ev.code;
-              ui->repeat_next_ms = current_time_ms() +
-                                   (ev.value == 1 ? UI_KEY_REPEAT_DELAY_MS
-                                                  : repeat_interval_ms);
-            }
-          }
-          if (event_action == ACTION_NONE && ev.value == 1) {
-            snprintf(ui->status, sizeof(ui->status), "unmapped key code=%u value=%d", ev.code,
-                     ev.value);
-          }
-        }
-      }
+      read_input_actions(ui, event_fd, 0, &action);
+    }
+    if (power_index != (nfds_t)-1 && (pfds[power_index].revents & POLLIN)) {
+      read_input_actions(ui, power_fd, 1, &action);
     }
     if (stdin_index != (nfds_t)-1 &&
         (pfds[stdin_index].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL))) {
@@ -12155,7 +12217,7 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
       if (ui_needs_periodic_refresh(ui)) {
         next_refresh_ms = current_time_ms() + ui_periodic_refresh_interval_ms(ui);
       }
-      if (action == ACTION_QUIT) {
+      if (action == ACTION_QUIT || ui->exit_requested) {
         break;
       }
     }
@@ -12166,7 +12228,11 @@ static int run_event_loop(struct ui_state *ui, const char *event_path) {
   if (event_fd >= 0) {
     close(event_fd);
   }
+  if (power_fd >= 0) {
+    close(power_fd);
+  }
   ui->input_event_fd = -1;
+  ui->power_event_fd = -1;
   return ui->render_failed ? 1 : 0;
 }
 
@@ -12176,6 +12242,7 @@ static void usage(const char *argv0) {
   printf("     [--renderer text|mali] [--fb PATH] [--egl-lib PATH] [--gles-lib PATH]\n");
   printf("     [--rotation auto|none|cw|ccw] [--font PATH]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
+  printf("     [--power-overlay] [--power-event PATH]\n");
   printf("     [--rescue-network]  # disabled compatibility screen\n");
   printf("  %s --script up,down,a,b,x,select,start,power,volume_up,volume_down,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
@@ -12185,6 +12252,7 @@ static void usage(const char *argv0) {
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");
   printf("  PLUMOS_INPUT_EVENT  Default: auto-detect gpio-keys-polled\n");
+  printf("  PLUMOS_POWER_INPUT_EVENT  Default: auto-detect axp22-supplyer\n");
   printf("  PLUMOS_RENDERER     text or mali. Default: text\n");
   printf("  PLUMOS_FB           Default for Mali renderer: /dev/fb0\n");
   printf("  PLUMOS_EGL_LIB      Default for Mali renderer: /usr/lib/libEGL.so\n");
@@ -12274,6 +12342,7 @@ int main(int argc, char **argv) {
   const char *mali_tty_entry_scale_env;
   const char *script = NULL;
   char event_path[PATH_MAX];
+  char power_event_path[PATH_MAX];
   struct frontend_settings initial_settings;
   int initial_settings_loaded = 0;
   int startup_resume_allowed = 0;
@@ -12283,6 +12352,7 @@ int main(int argc, char **argv) {
 
   memset(&ui, 0, sizeof(ui));
   ui.input_event_fd = -1;
+  ui.power_event_fd = -1;
   ui.rom_entry_screen = SCREEN_ROMS;
   ui.sdcard_root = getenv("PLUMOS_SDCARD_ROOT");
   if (!ui.sdcard_root || !ui.sdcard_root[0]) {
@@ -12302,8 +12372,12 @@ int main(int argc, char **argv) {
     ui.no_clear = 1;
   }
   discover_input_event(event_path, sizeof(event_path));
+  discover_power_input_event(power_event_path, sizeof(power_event_path));
   if (getenv("PLUMOS_INPUT_EVENT") && getenv("PLUMOS_INPUT_EVENT")[0]) {
     copy_string(event_path, sizeof(event_path), getenv("PLUMOS_INPUT_EVENT"));
+  }
+  if (getenv("PLUMOS_POWER_INPUT_EVENT") && getenv("PLUMOS_POWER_INPUT_EVENT")[0]) {
+    copy_string(power_event_path, sizeof(power_event_path), getenv("PLUMOS_POWER_INPUT_EVENT"));
   }
   system_config_env = getenv("PLUMOS_SYSTEM_SETTINGS_JSON");
   if (system_config_env && system_config_env[0] &&
@@ -12363,6 +12437,12 @@ int main(int argc, char **argv) {
       ui.timeout_sec = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
       copy_string(event_path, sizeof(event_path), argv[++i]);
+    } else if (strcmp(argv[i], "--power-event") == 0 && i + 1 < argc) {
+      copy_string(power_event_path, sizeof(power_event_path), argv[++i]);
+    } else if (strcmp(argv[i], "--power-overlay") == 0) {
+      ui.power_overlay = 1;
+      ui.renderer_mali = 1;
+      ui.no_clear = 1;
     } else if (strcmp(argv[i], "--fb") == 0 && i + 1 < argc) {
       fb_path = argv[++i];
     } else if (strcmp(argv[i], "--egl-lib") == 0 && i + 1 < argc) {
@@ -12405,6 +12485,7 @@ int main(int argc, char **argv) {
     }
   }
   copy_string(ui.input_event_path, sizeof(ui.input_event_path), event_path);
+  copy_string(ui.power_event_path, sizeof(ui.power_event_path), power_event_path);
 
   if (dump_events) {
     dump_input_events(event_path, ui.timeout_sec > 0 ? ui.timeout_sec : 10);
@@ -12455,20 +12536,23 @@ int main(int argc, char **argv) {
                                  sizeof(ui.mali_fallback_font_path));
 
   startup_resume_allowed =
-      !ui.rescue_network && !script && !ui.once && initial_settings_loaded &&
+      !ui.rescue_network && !ui.power_overlay && !script && !ui.once && initial_settings_loaded &&
       (!getenv("PLUMOS_FRONTEND_MODE") ||
        strcmp(getenv("PLUMOS_FRONTEND_MODE"), "manual") != 0);
   if (startup_resume_allowed) {
     run_boot_resume_if_needed(&ui, &initial_settings);
   }
 
-  if (!ui.rescue_network && !load_top_entries(&ui)) {
+  if (!ui.rescue_network && !ui.power_overlay && !load_top_entries(&ui)) {
     fprintf(stderr, "error: cannot load TOP entries: %s\n", ui.top_cache_path);
     return 1;
   }
   if (startup_resume_allowed && strcmp(initial_settings.boot_resume_mode, "recent") == 0) {
     open_recent_screen(&ui);
     set_status(&ui, "boot Recent ready");
+  }
+  if (ui.power_overlay) {
+    open_power_menu(&ui);
   }
 
 #ifndef PLUMOS_ENABLE_MALI_RENDERER

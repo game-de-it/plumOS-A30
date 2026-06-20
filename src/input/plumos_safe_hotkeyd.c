@@ -359,10 +359,9 @@ static int build_default_command(struct config *cfg) {
   char q_sdcard[SHELL_QUOTE_MAX];
   char q_bin[SHELL_QUOTE_MAX];
   char q_command_log[SHELL_QUOTE_MAX];
-  const char *power_arg;
   int n;
 
-  if (!join_path(bin, sizeof(bin), cfg->root, "bin/plumos-safe-shutdown") ||
+  if (!join_path(bin, sizeof(bin), cfg->root, "bin/plumos-power-menu-overlay") ||
       !join_path(command_log, sizeof(command_log), cfg->root, "logs/safe-hotkeyd-command.log")) {
     fprintf(stderr, "error: plumOS path is too long\n");
     return 0;
@@ -375,12 +374,11 @@ static int build_default_command(struct config *cfg) {
     return 0;
   }
 
-  power_arg = cfg->poweroff ? "--poweroff" : "--no-poweroff";
   n = snprintf(cfg->command, sizeof(cfg->command),
-               "PLUMOS_ROOT=%s PLUMOS_SDCARD_ROOT=%s %s --%s %s --no-hold-resume >> %s 2>&1",
-               q_root, q_sdcard, q_bin, cfg->action, power_arg, q_command_log);
+               "PLUMOS_ROOT=%s PLUMOS_SDCARD_ROOT=%s %s >> %s 2>&1",
+               q_root, q_sdcard, q_bin, q_command_log);
   if (n < 0 || (size_t)n >= sizeof(cfg->command)) {
-    fprintf(stderr, "error: power action command is too long\n");
+    fprintf(stderr, "error: power menu command is too long\n");
     return 0;
   }
   return 1;
