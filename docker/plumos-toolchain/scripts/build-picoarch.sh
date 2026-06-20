@@ -228,7 +228,9 @@ Environment:
                                 Override fceumm core path used by picoarch:fceumm.
   PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
   PLUMOS_PICOARCH_JOYSTICKD_BUTTONS
-                                1 forwards physical buttons through joystickd. Default: 0.
+                                0 disables physical button forwarding through joystickd. Default: 1.
+  PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY
+                                1 skips SDL keyboard input when a joystick is present. Default: 1.
   PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
@@ -533,9 +535,8 @@ start_joystickd() {
   case "${joystickd_mode}" in
     xbox)
       joystickd_opts="--device-mode xbox --trigger-mode buttons --shoulder-layout user"
-      case "${PLUMOS_PICOARCH_JOYSTICKD_BUTTONS:-0}" in
-        1|yes|YES|true|TRUE) ;;
-        *) joystickd_opts="${joystickd_opts} --no-buttons" ;;
+      case "${PLUMOS_PICOARCH_JOYSTICKD_BUTTONS:-1}" in
+        0|no|NO|false|FALSE) joystickd_opts="${joystickd_opts} --no-buttons" ;;
       esac
       ;;
     keyboard)
@@ -625,6 +626,7 @@ export SDL_FBDEV=${SDL_FBDEV:-/dev/fb0}
 export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
 export AUDIODEV=${AUDIODEV:-default}
+export PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY=${PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY:-1}
 export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
 export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
@@ -963,10 +965,13 @@ write_default_config() {
 # Example:
 # PLUMOS_PICOARCH_BIOS_DIR=/mnt/SDCARD/Bios
 #
-# PicoArch reads physical A30 buttons directly through SDL1. Keep joystickd in
-# axes-only mode by default so the same A/B/D-pad press is not reported again by
-# the virtual gamepad. Set this to 1 only for input debugging.
-# PLUMOS_PICOARCH_JOYSTICKD_BUTTONS=0
+# PicoArch uses the joystickd virtual gamepad for A30 controls. Keep SDL keyboard
+# input disabled when the virtual gamepad is present so physical key events are
+# not counted a second time. Set this to 0 only for input debugging.
+# PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY=1
+#
+# Set to 0 only when debugging the virtual gamepad axes without forwarded buttons.
+# PLUMOS_PICOARCH_JOYSTICKD_BUTTONS=1
 #
 # ScummVM libretro reads the analog cursor through the gamepad axes. On A30 the
 # PicoArch launcher swaps X/Y for that core by default; override these only if a

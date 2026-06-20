@@ -1,7 +1,16 @@
 diff --git a/libpicofe/in_sdl.c b/libpicofe/in_sdl.c
-index bab649a..d98708a 100644
+index bab649a..734be2d 100644
 --- a/libpicofe/in_sdl.c
 +++ b/libpicofe/in_sdl.c
+@@ -10,6 +10,8 @@
+  */
+ 
+ #include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
+ #include <SDL.h>
+ #include "input.h"
+ #include "in_sdl.h"
 @@ -28,6 +28,7 @@ struct in_sdl_state {
  	SDL_Joystick *joy;
  	int joy_id;
@@ -10,6 +19,72 @@ index bab649a..d98708a 100644
  	enum mod_state mod_state;
  	keybits_t keystate[SDLK_LAST / KEYBITS_WORD_BITS + 1];
  	// emulator keys should always be processed immediately lest one is lost
+@@ -165,6 +167,21 @@ static const char * const in_sdl_keys[SDLK_LAST] = {
+ 	[SDLK_COMPOSE] = "compose",
+ };
+ 
++static int env_enabled(const char *name, int fallback)
++{
++	const char *value = getenv(name);
++
++	if (value == NULL || value[0] == '\0')
++		return fallback;
++	if (strcmp(value, "0") == 0 ||
++			strcmp(value, "no") == 0 ||
++			strcmp(value, "NO") == 0 ||
++			strcmp(value, "false") == 0 ||
++			strcmp(value, "FALSE") == 0)
++		return 0;
++	return 1;
++}
++
+ static void in_sdl_probe(const in_drv_t *drv)
+ {
+ 	const struct in_pdata *pdata = drv->pdata;
+@@ -172,25 +189,33 @@ static void in_sdl_probe(const in_drv_t *drv)
+ 	struct in_sdl_state *state;
+ 	SDL_Joystick *joy;
+ 	int i, joycount;
++	int joystick_only;
+ 	char name[256];
+ 
+ 	if (pdata->key_names)
+ 		key_names = pdata->key_names;
+ 
+-	state = calloc(1, sizeof(*state));
+-	if (state == NULL) {
+-		fprintf(stderr, "in_sdl: OOM\n");
+-		return;
+-	}
+-
+-	state->drv = drv;
+-	in_register(IN_SDL_PREFIX "keys", -1, state, SDLK_LAST,
+-		key_names, 0);
+-
+ 	/* joysticks go here too */
+ 	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+ 
+ 	joycount = SDL_NumJoysticks();
++	joystick_only = env_enabled("PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY", 0);
++
++	if (!joystick_only || joycount <= 0) {
++		state = calloc(1, sizeof(*state));
++		if (state == NULL) {
++			fprintf(stderr, "in_sdl: OOM\n");
++			return;
++		}
++
++		state->drv = drv;
++		in_register(IN_SDL_PREFIX "keys", -1, state, SDLK_LAST,
++			key_names, 0);
++	}
++	else {
++		fprintf(stderr, "in_sdl: joystick-only input enabled, skipping keyboard device\n");
++	}
++
+ 	for (i = 0; i < joycount; i++) {
+ 		joy = SDL_JoystickOpen(i);
+ 		if (joy == NULL)
 @@ -321,6 +322,43 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
  		}
  		break;
