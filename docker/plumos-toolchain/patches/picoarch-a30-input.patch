@@ -55,10 +55,41 @@ index bab649a..d98708a 100644
  	case SDL_JOYBUTTONUP:
  		if (event->jbutton.which != state->joy_id)
 diff --git a/libpicofe/input.c b/libpicofe/input.c
-index aa1f155..109e5be 100644
+index aa1f155..ee05e64 100644
 --- a/libpicofe/input.c
 +++ b/libpicofe/input.c
-@@ -453,13 +453,37 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
+@@ -46,6 +46,8 @@ static int menu_last_used_dev = 0;
+ static int menu_key_prev = 0;
+ static int menu_key_mask = 0;
+ static int menu_key_repeat = 0;
++static int menu_key_event = 0;
++static int menu_key_changed = 0;
+ 
+ #define DRV(id) in_drivers[id]
+ 
+@@ -436,13 +438,19 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
+ 	int keys_old = menu_key_state;
+ 	int ret;
+ 	int dev_id = 0;
++	int kc;
+ 
+ 	menu_key_prev = menu_key_state;
++	menu_key_event = 0;
++	menu_key_changed = 0;
+ 
+-	in_update_keycode(&dev_id, NULL, charcode, timeout_ms);
++	kc = in_update_keycode(&dev_id, NULL, charcode, timeout_ms);
++	menu_key_event = kc >= 0;
+ 
+-	if (keys_old != menu_key_state)
++	if (keys_old != menu_key_state) {
++		menu_key_changed = 1;
+ 		menu_last_used_dev = dev_id;
++	}
+ 
+ 	ret = menu_key_state;
+ 	if (ret == 0)
+@@ -453,22 +461,51 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
  	return ret;
  }
  
@@ -84,13 +115,14 @@ index aa1f155..109e5be 100644
  int in_menu_wait(int interesting, char *charcode, int autorep_delay_ms)
  {
 -	int ret, wait = 450;
-+	int repeat_ms = autorep_delay_ms < 180 ? 180 : autorep_delay_ms;
++	const int repeatable = PBTN_UP|PBTN_DOWN|PBTN_LEFT|PBTN_RIGHT|PBTN_L|PBTN_R;
++	int repeat_ms = autorep_delay_ms < 260 ? 260 : autorep_delay_ms;
 +	int ret, wait;
 +
 +	repeat_ms = read_menu_repeat_env("PLUMOS_PICOARCH_MENU_REPEAT_MS",
-+		repeat_ms, 60, 1000);
++		repeat_ms, 120, 1000);
 +	wait = read_menu_repeat_env("PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS",
-+		550, 200, 1500);
++		650, 250, 1500);
  
  	if (menu_key_repeat)
 -		wait = autorep_delay_ms;
@@ -98,6 +130,19 @@ index aa1f155..109e5be 100644
  
  	/* wait until either key repeat or a new key has been pressed */
  	do {
+ 		ret = in_menu_wait_any(charcode, wait);
++		if (menu_key_event && !menu_key_changed)
++			continue;
+ 		if (ret == 0 || ret != menu_key_prev)
+ 			menu_key_repeat = 0;
+ 		else
+ 			menu_key_repeat++;
+ 		wait = -1;
++		if (!menu_key_event && menu_key_repeat)
++			ret &= repeatable;
+ 	 	/* mask away all old keys if an additional new key is pressed */
+ 		/* XXX what if old and new keys share bits (PBTN_CHAR)? */
+ 		ret &= ~menu_key_mask;
 diff --git a/menu.c b/menu.c
 index 86b3bb3..3453f68 100644
 --- a/menu.c
