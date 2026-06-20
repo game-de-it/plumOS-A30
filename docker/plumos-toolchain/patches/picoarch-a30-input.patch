@@ -55,31 +55,35 @@ index bab649a..d98708a 100644
  	case SDL_JOYBUTTONUP:
  		if (event->jbutton.which != state->joy_id)
 diff --git a/libpicofe/input.c b/libpicofe/input.c
-index aa1f155..ee05e64 100644
+index aa1f155..6268cc6 100644
 --- a/libpicofe/input.c
 +++ b/libpicofe/input.c
-@@ -46,6 +46,8 @@ static int menu_last_used_dev = 0;
+@@ -46,6 +46,9 @@ static int menu_last_used_dev = 0;
  static int menu_key_prev = 0;
  static int menu_key_mask = 0;
  static int menu_key_repeat = 0;
 +static int menu_key_event = 0;
 +static int menu_key_changed = 0;
++static int menu_key_down = 0;
  
  #define DRV(id) in_drivers[id]
  
-@@ -436,13 +438,19 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
+@@ -436,13 +439,22 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
  	int keys_old = menu_key_state;
  	int ret;
  	int dev_id = 0;
 +	int kc;
++	int is_down = 0;
  
  	menu_key_prev = menu_key_state;
 +	menu_key_event = 0;
 +	menu_key_changed = 0;
++	menu_key_down = 0;
  
 -	in_update_keycode(&dev_id, NULL, charcode, timeout_ms);
-+	kc = in_update_keycode(&dev_id, NULL, charcode, timeout_ms);
++	kc = in_update_keycode(&dev_id, &is_down, charcode, timeout_ms);
 +	menu_key_event = kc >= 0;
++	menu_key_down = menu_key_event && is_down;
  
 -	if (keys_old != menu_key_state)
 +	if (keys_old != menu_key_state) {
@@ -89,7 +93,7 @@ index aa1f155..ee05e64 100644
  
  	ret = menu_key_state;
  	if (ret == 0)
-@@ -453,22 +461,51 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
+@@ -453,22 +465,53 @@ int in_menu_wait_any(char *charcode, int timeout_ms)
  	return ret;
  }
  
@@ -132,6 +136,8 @@ index aa1f155..ee05e64 100644
  	do {
  		ret = in_menu_wait_any(charcode, wait);
 +		if (menu_key_event && !menu_key_changed)
++			continue;
++		if (menu_key_event && !menu_key_down)
 +			continue;
  		if (ret == 0 || ret != menu_key_prev)
  			menu_key_repeat = 0;
