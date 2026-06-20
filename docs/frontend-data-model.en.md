@@ -697,6 +697,8 @@ Rules:
 - `Sleep` runs `sync` and then the configured sleep backend. It does not save.
 - During emulator execution, `Sleep` must preserve the running emulator/launcher
   so the game can resume after wake.
+- After waking from `Sleep` while RetroArch is running, plumOS sends the preserved
+  emulator an `AUDIO_REINIT` netcmd so ALSA PCM is reopened after suspend.
 - `Shutdown` runs `sync` and then the configured poweroff backend. It does not
   save.
 - `Cancel` and B return to the previous screen.

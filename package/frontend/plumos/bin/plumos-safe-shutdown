@@ -412,6 +412,15 @@ retroarch_netcmd_exit() {
   log "retroarch_netcmd end"
 }
 
+retroarch_audio_reinit_after_sleep() {
+  [ -n "${active_pids:-}" ] || return 0
+  log "retroarch_audio_reinit begin reason=sleep_resume"
+  send_netcmd AUDIO_REINIT 0 || true
+  sleep 1
+  send_netcmd AUDIO_REINIT 0 || true
+  log "retroarch_audio_reinit end"
+}
+
 stop_retroarch_launchers() {
   pids=$(find_retroarch_launcher_pids)
   signal_pids TERM retroarch_launcher "$pids"
@@ -629,6 +638,7 @@ log "sync end"
 
 if [ "$ACTION" = sleep ]; then
   request_sleep || true
+  retroarch_audio_reinit_after_sleep
 elif [ "$POWER_OFF" -eq 1 ]; then
   request_poweroff || true
 fi

@@ -61,6 +61,7 @@ apply_patches() {
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-landscape-fbo.patch"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-a30-restart-exec-path.patch"
   patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-nci-save-state-slot.patch"
+  patch -p1 < "${PATCH_DIR}/retroarch-1.22.2-audio-reinit-netcmd.patch"
 }
 
 copy_if_present() {

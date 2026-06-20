@@ -669,6 +669,8 @@ rules:
 - `Sleep` は `sync` 後に選択された sleep backend を呼ぶ。保存処理は行わない
 - emulator 実行中の `Sleep` は起動中の emulator/launcher を終了せず、復帰後に再開できる
   状態を維持する
+- RetroArch 実行中の `Sleep` 復帰後は、保持した emulator に `AUDIO_REINIT` netcmd を送り、
+  sleep で失効した ALSA PCM を開き直す
 - `Shutdown` は `sync` 後に poweroff backend を呼ぶ。保存処理は行わない
 - `Cancel` と B は元の画面へ戻る
 - emulator 実行中は overlay helper が emulator を一時停止して menu を表示し、Cancel で再開する

@@ -123,6 +123,7 @@ def components(standalone_dir: Path) -> list[Component]:
         Component("userland", dist / "plumos-userland", required=False),
         Component("bootstrap", dist / "plumos-bootstrap"),
         Component("frontend", dist / "plumos-frontend"),
+        Component("runtime-probe", dist / "plumos-runtime-probe"),
         Component("joystickd", dist / "plumos-joystickd"),
         Component("network-services", dist / "plumos-network-services"),
         Component("ssh-kit", dist / "plumos-a30-ssh-kit"),
