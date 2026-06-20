@@ -903,6 +903,7 @@ static int run_volume_key_command(struct config *cfg, int direction) {
 
 static int handle_trigger(struct config *cfg, const char *source, long long *last_trigger_ms) {
   long long now;
+  int rc;
 
   now = now_ms();
   if (*last_trigger_ms > 0 && cfg->debounce_ms > 0 &&
@@ -912,7 +913,9 @@ static int handle_trigger(struct config *cfg, const char *source, long long *las
     return 0;
   }
   *last_trigger_ms = now;
-  return run_trigger_command(cfg, source);
+  rc = run_trigger_command(cfg, source);
+  *last_trigger_ms = now_ms();
+  return rc;
 }
 
 static int drain_event_fd(struct config *cfg, int fd, const char *source, long long *last_trigger_ms,

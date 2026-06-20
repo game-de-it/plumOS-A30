@@ -695,6 +695,8 @@ Rules:
 - Initial cursor is `Cancel` so accidental presses do not immediately sleep or
   shut down.
 - `Sleep` runs `sync` and then the configured sleep backend. It does not save.
+- During emulator execution, `Sleep` must preserve the running emulator/launcher
+  so the game can resume after wake.
 - `Shutdown` runs `sync` and then the configured poweroff backend. It does not
   save.
 - `Cancel` and B return to the previous screen.

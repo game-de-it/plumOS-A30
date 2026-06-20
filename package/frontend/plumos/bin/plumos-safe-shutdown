@@ -601,7 +601,14 @@ request_sleep() {
 rm -f "$RESUME_HOLD" 2>/dev/null || true
 log "power_action begin action=${ACTION} poweroff=${POWER_OFF} dry_run=${DRY_RUN} wait_sec=${WAIT_SEC} power_backend=${POWER_BACKEND} sleep_backend=${SLEEP_BACKEND} wakeup_sec=${WAKEUP_SEC}"
 active_pids=$(active_before)
-if [ -n "$active_pids" ]; then
+if [ "$ACTION" = sleep ]; then
+  if [ -n "$active_pids" ]; then
+    log "active_before pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
+  else
+    log "active_before pids=none"
+  fi
+  log "cleanup skipped reason=sleep_preserve_processes"
+elif [ -n "$active_pids" ]; then
   log "active_before pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
 
   stop_retroarch_launchers
@@ -626,7 +633,10 @@ elif [ "$POWER_OFF" -eq 1 ]; then
   request_poweroff || true
 fi
 
-if [ -n "$active_pids" ]; then
+if [ "$ACTION" = sleep ]; then
+  remaining=""
+  log "power_action preserved pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
+elif [ -n "$active_pids" ]; then
   remaining=$(active_before)
 else
   remaining=""

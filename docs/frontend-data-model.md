@@ -667,6 +667,8 @@ rules:
 
 - 初期 cursor は `Cancel` に置き、誤操作で即 sleep/shutdown しない
 - `Sleep` は `sync` 後に選択された sleep backend を呼ぶ。保存処理は行わない
+- emulator 実行中の `Sleep` は起動中の emulator/launcher を終了せず、復帰後に再開できる
+  状態を維持する
 - `Shutdown` は `sync` 後に poweroff backend を呼ぶ。保存処理は行わない
 - `Cancel` と B は元の画面へ戻る
 - emulator 実行中は overlay helper が emulator を一時停止して menu を表示し、Cancel で再開する
