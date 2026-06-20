@@ -218,6 +218,49 @@ cmdline_lines() {
 }
 
 find_pids_by_arg() {
+  if command -v pgrep >/dev/null 2>&1; then
+    seen=""
+    for needle in "$@"; do
+      base=${needle##*/}
+      [ -n "$base" ] || continue
+      for pid in $(pgrep -f "$base" 2>/dev/null || true); do
+        case "$pid" in
+          ""|*[!0-9]*)
+            continue
+            ;;
+        esac
+        [ "$pid" = "$$" ] && continue
+        case " $seen " in
+          *" $pid "*)
+            continue
+            ;;
+        esac
+        lines=$(cmdline_lines "$pid")
+        lines="
+${lines}
+"
+        case "$lines" in
+          *"
+pgrep
+"*)
+            continue
+            ;;
+        esac
+        case "$lines" in
+          *"
+${needle}
+"*|*"
+${base}
+"*)
+            seen="${seen} ${pid}"
+            printf '%s\n' "$pid"
+            ;;
+        esac
+      done
+    done
+    return 0
+  fi
+
   for d in /proc/[0-9]*; do
     [ -r "$d/cmdline" ] || continue
     pid=${d#/proc/}
@@ -624,15 +667,16 @@ active_pids=$(active_before)
 if [ -n "$active_pids" ]; then
   log "active_before pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
   write_resume_hold || true
+
+  stop_retroarch_launchers
+  stop_standalone_launchers
+  stop_leftover_retroarch
+  kill_stuck_retroarch_launchers
+  stop_leftover_standalone_emulators
 else
   log "active_before pids=none"
+  log "cleanup skipped reason=no_active_pids"
 fi
-
-stop_retroarch_launchers
-stop_standalone_launchers
-stop_leftover_retroarch
-kill_stuck_retroarch_launchers
-stop_leftover_standalone_emulators
 
 log "sync begin"
 if [ "$DRY_RUN" -eq 0 ]; then
@@ -646,7 +690,11 @@ elif [ "$POWER_OFF" -eq 1 ]; then
   request_poweroff || true
 fi
 
-remaining=$(active_before)
+if [ -n "$active_pids" ]; then
+  remaining=$(active_before)
+else
+  remaining=""
+fi
 if [ -n "$remaining" ]; then
   log "safe_shutdown end remaining=$(printf '%s' "$remaining" | tr '\n' ',')"
   echo "result=plumos_safe_shutdown_remaining pids=$(printf '%s' "$remaining" | tr '\n' ',')"
