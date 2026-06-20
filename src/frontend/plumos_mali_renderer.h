@@ -3713,7 +3713,10 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
   size_t i;
   size_t entry_count = 0;
   int settings_family_hint =
-      plumos_mali_has_prefixed_line(lines, line_count, "settings_screen=1");
+      plumos_mali_has_prefixed_line(lines, line_count, "settings_screen=1") ||
+      plumos_mali_has_prefixed_line(lines, line_count, "menu_screen=1") ||
+      plumos_mali_has_prefixed_line(lines, line_count, "scraping_screen=1") ||
+      plumos_mali_has_prefixed_line(lines, line_count, "thumbnail_results_screen=1");
 
   if (title && title_size > 0) {
     title[0] = '\0';
@@ -3745,6 +3748,9 @@ static void plumos_mali_collect_lines(const char lines[][PLUMOS_MALI_RENDER_LINE
       continue;
     }
     if (plumos_mali_starts_with(line, "settings_screen=") ||
+        plumos_mali_starts_with(line, "menu_screen=") ||
+        plumos_mali_starts_with(line, "scraping_screen=") ||
+        plumos_mali_starts_with(line, "thumbnail_results_screen=") ||
         plumos_mali_starts_with(line, "brightness_test=")) {
       continue;
     }
@@ -4102,6 +4108,7 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   int is_settings_family;
   int is_settings_page;
   int is_settings_marker;
+  int is_settings_family_marker;
   int is_brightness_test;
   int is_brightness_test_marker;
   int show_prompt;
@@ -4282,10 +4289,17 @@ static int plumos_mali_render_lines_tty(struct plumos_mali_renderer *renderer,
   is_top = plumos_mali_title_is_top(title);
   is_settings_marker = plumos_mali_has_prefixed_line(lines, line_count,
                                                      "settings_screen=1");
+  is_settings_family_marker =
+      is_settings_marker ||
+      plumos_mali_has_prefixed_line(lines, line_count, "menu_screen=1") ||
+      plumos_mali_has_prefixed_line(lines, line_count, "scraping_screen=1") ||
+      plumos_mali_has_prefixed_line(lines, line_count,
+                                    "thumbnail_results_screen=1");
   is_brightness_test_marker = plumos_mali_has_prefixed_line(lines, line_count,
                                                             "brightness_test=1");
   is_settings = is_settings_marker || plumos_mali_title_is_settings(title);
-  is_settings_family = is_settings_marker || plumos_mali_title_is_settings_family(title);
+  is_settings_family =
+      is_settings_family_marker || plumos_mali_title_is_settings_family(title);
   is_settings_page = is_settings_marker || strstr(title, "Settings") != NULL;
   is_brightness_test = is_brightness_test_marker ||
                        plumos_mali_title_is_brightness_test(title);

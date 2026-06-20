@@ -64,8 +64,9 @@
 `systems.json` は人間が管理する source of truth です。`library-index.json` は scan
 結果なので生成物として扱います。
 `share/frontend/lang/*.lang` は `settings.item.<id>.name`、
-`settings.item.<id>.help1`、`settings.item.<id>.help2` などの key を持つ
-UI 文言辞書です。辞書にない key は FE 内の英語 fallback を使います。
+`settings.item.<id>.help1`、`settings.item.<id>.help2`、`menu.entry.<id>.name`、
+`app.<id>.name`、`scraping.*` などの key を持つ UI 文言辞書です。辞書にない
+key は FE 内の英語 fallback を使います。
 
 ## Core entities
 

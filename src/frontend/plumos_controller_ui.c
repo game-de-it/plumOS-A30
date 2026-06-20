@@ -1113,6 +1113,15 @@ static const char *tr(const struct ui_state *ui, const char *key,
   return fallback;
 }
 
+static void copy_tr(struct ui_state *ui, const char *key, const char *fallback,
+                    char *out, size_t out_size) {
+  const char *value = tr(ui, key, fallback);
+  if (value == out) {
+    return;
+  }
+  copy_string(out, out_size, value);
+}
+
 static int read_key_value_file(const char *path, const char *key, char *out, size_t out_size) {
   char *text;
   char *p;
@@ -4886,7 +4895,7 @@ static int load_start_menu_entries(struct ui_state *ui) {
   ui->menu_count = 0;
   ui->menu_cursor = 0;
   copy_string(ui->menu_id, sizeof(ui->menu_id), "start");
-  copy_string(ui->menu_title, sizeof(ui->menu_title), "START");
+  copy_tr(ui, "menu.title.start", "START", ui->menu_title, sizeof(ui->menu_title));
   json = read_file(ui->menus_path, &json_size);
   if (!json) {
     return 0;
@@ -4934,6 +4943,12 @@ static int load_start_menu_entries(struct ui_state *ui) {
       if (!entry.display_name[0]) {
         copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
       }
+      if (entry.id[0]) {
+        char key[128];
+        snprintf(key, sizeof(key), "menu.entry.%s.name", entry.id);
+        copy_tr(ui, key, entry.display_name, entry.display_name,
+                sizeof(entry.display_name));
+      }
       ui->menu_entries[ui->menu_count++] = entry;
     }
     break;
@@ -4952,7 +4967,7 @@ static int load_apps_menu_entries(struct ui_state *ui) {
   ui->menu_count = 0;
   ui->menu_cursor = 0;
   copy_string(ui->menu_id, sizeof(ui->menu_id), "apps");
-  copy_string(ui->menu_title, sizeof(ui->menu_title), "Apps");
+  copy_tr(ui, "menu.title.apps", "Apps", ui->menu_title, sizeof(ui->menu_title));
   json = read_file(ui->apps_path, &json_size);
   if (!json) {
     return 0;
@@ -4990,6 +5005,12 @@ static int load_apps_menu_entries(struct ui_state *ui) {
     }
     if (!entry.display_name[0]) {
       copy_string(entry.display_name, sizeof(entry.display_name), entry.id);
+    }
+    if (entry.id[0]) {
+      char key[128];
+      snprintf(key, sizeof(key), "app.%s.name", entry.id);
+      copy_tr(ui, key, entry.display_name, entry.display_name,
+              sizeof(entry.display_name));
     }
     ui->menu_entries[ui->menu_count++] = entry;
   }
@@ -5080,8 +5101,24 @@ static const struct scraping_kind_choice *scraping_selected_kind(struct ui_state
   return &SCRAPING_KIND_CHOICES[ui ? ui->scraping_kind_cursor : 0];
 }
 
+static const char *scraping_kind_display_name(const struct ui_state *ui,
+                                              const struct scraping_kind_choice *kind) {
+  if (!kind) {
+    return "";
+  }
+  if (strcmp(kind->scraper_kind, "Named_Boxarts") == 0) {
+    return tr(ui, "scraping.kind.box_art", kind->display_name);
+  }
+  if (strcmp(kind->scraper_kind, "Named_Titles") == 0) {
+    return tr(ui, "scraping.kind.title_screen", kind->display_name);
+  }
+  return kind->display_name;
+}
+
 static const char *scraping_existing_label(const struct ui_state *ui) {
-  return ui && ui->scraping_replace_existing ? "Replace" : "Skip";
+  return ui && ui->scraping_replace_existing
+             ? tr(ui, "scraping.existing.replace", "Replace")
+             : tr(ui, "scraping.existing.skip", "Skip");
 }
 
 static void cycle_scraping_kind(struct ui_state *ui, int delta) {
@@ -5168,13 +5205,13 @@ static long scraping_selected_rom_count(const struct ui_state *ui) {
 
 static const char *scraping_selected_label(const struct ui_state *ui) {
   if (!ui || ui->scraping_choice_count == 0) {
-    return "NONE";
+    return tr(ui, "scraping.system.none", "NONE");
   }
   if (ui->scraping_choice_cursor > 0 &&
       ui->scraping_choice_cursor <= ui->scraping_choice_count) {
     return ui->scraping_choices[ui->scraping_choice_cursor - 1].display_name;
   }
-  return "ALL";
+  return tr(ui, "scraping.system.all", "ALL");
 }
 
 static void add_thumbnail_result_line(struct ui_state *ui, const char *line) {
@@ -5192,18 +5229,18 @@ static void add_thumbnail_result_line(struct ui_state *ui, const char *line) {
   ui->thumbnail_result_count++;
 }
 
-static const char *thumbnail_action_label(const char *id) {
+static const char *thumbnail_action_label(const struct ui_state *ui, const char *id) {
   if (!id) {
-    return "Thumbnail Task";
+    return tr(ui, "thumbnail_task.title", "Thumbnail Task");
   }
   if (strcmp(id, "thumbnail-plan") == 0) {
-    return "Thumbnail Plan";
+    return tr(ui, "app.thumbnail-plan.name", "Thumbnail Plan");
   }
   if (strcmp(id, "thumbnail-fetch") == 0) {
-    return "Fetch Thumbnails";
+    return tr(ui, "app.thumbnail-fetch.name", "Fetch Thumbnails");
   }
   if (strcmp(id, "thumbnail-scraping") == 0) {
-    return "Scraping";
+    return tr(ui, "app.scraping.name", "Scraping");
   }
   return id;
 }
@@ -5375,17 +5412,17 @@ static void add_thumbnail_result_from_log_line(struct ui_state *ui, const char *
     add_thumbnail_result_line(ui, out);
     add_thumbnail_result_line(ui, "----------------");
   } else if (strcmp(fields[0], "app_start") == 0 && count >= 2) {
-    snprintf(out, sizeof(out), "%s", thumbnail_action_label(fields[1]));
+    snprintf(out, sizeof(out), "%s", thumbnail_action_label(ui, fields[1]));
     add_thumbnail_result_line(ui, out);
     add_thumbnail_result_line(ui, "started");
   } else if (strcmp(fields[0], "app_finish") == 0 && count >= 3) {
-    snprintf(out, sizeof(out), "%s", thumbnail_action_label(fields[1]));
+    snprintf(out, sizeof(out), "%s", thumbnail_action_label(ui, fields[1]));
     add_thumbnail_result_line(ui, out);
     snprintf(out, sizeof(out), "finished %s", fields[2]);
     add_thumbnail_result_line(ui, out);
   } else if (strcmp(fields[0], "app_already_running") == 0 && count >= 2) {
     snprintf(out, sizeof(out), "%s is already running",
-             thumbnail_action_label(fields[1]));
+             thumbnail_action_label(ui, fields[1]));
     add_thumbnail_result_line(ui, out);
   }
 }
@@ -6802,6 +6839,7 @@ static void render_start_menu(struct ui_state *ui) {
 
   ui_printf(ui, "plumOS controller UI - %s\n",
             ui->menu_title[0] ? ui->menu_title : "START");
+  ui_printf(ui, "menu_screen=1\n");
   ui_printf(ui, "A: open/run  B: back  UP/DOWN: move  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->menu_count,
             ui->menu_count ? ui->menu_cursor + 1 : 0);
@@ -7401,35 +7439,48 @@ static void render_core_select(struct ui_state *ui) {
 static void render_scraping(struct ui_state *ui) {
   const char *label;
   const struct scraping_kind_choice *kind;
+  const char *kind_label;
+  size_t target_count;
   long rom_count;
 
   clamp_scraping_menu_cursor(ui);
   clamp_scraping_choice_cursor(ui);
   kind = scraping_selected_kind(ui);
+  kind_label = scraping_kind_display_name(ui, kind);
   label = scraping_selected_label(ui);
   rom_count = scraping_selected_rom_count(ui);
+  target_count = ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1;
 
-  ui_printf(ui, "plumOS controller UI - Scraping\n");
-  ui_printf(ui, "UP/DOWN: item  LEFT/RIGHT: change  A: start  SELECT: results  B: Apps  Q: quit\n");
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            tr(ui, "scraping.title", "Scraping"));
+  ui_printf(ui, "scraping_screen=1\n");
+  ui_printf(ui, "%s\n",
+            tr(ui, "scraping.instructions",
+               "UP/DOWN: item  LEFT/RIGHT: change  A: start  SELECT: results  B: Apps  Q: quit"));
   ui_printf(ui, "entries=7 cursor=%zu\n", ui->scraping_menu_cursor + 1);
   ui_printf(ui, "\n");
-  ui_printf(ui, "%c   1  Image < %s >\n",
+  ui_printf(ui, "%c   1  %s < %s >\n",
             ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE ? '>' : ' ',
-            kind->display_name);
-  ui_printf(ui, "%c   2  Existing < %s >\n",
+            tr(ui, "scraping.field.image", "Image"), kind_label);
+  ui_printf(ui, "%c   2  %s < %s >\n",
             ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING ? '>' : ' ',
-            scraping_existing_label(ui));
-  ui_printf(ui, "%c   3  System < %s >\n",
+            tr(ui, "scraping.field.existing", "Existing"), scraping_existing_label(ui));
+  ui_printf(ui, "%c   3  %s < %s >\n",
             ui->scraping_menu_cursor == UI_SCRAPING_FIELD_SYSTEM ? '>' : ' ',
-            label);
-  ui_printf(ui, "    4  Targets: %zu system%s\n",
-            ui->scraping_choice_cursor == 0 ? ui->scraping_choice_count : (size_t)1,
-            (ui->scraping_choice_cursor == 0 && ui->scraping_choice_count != 1) ? "s" : "");
-  ui_printf(ui, "    5  ROMs: %ld\n", rom_count);
-  ui_printf(ui, "    6  A starts plan and fetch\n");
-  ui_printf(ui, "    7  SELECT opens latest results\n");
-  ui_printf(ui, "footer1=%s\n", "Box Art and Title Screen share the same PNG path.");
-  ui_printf(ui, "footer2=%s\n", "Replace overwrites current images after successful download.");
+            tr(ui, "scraping.field.system", "System"), label);
+  ui_printf(ui, "    4  %s: %zu\n",
+            tr(ui, "scraping.field.targets", "Targets"), target_count);
+  ui_printf(ui, "    5  %s: %ld\n", tr(ui, "scraping.field.roms", "ROMs"), rom_count);
+  ui_printf(ui, "    6  %s\n",
+            tr(ui, "scraping.hint.start", "A starts plan and fetch"));
+  ui_printf(ui, "    7  %s\n",
+            tr(ui, "scraping.hint.results", "SELECT opens latest results"));
+  ui_printf(ui, "footer1=%s\n",
+            tr(ui, "scraping.footer1",
+               "Box Art and Title Screen share the same PNG path."));
+  ui_printf(ui, "footer2=%s\n",
+            tr(ui, "scraping.footer2",
+               "Replace overwrites current images after successful download."));
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -7441,8 +7492,12 @@ static void render_thumbnail_results(struct ui_state *ui) {
   size_t start = 0;
   size_t end;
 
-  ui_printf(ui, "plumOS controller UI - Scraping Results\n");
-  ui_printf(ui, "UP/DOWN: scroll  LEFT/RIGHT: page  A/SELECT: refresh  B: Apps  Q: quit\n");
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            tr(ui, "scraping_results.title", "Scraping Results"));
+  ui_printf(ui, "thumbnail_results_screen=1\n");
+  ui_printf(ui, "%s\n",
+            tr(ui, "scraping_results.instructions",
+               "UP/DOWN: scroll  LEFT/RIGHT: page  A/SELECT: refresh  B: Apps  Q: quit"));
   clamp_thumbnail_result_cursor(ui);
   if (ui->thumbnail_result_count > 0) {
     start = (ui->thumbnail_result_cursor / window) * window;
@@ -7460,7 +7515,8 @@ static void render_thumbnail_results(struct ui_state *ui) {
               i + 1, ui->thumbnail_result_lines[i]);
   }
   if (ui->thumbnail_result_count == 0) {
-    ui_printf(ui, "(no thumbnail result yet)\n");
+    ui_printf(ui, "%s\n",
+              tr(ui, "scraping_results.empty", "(no thumbnail result yet)"));
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
@@ -7472,6 +7528,8 @@ static void render_thumbnail_running(struct ui_state *ui) {
                           ? ui->thumbnail_running_title
                           : "Thumbnail Task";
   int scraping = strcmp(title, "Scraping") == 0;
+  const char *display_title = scraping ? tr(ui, "scraping.title", "Scraping")
+                                       : tr(ui, "thumbnail_task.title", title);
   const char *phase = ui->thumbnail_running_phase[0]
                           ? ui->thumbnail_running_phase
                           : "starting";
@@ -7479,18 +7537,21 @@ static void render_thumbnail_running(struct ui_state *ui) {
   long percent = -1;
 
   if (strcmp(phase, "plan") == 0) {
-    phase_label = "Plan";
+    phase_label = tr(ui, "scraping_running.phase.plan", "Plan");
   } else if (strcmp(phase, "fetch") == 0) {
-    phase_label = "Fetch";
+    phase_label = tr(ui, "scraping_running.phase.fetch", "Fetch");
   } else if (strcmp(phase, "done") == 0) {
-    phase_label = "Done";
+    phase_label = tr(ui, "scraping_running.phase.done", "Done");
+  } else if (strcmp(phase, "starting") == 0) {
+    phase_label = tr(ui, "scraping_running.phase.starting", "starting");
   }
   if (ui->thumbnail_progress_total > 0) {
     percent = (ui->thumbnail_progress_current * 100) / ui->thumbnail_progress_total;
   }
 
-  ui_printf(ui, "plumOS controller UI - %s Running\n",
-            scraping ? "Scraping" : "Thumbnail");
+  ui_printf(ui, "plumOS controller UI - %s\n",
+            scraping ? tr(ui, "scraping_running.title", "Scraping Running")
+                     : tr(ui, "thumbnail_running.title", "Thumbnail Running"));
   ui_printf(ui, "thumbnail_running=1\n");
   ui_printf(ui, "thumbnail_running_title=%s\n", title);
   ui_printf(ui, "thumbnail_running_phase=%s\n", phase_label);
@@ -7504,24 +7565,38 @@ static void render_thumbnail_running(struct ui_state *ui) {
             ui->thumbnail_progress_failed);
   ui_printf(ui, "entries=6 cursor=1\n");
   ui_printf(ui, "\n");
-  ui_printf(ui, ">   1  RUNNING: %s\n", title);
+  ui_printf(ui, ">   1  %s: %s\n",
+            tr(ui, "scraping_running.field.running", "RUNNING"), display_title);
   if (percent >= 0) {
-    ui_printf(ui, "    2  Progress: %ld / %ld (%ld%%)\n",
+    ui_printf(ui, "    2  %s: %ld / %ld (%ld%%)\n",
+              tr(ui, "scraping_running.field.progress", "Progress"),
               ui->thumbnail_progress_current, ui->thumbnail_progress_total, percent);
   } else {
-    ui_printf(ui, "    2  Progress: preparing\n");
+    ui_printf(ui, "    2  %s: %s\n",
+              tr(ui, "scraping_running.field.progress", "Progress"),
+              tr(ui, "scraping_running.progress.preparing", "preparing"));
   }
-  ui_printf(ui, "    3  Phase: %s %s\n", phase_label,
+  ui_printf(ui, "    3  %s: %s %s\n",
+            tr(ui, "scraping_running.field.phase", "Phase"), phase_label,
             ui->thumbnail_running_system[0] ? ui->thumbnail_running_system : "-");
-  ui_printf(ui, "    4  Saved %ld  NoMatch %ld  Failed %ld\n",
+  ui_printf(ui, "    4  %s %ld  %s %ld  %s %ld\n",
+            tr(ui, "scraping_running.field.saved", "Saved"),
             ui->thumbnail_progress_downloaded,
+            tr(ui, "scraping_running.field.no_match", "NoMatch"),
             ui->thumbnail_progress_no_match,
+            tr(ui, "scraping_running.field.failed", "Failed"),
             ui->thumbnail_progress_failed);
-  ui_printf(ui, "    5  Results will open automatically\n");
-  ui_printf(ui, "    6  Do not power off\n");
+  ui_printf(ui, "    5  %s\n",
+            tr(ui, "scraping_running.hint.results_auto",
+               "Results will open automatically"));
+  ui_printf(ui, "    6  %s\n",
+            tr(ui, "scraping_running.hint.no_poweroff", "Do not power off"));
   ui_printf(ui, "footer1=%s\n",
-            scraping ? "Scraping is running." : "Thumbnail task is running.");
-  ui_printf(ui, "footer2=%s\n", "The latest result will open when it finishes.");
+            scraping ? tr(ui, "scraping_running.footer1", "Scraping is running.")
+                     : tr(ui, "thumbnail_running.footer1", "Thumbnail task is running."));
+  ui_printf(ui, "footer2=%s\n",
+            tr(ui, "scraping_running.footer2",
+               "The latest result will open when it finishes."));
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
   }
@@ -7825,9 +7900,10 @@ static void open_start_menu(struct ui_state *ui) {
   ui->screen = SCREEN_START_MENU;
   trigger_sdcard_cleanup_from_start_menu(ui);
   if (!load_start_menu_entries(ui)) {
-    set_status(ui, "cannot load START menu");
+    set_status(ui, tr(ui, "menu.status.start_load_failed",
+                      "cannot load START menu"));
   } else {
-    set_status(ui, "START menu ready");
+    set_status(ui, tr(ui, "menu.status.start_ready", "START menu ready"));
   }
 }
 
@@ -7835,9 +7911,10 @@ static void open_apps_menu(struct ui_state *ui) {
   ui->screen = SCREEN_START_MENU;
   trigger_sdcard_cleanup_from_start_menu(ui);
   if (!load_apps_menu_entries(ui)) {
-    set_status(ui, "cannot load Apps menu");
+    set_status(ui, tr(ui, "menu.status.apps_load_failed",
+                      "cannot load Apps menu"));
   } else {
-    set_status(ui, "Apps ready");
+    set_status(ui, tr(ui, "menu.status.apps_ready", "Apps ready"));
   }
 }
 
@@ -7934,27 +8011,33 @@ static void open_thumbnail_results_screen(struct ui_state *ui) {
   ui->screen = SCREEN_THUMBNAIL_RESULTS;
   ui->thumbnail_result_cursor = 0;
   if (!load_thumbnail_results(ui)) {
-    set_status(ui, "cannot load thumbnail results");
+    set_status(ui, tr(ui, "scraping.status.results_load_failed",
+                      "cannot load thumbnail results"));
   } else {
-    set_status(ui, "scraping results ready");
+    set_status(ui, tr(ui, "scraping.status.results_ready",
+                      "scraping results ready"));
   }
 }
 
 static void open_scraping_screen(struct ui_state *ui) {
   ui->screen = SCREEN_SCRAPING;
-  set_status(ui, "refreshing ROM list");
+  set_status(ui, tr(ui, "scraping.status.refreshing_roms", "refreshing ROM list"));
   render_ui(ui);
   if (!run_scanner(ui->plumos_root, ui->sdcard_root, NULL, 0)) {
-    set_status(ui, "ROM scan failed; using cached counts");
+    set_status(ui, tr(ui, "scraping.status.scan_failed",
+                      "ROM scan failed; using cached counts"));
   } else if (!load_top_entries(ui)) {
-    set_status(ui, "ROM scan done; cannot reload TOP");
+    set_status(ui, tr(ui, "scraping.status.scan_reload_failed",
+                      "ROM scan done; cannot reload TOP"));
   }
   if (!load_scraping_choices(ui)) {
-    set_status(ui, "cannot load scraping systems");
+    set_status(ui, tr(ui, "scraping.status.systems_load_failed",
+                      "cannot load scraping systems"));
   } else if (ui->scraping_choice_count == 0) {
-    set_status(ui, "no scraping target with ROMs");
+    set_status(ui, tr(ui, "scraping.status.no_targets",
+                      "no scraping target with ROMs"));
   } else {
-    set_status(ui, "Scraping ready");
+    set_status(ui, tr(ui, "scraping.status.ready", "Scraping ready"));
   }
 }
 
@@ -9173,7 +9256,8 @@ static int run_command_with_live_log(struct ui_state *ui, const char *cmd,
   if (!pipe) {
     fclose(log);
     fclose(latest);
-    set_status(ui, "cannot start scraping command");
+    set_status(ui, tr(ui, "scraping.status.command_start_failed",
+                      "cannot start scraping command"));
     return -1;
   }
 
@@ -9212,7 +9296,7 @@ static int run_scraping_action(struct ui_state *ui) {
   int rc;
 
   if (!ui || ui->scraping_choice_count == 0) {
-    set_status(ui, "no scraping target");
+    set_status(ui, tr(ui, "scraping.status.no_target", "no scraping target"));
     return 0;
   }
   if (!join_path(scraper, sizeof(scraper), ui->plumos_root,
@@ -9221,11 +9305,13 @@ static int run_scraping_action(struct ui_state *ui) {
       !join_path(log_path, sizeof(log_path), log_dir, "frontend-apps.log") ||
       !join_path(latest_path, sizeof(latest_path), log_dir,
                  "frontend-apps-latest.log")) {
-    set_status(ui, "scraping path too long");
+    set_status(ui, tr(ui, "scraping.status.path_too_long",
+                      "scraping path too long"));
     return 0;
   }
   if (!file_exists(scraper)) {
-    set_status(ui, "scraper is missing");
+    set_status(ui, tr(ui, "scraping.status.scraper_missing",
+                      "scraper is missing"));
     return 0;
   }
   path_value[0] = '\0';
@@ -9234,7 +9320,8 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_string(path_value, sizeof(path_value), &path_pos, ui->plumos_root) ||
       !append_string(path_value, sizeof(path_value), &path_pos,
                      "/gnu/bin:/usr/sbin:/usr/bin:/sbin:/bin")) {
-    set_status(ui, "scraping PATH too long");
+    set_status(ui, tr(ui, "scraping.status.env_path_too_long",
+                      "scraping PATH too long"));
     return 0;
   }
   plan_limit = scraping_limit_env("PLUMOS_SCRAPING_PLAN_LIMIT");
@@ -9258,7 +9345,7 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
       !append_string(cmd, sizeof(cmd),
                      &pos, "; printf 'scraping_options\\timage=%s\\tkind=%s\\texisting=%s\\n' ") ||
-      !append_shell_quoted(cmd, sizeof(cmd), &pos, kind->display_name) ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, scraping_kind_display_name(ui, kind)) ||
       !append_string(cmd, sizeof(cmd), &pos, " ") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, kind->scraper_kind) ||
       !append_string(cmd, sizeof(cmd), &pos, " ") ||
@@ -9278,7 +9365,8 @@ static int run_scraping_action(struct ui_state *ui) {
       !append_shell_quoted(cmd, sizeof(cmd), &pos, "thumbnail-scraping") ||
       !append_string(cmd, sizeof(cmd), &pos,
                      " \"$app_rc\"; [ \"$app_rc\" -eq 0 ]; } 2>&1")) {
-    set_status(ui, "scraping command too long");
+    set_status(ui, tr(ui, "scraping.status.command_too_long",
+                      "scraping command too long"));
     return 0;
   }
 
@@ -9286,8 +9374,9 @@ static int run_scraping_action(struct ui_state *ui) {
               "Scraping");
   reset_thumbnail_running_progress(ui);
   ui->screen = SCREEN_THUMBNAIL_RUNNING;
-  snprintf(ui->status, sizeof(ui->status), "running Scraping %s",
-           kind->display_name);
+  snprintf(ui->status, sizeof(ui->status), "%s %s",
+           tr(ui, "scraping.status.running", "running Scraping"),
+           scraping_kind_display_name(ui, kind));
   render_ui(ui);
   mkdir(log_dir, 0755);
   rc = run_command_with_live_log(ui, cmd, latest_path, log_path);
@@ -9296,14 +9385,16 @@ static int run_scraping_action(struct ui_state *ui) {
   ui->thumbnail_result_cursor = 0;
   load_thumbnail_results(ui);
   if (system_command_succeeded(rc)) {
-    set_status(ui, "Scraping finished");
+    set_status(ui, tr(ui, "scraping.status.finished", "Scraping finished"));
     return 1;
   }
   if (rc == -1) {
-    set_status(ui, "scraping system call failed");
+    set_status(ui, tr(ui, "scraping.status.system_call_failed",
+                      "scraping system call failed"));
     return 0;
   }
-  set_status(ui, "Scraping returned non-zero");
+  set_status(ui, tr(ui, "scraping.status.nonzero",
+                    "Scraping returned non-zero"));
   return 0;
 }
 
@@ -10723,7 +10814,8 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       ui->scraping_menu_cursor =
           ui->scraping_menu_cursor == 0 ? UI_SCRAPING_FIELD_COUNT - 1
                                         : ui->scraping_menu_cursor - 1;
-      set_status(ui, "selected scraping item");
+      set_status(ui, tr(ui, "scraping.status.selected_item",
+                        "selected scraping item"));
       return;
     }
     if (action == ACTION_DOWN) {
@@ -10731,40 +10823,47 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
           ui->scraping_menu_cursor + 1 >= UI_SCRAPING_FIELD_COUNT
               ? 0
               : ui->scraping_menu_cursor + 1;
-      set_status(ui, "selected scraping item");
+      set_status(ui, tr(ui, "scraping.status.selected_item",
+                        "selected scraping item"));
       return;
     }
     if (action == ACTION_LEFT) {
       if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
         cycle_scraping_kind(ui, -1);
-        set_status(ui, "selected image type");
+        set_status(ui, tr(ui, "scraping.status.selected_image",
+                          "selected image type"));
       } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
         ui->scraping_replace_existing = !ui->scraping_replace_existing;
-        set_status(ui, "selected existing image mode");
+        set_status(ui, tr(ui, "scraping.status.selected_existing",
+                          "selected existing image mode"));
       } else {
         if (ui->scraping_choice_cursor == 0) {
           ui->scraping_choice_cursor = ui->scraping_choice_count;
         } else {
           ui->scraping_choice_cursor--;
         }
-        set_status(ui, "selected scraping system");
+        set_status(ui, tr(ui, "scraping.status.selected_system",
+                          "selected scraping system"));
       }
       return;
     }
     if (action == ACTION_RIGHT) {
       if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_IMAGE) {
         cycle_scraping_kind(ui, 1);
-        set_status(ui, "selected image type");
+        set_status(ui, tr(ui, "scraping.status.selected_image",
+                          "selected image type"));
       } else if (ui->scraping_menu_cursor == UI_SCRAPING_FIELD_EXISTING) {
         ui->scraping_replace_existing = !ui->scraping_replace_existing;
-        set_status(ui, "selected existing image mode");
+        set_status(ui, tr(ui, "scraping.status.selected_existing",
+                          "selected existing image mode"));
       } else {
         if (ui->scraping_choice_cursor >= ui->scraping_choice_count) {
           ui->scraping_choice_cursor = 0;
         } else {
           ui->scraping_choice_cursor++;
         }
-        set_status(ui, "selected scraping system");
+        set_status(ui, tr(ui, "scraping.status.selected_system",
+                          "selected scraping system"));
       }
       return;
     }
@@ -10779,7 +10878,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_B) {
       open_apps_menu(ui);
       select_menu_entry_by_id(ui, "scraping");
-      set_status(ui, "back to Apps");
+      set_status(ui, tr(ui, "scraping.status.back_to_apps", "back to Apps"));
       return;
     }
     if (action == ACTION_START) {
@@ -10818,9 +10917,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     if (action == ACTION_A || action == ACTION_SELECT) {
       if (!load_thumbnail_results(ui)) {
-        set_status(ui, "cannot refresh scraping results");
+        set_status(ui, tr(ui, "scraping.status.results_refresh_failed",
+                          "cannot refresh scraping results"));
       } else {
-        set_status(ui, "scraping results refreshed");
+        set_status(ui, tr(ui, "scraping.status.results_refreshed",
+                          "scraping results refreshed"));
       }
       return;
     }
@@ -10999,10 +11100,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_B) {
       if (strcmp(ui->menu_id, "apps") == 0) {
         if (!load_start_menu_entries(ui)) {
-          set_status(ui, "cannot load START menu");
+          set_status(ui, tr(ui, "menu.status.start_load_failed",
+                            "cannot load START menu"));
         } else {
           select_menu_entry_by_id(ui, "apps");
-          set_status(ui, "back to START");
+          set_status(ui, tr(ui, "menu.status.back_to_start", "back to START"));
         }
         return;
       }

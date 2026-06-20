@@ -68,9 +68,9 @@ official plumOS specification.
 `systems.json` is the human-maintained source of truth. `library-index.json` is
 generated scan output.
 `share/frontend/lang/*.lang` stores `key=value` UI dictionaries such as
-`settings.item.<id>.name`, `settings.item.<id>.help1`, and
-`settings.item.<id>.help2`. Missing keys fall back to English strings compiled
-into the FE.
+`settings.item.<id>.name`, `settings.item.<id>.help1`,
+`settings.item.<id>.help2`, `menu.entry.<id>.name`, `app.<id>.name`, and
+`scraping.*`. Missing keys fall back to English strings compiled into the FE.
 
 ## Core Entities
 
