@@ -326,6 +326,18 @@ struct performance_cpu_preset {
   long freq_khz;
 };
 
+struct cpu_policy_snapshot {
+  int saved;
+  char governor[32];
+  char min_freq[32];
+  char max_freq[32];
+  char setspeed[32];
+  char cpuinfo_min_freq[32];
+  char cpuinfo_max_freq[32];
+  char cpu_online[4][8];
+  int cpu_online_present[4];
+};
+
 struct power_entry {
   const char *id;
   const char *display_name;
@@ -1363,6 +1375,113 @@ static void trim_line_end(char *s) {
   len = strlen(s);
   while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) {
     s[--len] = '\0';
+  }
+}
+
+static int write_text_file_line(const char *path, const char *value) {
+  char line[64];
+
+  if (!path || !path[0] || !value || !value[0]) {
+    return 0;
+  }
+  snprintf(line, sizeof(line), "%s\n", value);
+  return write_text_file(path, line);
+}
+
+static void cpu_online_path(char *out, size_t out_size, int cpu) {
+  if (!out || out_size == 0) {
+    return;
+  }
+  snprintf(out, out_size, "/sys/devices/system/cpu/cpu%d/online", cpu);
+}
+
+static void save_cpu_policy_snapshot(struct cpu_policy_snapshot *snapshot) {
+  char path[PATH_MAX];
+  int cpu;
+
+  if (!snapshot) {
+    return;
+  }
+  memset(snapshot, 0, sizeof(*snapshot));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+                       snapshot->governor, sizeof(snapshot->governor));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq",
+                       snapshot->min_freq, sizeof(snapshot->min_freq));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq",
+                       snapshot->max_freq, sizeof(snapshot->max_freq));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed",
+                       snapshot->setspeed, sizeof(snapshot->setspeed));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq",
+                       snapshot->cpuinfo_min_freq, sizeof(snapshot->cpuinfo_min_freq));
+  read_first_line_file("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq",
+                       snapshot->cpuinfo_max_freq, sizeof(snapshot->cpuinfo_max_freq));
+  for (cpu = 1; cpu <= 3; cpu++) {
+    cpu_online_path(path, sizeof(path), cpu);
+    if (read_first_line_file(path, snapshot->cpu_online[cpu],
+                             sizeof(snapshot->cpu_online[cpu]))) {
+      snapshot->cpu_online_present[cpu] = 1;
+    }
+  }
+  snapshot->saved = 1;
+}
+
+static int apply_scraping_cpu_policy(struct cpu_policy_snapshot *snapshot) {
+  const char *freq = "1200000";
+  char path[PATH_MAX];
+  int cpu;
+
+  if (!snapshot) {
+    return 0;
+  }
+  save_cpu_policy_snapshot(snapshot);
+  for (cpu = 1; cpu <= 3; cpu++) {
+    cpu_online_path(path, sizeof(path), cpu);
+    write_text_file_line(path, "1");
+  }
+  write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq", freq);
+  write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq", freq);
+  write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "userspace");
+  write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed", freq);
+  return snapshot->saved;
+}
+
+static void restore_cpu_policy_snapshot(const struct cpu_policy_snapshot *snapshot) {
+  char path[PATH_MAX];
+  int cpu;
+
+  if (!snapshot || !snapshot->saved) {
+    return;
+  }
+  if (snapshot->cpuinfo_min_freq[0]) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq",
+                         snapshot->cpuinfo_min_freq);
+  }
+  if (snapshot->cpuinfo_max_freq[0]) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq",
+                         snapshot->cpuinfo_max_freq);
+  }
+  if (snapshot->max_freq[0]) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq",
+                         snapshot->max_freq);
+  }
+  if (snapshot->min_freq[0]) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq",
+                         snapshot->min_freq);
+  }
+  if (snapshot->governor[0]) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+                         snapshot->governor);
+  }
+  if (snapshot->setspeed[0] && strcmp(snapshot->governor, "userspace") == 0) {
+    write_text_file_line("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed",
+                         snapshot->setspeed);
+  }
+  for (cpu = 1; cpu <= 3; cpu++) {
+    if (!snapshot->cpu_online_present[cpu]) {
+      continue;
+    }
+    cpu_online_path(path, sizeof(path), cpu);
+    write_text_file_line(path, snapshot->cpu_online[cpu]);
   }
 }
 
@@ -9561,9 +9680,11 @@ static int run_scraping_action(struct ui_state *ui) {
   const char *fetch_timeout;
   const char *fetch_retry;
   const struct scraping_kind_choice *kind;
+  struct cpu_policy_snapshot cpu_snapshot;
   size_t pos = 0;
   size_t path_pos = 0;
   size_t target_count;
+  int cpu_policy_applied = 0;
   int rc;
 
   if (!ui || ui->scraping_choice_count == 0) {
@@ -9650,7 +9771,11 @@ static int run_scraping_action(struct ui_state *ui) {
            scraping_kind_display_name(ui, kind));
   render_ui(ui);
   mkdir(log_dir, 0755);
+  cpu_policy_applied = apply_scraping_cpu_policy(&cpu_snapshot);
   rc = run_command_with_live_log(ui, cmd, latest_path, log_path);
+  if (cpu_policy_applied) {
+    restore_cpu_policy_snapshot(&cpu_snapshot);
+  }
   settle_input_after_child(ui);
   ui->screen = SCREEN_THUMBNAIL_RESULTS;
   ui->thumbnail_result_cursor = 0;

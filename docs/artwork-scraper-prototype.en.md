@@ -206,6 +206,12 @@ stay at `1`. Unvalidated systems use `default=1`, `bulk=2`, and `max=2`.
 Validation can probe up to `max=5`, but the normal FE UI should not expose
 unbounded values.
 
+When scraping is launched from the FE, it does not inherit the normal FE
+low-power policy. The FE temporarily pins the CPU to `1200 MHz` and `4 cores`,
+then restores the previous CPU policy after scraping exits. The
+`scripts/benchmark-a30-thumbnail-scraper.sh` wrapper uses the same policy for
+real-device measurements.
+
 `package/frontend/plumos/config/frontend/systems.json` is the source of truth
 for scraper eligibility. Initial scraper targets use `enabled=true` with
 `reason=simple_rom_crc`. Because they are still unvalidated on-device,

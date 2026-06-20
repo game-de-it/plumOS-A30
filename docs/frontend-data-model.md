@@ -283,6 +283,8 @@ rules:
 - `download_workers` は system 共通の初期値 `default=2`, `bulk=3`, `max=4` を基本にする
 - system 別 `crc_workers` は A30 実機の `scripts/benchmark-a30-crc-workers.sh` 結果を
   `artifacts/` に残してから更新する
+- FE から scraping を実行する間は CPU を `1200 MHz` / `4 cores` に一時固定し、
+  終了後に開始前の CPU policy へ戻す。ベンチも同じ policy で測る
 - scraper はまず frontend と同じ thumbnail lookup を行い、既存画像があれば CRC 計算せず
   `exists` として扱う
 - 既存画像はユーザー手動配置と scraper 取得画像を区別せず、default では上書きしない

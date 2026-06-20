@@ -89,9 +89,85 @@ tmp_prefix="/tmp/plumos-scraper-bench-${system_id}-${mode}-$$"
 out_file="${tmp_prefix}.out"
 err_file="${tmp_prefix}.err"
 sample_file="${tmp_prefix}.samples"
+cpu_state_file="${tmp_prefix}.cpu"
+
+cpu_read() {
+  cat "$1" 2>/dev/null || true
+}
+
+cpu_write() {
+  path="$1"
+  value="$2"
+  [ -n "$value" ] || return 0
+  [ -w "$path" ] || return 0
+  printf '%s\n' "$value" > "$path" 2>/dev/null || true
+}
+
+cpu_policy_summary() {
+  p=/sys/devices/system/cpu/cpu0/cpufreq
+  printf 'online=%s gov=%s min=%s max=%s cur=%s\n' \
+    "$(cpu_read /sys/devices/system/cpu/online)" \
+    "$(cpu_read "$p/scaling_governor")" \
+    "$(cpu_read "$p/scaling_min_freq")" \
+    "$(cpu_read "$p/scaling_max_freq")" \
+    "$(cpu_read "$p/scaling_cur_freq")" |
+    tr '\n' ' ' |
+    sed 's/[[:space:]]*$//'
+}
+
+save_cpu_policy() {
+  p=/sys/devices/system/cpu/cpu0/cpufreq
+  {
+    printf 'cpuinfo_min=%s\n' "$(cpu_read "$p/cpuinfo_min_freq")"
+    printf 'cpuinfo_max=%s\n' "$(cpu_read "$p/cpuinfo_max_freq")"
+    printf 'governor=%s\n' "$(cpu_read "$p/scaling_governor")"
+    printf 'min_freq=%s\n' "$(cpu_read "$p/scaling_min_freq")"
+    printf 'max_freq=%s\n' "$(cpu_read "$p/scaling_max_freq")"
+    printf 'setspeed=%s\n' "$(cpu_read "$p/scaling_setspeed")"
+    for cpu in 1 2 3; do
+      if [ -r "/sys/devices/system/cpu/cpu${cpu}/online" ]; then
+        printf 'cpu%s_online=%s\n' "$cpu" \
+          "$(cpu_read "/sys/devices/system/cpu/cpu${cpu}/online")"
+      fi
+    done
+  } > "$cpu_state_file"
+}
+
+restore_cpu_policy() {
+  [ -r "$cpu_state_file" ] || return 0
+  # shellcheck disable=SC1090
+  . "$cpu_state_file" 2>/dev/null || true
+  p=/sys/devices/system/cpu/cpu0/cpufreq
+  cpu_write "$p/scaling_min_freq" "${cpuinfo_min:-}"
+  cpu_write "$p/scaling_max_freq" "${cpuinfo_max:-}"
+  cpu_write "$p/scaling_max_freq" "${max_freq:-}"
+  cpu_write "$p/scaling_min_freq" "${min_freq:-}"
+  cpu_write "$p/scaling_governor" "${governor:-}"
+  if [ "${governor:-}" = "userspace" ]; then
+    cpu_write "$p/scaling_setspeed" "${setspeed:-}"
+  fi
+  for cpu in 1 2 3; do
+    eval value="\${cpu${cpu}_online:-}"
+    cpu_write "/sys/devices/system/cpu/cpu${cpu}/online" "$value"
+  done
+  rm -f "$cpu_state_file"
+}
+
+apply_scraping_cpu_policy() {
+  save_cpu_policy
+  for cpu in 1 2 3; do
+    cpu_write "/sys/devices/system/cpu/cpu${cpu}/online" 1
+  done
+  p=/sys/devices/system/cpu/cpu0/cpufreq
+  cpu_write "$p/scaling_max_freq" 1200000
+  cpu_write "$p/scaling_min_freq" 1200000
+  cpu_write "$p/scaling_governor" userspace
+  cpu_write "$p/scaling_setspeed" 1200000
+}
 
 cleanup() {
-  rm -f "$out_file" "$err_file" "$sample_file"
+  restore_cpu_policy
+  rm -f "$out_file" "$err_file" "$sample_file" "$cpu_state_file"
 }
 trap cleanup EXIT INT TERM
 
@@ -138,6 +214,10 @@ if [ "$replace_existing" = "1" ]; then
   set -- "$@" --replace-existing
 fi
 
+cpu_policy_before_apply="$(cpu_policy_summary)"
+apply_scraping_cpu_policy
+cpu_policy_after_apply="$(cpu_policy_summary)"
+
 mem_total_before="$(mem_field MemTotal)"
 mem_free_before="$(mem_field MemFree)"
 cpu_before="$(cpu_snapshot)"
@@ -169,6 +249,9 @@ wait "$monitor_pid" 2>/dev/null || true
 cpu_after="$(cpu_snapshot)"
 disk_after="$(disk_snapshot)"
 mem_free_after="$(mem_field MemFree)"
+cpu_policy_before_restore="$(cpu_policy_summary)"
+restore_cpu_policy
+cpu_policy_after_restore="$(cpu_policy_summary)"
 
 read -r cpu_total_before cpu_idle_before <<EOF
 $cpu_before
@@ -234,6 +317,10 @@ awk -v sysid="$system_id" \
       dra - drb, dwa - dwb, read_kib, write_kib, io_ms, samples
   }'
 
+printf 'cpu_policy\tbefore_apply\t%s\n' "$cpu_policy_before_apply"
+printf 'cpu_policy\tafter_apply\t%s\n' "$cpu_policy_after_apply"
+printf 'cpu_policy\tbefore_restore\t%s\n' "$cpu_policy_before_restore"
+printf 'cpu_policy\tafter_restore\t%s\n' "$cpu_policy_after_restore"
 echo "scraper_stdout_begin"
 cat "$out_file"
 echo "scraper_stdout_end"

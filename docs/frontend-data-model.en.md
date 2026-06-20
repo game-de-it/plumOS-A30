@@ -305,6 +305,9 @@ Rules:
   and `max=4` unless a later measurement says otherwise.
 - Update per-system `crc_workers` only after saving
   `scripts/benchmark-a30-crc-workers.sh` results under `artifacts/`.
+- During FE-launched scraping, temporarily pin the CPU to `1200 MHz` /
+  `4 cores`, then restore the previous CPU policy after scraping exits. Use the
+  same policy for benchmark measurements.
 - Before doing CRC work, the scraper uses the same thumbnail lookup as the
   frontend. If an existing image is found, it returns `exists`.
 - Existing images are not distinguished as user-provided versus
