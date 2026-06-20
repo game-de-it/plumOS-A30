@@ -15,6 +15,8 @@ usage() {
 Usage: A30_TARGET=root@A30_IP $0 [options]
 
 Benchmark the packaged thumbnail scraper on an A30 without printing ROM names.
+The wrapper enables PLUMOS_THUMBNAIL_TIMING=1 so fetch output includes CRC and
+download phase timing rows.
 
 Options:
   --system ID          Frontend system id. Default: ${SYSTEM}
@@ -143,7 +145,7 @@ disk_before="$(disk_snapshot)"
 start="$(now_seconds)"
 : >"$sample_file"
 
-"$@" >"$out_file" 2>"$err_file" &
+PLUMOS_THUMBNAIL_TIMING=1 "$@" >"$out_file" 2>"$err_file" &
 bench_pid="$!"
 
 monitor_samples() {

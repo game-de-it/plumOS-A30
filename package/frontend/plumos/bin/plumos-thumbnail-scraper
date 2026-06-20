@@ -67,6 +67,7 @@ Environment:
   PLUMOS_THUMBNAIL_FETCH_RETRY   Default: 2 retries
   PLUMOS_THUMBNAIL_SERVER_FALLBACK Set to 1 to fallback to thumbnails.libretro.com for PNGs
   PLUMOS_THUMBNAIL_PROGRESS      Print fetch progress TSV rows when set to 1
+  PLUMOS_THUMBNAIL_TIMING        Print fetch phase timing TSV rows when set to 1
 
 Output:
   --list-systems:
@@ -97,6 +98,14 @@ progress_enabled() {
   [ "${PLUMOS_THUMBNAIL_PROGRESS:-0}" = 1 ]
 }
 
+timing_enabled() {
+  [ "${PLUMOS_THUMBNAIL_TIMING:-0}" = 1 ]
+}
+
+thumbnail_now_seconds() {
+  awk '{ print $1; exit }' /proc/uptime 2>/dev/null || date +%s
+}
+
 emit_fetch_progress() {
   progress_system="$1"
   progress_current="$2"
@@ -107,6 +116,28 @@ emit_fetch_progress() {
   printf 'progress\tfetch\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$progress_system" "$progress_current" "$progress_total" \
     "$downloaded" "$no_match" "$progress_failed"
+}
+
+emit_fetch_timing() {
+  timing_phase="$1"
+  timing_workers="$2"
+  timing_items="$3"
+  timing_start="$4"
+  timing_stop="$5"
+
+  timing_enabled || return 0
+  awk -v sysid="$fetch_system_id" \
+      -v phase="$timing_phase" \
+      -v workers="$timing_workers" \
+      -v items="$timing_items" \
+      -v start="$timing_start" \
+      -v stop="$timing_stop" '
+    BEGIN {
+      elapsed = stop - start
+      if (elapsed < 0) elapsed = 0
+      printf "timing\tfetch\t%s\t%s\t%s\t%s\t%.3f\n",
+        sysid, phase, workers, items, elapsed
+    }'
 }
 
 is_safe_system_id() {
@@ -1458,6 +1489,7 @@ fetch_system() {
 
   emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
 
+  crc_stage_start="$(thumbnail_now_seconds)"
   mkdir -p "$crc_result_dir" "$crc_download_dir" "$download_result_dir" "$download_success_dir" 2>/dev/null || true
   split_worker_queue "$missing_list" "$crc_queue_dir" "$crc_worker_count"
   crc_worker_i=1
@@ -1474,6 +1506,7 @@ fetch_system() {
     skipped_tool=$((skipped_tool + 1))
     log "fetch worker_failure system=${fetch_system_id} stage=crc"
   fi
+  crc_stage_stop="$(thumbnail_now_seconds)"
 
   set -- $(aggregate_crc_results "$crc_result_dir")
   crc_checked=$((crc_checked + ${1:-0}))
@@ -1488,9 +1521,11 @@ fetch_system() {
   shift 9
   zip_single_payload=$((zip_single_payload + ${1:-0}))
   download_candidates="${2:-0}"
+  emit_fetch_timing crc "$crc_worker_count" "$missing_thumbnails" "$crc_stage_start" "$crc_stage_stop"
 
   : > "$download_queue_all"
   cat "$crc_download_dir"/*.tsv > "$download_queue_all" 2>/dev/null || true
+  download_stage_start="$(thumbnail_now_seconds)"
   if [ "$download_candidates" -gt 0 ]; then
     missing_processed=$missing_thumbnails
     emit_fetch_progress "$fetch_system_id" "$missing_processed" "$((missing_thumbnails + download_candidates))"
@@ -1528,6 +1563,8 @@ fetch_system() {
     missing_processed=$missing_thumbnails
     emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
   fi
+  download_stage_stop="$(thumbnail_now_seconds)"
+  emit_fetch_timing download "$dl_worker_count" "$download_candidates" "$download_stage_start" "$download_stage_stop"
 
   rm -f "$tmp_list" "$missing_list" "$thumb_lookup" 2>/dev/null || true
   rm -rf "$parallel_dir" 2>/dev/null || true

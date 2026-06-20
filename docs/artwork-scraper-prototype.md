@@ -260,6 +260,7 @@ runner は標準出力と log に ROM file 名を出さず、system ごとの集
 - `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_FETCH_TIMEOUT`: default `45` 秒
 - `PLUMOS_THUMBNAIL_FETCH_RETRY`: default `2` 回
+- `PLUMOS_THUMBNAIL_TIMING`: `1` の場合、`--fetch` の CRC stage と download stage の timing TSV を出す
 
 `--system <id>` は disabled system の場合、理由を出して exit code `2` を返します。`--all` は
 enabled system だけを plan します。出力は TSV で、ROM file 名は出しません。
@@ -283,6 +284,9 @@ runner は system ごとに既存画像の一時 lookup を 1 回だけ作り、
 CRC worker に分配して CRC/DAT/thumbnail index lookup を行い、画像 URL が決まったものだけを
 download worker に分配します。`--plan` は CRC 計算も network access も行わないため、worker 数は
 表示だけで実処理には使いません。
+`PLUMOS_THUMBNAIL_TIMING=1` の場合は、集計結果とは別に
+`timing fetch <system> crc <workers> <items> <elapsed_sec>` と
+`timing fetch <system> download <workers> <items> <elapsed_sec>` を TSV で出します。
 
 fetch 出力の列:
 

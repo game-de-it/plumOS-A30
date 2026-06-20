@@ -288,6 +288,8 @@ Environment:
 - `PLUMOS_THUMBNAIL_PRELOAD_DIR`: default `$PLUMOS_ROOT/share/frontend/artwork-scraper`
 - `PLUMOS_THUMBNAIL_FETCH_TIMEOUT`: default `45` seconds
 - `PLUMOS_THUMBNAIL_FETCH_RETRY`: default `2` retries
+- `PLUMOS_THUMBNAIL_TIMING`: when set to `1`, print fetch CRC-stage and
+  download-stage timing TSV rows
 
 `--system <id>` prints the reason and exits with status `2` for disabled
 systems. `--all` plans enabled systems only. Output is TSV and does not print
@@ -315,6 +317,9 @@ counts. It first distributes the missing-thumbnail queue to CRC workers for
 CRC/DAT/thumbnail-index lookup, then distributes only resolved image URLs to
 download workers. `--plan` does not compute CRCs or touch the network, so worker
 counts are displayed there but do not drive any work.
+When `PLUMOS_THUMBNAIL_TIMING=1`, the runner also prints
+`timing fetch <system> crc <workers> <items> <elapsed_sec>` and
+`timing fetch <system> download <workers> <items> <elapsed_sec>` as TSV rows.
 
 Fetch columns:
 
