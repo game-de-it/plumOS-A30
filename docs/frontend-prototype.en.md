@@ -477,8 +477,12 @@ Power menu:
 
 - Power opens Power menu from any screen.
 - Initial cursor is `Cancel` to reduce accidental actions.
-- `Sleep` runs `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume`.
-- `Shutdown` runs `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`.
+- `Sleep` runs the equivalent of
+  `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume`. In emulator
+  overlays, the helper receives the selected action, resumes the emulator after
+  wake, then sends RetroArch `AUDIO_REINIT`.
+- `Shutdown` runs the equivalent of
+  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`.
 - `Cancel` and B return to the previous screen. LEFT/RIGHT and Power are not
   used for confirm/back.
 - Power/sleep backend selection is wired in `plumos-safe-shutdown`. The Power

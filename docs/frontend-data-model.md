@@ -631,7 +631,8 @@ rules:
 - FE が emulator 待ちでブロックされる間は、`plumos-safe-hotkeyd` が電源ボタン event と
   `/dev/input/event3` (`gpio-keys-polled`) を非排他で監視する。電源ボタンからは
   `plumos-power-menu-overlay` を起動し、emulator の `/dev/fb0` owner を一時停止して
-  Power menu を描画する。Cancel なら emulator を再開し、Sleep/Shutdown なら
+  Power menu を描画する。overlay の controller UI は選択結果だけを helper へ返し、
+  Cancel なら emulator を再開し、Sleep/Shutdown なら helper 側で
   `plumos-safe-shutdown` の power action へ進む。`KEY_VOLUMEUP` /
   `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱う。
   overlay 起動時は hotkeyd が `/dev/fb0` owner PID を C 側で事前収集し、
@@ -669,8 +670,8 @@ rules:
 - `Sleep` は `sync` 後に選択された sleep backend を呼ぶ。保存処理は行わない
 - emulator 実行中の `Sleep` は起動中の emulator/launcher を終了せず、復帰後に再開できる
   状態を維持する
-- RetroArch 実行中の `Sleep` 復帰後は、保持した emulator に `AUDIO_REINIT` netcmd を送り、
-  sleep で失効した ALSA PCM を開き直す
+- RetroArch 実行中の `Sleep` 復帰後は、overlay helper が先に emulator を再開し、その後で
+  `AUDIO_REINIT` netcmd を送り、sleep で失効した ALSA PCM を開き直す
 - `Shutdown` は `sync` 後に poweroff backend を呼ぶ。保存処理は行わない
 - `Cancel` と B は元の画面へ戻る
 - emulator 実行中は overlay helper が emulator を一時停止して menu を表示し、Cancel で再開する

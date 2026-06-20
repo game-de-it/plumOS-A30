@@ -446,8 +446,10 @@ Power menu:
 
 - Power はどの画面からでも Power menu を開く
 - 初期 cursor は誤操作防止のため `Cancel`
-- `Sleep` は `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume` を実行する
-- `Shutdown` は `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` を実行する
+- `Sleep` は `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume` 相当を実行する。
+  emulator overlay では helper が選択結果を受け取り、復帰後に emulator を再開してから
+  RetroArch へ `AUDIO_REINIT` を送る
+- `Shutdown` は `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` 相当を実行する
 - `Cancel` と B は元の画面へ戻る。LEFT/RIGHT と Power は決定/戻るには使わない
 - `plumos-safe-shutdown` 側には power/sleep backend 選択を接続済み。Power menu は
   frontend 側で保存や resume hold を作らず、`sync` と backend dispatch だけを行う

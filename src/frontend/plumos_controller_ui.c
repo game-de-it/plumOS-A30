@@ -9185,6 +9185,29 @@ static int run_power_action(struct ui_state *ui, const char *action, int powerof
   return 0;
 }
 
+static int write_power_overlay_selection(struct ui_state *ui, const char *action) {
+  const char *path = getenv("PLUMOS_POWER_MENU_SELECTION");
+  FILE *fp;
+
+  if (!path || !path[0]) {
+    set_status(ui, "power overlay selection path missing");
+    return 0;
+  }
+  fp = fopen(path, "w");
+  if (!fp) {
+    snprintf(ui->status, sizeof(ui->status),
+             "power overlay selection write failed: %s", strerror(errno));
+    return 0;
+  }
+  fprintf(fp, "action=%s\n", action && action[0] ? action : "cancel");
+  if (fclose(fp) != 0) {
+    snprintf(ui->status, sizeof(ui->status),
+             "power overlay selection close failed: %s", strerror(errno));
+    return 0;
+  }
+  return 1;
+}
+
 static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) {
   char text_ui[PATH_MAX];
   char log_dir[PATH_MAX];
@@ -10904,7 +10927,16 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_A && ui->power_cursor < POWER_ENTRY_COUNT) {
       const struct power_entry *entry = &POWER_ENTRIES[ui->power_cursor];
       if (strcmp(entry->id, "cancel") == 0) {
+        if (ui->power_overlay) {
+          write_power_overlay_selection(ui, "cancel");
+        }
         close_power_menu(ui, "power menu cancelled");
+        return;
+      }
+      if (ui->power_overlay) {
+        if (write_power_overlay_selection(ui, entry->id)) {
+          ui->exit_requested = 1;
+        }
         return;
       }
       run_power_action(ui, entry->id, strcmp(entry->id, "shutdown") == 0);

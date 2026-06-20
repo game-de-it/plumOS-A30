@@ -657,8 +657,9 @@ Rules:
   watches the power-button event and `/dev/input/event3` (`gpio-keys-polled`)
   non-exclusively. The power button launches `plumos-power-menu-overlay`, which
   temporarily stops the emulator `/dev/fb0` owner and draws the Power menu.
-  Cancel resumes the emulator; Sleep/Shutdown continue through the
-  `plumos-safe-shutdown` power action. `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` are
+  The overlay controller UI returns only the selected action to the helper.
+  Cancel resumes the emulator; Sleep/Shutdown are dispatched by the helper
+  through the `plumos-safe-shutdown` power action. `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` are
   handled like `plumos-volume-control up|down`. On overlay launch, hotkeyd passes
   pre-collected `/dev/fb0` owner PIDs through
   `PLUMOS_POWER_MENU_OVERLAY_PIDS`, leaving the shell-side `/proc` scan as a
@@ -697,8 +698,9 @@ Rules:
 - `Sleep` runs `sync` and then the configured sleep backend. It does not save.
 - During emulator execution, `Sleep` must preserve the running emulator/launcher
   so the game can resume after wake.
-- After waking from `Sleep` while RetroArch is running, plumOS sends the preserved
-  emulator an `AUDIO_REINIT` netcmd so ALSA PCM is reopened after suspend.
+- After waking from `Sleep` while RetroArch is running, the overlay helper
+  resumes the preserved emulator first, then sends an `AUDIO_REINIT` netcmd so
+  ALSA PCM is reopened after suspend.
 - `Shutdown` runs `sync` and then the configured poweroff backend. It does not
   save.
 - `Cancel` and B return to the previous screen.

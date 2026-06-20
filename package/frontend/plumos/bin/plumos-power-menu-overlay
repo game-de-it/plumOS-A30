@@ -6,6 +6,10 @@ LOG_DIR="${PLUMOS_ROOT}/logs"
 LOG_FILE="${PLUMOS_POWER_MENU_OVERLAY_LOG:-${LOG_DIR}/power-menu-overlay.log}"
 MENU="${PLUMOS_POWER_MENU_OVERLAY_UI:-${PLUMOS_ROOT}/bin/plumos-controller-ui-mali}"
 MENU_ARGS="${PLUMOS_POWER_MENU_OVERLAY_UI_ARGS:---power-overlay --renderer mali --rotation auto --tty-entry-scale 2}"
+SAFE_SHUTDOWN="${PLUMOS_ROOT}/bin/plumos-safe-shutdown"
+UDP="${PLUMOS_ROOT}/bin/plumos-udp-send"
+ACTION_LOG="${LOG_DIR}/frontend-power-action.log"
+SELECTION_FILE="${PLUMOS_POWER_MENU_SELECTION_FILE:-/tmp/plumos-power-menu-overlay-$$.selection}"
 PAUSED_PIDS=""
 
 mkdir -p "$LOG_DIR" 2>/dev/null || true
@@ -60,20 +64,139 @@ resume_paused() {
   PAUSED_PIDS=""
 }
 
+read_selection() {
+  action=""
+  if [ -r "$SELECTION_FILE" ]; then
+    while IFS='=' read -r key value; do
+      [ "$key" = action ] || continue
+      action="$value"
+      break
+    done <"$SELECTION_FILE"
+  fi
+  printf '%s' "$action"
+}
+
+ensure_loopback_up() {
+  if command -v ip >/dev/null 2>&1; then
+    ip link set lo up >>"$LOG_FILE" 2>&1 || true
+  elif command -v ifconfig >/dev/null 2>&1; then
+    ifconfig lo up >>"$LOG_FILE" 2>&1 || true
+  fi
+}
+
+send_audio_reinit() {
+  if [ ! -x "$UDP" ]; then
+    log "audio_reinit skipped reason=udp_helper_missing path=${UDP}"
+    return 1
+  fi
+  ensure_loopback_up
+  "$UDP" AUDIO_REINIT >>"$LOG_FILE" 2>&1
+  rc=$?
+  log "audio_reinit command=AUDIO_REINIT rc=${rc}"
+  return "$rc"
+}
+
+post_resume_audio_reinit() {
+  action="$1"
+  paused="$2"
+  delay="${PLUMOS_POWER_MENU_AUDIO_REINIT_DELAY_SEC:-1}"
+
+  [ "$action" = sleep ] || return 0
+  if [ -z "$paused" ]; then
+    log "audio_reinit skipped reason=no_paused_pids"
+    return 0
+  fi
+  log "audio_reinit begin reason=sleep_resume_after_game_resume pids=$(printf '%s' "$paused" | sed 's/^ *//;s/ *$//')"
+  send_audio_reinit || true
+  sleep "$delay"
+  send_audio_reinit || true
+  log "audio_reinit end"
+}
+
+run_power_action() {
+  action="$1"
+  sleep_backend="${PLUMOS_CONTROLLER_POWER_SLEEP_BACKEND:-${PLUMOS_CONTROLLER_SAFE_SLEEP_BACKEND:-mem}}"
+  sleep_wakeup_sec="${PLUMOS_CONTROLLER_POWER_SLEEP_WAKEUP_SEC:-${PLUMOS_CONTROLLER_SAFE_SLEEP_WAKEUP_SEC:-}}"
+  power_backend="${PLUMOS_CONTROLLER_POWER_BACKEND:-${PLUMOS_CONTROLLER_SAFE_POWER_BACKEND:-auto}}"
+
+  if [ ! -x "$SAFE_SHUTDOWN" ]; then
+    log "power_action skipped reason=safe_shutdown_missing path=${SAFE_SHUTDOWN}"
+    return 127
+  fi
+
+  log "power_action begin action=${action}"
+  case "$action" in
+    sleep)
+      if [ -n "$sleep_wakeup_sec" ]; then
+        PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}" PLUMOS_ROOT="$PLUMOS_ROOT" \
+          "$SAFE_SHUTDOWN" --sleep --sleep-backend "$sleep_backend" \
+          --wakeup-sec "$sleep_wakeup_sec" --no-poweroff --no-hold-resume \
+          >>"$ACTION_LOG" 2>&1
+      else
+        PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}" PLUMOS_ROOT="$PLUMOS_ROOT" \
+          "$SAFE_SHUTDOWN" --sleep --sleep-backend "$sleep_backend" \
+          --no-poweroff --no-hold-resume >>"$ACTION_LOG" 2>&1
+      fi
+      rc=$?
+      ;;
+    shutdown)
+      PLUMOS_SDCARD_ROOT="${PLUMOS_SDCARD_ROOT:-/mnt/SDCARD}" PLUMOS_ROOT="$PLUMOS_ROOT" \
+        "$SAFE_SHUTDOWN" --shutdown --poweroff --power-backend "$power_backend" \
+        --no-hold-resume >>"$ACTION_LOG" 2>&1
+      rc=$?
+      ;;
+    *)
+      log "power_action skipped reason=unknown_action action=${action}"
+      return 2
+      ;;
+  esac
+  log "power_action end action=${action} rc=${rc}"
+  return "$rc"
+}
+
 trap 'resume_paused; exit 130' INT
 trap 'resume_paused; exit 143' TERM
-trap 'resume_paused' EXIT
+trap 'resume_paused; rm -f "$SELECTION_FILE" 2>/dev/null || true' EXIT
 
 if [ ! -x "$MENU" ]; then
   log "error menu_missing path=${MENU}"
   exit 127
 fi
 
+rm -f "$SELECTION_FILE" 2>/dev/null || true
 pause_fb0_owners
 log "menu begin"
 PLUMOS_FRONTEND_MODE=manual PLUMOS_ROOT="$PLUMOS_ROOT" \
+  PLUMOS_POWER_MENU_SELECTION="$SELECTION_FILE" \
   "$MENU" $MENU_ARGS
 rc=$?
-log "menu end rc=${rc}"
-resume_paused
-exit "$rc"
+selection="$(read_selection)"
+log "menu end rc=${rc} selection=${selection:-none}"
+
+case "$selection" in
+  sleep)
+    paused_for_reinit="$PAUSED_PIDS"
+    run_power_action sleep
+    action_rc=$?
+    resume_paused
+    post_resume_audio_reinit sleep "$paused_for_reinit"
+    exit "$action_rc"
+    ;;
+  shutdown)
+    run_power_action shutdown
+    action_rc=$?
+    if [ "$action_rc" -ne 0 ]; then
+      resume_paused
+    fi
+    exit "$action_rc"
+    ;;
+  cancel|"")
+    resume_paused
+    exit "$rc"
+    ;;
+  *)
+    log "selection ignored value=${selection}"
+    resume_paused
+    exit "$rc"
+    ;;
+esac
