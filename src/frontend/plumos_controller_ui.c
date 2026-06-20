@@ -164,6 +164,7 @@ struct input_event {
 
 #define UI_MAX_TOP 128
 #define UI_MAX_ROMS 256
+#define UI_ROM_CURSOR_MEMORY_MAX 64
 #define UI_MAX_MENU 64
 #define UI_MAX_SETTINGS 64
 #define UI_MAX_SCRAPING_CHOICES 64
@@ -236,6 +237,12 @@ struct rom_entry {
   char extension[32];
   int resume_available;
   int is_navigation_directory;
+};
+
+struct rom_cursor_memory {
+  char system_id[64];
+  char directory[UI_PATH_MAX];
+  char relative_path[UI_PATH_MAX];
 };
 
 static int dirname_path(char *out, size_t out_size, const char *path);
@@ -542,6 +549,8 @@ struct ui_state {
   size_t top_count;
   struct rom_entry rom_entries[UI_MAX_ROMS];
   size_t rom_count;
+  struct rom_cursor_memory rom_cursor_memory[UI_ROM_CURSOR_MEMORY_MAX];
+  size_t rom_cursor_memory_count;
   struct menu_entry menu_entries[UI_MAX_MENU];
   size_t menu_count;
   char menu_id[64];
@@ -5910,6 +5919,87 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   return 1;
 }
 
+static int ui_has_rom_cursor_context(const struct ui_state *ui) {
+  return ui && ui->current_system_id[0];
+}
+
+static int ui_find_rom_cursor_memory(const struct ui_state *ui,
+                                     const char *system_id,
+                                     const char *directory) {
+  size_t i;
+
+  if (!ui || !system_id || !system_id[0] || !directory) {
+    return -1;
+  }
+  for (i = 0; i < ui->rom_cursor_memory_count; i++) {
+    if (strcmp(ui->rom_cursor_memory[i].system_id, system_id) == 0 &&
+        strcmp(ui->rom_cursor_memory[i].directory, directory) == 0) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static void remember_current_rom_cursor(struct ui_state *ui) {
+  const struct rom_entry *entry;
+  int idx;
+
+  if (!ui_has_rom_cursor_context(ui) || ui->rom_count == 0 ||
+      ui->rom_cursor >= ui->rom_count) {
+    return;
+  }
+  entry = &ui->rom_entries[ui->rom_cursor];
+  if (!entry->relative_path[0]) {
+    return;
+  }
+  idx = ui_find_rom_cursor_memory(ui, ui->current_system_id, ui->rom_directory);
+  if (idx < 0) {
+    if (ui->rom_cursor_memory_count >= UI_ROM_CURSOR_MEMORY_MAX) {
+      memmove(&ui->rom_cursor_memory[0], &ui->rom_cursor_memory[1],
+              (UI_ROM_CURSOR_MEMORY_MAX - 1) * sizeof(ui->rom_cursor_memory[0]));
+      idx = UI_ROM_CURSOR_MEMORY_MAX - 1;
+    } else {
+      idx = (int)ui->rom_cursor_memory_count++;
+    }
+  }
+  copy_string(ui->rom_cursor_memory[idx].system_id,
+              sizeof(ui->rom_cursor_memory[idx].system_id),
+              ui->current_system_id);
+  copy_string(ui->rom_cursor_memory[idx].directory,
+              sizeof(ui->rom_cursor_memory[idx].directory), ui->rom_directory);
+  copy_string(ui->rom_cursor_memory[idx].relative_path,
+              sizeof(ui->rom_cursor_memory[idx].relative_path),
+              entry->relative_path);
+}
+
+static int restore_current_rom_cursor(struct ui_state *ui) {
+  int idx;
+  size_t i;
+  const char *relative_path;
+
+  if (!ui_has_rom_cursor_context(ui) || ui->rom_count == 0) {
+    return 0;
+  }
+  idx = ui_find_rom_cursor_memory(ui, ui->current_system_id, ui->rom_directory);
+  if (idx < 0) {
+    ui->rom_cursor = 0;
+    return 0;
+  }
+  relative_path = ui->rom_cursor_memory[idx].relative_path;
+  if (!relative_path[0]) {
+    ui->rom_cursor = 0;
+    return 0;
+  }
+  for (i = 0; i < ui->rom_count; i++) {
+    if (strcmp(ui->rom_entries[i].relative_path, relative_path) == 0) {
+      ui->rom_cursor = i;
+      return 1;
+    }
+  }
+  ui->rom_cursor = 0;
+  return 0;
+}
+
 static void ui_append_render_line(struct ui_state *ui, const char *line, size_t len) {
   if (ui->render_line_count >= UI_RENDER_MAX_LINES) {
     return;
@@ -6441,6 +6531,7 @@ static int ui_start_pending_gallery_transition(struct ui_state *ui) {
   }
   ui_start_gallery_transition(ui, from_cursor, to_cursor);
   ui->rom_cursor = to_cursor;
+  remember_current_rom_cursor(ui);
   reset_marquee(ui);
   return 1;
 }
@@ -8095,6 +8186,7 @@ static void open_favorites_screen(struct ui_state *ui) {
   if (!load_favorite_entries(ui)) {
     set_status(ui, "cannot load Favorites");
   } else {
+    restore_current_rom_cursor(ui);
     set_status(ui, "Favorites ready");
   }
   reset_marquee(ui);
@@ -8108,6 +8200,7 @@ static void open_recent_screen(struct ui_state *ui) {
   if (!load_recent_entries(ui)) {
     set_status(ui, "cannot load Recent");
   } else {
+    restore_current_rom_cursor(ui);
     set_status(ui, "Recent ready");
   }
   reset_marquee(ui);
@@ -8532,10 +8625,13 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   if (!load_rom_entries(ui, entry->id)) {
     set_status(ui, "cannot load ROM list");
   } else if (ui->rom_count == UI_MAX_ROMS) {
+    restore_current_rom_cursor(ui);
     set_status(ui, "ROM list truncated at prototype limit");
   } else if (ui->rom_scan_background_started) {
+    restore_current_rom_cursor(ui);
     set_status(ui, "ROM list ready; refreshing scan");
   } else {
+    restore_current_rom_cursor(ui);
     set_status(ui, "ROM list ready");
   }
   if (ui_uses_graphic_mode(ui) && ui->rom_entry_screen == SCREEN_GALLERY &&
@@ -8577,6 +8673,7 @@ static int reload_rom_directory_no_scan(struct ui_state *ui, const char *status)
     set_status(ui, "cannot load ROM directory");
     return 0;
   }
+  restore_current_rom_cursor(ui);
   set_status(ui, status ? status : "ROM directory ready");
   reset_marquee(ui);
   return 1;
@@ -8590,6 +8687,7 @@ static int open_rom_directory_entry(struct ui_state *ui,
       !entry->relative_path[0]) {
     return 0;
   }
+  remember_current_rom_cursor(ui);
   copy_string(old_directory, sizeof(old_directory), ui->rom_directory);
   copy_string(ui->rom_directory, sizeof(ui->rom_directory), entry->relative_path);
   if (reload_rom_directory_no_scan(ui, "ROM directory ready")) {
@@ -8607,6 +8705,7 @@ static int open_parent_rom_directory(struct ui_state *ui) {
   if (!ui || !ui->rom_directory[0]) {
     return 0;
   }
+  remember_current_rom_cursor(ui);
   copy_string(old_directory, sizeof(old_directory), ui->rom_directory);
   slash = strrchr(ui->rom_directory, '/');
   first_slash = strchr(ui->rom_directory, '/');
@@ -9222,6 +9321,7 @@ static int launch_rom_entry(struct ui_state *ui, const struct rom_entry *entry) 
   if (entry->is_navigation_directory) {
     return open_rom_directory_entry(ui, entry);
   }
+  remember_current_rom_cursor(ui);
   system_id = entry->system_id[0] ? entry->system_id : ui->current_system_id;
   if (!valid_system_id(system_id)) {
     set_status(ui, "launch system id is invalid");
@@ -10855,6 +10955,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
       ui->gallery_transition_active = 0;
       ui->gallery_pending_active = 0;
       ui->rom_cursor = next_cursor;
+      remember_current_rom_cursor(ui);
       reset_marquee(ui);
     }
     return;
@@ -10873,6 +10974,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
   if (next_cursor != old_cursor) {
     ui_start_gallery_transition(ui, old_cursor, next_cursor);
     ui->rom_cursor = next_cursor;
+    remember_current_rom_cursor(ui);
     reset_marquee(ui);
   }
 }
@@ -11181,6 +11283,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       if (ui->rom_directory[0] && open_parent_rom_directory(ui)) {
         return;
       }
+      remember_current_rom_cursor(ui);
       ui->rom_entry_screen = SCREEN_GALLERY;
       ui->screen = SCREEN_TOP;
       ui->gallery_transition_active = 0;
@@ -11521,6 +11624,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       ui->rom_cursor--;
     }
     if (ui->rom_cursor != old_cursor) {
+      remember_current_rom_cursor(ui);
       reset_marquee(ui);
     }
     return;
@@ -11531,6 +11635,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       ui->rom_cursor++;
     }
     if (ui->rom_cursor != old_cursor) {
+      remember_current_rom_cursor(ui);
       reset_marquee(ui);
     }
     return;
@@ -11539,6 +11644,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     size_t old_cursor = ui->rom_cursor;
     ui_cursor_page_down(&ui->rom_cursor, ui->rom_count, ui_list_window_size(ui));
     if (ui->rom_cursor != old_cursor) {
+      remember_current_rom_cursor(ui);
       reset_marquee(ui);
     }
     return;
@@ -11547,6 +11653,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     size_t old_cursor = ui->rom_cursor;
     ui_cursor_page_up(&ui->rom_cursor, ui_list_window_size(ui));
     if (ui->rom_cursor != old_cursor) {
+      remember_current_rom_cursor(ui);
       reset_marquee(ui);
     }
     return;
@@ -11556,6 +11663,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
         open_parent_rom_directory(ui)) {
       return;
     }
+    remember_current_rom_cursor(ui);
     ui->rom_entry_screen = SCREEN_ROMS;
     ui->screen = SCREEN_TOP;
     set_status(ui, "back to TOP");
