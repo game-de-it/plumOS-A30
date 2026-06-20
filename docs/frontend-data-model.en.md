@@ -659,7 +659,11 @@ Rules:
   temporarily stops the emulator `/dev/fb0` owner and draws the Power menu.
   Cancel resumes the emulator; Sleep/Shutdown continue through the
   `plumos-safe-shutdown` power action. `KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` are
-  handled like `plumos-volume-control up|down`. `plumos-text-ui launch --execute`
+  handled like `plumos-volume-control up|down`. On overlay launch, hotkeyd passes
+  pre-collected `/dev/fb0` owner PIDs through
+  `PLUMOS_POWER_MENU_OVERLAY_PIDS`, leaving the shell-side `/proc` scan as a
+  fallback only.
+  `plumos-text-ui launch --execute`
   auto-starts `plumos-safe-hotkeyd` during emulator launches.
   Volume changes during gameplay update runtime softvol immediately and defer
   persistent settings writes until after the emulator exits. `SIGUSR1` remains

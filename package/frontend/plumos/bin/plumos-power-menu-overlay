@@ -35,6 +35,14 @@ add_pid() {
 }
 
 pause_fb0_owners() {
+  if [ "${PLUMOS_POWER_MENU_OVERLAY_PIDS+x}" = x ]; then
+    for pid in ${PLUMOS_POWER_MENU_OVERLAY_PIDS:-}; do
+      add_pid "$pid"
+    done
+    log "paused pids=$(printf '%s' "$PAUSED_PIDS" | sed 's/^ *//;s/ *$//') source=env"
+    return 0
+  fi
+
   for fd in /proc/[0-9]*/fd/*; do
     target="$(readlink "$fd" 2>/dev/null || true)"
     [ "$target" = /dev/fb0 ] || continue
@@ -42,7 +50,7 @@ pause_fb0_owners() {
     pid="${pid%%/*}"
     add_pid "$pid"
   done
-  log "paused pids=$(printf '%s' "$PAUSED_PIDS" | sed 's/^ *//;s/ *$//')"
+  log "paused pids=$(printf '%s' "$PAUSED_PIDS" | sed 's/^ *//;s/ *$//') source=scan"
 }
 
 resume_paused() {

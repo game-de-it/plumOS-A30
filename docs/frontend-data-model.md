@@ -634,6 +634,9 @@ rules:
   Power menu を描画する。Cancel なら emulator を再開し、Sleep/Shutdown なら
   `plumos-safe-shutdown` の power action へ進む。`KEY_VOLUMEUP` /
   `KEY_VOLUMEDOWN` は `plumos-volume-control up|down` 相当として扱う。
+  overlay 起動時は hotkeyd が `/dev/fb0` owner PID を C 側で事前収集し、
+  `PLUMOS_POWER_MENU_OVERLAY_PIDS` として渡す。shell 側の `/proc` 総当たりは fallback
+  に限定する。
   `plumos-text-ui launch --execute` は emulator launch 中に `plumos-safe-hotkeyd` を
   自動起動する。
   ゲーム中の音量変更は runtime softvol だけを即時反映し、永続設定への保存は

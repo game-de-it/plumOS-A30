@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -54,6 +55,7 @@ struct input_event {
 #define DEFAULT_DEBOUNCE_MS 1500
 #define DEFAULT_POLL_MS 250
 #define VOLUME_LOCK_PATH "/tmp/plumos-safe-hotkeyd-volume.lock"
+#define POWER_OVERLAY_PIDS_ENV "PLUMOS_POWER_MENU_OVERLAY_PIDS"
 #define COMMAND_MAX 8192
 #define SHELL_QUOTE_MAX (PATH_MAX * 4 + 4)
 
@@ -350,6 +352,124 @@ static int discover_volume_input_event(char *out, size_t out_size) {
 
 static int same_path(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
+}
+
+static int string_is_pid(const char *s) {
+  const unsigned char *p = (const unsigned char *)s;
+
+  if (!p || !*p) {
+    return 0;
+  }
+  while (*p) {
+    if (!isdigit(*p)) {
+      return 0;
+    }
+    p++;
+  }
+  return 1;
+}
+
+static int pid_list_contains(const char *list, const char *pid) {
+  size_t pid_len;
+  const char *p;
+
+  if (!list || !pid || !pid[0]) {
+    return 0;
+  }
+  pid_len = strlen(pid);
+  p = list;
+  while (*p) {
+    while (*p == ' ') {
+      p++;
+    }
+    if (strncmp(p, pid, pid_len) == 0 && (p[pid_len] == '\0' || p[pid_len] == ' ')) {
+      return 1;
+    }
+    while (*p && *p != ' ') {
+      p++;
+    }
+  }
+  return 0;
+}
+
+static int append_pid_to_list(char *out, size_t out_size, const char *pid) {
+  size_t len;
+  size_t pid_len;
+
+  if (!out || out_size == 0 || !pid || !pid[0] || pid_list_contains(out, pid)) {
+    return 1;
+  }
+  len = strlen(out);
+  pid_len = strlen(pid);
+  if (len + (len > 0 ? 1 : 0) + pid_len + 1 > out_size) {
+    return 0;
+  }
+  if (len > 0) {
+    out[len++] = ' ';
+    out[len] = '\0';
+  }
+  memcpy(out + len, pid, pid_len + 1);
+  return 1;
+}
+
+static void collect_fb0_owner_pids(char *out, size_t out_size) {
+  DIR *proc;
+  struct dirent *proc_entry;
+  char self_pid[32];
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  snprintf(self_pid, sizeof(self_pid), "%ld", (long)getpid());
+  proc = opendir("/proc");
+  if (!proc) {
+    return;
+  }
+  while ((proc_entry = readdir(proc)) != NULL) {
+    char fd_dir_path[PATH_MAX];
+    DIR *fd_dir;
+    struct dirent *fd_entry;
+
+    if (!string_is_pid(proc_entry->d_name) || strcmp(proc_entry->d_name, self_pid) == 0) {
+      continue;
+    }
+    snprintf(fd_dir_path, sizeof(fd_dir_path), "/proc/%s/fd", proc_entry->d_name);
+    fd_dir = opendir(fd_dir_path);
+    if (!fd_dir) {
+      continue;
+    }
+    while ((fd_entry = readdir(fd_dir)) != NULL) {
+      char link_path[PATH_MAX];
+      char target[PATH_MAX];
+      size_t dir_len;
+      size_t name_len;
+      ssize_t n;
+
+      if (fd_entry->d_name[0] == '.') {
+        continue;
+      }
+      dir_len = strlen(fd_dir_path);
+      name_len = strlen(fd_entry->d_name);
+      if (dir_len + 1 + name_len + 1 > sizeof(link_path)) {
+        continue;
+      }
+      memcpy(link_path, fd_dir_path, dir_len);
+      link_path[dir_len] = '/';
+      memcpy(link_path + dir_len + 1, fd_entry->d_name, name_len + 1);
+      n = readlink(link_path, target, sizeof(target) - 1);
+      if (n < 0) {
+        continue;
+      }
+      target[n] = '\0';
+      if (strcmp(target, "/dev/fb0") == 0) {
+        append_pid_to_list(out, out_size, proc_entry->d_name);
+        break;
+      }
+    }
+    closedir(fd_dir);
+  }
+  closedir(proc);
 }
 
 static int build_default_command(struct config *cfg) {
@@ -666,6 +786,12 @@ static void release_volume_lock(struct config *cfg) {
 }
 
 static int run_trigger_command(struct config *cfg, const char *source) {
+  char overlay_pids[1024];
+  char *old_overlay_pids = NULL;
+  const char *old_env;
+  int had_old_env;
+  long long collect_start;
+  long long collect_elapsed;
   long long start;
   long long elapsed;
   int rc;
@@ -677,9 +803,26 @@ static int run_trigger_command(struct config *cfg, const char *source) {
     return 0;
   }
 
+  collect_start = now_ms();
+  collect_fb0_owner_pids(overlay_pids, sizeof(overlay_pids));
+  collect_elapsed = now_ms() - collect_start;
+  emit_msg(cfg, "overlay_pids=\"%s\" collect_ms=%lld", overlay_pids, collect_elapsed);
+  old_env = getenv(POWER_OVERLAY_PIDS_ENV);
+  had_old_env = old_env != NULL;
+  if (had_old_env) {
+    old_overlay_pids = strdup(old_env);
+  }
+  setenv(POWER_OVERLAY_PIDS_ENV, overlay_pids, 1);
+
   start = now_ms();
   rc = system(cfg->command);
   elapsed = now_ms() - start;
+  if (had_old_env && old_overlay_pids) {
+    setenv(POWER_OVERLAY_PIDS_ENV, old_overlay_pids, 1);
+    free(old_overlay_pids);
+  } else {
+    unsetenv(POWER_OVERLAY_PIDS_ENV);
+  }
   if (rc == -1) {
     emit_msg(cfg, "result=plumos_safe_hotkeyd_trigger source=%s rc=-1 errno=%d elapsed_ms=%lld",
              source, errno, elapsed);
