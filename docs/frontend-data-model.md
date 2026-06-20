@@ -67,6 +67,10 @@
 `settings.item.<id>.help1`、`settings.item.<id>.help2`、`menu.entry.<id>.name`、
 `app.<id>.name`、`scraping.*` などの key を持つ UI 文言辞書です。辞書にない
 key は FE 内の英語 fallback を使います。
+標準配布では `en.lang`、`ja.lang`、`ch.lang`、`pt.lang`、`fr.lang`、`de.lang`
+を同梱します。辞書ファイルは UTF-8 とし、Mali renderer は同梱 FreeType font と
+CJK fallback font で非 ASCII を描画します。ROM 名や UI 文言の幅計算は CJK を
+2 cell、Latin accent などの非 CJK 文字を 1 cell として扱います。
 
 ## Core entities
 

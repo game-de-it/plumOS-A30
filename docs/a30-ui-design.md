@@ -33,8 +33,12 @@
 - console prompt で必要な lowercase、`@`、`#`、`~` などの ASCII 記号は bitmap font に
   持たせる。TTY/list UI の alignment 用 ASCII を proportional TTF に逃がさない。
 - FreeType/TTF は、日本語など非 ASCII 文字、または grid alignment を必要としない画面で使う。
+- 中国語など default font にない glyph は CJK fallback font で描画する。
 - TTF を column UI に使う場合は、等幅 font を選び、advance を固定セルへ丸める。
   proportional advance をそのまま column 計算に使わない。
+- UTF-8 の表示幅は、CJK / kana / hangul / fullwidth を 2 cell、Latin accent などの
+  非 CJK 文字を 1 cell、combining mark を 0 cell として扱う。ROM list では
+  `Pokémon`、`São Paulo`、中国語/日本語名がそれぞれ不自然に切れないことを優先する。
 
 ## List UI
 

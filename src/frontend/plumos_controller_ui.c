@@ -612,6 +612,7 @@ struct ui_state {
   char egl_path[PATH_MAX];
   char gles_path[PATH_MAX];
   char mali_font_path[PATH_MAX];
+  char mali_fallback_font_path[PATH_MAX];
   int renderer_active;
   char core_target_system_id[64];
   char core_target_relative_path[UI_PATH_MAX];
@@ -3738,6 +3739,37 @@ static int choose_mali_font_path(struct ui_state *ui, const char *requested,
   return 0;
 }
 
+static int choose_mali_fallback_font_path(struct ui_state *ui, const char *primary,
+                                          char *out, size_t out_size) {
+  static const char *rel_candidates[] = {
+      "plumos/fonts/cjk-fallback.ttc",
+      "RetroArch/.retroarch/assets/pkg/chinese-fallback-font.ttf",
+      "RetroArch/.retroarch/system/msyh.ttf",
+      "miyoo/res/wqy-microhei.ttc",
+      "miyoo/res/MicrosoftYaHeiGB.ttf",
+      "App/commander/res/wqy-microhei.ttc",
+      "Themes/MakoVII/wqy-microhei.ttf",
+  };
+  size_t i;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  if (!ui) {
+    return 0;
+  }
+  for (i = 0; i < sizeof(rel_candidates) / sizeof(rel_candidates[0]); i++) {
+    char candidate[PATH_MAX];
+    if (join_path(candidate, sizeof(candidate), ui->sdcard_root, rel_candidates[i]) &&
+        file_exists(candidate) &&
+        (!primary || strcmp(candidate, primary) != 0)) {
+      return copy_string(out, out_size, candidate);
+    }
+  }
+  return 0;
+}
+
 static void add_setting_entry(struct ui_state *ui, const char *id, const char *name,
                               const char *value) {
   struct setting_entry *entry;
@@ -3808,10 +3840,9 @@ static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
     {"en.lang", "English"},
     {"ja.lang", "Japanese"},
     {"ch.lang", "Chinese"},
-    {"cht.lang", "Traditional Chinese"},
-    {"ko.lang", "Korean"},
-    {"es.lang", "Spanish"},
     {"pt.lang", "Portuguese"},
+    {"fr.lang", "French"},
+    {"de.lang", "German"},
 };
 
 static const struct setting_choice SYSTEM_TIMEZONE_CHOICES[] = {
@@ -6886,29 +6917,101 @@ static int settings_blink_arrow_active(const struct ui_state *ui, size_t row,
   return 1;
 }
 
+static const char *ui_utf8_next(const char *s, unsigned int *codepoint) {
+  const unsigned char *p = (const unsigned char *)s;
+  unsigned int cp;
+
+  if (!p || !*p) {
+    if (codepoint) {
+      *codepoint = 0;
+    }
+    return s;
+  }
+  if (p[0] < 0x80) {
+    if (codepoint) {
+      *codepoint = p[0];
+    }
+    return s + 1;
+  }
+  if ((p[0] & 0xe0) == 0xc0 && (p[1] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x1f) << 6) | (unsigned int)(p[1] & 0x3f);
+    if (cp >= 0x80) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 2;
+    }
+  } else if ((p[0] & 0xf0) == 0xe0 && (p[1] & 0xc0) == 0x80 &&
+             (p[2] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x0f) << 12) |
+         ((unsigned int)(p[1] & 0x3f) << 6) |
+         (unsigned int)(p[2] & 0x3f);
+    if (cp >= 0x800 && !(cp >= 0xd800 && cp <= 0xdfff)) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 3;
+    }
+  } else if ((p[0] & 0xf8) == 0xf0 && (p[1] & 0xc0) == 0x80 &&
+             (p[2] & 0xc0) == 0x80 && (p[3] & 0xc0) == 0x80) {
+    cp = ((unsigned int)(p[0] & 0x07) << 18) |
+         ((unsigned int)(p[1] & 0x3f) << 12) |
+         ((unsigned int)(p[2] & 0x3f) << 6) |
+         (unsigned int)(p[3] & 0x3f);
+    if (cp >= 0x10000 && cp <= 0x10ffff) {
+      if (codepoint) {
+        *codepoint = cp;
+      }
+      return s + 4;
+    }
+  }
+  if (codepoint) {
+    *codepoint = '?';
+  }
+  return s + 1;
+}
+
+static int ui_unicode_is_combining(unsigned int codepoint) {
+  return (codepoint >= 0x0300 && codepoint <= 0x036f) ||
+         (codepoint >= 0x1ab0 && codepoint <= 0x1aff) ||
+         (codepoint >= 0x1dc0 && codepoint <= 0x1dff) ||
+         (codepoint >= 0x20d0 && codepoint <= 0x20ff) ||
+         (codepoint >= 0xfe20 && codepoint <= 0xfe2f);
+}
+
+static int ui_unicode_is_wide(unsigned int codepoint) {
+  return (codepoint >= 0x1100 && codepoint <= 0x115f) ||
+         (codepoint >= 0x2329 && codepoint <= 0x232a) ||
+         (codepoint >= 0x2e80 && codepoint <= 0xa4cf) ||
+         (codepoint >= 0xac00 && codepoint <= 0xd7a3) ||
+         (codepoint >= 0xf900 && codepoint <= 0xfaff) ||
+         (codepoint >= 0xfe10 && codepoint <= 0xfe19) ||
+         (codepoint >= 0xfe30 && codepoint <= 0xfe6f) ||
+         (codepoint >= 0xff00 && codepoint <= 0xff60) ||
+         (codepoint >= 0xffe0 && codepoint <= 0xffe6) ||
+         (codepoint >= 0x1f200 && codepoint <= 0x1f251) ||
+         (codepoint >= 0x20000 && codepoint <= 0x3fffd);
+}
+
+static size_t ui_utf8_cell_width(unsigned int codepoint) {
+  if (ui_unicode_is_combining(codepoint)) {
+    return 0;
+  }
+  return ui_unicode_is_wide(codepoint) ? 2 : 1;
+}
+
 static size_t ui_utf8_cell_count(const char *text) {
-  const unsigned char *p = (const unsigned char *)text;
+  const char *p = text;
   size_t cells = 0;
 
   if (!text) {
     return 0;
   }
   while (*p) {
-    size_t step = 1;
-    if (*p < 0x80) {
-      cells++;
-      p++;
-      continue;
-    }
-    if ((*p & 0xE0) == 0xC0 && p[1]) {
-      step = 2;
-    } else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) {
-      step = 3;
-    } else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) {
-      step = 4;
-    }
-    cells += 2;
-    p += step;
+    unsigned int cp;
+    const char *next = ui_utf8_next(p, &cp);
+    cells += ui_utf8_cell_width(cp);
+    p = next;
   }
   return cells;
 }
@@ -7869,6 +7972,15 @@ static int init_ui_renderer(struct ui_state *ui) {
                                          render_error, sizeof(render_error))) {
         snprintf(ui->status, sizeof(ui->status), "Mali renderer ready font=%.160s",
                  ui->mali_font_path);
+        if (ui->mali_fallback_font_path[0]) {
+          render_error[0] = '\0';
+          if (!plumos_mali_renderer_load_fallback_font(
+                  &ui->mali_renderer, ui->mali_fallback_font_path,
+                  render_error, sizeof(render_error))) {
+            snprintf(ui->status, sizeof(ui->status), "Mali fallback font failed: %.160s",
+                     render_error[0] ? render_error : ui->mali_fallback_font_path);
+          }
+        }
       } else {
         snprintf(ui->status, sizeof(ui->status), "Mali font failed: %.180s",
                  render_error[0] ? render_error : ui->mali_font_path);
@@ -12302,6 +12414,8 @@ int main(int argc, char **argv) {
   load_theme_state(&ui, initial_settings_loaded ? initial_settings.graphic_theme_id : "default");
   apply_theme_setting_overrides(&ui.theme, &initial_settings);
   choose_mali_font_path(&ui, mali_font_env, ui.mali_font_path, sizeof(ui.mali_font_path));
+  choose_mali_fallback_font_path(&ui, ui.mali_font_path, ui.mali_fallback_font_path,
+                                 sizeof(ui.mali_fallback_font_path));
 
   startup_resume_allowed =
       !ui.rescue_network && !script && !ui.once && initial_settings_loaded &&

@@ -71,6 +71,12 @@ generated scan output.
 `settings.item.<id>.name`, `settings.item.<id>.help1`,
 `settings.item.<id>.help2`, `menu.entry.<id>.name`, `app.<id>.name`, and
 `scraping.*`. Missing keys fall back to English strings compiled into the FE.
+The standard package includes `en.lang`, `ja.lang`, `ch.lang`, `pt.lang`,
+`fr.lang`, and `de.lang`. Dictionary files are UTF-8, and the Mali renderer uses
+the bundled FreeType font plus a CJK fallback font for non-ASCII text. Width
+calculations treat CJK as 2 cells and non-CJK text such as Latin accents as
+1 cell, so ROM names and localized labels do not get truncated as if every
+non-ASCII character were CJK.
 
 ## Core Entities
 

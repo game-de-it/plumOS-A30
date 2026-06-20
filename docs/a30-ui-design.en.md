@@ -40,9 +40,16 @@ This document defines the design rules for plumOS frontend UI on the A30's
   proportional TTF for alignment-sensitive ASCII in TTY/list UI.
 - Use FreeType/TTF for non-ASCII text such as Japanese, or for screens that do
   not depend on grid alignment.
+- Render glyphs missing from the default font, such as Simplified Chinese, with
+  the CJK fallback font.
 - If a TTF is used in a column UI, choose a monospaced font and quantize advance
   widths to the fixed grid. Do not let proportional advances drive column
   positions.
+- UTF-8 display width treats CJK / kana / hangul / fullwidth characters as
+  2 cells, Latin accents and other non-CJK characters as 1 cell, and combining
+  marks as 0 cells. ROM lists should not truncate names such as `Pokémon`,
+  `São Paulo`, or Chinese/Japanese titles as though every non-ASCII character
+  were CJK.
 
 ## List UI
 

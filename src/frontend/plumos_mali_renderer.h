@@ -229,8 +229,11 @@ struct plumos_mali_renderer {
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
   FT_Library ft_library;
   FT_Face ft_face;
+  FT_Face ft_fallback_face;
   int ft_ready;
   int ft_pixel_size;
+  int ft_fallback_ready;
+  int ft_fallback_pixel_size;
   struct plumos_mali_ft_advance_cache_entry
       ft_advance_cache[PLUMOS_MALI_FT_ADVANCE_CACHE_SIZE];
 #endif
@@ -739,6 +742,26 @@ static int plumos_mali_renderer_init(struct plumos_mali_renderer *renderer, cons
 }
 
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
+static int plumos_mali_renderer_init_freetype(struct plumos_mali_renderer *renderer,
+                                              char *error, size_t error_size) {
+  FT_Error ft_error;
+
+  if (!renderer) {
+    return 0;
+  }
+  if (renderer->ft_library) {
+    return 1;
+  }
+  ft_error = FT_Init_FreeType(&renderer->ft_library);
+  if (ft_error) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "FT_Init_FreeType failed: %d", (int)ft_error);
+    }
+    return 0;
+  }
+  return 1;
+}
+
 static int plumos_mali_renderer_load_font(struct plumos_mali_renderer *renderer,
                                           const char *font_path, char *error,
                                           size_t error_size) {
@@ -750,14 +773,8 @@ static int plumos_mali_renderer_load_font(struct plumos_mali_renderer *renderer,
     }
     return 0;
   }
-  if (!renderer->ft_library) {
-    ft_error = FT_Init_FreeType(&renderer->ft_library);
-    if (ft_error) {
-      if (error && error_size > 0) {
-        snprintf(error, error_size, "FT_Init_FreeType failed: %d", (int)ft_error);
-      }
-      return 0;
-    }
+  if (!plumos_mali_renderer_init_freetype(renderer, error, error_size)) {
+    return 0;
   }
   if (renderer->ft_face) {
     FT_Done_Face(renderer->ft_face);
@@ -776,6 +793,40 @@ static int plumos_mali_renderer_load_font(struct plumos_mali_renderer *renderer,
   memset(renderer->ft_advance_cache, 0, sizeof(renderer->ft_advance_cache));
   return 1;
 }
+
+static int plumos_mali_renderer_load_fallback_font(struct plumos_mali_renderer *renderer,
+                                                   const char *font_path, char *error,
+                                                   size_t error_size) {
+  FT_Error ft_error;
+
+  if (!renderer || !font_path || !font_path[0]) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "fallback font path is empty");
+    }
+    return 0;
+  }
+  if (!plumos_mali_renderer_init_freetype(renderer, error, error_size)) {
+    return 0;
+  }
+  if (renderer->ft_fallback_face) {
+    FT_Done_Face(renderer->ft_fallback_face);
+    renderer->ft_fallback_face = NULL;
+    renderer->ft_fallback_ready = 0;
+  }
+  ft_error = FT_New_Face(renderer->ft_library, font_path, 0,
+                         &renderer->ft_fallback_face);
+  if (ft_error) {
+    if (error && error_size > 0) {
+      snprintf(error, error_size, "FT_New_Face fallback failed: %d",
+               (int)ft_error);
+    }
+    return 0;
+  }
+  renderer->ft_fallback_ready = 1;
+  renderer->ft_fallback_pixel_size = 0;
+  memset(renderer->ft_advance_cache, 0, sizeof(renderer->ft_advance_cache));
+  return 1;
+}
 #endif
 
 static void plumos_mali_renderer_shutdown(struct plumos_mali_renderer *renderer) {
@@ -783,6 +834,10 @@ static void plumos_mali_renderer_shutdown(struct plumos_mali_renderer *renderer)
     return;
   }
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
+  if (renderer->ft_fallback_face) {
+    FT_Done_Face(renderer->ft_fallback_face);
+    renderer->ft_fallback_face = NULL;
+  }
   if (renderer->ft_face) {
     FT_Done_Face(renderer->ft_face);
     renderer->ft_face = NULL;
@@ -1311,8 +1366,33 @@ static void plumos_mali_normalize_kana_marks(const char *in, char *out,
   }
 }
 
+static int plumos_mali_unicode_is_combining(unsigned int codepoint) {
+  return (codepoint >= 0x0300 && codepoint <= 0x036f) ||
+         (codepoint >= 0x1ab0 && codepoint <= 0x1aff) ||
+         (codepoint >= 0x1dc0 && codepoint <= 0x1dff) ||
+         (codepoint >= 0x20d0 && codepoint <= 0x20ff) ||
+         (codepoint >= 0xfe20 && codepoint <= 0xfe2f);
+}
+
+static int plumos_mali_unicode_is_wide(unsigned int codepoint) {
+  return (codepoint >= 0x1100 && codepoint <= 0x115f) ||
+         (codepoint >= 0x2329 && codepoint <= 0x232a) ||
+         (codepoint >= 0x2e80 && codepoint <= 0xa4cf) ||
+         (codepoint >= 0xac00 && codepoint <= 0xd7a3) ||
+         (codepoint >= 0xf900 && codepoint <= 0xfaff) ||
+         (codepoint >= 0xfe10 && codepoint <= 0xfe19) ||
+         (codepoint >= 0xfe30 && codepoint <= 0xfe6f) ||
+         (codepoint >= 0xff00 && codepoint <= 0xff60) ||
+         (codepoint >= 0xffe0 && codepoint <= 0xffe6) ||
+         (codepoint >= 0x1f200 && codepoint <= 0x1f251) ||
+         (codepoint >= 0x20000 && codepoint <= 0x3fffd);
+}
+
 static int plumos_mali_utf8_cell_width(unsigned int codepoint) {
-  return codepoint >= 0x80 ? 2 : 1;
+  if (plumos_mali_unicode_is_combining(codepoint)) {
+    return 0;
+  }
+  return plumos_mali_unicode_is_wide(codepoint) ? 2 : 1;
 }
 
 static void plumos_mali_copy_utf8_cells(const char *in, char *out, size_t out_size,
@@ -1781,24 +1861,51 @@ static void plumos_mali_draw_builtin_char(struct plumos_mali_renderer *renderer,
 }
 
 #ifdef PLUMOS_ENABLE_MALI_FREETYPE
-static int plumos_mali_ft_set_size(struct plumos_mali_renderer *renderer, int scale) {
+static int plumos_mali_ft_set_face_size(FT_Face face, int *pixel_size_state,
+                                        int scale) {
   int pixel_size;
 
-  if (!renderer || !renderer->ft_ready || !renderer->ft_face) {
+  if (!face || !pixel_size_state) {
     return 0;
   }
   pixel_size = scale > 0 ? 9 * scale : 9;
   if (pixel_size < 12) {
     pixel_size = 12;
   }
-  if (renderer->ft_pixel_size == pixel_size) {
+  if (*pixel_size_state == pixel_size) {
     return 1;
   }
-  if (FT_Set_Pixel_Sizes(renderer->ft_face, 0, (FT_UInt)pixel_size) != 0) {
+  if (FT_Set_Pixel_Sizes(face, 0, (FT_UInt)pixel_size) != 0) {
     return 0;
   }
-  renderer->ft_pixel_size = pixel_size;
+  *pixel_size_state = pixel_size;
   return 1;
+}
+
+static FT_Face plumos_mali_ft_select_face(struct plumos_mali_renderer *renderer,
+                                          unsigned int codepoint,
+                                          int **pixel_size_state) {
+  if (pixel_size_state) {
+    *pixel_size_state = NULL;
+  }
+  if (!renderer) {
+    return NULL;
+  }
+  if (renderer->ft_ready && renderer->ft_face &&
+      FT_Get_Char_Index(renderer->ft_face, (FT_ULong)codepoint) != 0) {
+    if (pixel_size_state) {
+      *pixel_size_state = &renderer->ft_pixel_size;
+    }
+    return renderer->ft_face;
+  }
+  if (renderer->ft_fallback_ready && renderer->ft_fallback_face &&
+      FT_Get_Char_Index(renderer->ft_fallback_face, (FT_ULong)codepoint) != 0) {
+    if (pixel_size_state) {
+      *pixel_size_state = &renderer->ft_fallback_pixel_size;
+    }
+    return renderer->ft_fallback_face;
+  }
+  return NULL;
 }
 
 static int plumos_mali_ft_advance(struct plumos_mali_renderer *renderer,
@@ -1807,6 +1914,8 @@ static int plumos_mali_ft_advance(struct plumos_mali_renderer *renderer,
   int advance;
   size_t cache_index;
   struct plumos_mali_ft_advance_cache_entry *cached;
+  FT_Face face;
+  int *pixel_size_state = NULL;
 
   fallback = 8 * scale;
   if (fallback < 8) {
@@ -1821,13 +1930,15 @@ static int plumos_mali_ft_advance(struct plumos_mali_renderer *renderer,
   if (cached->valid && cached->codepoint == codepoint && cached->scale == scale) {
     return cached->advance;
   }
-  if (!plumos_mali_ft_set_size(renderer, scale)) {
+  face = plumos_mali_ft_select_face(renderer, codepoint, &pixel_size_state);
+  if (!face || !pixel_size_state ||
+      !plumos_mali_ft_set_face_size(face, pixel_size_state, scale)) {
     return fallback;
   }
-  if (FT_Load_Char(renderer->ft_face, (FT_ULong)codepoint, FT_LOAD_DEFAULT) != 0) {
+  if (FT_Load_Char(face, (FT_ULong)codepoint, FT_LOAD_DEFAULT) != 0) {
     advance = fallback;
   } else {
-    advance = (int)((renderer->ft_face->glyph->advance.x + 32) >> 6);
+    advance = (int)((face->glyph->advance.x + 32) >> 6);
     if (advance <= 0) {
       advance = fallback;
     }
@@ -1845,22 +1956,27 @@ static int plumos_mali_draw_freetype_codepoint_clipped(struct plumos_mali_render
                                                        float min_x, float max_x,
                                                        float red, float green,
                                                        float blue, float alpha) {
+  FT_Face face;
   FT_GlyphSlot slot;
   FT_Bitmap *bitmap;
+  int *pixel_size_state = NULL;
   int pixel_size;
   float baseline;
   int row;
 
-  if (!plumos_mali_ft_set_size(renderer, scale)) {
+  face = plumos_mali_ft_select_face(renderer, codepoint, &pixel_size_state);
+  if (!face || !pixel_size_state ||
+      !plumos_mali_ft_set_face_size(face, pixel_size_state, scale)) {
     return 0;
   }
-  if (FT_Load_Char(renderer->ft_face, (FT_ULong)codepoint,
+  if (FT_Load_Char(face, (FT_ULong)codepoint,
                    FT_LOAD_RENDER | FT_LOAD_TARGET_LIGHT) != 0) {
     return 0;
   }
-  slot = renderer->ft_face->glyph;
+  slot = face->glyph;
   bitmap = &slot->bitmap;
-  pixel_size = renderer->ft_pixel_size > 0 ? renderer->ft_pixel_size : 9 * scale;
+  pixel_size = pixel_size_state && *pixel_size_state > 0 ? *pixel_size_state
+                                                         : 9 * scale;
   baseline = y + (float)(pixel_size - 2);
 
   for (row = 0; row < (int)bitmap->rows; row++) {
