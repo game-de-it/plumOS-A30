@@ -17,10 +17,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 EMPTY_USER_DIRS = [
     "Bios",
+    "Images",
     "Imgs",
     "Roms",
     "Saves",
 ]
+
+USER_DIR_READMES = {
+    "Bios": "Place your own BIOS files here. plumOS release packages do not include BIOS files.\n",
+    "Images": (
+        "Place plumOS ROM thumbnails here, under Images/<system_id>/.\n"
+        "Example: Images/nes/Akumajou Densetsu.png\n"
+        "plumOS release packages do not include user media files.\n"
+    ),
+    "Imgs": (
+        "Legacy StockOS artwork may live here on existing cards.\n"
+        "For new plumOS thumbnails, use Images/<system_id>/ instead.\n"
+    ),
+    "Roms": "Place your own ROM files here. plumOS release packages do not include ROM files.\n",
+    "Saves": "User save data and states may live here. plumOS release packages do not include saves.\n",
+}
 
 EXCLUDED_TOP_LEVELS = {
     "BIOS",
@@ -115,10 +131,7 @@ def ensure_empty_dirs(output_dir: Path) -> None:
     for rel in EMPTY_USER_DIRS:
         (output_dir / rel).mkdir(parents=True, exist_ok=True)
         readme = output_dir / rel / "README.txt"
-        readme.write_text(
-            "Place your own files here. plumOS release packages do not include ROM, BIOS, save, or media files.\n",
-            encoding="utf-8",
-        )
+        readme.write_text(USER_DIR_READMES[rel], encoding="utf-8")
 
 
 def verify_payload(output_dir: Path) -> list[str]:
@@ -158,7 +171,7 @@ Expected top-level entries:
 
 - `miyoo/app/MainUI`: plumOS boot wrapper used by the stock boot flow.
 - `plumos/`: plumOS runtime.
-- `Roms/`, `Bios/`, `Imgs/`, `Saves/`: empty placeholders for user-managed files.
+- `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/`: empty placeholders for user-managed files.
 
 ROMs, BIOS files, save data, states, screenshots, videos, and network secrets are not included.
 

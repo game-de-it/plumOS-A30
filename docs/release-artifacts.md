@@ -27,7 +27,9 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - SDL/Mali runtime
 - joystick/network/userland helper
 - Dropbear SSH kit
-- empty `Roms/`, `Bios/`, `Imgs/`, `Saves/` placeholder
+- empty `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/` placeholder
+  - `Images/` は plumOS の通常サムネイル置き場
+  - `Imgs/` は StockOS artwork 互換/旧置き場として残す
 - SD root manifest/checksum
 
 含めないもの:
