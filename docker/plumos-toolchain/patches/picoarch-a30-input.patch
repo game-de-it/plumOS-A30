@@ -224,6 +224,68 @@ index aa1f155..6268cc6 100644
  	 	/* mask away all old keys if an additional new key is pressed */
  		/* XXX what if old and new keys share bits (PBTN_CHAR)? */
  		ret &= ~menu_key_mask;
+diff --git a/libpicofe/menu.c b/libpicofe/menu.c
+index 530e730..44556d9 100644
+--- a/libpicofe/menu.c
++++ b/libpicofe/menu.c
+@@ -1389,6 +1389,16 @@ static int count_bound_keys(int dev_id, int action_mask, int bindtype)
+ 	return keys;
+ }
+ 
++static void key_config_drain_input(void)
++{
++	int dev_id, is_down;
++
++	while (in_menu_wait_any(NULL, 30) != 0)
++		;
++	while (in_update_keycode(&dev_id, &is_down, NULL, 30) >= 0)
++		;
++}
++
+ static void draw_key_config(const me_bind_action *opts, int opt_cnt, int player_idx,
+ 		int sel, int dev_id, int dev_count, int is_bind)
+ {
+@@ -1504,35 +1514,36 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
+ 			case PBTN_MOK:
+ 				if (sel >= opt_cnt)
+ 					return;
+-				while (in_menu_wait_any(NULL, 30) & PBTN_MOK)
+-					;
++				key_config_drain_input();
+ 				break;
+ 			case PBTN_MA2:
+ 				in_unbind_all(dev_id, opts[sel].mask << mask_shift, bindtype);
+ 				continue;
+ 			default:continue;
+ 		}
+ 
+ 		draw_key_config(opts, opt_cnt, player_idx, sel, dev_id, dev_count, 1);
+ 
+-		/* wait for some up event */
+-		for (is_down = 1; is_down; )
++		/* wait for a fresh down event; activation key up events are drained */
++		do {
+ 			kc = in_update_keycode(&bind_dev_id, &is_down, NULL, -1);
++		} while (kc < 0 || !is_down);
+ 
+ 		i = count_bound_keys(bind_dev_id, opts[sel].mask << mask_shift, bindtype);
+ 		unbind = (i > 0);
+ 
+ 		/* allow combos if device supports them */
+ 		in_get_config(bind_dev_id, IN_CFG_DOES_COMBOS, &does_combos);
+ 		if (i == 1 && bindtype == IN_BINDTYPE_EMU && does_combos)
+ 			unbind = 0;
+ 
+ 		if (unbind)
+ 			in_unbind_all(bind_dev_id, opts[sel].mask << mask_shift, bindtype);
+ 
+ 		in_bind_key(bind_dev_id, kc, opts[sel].mask << mask_shift, bindtype, 0);
++		key_config_drain_input();
+ 
+ 		// make sure bind change is displayed
+ 		if (dev_id != -1)
+ 			dev_id = bind_dev_id;
+ 	}
 diff --git a/menu.c b/menu.c
 index 86b3bb3..3453f68 100644
 --- a/menu.c

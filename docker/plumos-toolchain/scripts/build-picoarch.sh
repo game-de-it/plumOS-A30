@@ -148,6 +148,7 @@ checkout_source() {
   rm -f "${SRC_DIR}/libpicofe/.patched"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_PATCH}"
   patch -d "${SRC_DIR}/libpicofe" -p1 <"${SRC_DIR}/patches/libpicofe/0001-key-combos.patch"
+  perl -0pi -e 's/\r\n/\n/g' "${SRC_DIR}/libpicofe/menu.c"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_INPUT_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_DIRECT_PRESENT_PATCH}"
   patch -d "${SRC_DIR}" -p1 <"${PICOARCH_A30_PIXEL_FORMAT_PATCH}"
