@@ -33,6 +33,7 @@ RUN dpkg --add-architecture armhf \
     git \
     iproute2:armhf \
     libasound2-dev:armhf \
+    libacl1:armhf \
     libegl1-mesa-dev:armhf \
     libexpat1-dev:armhf \
     libflac-dev:armhf \
@@ -43,6 +44,7 @@ RUN dpkg --add-architecture armhf \
     libicu-dev:armhf \
     libjpeg-dev:armhf \
     liblhasa-dev:armhf \
+    liblz4-1:armhf \
     libmad0-dev:armhf \
     libmpg123-dev:armhf \
     libbz2-dev:armhf \
@@ -52,6 +54,7 @@ RUN dpkg --add-architecture armhf \
     libopusfile-dev:armhf \
     libpixman-1-dev:armhf \
     libpng-dev:armhf \
+    libpopt0:armhf \
     libreadline-dev:armhf \
     libsamplerate0-dev:armhf \
     libsndfile1-dev:armhf \
@@ -65,6 +68,7 @@ RUN dpkg --add-architecture armhf \
     libvorbis-dev:armhf \
     libxmp-dev:armhf \
     libxml2-dev:armhf \
+    libxxhash0:armhf \
     liblzma-dev:armhf \
     libzstd-dev:armhf \
     make \
@@ -122,6 +126,11 @@ RUN dpkg --add-architecture armhf \
     done \
   && for deb in ./*.deb; do dpkg-deb -x "$deb" /opt/plumos/samba-armhf; done \
   && rm -rf /tmp/plumos-samba-debs \
+  && mkdir -p /opt/plumos/rsync-armhf /tmp/plumos-rsync-debs \
+  && cd /tmp/plumos-rsync-debs \
+  && apt-get download rsync:armhf \
+  && for deb in ./*.deb; do dpkg-deb -x "$deb" /opt/plumos/rsync-armhf; done \
+  && rm -rf /tmp/plumos-rsync-debs \
   && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /workspace /opt/plumos/sysroot /opt/plumos/src /opt/plumos/cache \

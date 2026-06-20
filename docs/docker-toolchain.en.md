@@ -37,6 +37,7 @@ Outputs:
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
 dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/rsync
 dist/plumos-userland/plumos/gnu/bin/ss
 dist/plumos-userland/plumos/gnu/bin/strace
 dist/plumos-userland/plumos/gnu/libexec/
@@ -46,7 +47,7 @@ dist/plumos-userland/plumos/share/doc/gnu-userland/
 ```
 
 BusyBox applets are installed as wrapper scripts instead of symlinks for vfat.
-`iproute2` `ip`/`ss` and `strace` come from Debian armhf packages; the real
+`iproute2` `ip`/`ss`, `rsync`, and `strace` come from Debian armhf packages; the real
 binaries live in `plumos/gnu/libexec`, and `plumos/gnu/bin` wrappers run them
 through the plumOS-bundled dynamic loader and library path.
 

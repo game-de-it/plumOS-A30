@@ -45,6 +45,7 @@ Outputs:
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
 dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/rsync
 dist/plumos-userland/plumos/gnu/bin/ss
 dist/plumos-userland/plumos/gnu/bin/strace
 dist/plumos-userland/plumos/gnu/libexec/
@@ -56,7 +57,7 @@ dist/plumos-userland/plumos/share/doc/gnu-userland/
 BusyBox is built from the official `1.38.0` tarball after SHA-256 verification.
 Since the SD card is vfat and does not handle symlinks well, applets are
 installed as small wrapper scripts instead of symlinks.
-`iproute2` `ip`/`ss` and `strace` come from Debian armhf packages; the real
+`iproute2` `ip`/`ss`, `rsync`, and `strace` come from Debian armhf packages; the real
 binaries live in `plumos/gnu/libexec`, and `plumos/gnu/bin` wrappers run them
 through the plumOS-bundled dynamic loader and library path.
 

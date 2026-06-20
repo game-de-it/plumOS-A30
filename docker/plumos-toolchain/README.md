@@ -44,6 +44,7 @@ dist/docker-smoke/plumos-smoke-armhf.manifest.txt
 dist/plumos-userland/plumos/bin/busybox
 dist/plumos-userland/plumos/bin/plumos-env
 dist/plumos-userland/plumos/gnu/bin/ip
+dist/plumos-userland/plumos/gnu/bin/rsync
 dist/plumos-userland/plumos/gnu/bin/ss
 dist/plumos-userland/plumos/gnu/bin/strace
 dist/plumos-userland/plumos/gnu/libexec/
@@ -55,7 +56,7 @@ dist/plumos-userland/plumos/share/doc/gnu-userland/
 BusyBox は公式 `1.38.0` tarball を SHA-256 検証してから build します。SD カードは
 vfat で symlink を扱いにくいため、各 applet は symlink ではなく小さな wrapper script
 として生成します。
-`iproute2` の `ip`/`ss` と `strace` は Debian armhf package 由来の実体を
+`iproute2` の `ip`/`ss`、`rsync`、`strace` は Debian armhf package 由来の実体を
 `plumos/gnu/libexec` に置き、`plumos/gnu/bin` の wrapper から plumOS 同梱
 dynamic loader と library path で起動します。
 

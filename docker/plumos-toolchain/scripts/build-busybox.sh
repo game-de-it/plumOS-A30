@@ -254,6 +254,7 @@ assemble_gnu_tools() {
   : > "${GNU_DOC_DIR}/manifest.txt"
 
   install_gnu_tool ip /bin/ip /sbin/ip /usr/sbin/ip
+  install_gnu_tool rsync /opt/plumos/rsync-armhf/usr/bin/rsync
   install_gnu_tool ss /bin/ss /usr/bin/ss /sbin/ss /usr/sbin/ss
   install_gnu_tool strace /usr/bin/strace /bin/strace
 
@@ -264,6 +265,8 @@ assemble_gnu_tools() {
     echo "Debian package versions:"
     dpkg-query -W -f='${binary:Package}\t${Version}\n' \
       iproute2:armhf strace:armhf 2>/dev/null || true
+    dpkg-query -W -f='rsync:armhf\t${Version}\n' \
+      rsync 2>/dev/null || true
   } > "${GNU_DOC_DIR}/versions.txt"
 
   {
@@ -278,6 +281,7 @@ GNU-style userland tools for plumOS A30
 
 Installed wrappers:
   /mnt/SDCARD/plumos/gnu/bin/ip
+  /mnt/SDCARD/plumos/gnu/bin/rsync
   /mnt/SDCARD/plumos/gnu/bin/ss
   /mnt/SDCARD/plumos/gnu/bin/strace
 
