@@ -245,6 +245,14 @@ index 530e730..44556d9 100644
  static void draw_key_config(const me_bind_action *opts, int opt_cnt, int player_idx,
  		int sel, int dev_id, int dev_count, int is_bind)
  {
+@@ -1473,6 +1483,7 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
+ 	if (player_idx == 1)
+ 		mask_shift = 16;
+ 	bindtype = player_idx >= 0 ? IN_BINDTYPE_PLAYER12 : IN_BINDTYPE_EMU;
++	key_config_drain_input();
+ 
+ 	for (;;)
+ 	{
 @@ -1504,35 +1514,36 @@ static void key_config_loop(const me_bind_action *opts, int opt_cnt, int player_
  			case PBTN_MOK:
  				if (sel >= opt_cnt)
