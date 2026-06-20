@@ -181,8 +181,8 @@
         "enabled": true,
         "reason": "simple_rom_crc",
         "extensions": ["gba", "zip"],
-        "crc_workers": {"default": 1, "bulk": 1, "max": 1},
-        "download_workers": {"default": 1, "bulk": 1, "max": 1}
+        "crc_workers": {"default": 4, "bulk": 4, "max": 4},
+        "download_workers": {"default": 4, "bulk": 4, "max": 4}
       }
     },
     {
