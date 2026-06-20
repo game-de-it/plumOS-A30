@@ -6900,14 +6900,12 @@ static void render_start_menu(struct ui_state *ui) {
   for (i = 0; i < ui->menu_count; i++) {
     const struct menu_entry *entry = &ui->menu_entries[i];
     if (ui->renderer_mali) {
-      ui_printf(ui, "%c %2zu  %s%s\n",
-                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
-                entry->confirm ? " confirm" : "");
+      ui_printf(ui, "%c %2zu  %s\n",
+                i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name);
     } else {
-      ui_printf(ui, "%c %3zu  %-24s %-10s %-24s %s\n",
+      ui_printf(ui, "%c %3zu  %-24s %-10s %-24s\n",
                 i == ui->menu_cursor ? '>' : ' ', i + 1, entry->display_name,
-                entry->kind[0] ? entry->kind : "-", entry->action,
-                entry->confirm ? "confirm" : "");
+                entry->kind[0] ? entry->kind : "-", entry->action);
     }
   }
   if (ui->menu_count == 0) {
