@@ -500,7 +500,8 @@ Left/Right. `Time Settings` owns `Timezone` and `Manual Time`; timezone is
 applied to the `TZ` environment and runtime `/etc/TZ`, and manual time is
 entered as local time in the selected timezone before applying it to the OS
 clock. Writes use a first backup, temporary file, fsync, rename, and sync.
-Current-value, backend, and policy details live under the `INFORMATION` subpage.
+Device model, kernel, SD-card usage, memory usage, and A30 firmware live under
+the `INFORMATION` subpage.
 Redacted Wi-Fi runtime status belongs to Network Settings, which does not read
 SSID or PSK. CPU mode belongs to Performance Settings. Performance Settings now
 connects to the existing `plumos-text-ui core system ... --cpu --freq --cores`

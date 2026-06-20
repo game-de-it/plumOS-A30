@@ -465,7 +465,8 @@ System Settings の第一階層は `Volume`、`Brightness`、`Lumination`、`Dis
 `Time Settings` は `Timezone` と `Manual Time` を持ち、timezone は `TZ` 環境と runtime
 `/etc/TZ` へ適用します。手動時刻は選択中 timezone のローカル時刻として入力し、
 OS 時刻へ反映します。保存は初回 backup、tmp file、fsync、rename、sync を通します。
-現在値や backend/policy 情報は `INFORMATION` サブ項目へ集約します。
+本体モデル、kernel、SD カード使用量、メモリ使用量、A30 firmware は
+`INFORMATION` サブ項目へ集約します。
 redacted Wi-Fi runtime status は Network Settings で扱い、
 SSID/PSK は読みません。CPU mode は Performance Settings で扱います。
 Performance Settings は既存の `plumos-text-ui core system ... --cpu --freq --cores`

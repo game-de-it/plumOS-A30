@@ -43,21 +43,21 @@ are applied immediately to the A30 runtime backend.
   Year/Month/Day/Hour/Minute and applies the OS clock with A.
 - `Language`: `language`; Left/Right selects `English`, `Japanese`, `Chinese`,
   `Traditional Chinese`, `Korean`, `Spanish`, or `Portuguese`
-- `INFORMATION`: read-only subpage for current values, backend state, and policy
+- `INFORMATION`: read-only subpage for device status
 
 The `INFORMATION` subpage owns these read-only entries:
 
 - `Device Model`: fixed `Miyoo A30`
 - `Linux Kernel`: `/proc/sys/kernel/osrelease`
-- `SD Card`: free/total capacity from `statvfs()`
-- `plumOS System Config`: read status for
-  `/mnt/SDCARD/plumos/config/system/settings.json`
-- `Input Device`: `/dev/input/event*` found from `gpio-keys-polled`
-- `Audio Backend`: detected audio backend. On A30 this uses ALSA
-  `Soft Volume Master`.
-- `Display Backend`: detected display backend. On A30 this is
-  `disp attr lcdbl/enhance`
-- `Write Policy`: save under plumOS only; stockOS remains untouched
+- `SD Card`: used/total capacity and used percent for `/mnt/SDCARD` from
+  `statvfs()`
+- `Memory`: used/total memory and used percent from `/proc/meminfo`
+  `MemTotal` and `MemAvailable`; on older kernels without `MemAvailable`,
+  approximate it from `MemFree`, `Buffers`, and `Cached`
+- `A30 Firmware`: extract `YYYYMMDD` from `/etc/openwrt_release`
+  `DISTRIB_ID` or `DISTRIB_DESCRIPTION`. On the device checked on
+  2026-06-20, this resolves to `20240713` from
+  `tina.alfchen.20240713.021530`
 
 `Time Settings` uses `/mnt/SDCARD/plumos/config/system/settings.json`
 `timezone` as the persistent source of truth. It does not use stockOS

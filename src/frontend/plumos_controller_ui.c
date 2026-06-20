@@ -379,6 +379,8 @@ struct device_settings {
   char model[64];
   char kernel_version[128];
   char sdcard_storage[128];
+  char memory_usage[128];
+  char firmware_version[128];
   char network_status_source[128];
   char network_control_status[128];
   char ssh_status[128];
@@ -1945,7 +1947,9 @@ static void apply_frontend_cpu_default(void) {
 static void format_storage_status(const char *path, char *out, size_t out_size) {
   struct statvfs st;
   unsigned long long total_mb;
-  unsigned long long free_mb;
+  unsigned long long available_blocks;
+  unsigned long long used_mb;
+  unsigned long long percent;
 
   if (!out || out_size == 0) {
     return;
@@ -1957,9 +1961,144 @@ static void format_storage_status(const char *path, char *out, size_t out_size) 
   }
   total_mb = ((unsigned long long)st.f_blocks * (unsigned long long)st.f_frsize) /
              (1024ULL * 1024ULL);
-  free_mb = ((unsigned long long)st.f_bavail * (unsigned long long)st.f_frsize) /
+  available_blocks =
+      st.f_bavail > st.f_blocks ? (unsigned long long)st.f_blocks :
+                                  (unsigned long long)st.f_bavail;
+  used_mb = (((unsigned long long)st.f_blocks - available_blocks) *
+             (unsigned long long)st.f_frsize) /
             (1024ULL * 1024ULL);
-  snprintf(out, out_size, "%lluMB free / %lluMB total", free_mb, total_mb);
+  if (total_mb == 0) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  percent = (used_mb * 100ULL + total_mb / 2ULL) / total_mb;
+  snprintf(out, out_size, "%llu/%llu MB (%llu%%)", used_mb, total_mb, percent);
+}
+
+static int read_meminfo_kb(const char *text, const char *key,
+                           unsigned long long *value_out) {
+  const char *p = text;
+  size_t key_len;
+
+  if (!text || !key || !value_out) {
+    return 0;
+  }
+  key_len = strlen(key);
+  while (*p) {
+    if (strncmp(p, key, key_len) == 0 && p[key_len] == ':') {
+      const char *value = p + key_len + 1;
+      while (*value && isspace((unsigned char)*value)) {
+        value++;
+      }
+      *value_out = strtoull(value, NULL, 10);
+      return 1;
+    }
+    while (*p && *p != '\n') {
+      p++;
+    }
+    if (*p == '\n') {
+      p++;
+    }
+  }
+  return 0;
+}
+
+static void format_memory_status(char *out, size_t out_size) {
+  FILE *f;
+  char text[4096];
+  size_t text_size;
+  unsigned long long total_kb = 0;
+  unsigned long long available_kb = 0;
+  unsigned long long free_kb = 0;
+  unsigned long long buffers_kb = 0;
+  unsigned long long cached_kb = 0;
+  unsigned long long used_mb;
+  unsigned long long total_mb;
+  unsigned long long percent;
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  f = fopen("/proc/meminfo", "rb");
+  if (!f) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  text_size = fread(text, 1, sizeof(text) - 1, f);
+  fclose(f);
+  text[text_size] = '\0';
+  if (text_size == 0 ||
+      !read_meminfo_kb(text, "MemTotal", &total_kb) || total_kb == 0) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  if (!read_meminfo_kb(text, "MemAvailable", &available_kb)) {
+    if (!read_meminfo_kb(text, "MemFree", &free_kb) ||
+        !read_meminfo_kb(text, "Buffers", &buffers_kb) ||
+        !read_meminfo_kb(text, "Cached", &cached_kb)) {
+      copy_string(out, out_size, "unavailable");
+      return;
+    }
+    available_kb = free_kb + buffers_kb + cached_kb;
+  }
+  if (available_kb > total_kb) {
+    available_kb = total_kb;
+  }
+  total_mb = total_kb / 1024ULL;
+  used_mb = (total_kb - available_kb) / 1024ULL;
+  if (total_mb == 0) {
+    copy_string(out, out_size, "unavailable");
+    return;
+  }
+  percent = (used_mb * 100ULL + total_mb / 2ULL) / total_mb;
+  snprintf(out, out_size, "%llu/%llu MB (%llu%%)", used_mb, total_mb, percent);
+}
+
+static int copy_first_yyyymmdd(const char *text, char *out, size_t out_size) {
+  const char *p;
+
+  if (!text || !out || out_size < 9) {
+    return 0;
+  }
+  for (p = text; *p; p++) {
+    size_t i;
+    if (p[0] != '2' || p[1] != '0') {
+      continue;
+    }
+    for (i = 0; i < 8 && p[i] && isdigit((unsigned char)p[i]); i++) {
+    }
+    if (i == 8) {
+      memcpy(out, p, 8);
+      out[8] = '\0';
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void format_firmware_version_status(char *out, size_t out_size) {
+  char *text;
+  char version[64];
+
+  if (!out || out_size == 0) {
+    return;
+  }
+  out[0] = '\0';
+  text = read_file("/etc/openwrt_release", NULL);
+  if (text) {
+    if (copy_first_yyyymmdd(text, out, out_size)) {
+      free(text);
+      return;
+    }
+    free(text);
+  }
+  if (read_first_line_file("/etc/openwrt_version", version, sizeof(version)) &&
+      version[0]) {
+    copy_string(out, out_size, version);
+  } else {
+    copy_string(out, out_size, "unknown");
+  }
 }
 
 static const char *skip_ws_range(const char *p, const char *end) {
@@ -2938,6 +3077,8 @@ static void init_device_settings(struct device_settings *device) {
   copy_string(device->model, sizeof(device->model), "Miyoo A30");
   copy_string(device->kernel_version, sizeof(device->kernel_version), "unknown");
   copy_string(device->sdcard_storage, sizeof(device->sdcard_storage), "unavailable");
+  copy_string(device->memory_usage, sizeof(device->memory_usage), "unavailable");
+  copy_string(device->firmware_version, sizeof(device->firmware_version), "unknown");
   copy_string(device->network_status_source, sizeof(device->network_status_source),
               "runtime status missing");
   copy_string(device->network_control_status, sizeof(device->network_control_status),
@@ -2997,6 +3138,9 @@ static int load_device_settings(struct ui_state *ui) {
                        sizeof(ui->device.kernel_version));
   format_storage_status(ui->sdcard_root, ui->device.sdcard_storage,
                         sizeof(ui->device.sdcard_storage));
+  format_memory_status(ui->device.memory_usage, sizeof(ui->device.memory_usage));
+  format_firmware_version_status(ui->device.firmware_version,
+                                 sizeof(ui->device.firmware_version));
 
   update_device_backend_status(&ui->device);
 
@@ -4198,14 +4342,8 @@ static void add_system_information_entries(struct ui_state *ui) {
   add_setting_entry(ui, "system_model", "Device Model", device->model);
   add_setting_entry(ui, "system_kernel", "Linux Kernel", device->kernel_version);
   add_setting_entry(ui, "system_sdcard", "SD Card", device->sdcard_storage);
-  add_setting_entry(ui, "system_config", "plumOS System Config",
-                    device->loaded ? ui->system_config_path : device->status);
-  add_setting_entry(ui, "system_input_device", "Input Device", ui->input_event_path);
-  add_setting_entry(ui, "system_audio_backend", "Audio Backend", device->volume_backend);
-  add_setting_entry(ui, "system_display_backend", "Display Backend",
-                    device->brightness_backend);
-  add_setting_entry(ui, "system_write_policy", "Write Policy",
-                    "plumOS-only config; stockOS untouched");
+  add_setting_entry(ui, "system_memory", "Memory", device->memory_usage);
+  add_setting_entry(ui, "system_firmware", "A30 Firmware", device->firmware_version);
 }
 
 static void add_network_settings_entries(struct ui_state *ui) {
@@ -6710,6 +6848,33 @@ static int settings_blink_arrow_active(const struct ui_state *ui, size_t row,
   return 1;
 }
 
+static size_t ui_utf8_cell_count(const char *text) {
+  const unsigned char *p = (const unsigned char *)text;
+  size_t cells = 0;
+
+  if (!text) {
+    return 0;
+  }
+  while (*p) {
+    size_t step = 1;
+    if (*p < 0x80) {
+      cells++;
+      p++;
+      continue;
+    }
+    if ((*p & 0xE0) == 0xC0 && p[1]) {
+      step = 2;
+    } else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) {
+      step = 3;
+    } else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) {
+      step = 4;
+    }
+    cells += 2;
+    p += step;
+  }
+  return cells;
+}
+
 static void format_setting_row_mali(const struct ui_state *ui, const struct setting_entry *entry,
                                     size_t row, char *out, size_t out_size) {
   enum setting_control_type control = setting_control_type_for_id(entry ? entry->id : NULL);
@@ -6745,7 +6910,9 @@ static void format_setting_row_mali(const struct ui_state *ui, const struct sett
     snprintf(out, out_size, "%s", entry->display_name);
     return;
   }
-  if (entry->value[0] && strlen(entry->display_name) + 2 + strlen(entry->value) <= 33) {
+  if (entry->value[0] &&
+      ui_utf8_cell_count(entry->display_name) + 2 +
+          ui_utf8_cell_count(entry->value) <= 33) {
     snprintf(out, out_size, "%s: %s", entry->display_name, entry->value);
   } else {
     snprintf(out, out_size, "%s", entry->display_name);
@@ -6909,7 +7076,7 @@ static void setting_help_lines(const struct ui_state *ui,
     }
   } else if (strcmp(id, "system_information") == 0) {
     copy_string(line1, line1_size, "Open read-only device information.");
-    copy_string(line2, line2_size, "Kernel, storage, input, backend, and policy details.");
+    copy_string(line2, line2_size, "Shows model, kernel, storage, memory, and firmware.");
   } else if (strncmp(id, "system_", 7) == 0) {
     if (strcmp(id, "system_volume") == 0) {
       copy_string(line1, line1_size, "System-wide volume setting.");
@@ -6953,23 +7120,13 @@ static void setting_help_lines(const struct ui_state *ui,
     } else if (strcmp(id, "system_language") == 0) {
       copy_string(line1, line1_size, "Frontend language setting.");
       copy_string(line2, line2_size, "Saves language to plumOS config.");
-    } else if (strcmp(id, "system_model") == 0 || strcmp(id, "system_kernel") == 0 ||
-        strcmp(id, "system_sdcard") == 0 || strcmp(id, "system_config") == 0) {
+    } else if (strcmp(id, "system_model") == 0 ||
+               strcmp(id, "system_kernel") == 0 ||
+               strcmp(id, "system_sdcard") == 0 ||
+               strcmp(id, "system_memory") == 0 ||
+               strcmp(id, "system_firmware") == 0) {
       copy_string(line1, line1_size, "Read-only device and runtime information.");
       copy_string(line2, line2_size, "Used to confirm the active A30 environment.");
-    } else if (strcmp(id, "system_audio_backend") == 0) {
-      copy_string(line1, line1_size, "Audio backend policy for plumOS.");
-      copy_string(line2, line2_size, "Volume writes use the detected mixer backend.");
-    } else if (strcmp(id, "system_brightness") == 0 ||
-               strcmp(id, "system_lumination") == 0 ||
-               strcmp(id, "system_display_color") == 0 ||
-               strcmp(id, "system_display_backend") == 0) {
-      copy_string(line1, line1_size, "Display backend policy for plumOS.");
-      copy_string(line2, line2_size, "Display writes use the detected A30 sysfs backend.");
-    } else if (strcmp(id, "system_language") == 0 ||
-               strcmp(id, "system_input_device") == 0) {
-      copy_string(line1, line1_size, "plumOS-owned system preference inventory.");
-      copy_string(line2, line2_size, "stockOS settings are intentionally separate.");
     } else {
       copy_string(line1, line1_size, "Read-only A30 system setting.");
       copy_string(line2, line2_size, "Write support needs backup and rollback.");

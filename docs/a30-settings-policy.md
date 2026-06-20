@@ -33,18 +33,18 @@ A30 runtime backend へ即時反映します。
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
 - `Time Settings`: A で時刻設定サブ項目を開く。`Timezone` は左右で変更し、plumOS config 保存後に `TZ` 環境と runtime `/etc/TZ` へ反映する。`Manual Time` は専用画面で Year/Month/Day/Hour/Minute を変更し、A で OS 時刻へ適用する
 - `Language`: `language`。左右で `English`, `Japanese`, `Chinese`, `Traditional Chinese`, `Korean`, `Spanish`, `Portuguese` を選択する
-- `INFORMATION`: 現在値や backend/policy などの情報系サブ項目
+- `INFORMATION`: 本体状態を確認する read-only の情報系サブ項目
 
 `INFORMATION` サブ項目には以下の read-only 情報を置きます。
 
 - `Device Model`: 固定値 `Miyoo A30`
 - `Linux Kernel`: `/proc/sys/kernel/osrelease`
-- `SD Card`: `statvfs()` で見た空き容量/総容量
-- `plumOS System Config`: `/mnt/SDCARD/plumos/config/system/settings.json` の読み取り状態
-- `Input Device`: `gpio-keys-polled` から見つけた `/dev/input/event*`
-- `Audio Backend`: 検出した audio backend。A30 では ALSA `Soft Volume Master` を使う
-- `Display Backend`: 検出した display backend。A30 では `disp attr lcdbl/enhance`
-- `Write Policy`: stockOS から切り離し、plumOS 配下だけへ保存する方針
+- `SD Card`: `/mnt/SDCARD` を `statvfs()` で見た使用量/総容量を MB と使用率で表示する
+- `Memory`: `/proc/meminfo` の `MemTotal` と `MemAvailable` から使用量/総容量を MB と使用率で表示する。
+  `MemAvailable` がない古い kernel では `MemFree`、`Buffers`、`Cached` から近似する
+- `A30 Firmware`: `/etc/openwrt_release` の `DISTRIB_ID` または `DISTRIB_DESCRIPTION`
+  から `YYYYMMDD` を抽出する。2026-06-20 実機では
+  `tina.alfchen.20240713.021530` から `20240713` を確認済み
 
 `Time Settings` の永続値は `/mnt/SDCARD/plumos/config/system/settings.json` の
 `timezone` を原本にします。これは stockOS `/config/system.json` ではありません。
