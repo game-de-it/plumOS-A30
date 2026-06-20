@@ -279,14 +279,14 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute'
 ```
 
-`recent.json` is the browsing history; `resume-session.json` is the next-boot
-resume candidate. `boot_resume_mode` in `settings.json` accepts `off`, `last`,
-and `picker`. By default, `boot` only prints the decision and launch plan.
-With `--execute`, it launches the same ROM/launch profile only when
-`boot_resume_mode=last` and a pending resume session exists. RetroArch profiles
-are executable only when `/mnt/SDCARD/plumos/retroarch/bin/retroarch` and
-`/mnt/SDCARD/plumos/retroarch/cores/<core>_libretro.so` exist. Real Auto State
-Load integration belongs to the later RetroArch/launcher implementation.
+`recent.json` is the browsing history; `resume-session.json` is legacy
+compatibility state from the old power/resume flow. New startup behavior
+does not use `resume-session.json`. `boot_resume_mode` in `settings.json`
+accepts `off`, `on`, and `recent`. By default, `boot` only prints the decision
+and launch plan. With `--execute`, `boot_resume_mode=on` launches the first
+Recent entry with the same launch profile. `boot_resume_mode=recent` shows the
+Recent screen. plumOS does not create or load save states or in-game saves for
+startup resume.
 
 When `plumos-frontend` starts in boot mode, it calls
 `/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` once. The default
@@ -302,17 +302,18 @@ fallback. On the A30 it looks for `gpio-keys-polled` in
 `plumos-input-compare` confirms that `/dev/input/event3` can be opened and
 polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
 The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
-SELECT=`KEY_RIGHTCTRL`. Function=`KEY_ESC` is not an alternate START button; it
-opens the SAFE menu.
+SELECT=`KEY_RIGHTCTRL`. A short power-button press (`KEY_POWER`) is the Power
+menu trigger. Function=`KEY_ESC` is reserved for emulator-side menus and is not
+the frontend Power menu trigger.
 
-`plumos-safe-hotkeyd` is the safe-exit helper for the period where the frontend
+`plumos-safe-hotkeyd` is the power-action helper for the period where the frontend
 is blocked by RetroArch. By default it watches `/dev/input/event0`
 (`axp22-supplyer`) and runs `plumos-safe-shutdown --shutdown --no-poweroff`
-when a short power-button press emits `KEY_POWER`. It also reads
+`--no-hold-resume` when a short power-button press emits `KEY_POWER`. It also reads
 `gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively for volume
 keys. `SIGUSR1` uses the same trigger path, so it can be tested without a
 physical button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
-completed safe shutdown, resume hold, CPU restore, and frontend restart. The
+completed the old power action, resume hold, CPU restore, and frontend restart. The
 artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
 `plumos-text-ui launch --execute` automatically starts
@@ -322,14 +323,15 @@ artifact is
 hotkeyd `SIGUSR1` trigger is verified in
 `artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
 `scripts/probe-a30-safe-hotkeyd.sh` can rerun this path. `--trigger signal`
-runs the automated test, while `--trigger physical` waits for the physical safe
-exit key. The latest script-driven signal artifact is
+runs the automated test, while `--trigger physical` waits for the physical power
+key. The latest script-driven signal artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`.
-That artifact also verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a
-pending resume plan using `--entry-slot 999`.
+That artifact is old-spec evidence for `SAVE_STATE_SLOT 999`, `.state999`
+creation, and a pending resume plan using `--entry-slot 999`. The current power
+action flow does not use those behaviors.
 The old physical Function trigger was verified in
 `artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`;
-the current physical trigger is the power button `KEY_POWER`. An in-game SAFE
+the current physical trigger is the power button `KEY_POWER`. An in-game Power
 overlay menu remains to be validated.
 
 `plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
@@ -453,11 +455,11 @@ Controls:
   previous screen.
 - START: open START menu.
 - START menu: Settings/Favorites/Recent open real screens; Shutdown runs
-  `plumos-safe-shutdown --shutdown --no-poweroff`; other actions show previews.
+  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`; other actions show previews.
 - Left/Right are never confirm/run/back/cancel. A confirms/runs and B
   backs/cancels.
 - SELECT: system/per-ROM core menu.
-- Function: open the SAFE menu. SAFE menu contains `Sleep`, `Shutdown`, and
+- Power: open the Power menu. Power menu contains `Sleep`, `Shutdown`, and
   `Cancel`.
 - UI Settings: `Refresh TOP` is the first action and explicitly runs a TOP full
   scan and reload. Checkboxes save through A/Left/Right, and choices save
@@ -468,27 +470,27 @@ Controls:
   starts through `Connect Wi-Fi`, and `NW Service` owns SSH/FTP/SFTP/Samba/USB Disk
   Mode. Connection/IP/Signal details live under `INFORMATION`. SSID/PSK are not
   displayed.
-- SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `f`, `q`.
+- SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `p`, `q`.
 
-SAFE menu:
+Power menu:
 
-- Function opens SAFE menu from any screen.
+- Power opens Power menu from any screen.
 - Initial cursor is `Cancel` to reduce accidental actions.
-- `Sleep` runs `plumos-safe-shutdown --sleep --no-poweroff`.
-- `Shutdown` runs `plumos-safe-shutdown --shutdown --no-poweroff`.
-- `Cancel` and B return to the previous screen. LEFT/RIGHT and Function are not
+- `Sleep` runs `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume`.
+- `Shutdown` runs `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`.
+- `Cancel` and B return to the previous screen. LEFT/RIGHT and Power are not
   used for confirm/back.
-- Power/sleep backend selection is wired in `plumos-safe-shutdown`. The SAFE
-  menu default still does not trigger real poweroff or real suspend; it runs
-  through save, exit, `sync`, and resume hold.
-- While RetroArch is running, the direct `plumos-safe-hotkeyd` safe-exit path
+- Power/sleep backend selection is wired in `plumos-safe-shutdown`. The Power
+  menu does not create saves or resume holds; it only runs `sync` and backend
+  dispatch.
+- While RetroArch is running, the direct `plumos-safe-hotkeyd` power-action path
   is verified first. The physical trigger has moved to the power button. The
   in-game overlay menu still needs validation.
 
 The Settings screen also shows plumOS-owned system settings, separate from
 frontend settings and theme state. UI Settings entries such
 as `Show Empty Systems`, `Favorites On TOP`, `Recent On TOP`, `Sort Systems`,
-`Sort ROMs`, `Scan On Enter`, and `Boot Resume Mode` are reflected in controller
+`Sort ROMs`, `Scan On Enter`, and `Open Last ROM At Boot` are reflected in controller
 UI behavior after saving. System Settings reads volume, brightness, lumination,
 display color, language, and theme information from
 `/mnt/SDCARD/plumos/config/system/settings.json`. Its top level is `Volume`,

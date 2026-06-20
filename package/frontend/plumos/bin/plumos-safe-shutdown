@@ -3,39 +3,36 @@ set -u
 
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 LOG_DIR="${PLUMOS_ROOT}/logs"
-LOG_FILE="${LOG_DIR}/safe-shutdown.log"
-RESUME_SESSION="${PLUMOS_ROOT}/state/frontend/resume-session.json"
+LOG_FILE="${PLUMOS_POWER_ACTION_LOG:-${LOG_DIR}/power-action.log}"
 RESUME_HOLD="${PLUMOS_ROOT}/state/frontend/resume-hold.json"
 UDP="${PLUMOS_ROOT}/bin/plumos-udp-send"
-LOCK_DIR=/tmp/plumos-safe-shutdown.lock
+LOCK_DIR="${PLUMOS_POWER_ACTION_LOCK:-/tmp/plumos-power-action.lock}"
 
 ACTION=shutdown
 POWER_OFF=0
 DRY_RUN=0
-HOLD_RESUME=auto
-SAFE_STATE_SLOT="${PLUMOS_RA_SAFE_STATE_SLOT:-999}"
-POWER_BACKEND="${PLUMOS_SAFE_SHUTDOWN_POWER_BACKEND:-auto}"
-SLEEP_BACKEND="${PLUMOS_SAFE_SHUTDOWN_SLEEP_BACKEND:-pseudo}"
-WAKEUP_SEC="${PLUMOS_SAFE_SLEEP_WAKEUP_SEC:-0}"
-WAIT_SEC="${PLUMOS_SAFE_SHUTDOWN_WAIT_SEC:-15}"
-FALLBACK_WAIT_SEC="${PLUMOS_SAFE_SHUTDOWN_FALLBACK_WAIT_SEC:-5}"
+POWER_BACKEND="${PLUMOS_POWER_ACTION_POWER_BACKEND:-${PLUMOS_SAFE_SHUTDOWN_POWER_BACKEND:-auto}}"
+SLEEP_BACKEND="${PLUMOS_POWER_ACTION_SLEEP_BACKEND:-${PLUMOS_SAFE_SHUTDOWN_SLEEP_BACKEND:-pseudo}}"
+WAKEUP_SEC="${PLUMOS_POWER_ACTION_SLEEP_WAKEUP_SEC:-${PLUMOS_SAFE_SLEEP_WAKEUP_SEC:-0}}"
+WAIT_SEC="${PLUMOS_POWER_ACTION_WAIT_SEC:-${PLUMOS_SAFE_SHUTDOWN_WAIT_SEC:-15}}"
+FALLBACK_WAIT_SEC="${PLUMOS_POWER_ACTION_FALLBACK_WAIT_SEC:-${PLUMOS_SAFE_SHUTDOWN_FALLBACK_WAIT_SEC:-5}}"
 
 usage() {
   cat <<'USAGE'
 Usage: plumos-safe-shutdown [options]
 
 Options:
-  --shutdown             Hold resume as a shutdown. Default.
-  --sleep                Hold resume as a pseudo sleep.
-  --poweroff             Run poweroff after save/exit/sync.
+  --shutdown             Run the shutdown power action. Default.
+  --sleep                Run the sleep power action.
+  --poweroff             Run poweroff after process cleanup and sync.
   --no-poweroff          Do not power off. Default.
   --power-backend NAME   Power backend: auto, poweroff, halt, busybox, sysrq, none.
                          Default: auto.
   --sleep-backend NAME   Sleep backend: pseudo, standby, mem, bootfast, none.
                          Default: pseudo.
   --wakeup-sec N         Set RTC wakealarm before real sleep backends. Default: 0.
-  --hold-resume          Always write the resume hold marker.
-  --no-hold-resume       Do not write the resume hold marker.
+  --hold-resume          Deprecated no-op; state preservation is user-owned.
+  --no-hold-resume       Deprecated no-op. Default.
   --dry-run              Log actions without sending signals.
   --wait-sec N           Seconds to wait for launchers to exit. Default: 15.
   -h, --help             Show this help.
@@ -73,15 +70,6 @@ is_non_negative_int() {
       ;;
   esac
   return 0
-}
-
-is_state_slot() {
-  case "$1" in
-    0|[1-9]|[1-9][0-9]|[1-9][0-9][0-9])
-      return 0
-      ;;
-  esac
-  return 1
 }
 
 while [ "$#" -gt 0 ]; do
@@ -123,10 +111,10 @@ while [ "$#" -gt 0 ]; do
       WAKEUP_SEC="$1"
       ;;
     --hold-resume)
-      HOLD_RESUME=1
+      :
       ;;
     --no-hold-resume)
-      HOLD_RESUME=0
+      :
       ;;
     --dry-run)
       DRY_RUN=1
@@ -155,10 +143,6 @@ done
 if ! is_positive_int "$WAIT_SEC"; then
   log "invalid WAIT_SEC=${WAIT_SEC}; using 15"
   WAIT_SEC=15
-fi
-if ! is_state_slot "$SAFE_STATE_SLOT"; then
-  log "invalid SAFE_STATE_SLOT=${SAFE_STATE_SLOT}; using 999"
-  SAFE_STATE_SLOT=999
 fi
 case "$POWER_BACKEND" in
   auto|poweroff|halt|busybox|sysrq|none)
@@ -190,8 +174,8 @@ if ! is_positive_int "$FALLBACK_WAIT_SEC"; then
 fi
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  log "safe_shutdown already_running"
-  echo "result=plumos_safe_shutdown_already_running"
+  log "power_action already_running"
+  echo "result=plumos_power_action_already_running"
   exit 0
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true; exit 143' INT TERM
@@ -340,50 +324,6 @@ find_standalone_emulator_pids() {
     "PPSSPPSDL" "scummvm" "easyrpg-player" "dosbox" "pcsx" "picoarch" "red-viper-a30" "red-viper-sdlgl-a30"
 }
 
-resume_session_pending() {
-  [ -r "$RESUME_SESSION" ] || return 1
-  grep -q '"pending"[[:space:]]*:[[:space:]]*true' "$RESUME_SESSION" 2>/dev/null
-}
-
-write_resume_hold() {
-  text_ui_pids=$(find_text_ui_launch_pids)
-  case "$HOLD_RESUME" in
-    0)
-      log "resume_hold skipped mode=disabled"
-      return 0
-      ;;
-    auto)
-      if [ -z "$text_ui_pids" ]; then
-        log "resume_hold skipped mode=auto reason=text_ui_launch_missing"
-        return 0
-      fi
-      if ! resume_session_pending; then
-        log "resume_hold skipped mode=auto reason=pending_resume_missing"
-        return 0
-      fi
-      ;;
-  esac
-
-  hold_dir=${RESUME_HOLD%/*}
-  tmp="${RESUME_HOLD}.tmp.$$"
-  mkdir -p "$hold_dir" 2>/dev/null || true
-  if [ "$DRY_RUN" -eq 1 ]; then
-    log "resume_hold dry_run action=${ACTION} text_ui_pids=${text_ui_pids:-none}"
-    return 0
-  fi
-  {
-    printf '{\n'
-    printf '  "version": 1,\n'
-    printf '  "reason": "%s",\n' "$ACTION"
-    printf '  "auto_state_load": true\n'
-    printf '}\n'
-  } >"$tmp" && mv "$tmp" "$RESUME_HOLD"
-  rc=$?
-  rm -f "$tmp" 2>/dev/null || true
-  log "resume_hold write rc=${rc} action=${ACTION} text_ui_pids=${text_ui_pids:-none}"
-  return "$rc"
-}
-
 signal_pids() {
   sig=$1
   label=$2
@@ -464,11 +404,7 @@ send_netcmd() {
 }
 
 retroarch_netcmd_exit() {
-  log "retroarch_netcmd begin"
-  send_netcmd "SAVE_STATE_SLOT ${SAFE_STATE_SLOT}" 0 || true
-  sleep 1
-  send_netcmd SAVE_FILES 0 || true
-  sleep 1
+  log "retroarch_netcmd begin mode=quit_only"
   send_netcmd CLOSE_CONTENT 0 || true
   sleep 1
   send_netcmd GET_STATUS 1500 || true
@@ -662,11 +598,11 @@ request_sleep() {
   return "$rc"
 }
 
-log "safe_shutdown begin action=${ACTION} poweroff=${POWER_OFF} dry_run=${DRY_RUN} hold_resume=${HOLD_RESUME} wait_sec=${WAIT_SEC} safe_state_slot=${SAFE_STATE_SLOT} power_backend=${POWER_BACKEND} sleep_backend=${SLEEP_BACKEND} wakeup_sec=${WAKEUP_SEC}"
+rm -f "$RESUME_HOLD" 2>/dev/null || true
+log "power_action begin action=${ACTION} poweroff=${POWER_OFF} dry_run=${DRY_RUN} wait_sec=${WAIT_SEC} power_backend=${POWER_BACKEND} sleep_backend=${SLEEP_BACKEND} wakeup_sec=${WAKEUP_SEC}"
 active_pids=$(active_before)
 if [ -n "$active_pids" ]; then
   log "active_before pids=$(printf '%s' "$active_pids" | tr '\n' ',')"
-  write_resume_hold || true
 
   stop_retroarch_launchers
   stop_standalone_launchers
@@ -696,10 +632,10 @@ else
   remaining=""
 fi
 if [ -n "$remaining" ]; then
-  log "safe_shutdown end remaining=$(printf '%s' "$remaining" | tr '\n' ',')"
-  echo "result=plumos_safe_shutdown_remaining pids=$(printf '%s' "$remaining" | tr '\n' ',')"
+  log "power_action end remaining=$(printf '%s' "$remaining" | tr '\n' ',')"
+  echo "result=plumos_power_action_remaining pids=$(printf '%s' "$remaining" | tr '\n' ',')"
   exit 1
 fi
 
-log "safe_shutdown end result=ok"
-echo "result=plumos_safe_shutdown_ok action=${ACTION} poweroff=${POWER_OFF} sleep_backend=${SLEEP_BACKEND} power_backend=${POWER_BACKEND}"
+log "power_action end result=ok"
+echo "result=plumos_power_action_ok action=${ACTION} poweroff=${POWER_OFF} sleep_backend=${SLEEP_BACKEND} power_backend=${POWER_BACKEND}"

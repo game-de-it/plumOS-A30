@@ -567,9 +567,9 @@ MAX_FRAMES="${PLUMOS_RA_MAX_FRAMES:-}"
 QUIT_PRESS_TWICE="${PLUMOS_RA_QUIT_PRESS_TWICE:-}"
 ENTRY_SLOT="${PLUMOS_RA_ENTRY_SLOT:-}"
 SAFE_STATE_SLOT="${PLUMOS_RA_SAFE_STATE_SLOT:-999}"
-SAFE_EXIT="${PLUMOS_RA_SAFE_EXIT:-1}"
-SAFE_EXIT_SAVE_STATE="${PLUMOS_RA_SAFE_EXIT_SAVE_STATE:-1}"
-SAFE_EXIT_SAVE_FILES="${PLUMOS_RA_SAFE_EXIT_SAVE_FILES:-1}"
+SAFE_EXIT="${PLUMOS_RA_SAFE_EXIT:-0}"
+SAFE_EXIT_SAVE_STATE="${PLUMOS_RA_SAFE_EXIT_SAVE_STATE:-0}"
+SAFE_EXIT_SAVE_FILES="${PLUMOS_RA_SAFE_EXIT_SAVE_FILES:-0}"
 SAFE_EXIT_CLOSE_CONTENT="${PLUMOS_RA_SAFE_EXIT_CLOSE_CONTENT:-1}"
 DOSBOX_PURE_FORCE60FPS="${PLUMOS_RA_DOSBOX_PURE_FORCE60FPS:-}"
 DOSBOX_PURE_CYCLES="${PLUMOS_RA_DOSBOX_PURE_CYCLES:-}"
@@ -601,9 +601,9 @@ Options:
                             Override RetroArch quit_press_twice for this launch.
   --entry-slot N            Load RetroArch entry savestate slot N on startup.
                             Default: disabled.
-  --safe-state-slot N       RetroArch savestate slot reserved for safe
-                            shutdown/resume. Default: ${SAFE_STATE_SLOT}
-  --safe-exit true|false    On launcher TERM, use NCI save/close/quit before
+  --safe-state-slot N       Legacy RetroArch savestate slot option.
+                            Default: ${SAFE_STATE_SLOT}
+  --safe-exit true|false    On launcher TERM, use NCI close/quit before
                             fallback kill. Default: ${SAFE_EXIT}
   --dosbox-pure-force60fps true|false
                             Set dosbox_pure_force60fps for this launch.
@@ -1333,7 +1333,7 @@ EOF
     printf 'sha256=%s\n' "${RETROARCH_SHA256}"
     printf 'configure=GLESv2/EGL Mali fbdev RGUI; OSS/ALSA audio; SDL2/udev/linuxraw input; screenshots/images; zlib/7zip/network command\n'
     printf 'patches=A30 GL2 display rotation; A30 landscape FBO present; A30 restart exec path; NCI SAVE_STATE_SLOT command\n'
-    printf 'launcher=plumos-retroarch-launch defaults to ALSA, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, safe state slot 999, and vrr_runloop_enable=true\n'
+    printf 'launcher=plumos-retroarch-launch defaults to ALSA, SDL2 joypad, fixed 648000 kHz CPU policy, 2 CPU cores, safe-exit disabled, and vrr_runloop_enable=true\n'
     printf '\nNEEDED:\n'
     "${READELF}" -d "${TARGET_DIR}/plumos/retroarch/bin/retroarch.bin" | awk '/NEEDED/ {print}'
   } > "${TARGET_DIR}/docs/manifest.txt"

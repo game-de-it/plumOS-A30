@@ -26,7 +26,7 @@ plumOS configuration.
 
 - `/mnt/SDCARD/plumos/config/frontend/settings.json`
   - Frontend behavior such as UI Mode, Graphic Theme, TOP/ROM list visibility,
-    sorting, scan, and boot resume.
+    sorting, scan, and Open Last ROM At Boot.
 - `/mnt/SDCARD/plumos/config/frontend/menus.json`
   - Frontend menu definitions, including the START menu.
 - `/mnt/SDCARD/plumos/config/frontend/systems.json`

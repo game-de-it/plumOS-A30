@@ -269,13 +269,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute'
 ```
 
-`recent.json` は履歴一覧、`resume-session.json` は次回起動時の再開候補です。
-`settings.json` の `boot_resume_mode` は `off`, `last`, `picker` を指定できます。
+`recent.json` は履歴一覧、`resume-session.json` は旧 power/resume flow の
+互換状態です。新しい起動時動作は `resume-session.json` を使いません。
+`settings.json` の `boot_resume_mode` は `off`, `on`, `recent` を指定できます。
 `boot` は default では判断と launch plan を表示するだけです。`--execute` を付けた場合だけ、
-`boot_resume_mode=last` かつ pending resume session がある時に同じ ROM/launch profile を
-実行します。RetroArch profile は `/mnt/SDCARD/plumos/retroarch/bin/retroarch` と
-`/mnt/SDCARD/plumos/retroarch/cores/<core>_libretro.so` が存在する場合だけ実行可能です。
-実際の Auto State Load は RetroArch/launcher 実装時に接続します。
+`boot_resume_mode=on` かつ Recent の先頭がある時に前回 ROM/launch profile を実行します。
+`boot_resume_mode=recent` は Recent 画面を表示します。plumOS は起動時再開のために
+save state やゲーム内 save を作成・読み込みしません。
 
 `plumos-frontend` は boot mode で起動した時に
 `/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` を一度呼びます。既定値は
@@ -291,16 +291,17 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 `plumos-input-compare` では、stock `keymon` と stock `MainUI` が動作中でも
 `/dev/input/event3` を非排他で直接 open/poll できることを確認しています。
 実機 mapping では A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
-SELECT=`KEY_RIGHTCTRL` を使います。Function=`KEY_ESC` は START 代替ではなく、
-SAFE menu に割り当てています。
+SELECT=`KEY_RIGHTCTRL` を使います。電源ボタン短押し `KEY_POWER` は Power menu の
+trigger です。Function=`KEY_ESC` は emulator 側 menu 用に予約し、frontend の
+Power menu trigger には使いません。
 
 `plumos-safe-hotkeyd` は、RetroArch 実行中に frontend がブロックされる間の
-安全終了用 helper です。既定では `/dev/input/event0` (`axp22-supplyer`) の
+power action helper です。既定では `/dev/input/event0` (`axp22-supplyer`) の
 電源ボタン短押し `KEY_POWER` で
-`plumos-safe-shutdown --shutdown --no-poweroff` を実行します。音量キー用には
+`plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` を実行します。音量キー用には
 `gpio-keys-polled` (`/dev/input/event3` 相当) も非排他で読みます。`SIGUSR1` でも同じ
 trigger path を通るため、物理ボタンなしの実機試験に使えます。
-2026-06-08 に NES/RetroArch 実行中の `SIGUSR1` 試験で、safe shutdown、resume hold、
+2026-06-08 に NES/RetroArch 実行中の `SIGUSR1` 試験で、旧 power action、resume hold、
 CPU復元、FE再起動まで確認しました。artifact は
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes` です。
 `plumos-text-ui launch --execute` は RetroArch launch 中に
@@ -313,12 +314,12 @@ CPU復元、FE再起動まで確認しました。artifact は
 自動試験、`--trigger physical` は実機の安全終了キー押下待ちです。script経由の最新
 signal artifact は
 `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes` です。
-この artifact では `SAVE_STATE_SLOT 999` と `.state999` 作成、pending resume plan の
-`--entry-slot 999` も確認済みです。
+この artifact は旧仕様の `SAVE_STATE_SLOT 999` と `.state999` 作成、pending resume plan の
+`--entry-slot 999` を示す履歴です。現在の power action flow ではこれらを使いません。
 物理 Function 押下での旧 trigger は
 `artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`
 で確認済みでした。現在の物理 trigger は電源ボタン `KEY_POWER` です。ゲーム中に
-SAFE menu を重ねる方式は継続確認項目です。
+Power menu を重ねる方式は継続確認項目です。
 
 `plumos-controller-ui-mali` は同じ controller UI の Mali EGL renderer 付き binary です。
 `/dev/fb0` と `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so` を使い、stock SDL にはリンクしません。
@@ -428,34 +429,34 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   System Settings へ戻り、Network Settings の `INFORMATION` サブ項目では
   Network Settings へ戻る。START menu では元の画面へ戻る
 - START: START menu を開く
-- START menu: Settings/Favorites/Recent は実画面へ遷移し、Shutdown は `plumos-safe-shutdown --shutdown --no-poweroff` を実行する。その他は action preview を出す
+- START menu: Settings/Favorites/Recent は実画面へ遷移し、Shutdown は `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` を実行する。その他は action preview を出す
 - 左右キーは決定/実行/戻る/キャンセルには使わない。決定/実行はA、戻る/キャンセルはBで統一する
 - SELECT: system/per-ROM core menu
-- Function: SAFE menu を開く。SAFE menu は `Sleep`, `Shutdown`, `Cancel` を持つ
+- Power: Power menu を開く。Power menu は `Sleep`, `Shutdown`, `Cancel` を持つ
 - UI Settings: checkbox は A/左右で保存し、選択系は左右で保存する。TOP/ROM の
-  表示項目、並び順、ROM scan policy、boot resume は保存後の実挙動へ反映する
+  表示項目、並び順、ROM scan policy、「起動時に前回ROMを開く」は保存後の実挙動へ反映する
 - Network Settings: 第一階層は `Wi-Fi`、`Connect Wi-Fi`、`NW Service`、`INFORMATION`。
   `Wi-Fi` の OFF は runtime を停止し、接続開始は `Connect Wi-Fi` で行う。`NW Service` は SSH/FTP/SFTP/Samba/USB Disk Mode を扱う。
   Connection/IP/Signal などの情報系は `INFORMATION` サブ項目へ置き、SSID/PSK は表示しない
-- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `f`, `q`
+- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `p`, `q`
 
-SAFE menu:
+Power menu:
 
-- Function はどの画面からでも SAFE menu を開く
+- Power はどの画面からでも Power menu を開く
 - 初期 cursor は誤操作防止のため `Cancel`
-- `Sleep` は `plumos-safe-shutdown --sleep --no-poweroff` を実行する
-- `Shutdown` は `plumos-safe-shutdown --shutdown --no-poweroff` を実行する
-- `Cancel` と B は元の画面へ戻る。LEFT/RIGHT と Function は決定/戻るには使わない
-- `plumos-safe-shutdown` 側には power/sleep backend 選択を接続済み。SAFE menu 既定では
-  まだ実 poweroff / 実 suspend を発火せず、保存・終了・`sync`・resume hold までを実行する
-- RetroArch 実行中は `plumos-safe-hotkeyd` の直接安全終了pathを先に検証済み。
+- `Sleep` は `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume` を実行する
+- `Shutdown` は `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` を実行する
+- `Cancel` と B は元の画面へ戻る。LEFT/RIGHT と Power は決定/戻るには使わない
+- `plumos-safe-shutdown` 側には power/sleep backend 選択を接続済み。Power menu は
+  frontend 側で保存や resume hold を作らず、`sync` と backend dispatch だけを行う
+- RetroArch 実行中は `plumos-safe-hotkeyd` の直接 power action path を先に検証済み。
   物理 trigger は電源ボタンへ移行。ゲーム中 overlay menu は未完了
 
 Settings 画面では plumOS frontend 設定と theme 状態に加えて、plumOS-owned な
 system 設定も表示します。UI Settings の先頭には `Refresh TOP` を置き、
 TOP 用 full scan と reload を明示的に実行します。`Show Empty Systems`、
 `Favorites On TOP`、`Recent On TOP`、`Sort Systems`、`Sort ROMs`、`Scan On Enter`、
-`Boot Resume Mode` は保存後の controller UI に反映します。System Settings は
+`Open Last ROM At Boot` は保存後の controller UI に反映します。System Settings は
 `/mnt/SDCARD/plumos/config/system/settings.json` から volume、brightness、lumination、
 display color、language、theme 情報を読みます。
 System Settings の第一階層は `Volume`、`Brightness`、`Lumination`、`Display Color`、

@@ -72,7 +72,7 @@ Video4Linux2 no
 | shader | GLSL enabled | minimal build でも GLSL を切ると GL 初期化に失敗した。 |
 | CPU | `--enable-neon`, `--enable-floathard`, `--enable-threads` | A30 は ARMv7 NEON/VFPv4 hard-float。 |
 | archive | `--enable-zlib`, `--enable-builtinzlib`, `--enable-7zip` | NES/GB ROM set に zip があり、将来の compressed content でも便利。 |
-| remote control | `--enable-networking`, `--enable-command` | shutdown/resume flow から save/quit を安全に送る候補。 |
+| remote control | `--enable-networking`, `--enable-command` | frontend の power flow から remote close/quit を送る候補。 |
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | stock は OSS/ALSA 両方有効。A30 実機では音声 device の掴み方を検証する。 |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | stock SDL1 ではなく、plumOS は `plumos-joystickd --device-mode xbox` と SDL2/evdev を優先する。 |
 | screenshots/images | rpng/rjpeg/screenshots | 手動 screenshot を gallery/scraping fallback に使う可能性があるため有効化する。 |
@@ -167,24 +167,12 @@ RetroArch 1.22.2 practical:
   `plumos-retroarch-launch --cpu/--freq/--cores` へ解決する。
 - `--enable-command` は practical runtime で有効化済み。A30 では `lo` がDOWNのことがあるため、
   launcher が RetroArch 起動前に `ip link set lo up` を試す。2026-06-08 時点で
-  `GET_STATUS`/`QUIT` は `127.0.0.1:55355` 経由で確認済み。direct launcher 経路では
-  `SAVE_STATE` -> `SAVE_FILES` -> `CLOSE_CONTENT` -> `QUIT` も通り、`CLOSE_CONTENT` 後に
-  `GET_STATUS CONTENTLESS` を確認済み。launcher のTERM cleanupは
-  `PLUMOS_RA_SAFE_EXIT=1` 既定で `SAVE_STATE_SLOT 999` -> `SAVE_FILES` ->
-  `CLOSE_CONTENT` -> `QUIT` を試してからfallback killする。slot は
-  `PLUMOS_RA_SAFE_STATE_SLOT` / `--safe-state-slot` で変更できる。
-  `plumos-safe-shutdown --shutdown --no-poweroff` から FE/text-ui-owned launcher へTERMし、
-  `resume-session.json` を `pending=true` / `auto_state_load=true` のまま保持する経路も
-  A30実機で確認済み。controller UI の SAFE menu / START Shutdown から
-  `plumos-safe-shutdown --no-poweroff` を呼ぶ経路も確認済み。`plumos-safe-hotkeyd` の
-  `SIGUSR1` trigger では、RetroArch 実行中に同じ安全終了pathを通し、resume hold、
-  CPU復元、FE再起動、残留なしまで確認済み。`plumos-text-ui launch --execute` からの
-  `plumos-safe-hotkeyd --oneshot` 自動起動も確認済み。
-  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` で再実行できる。
-  物理 trigger は Function から電源ボタン `KEY_POWER` へ移行した。2026-06-08 の
-  `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
-  では `SAVE_STATE_SLOT 999`、`.state999` 作成、resume plan の `--entry-slot 999`
-  まで確認済み。次はゲーム中SAFE menuを出すか直接安全終了にするかのUX決定。
+  `GET_STATUS`/`QUIT` は `127.0.0.1:55355` 経由で確認済み。過去には
+  `SAVE_STATE`/`SAVE_FILES` を使う旧 exit flow も検証したが、現在の plumOS 方針では
+  電源操作前の save state 作成や resume hold は行わない。launcher の TERM cleanup は
+  既定で `PLUMOS_RA_SAFE_EXIT=0` とし、`plumos-text-ui` からも `--safe-exit false` を渡す。
+  `plumos-safe-shutdown` は互換名として残るが、現在は process cleanup、`sync`、
+  sleep/poweroff backend 呼び出しに使う。
 
 ## 次の実用 build の狙い
 
@@ -193,8 +181,8 @@ RetroArch 1.22.2 practical:
 - ALSA `default` と SDL2 joypad を初期実用 config とし、`plumos-volume-control` の
   `Soft Volume Master` を volume backend にする。
 - OSS は互換 fallback として維持し、OSS 明示時だけ RetroArch software volume へ保存値を反映する。
-- controller UI の SAFE menu/START Shutdown と `plumos-safe-hotkeyd` から接続済みの
-  安全終了flowは、power/sleep backend dry-run まで確認済み。物理 trigger は電源ボタン
-  `KEY_POWER` へ移行した。
-  次は必要ならゲーム中SAFE menu、または実 poweroff / 実 suspend の発火確認へ広げる。
+- controller UI の Power menu/START Shutdown と `plumos-safe-hotkeyd` から接続済みの
+  電源操作flowは、power/sleep backend dry-run まで確認済み。物理 trigger は電源ボタン
+  `KEY_POWER` へ移行した。次は emulator 実行中 overlay Power menu と、実 poweroff /
+  実 suspend の発火確認へ広げる。
 - CHD/FLAC は PS1/PCE CD/Mega CD/Neo Geo CD の core smoke 前に有効化して比較する。

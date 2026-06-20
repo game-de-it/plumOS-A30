@@ -377,10 +377,10 @@ static int build_default_command(struct config *cfg) {
 
   power_arg = cfg->poweroff ? "--poweroff" : "--no-poweroff";
   n = snprintf(cfg->command, sizeof(cfg->command),
-               "PLUMOS_ROOT=%s PLUMOS_SDCARD_ROOT=%s %s --%s %s >> %s 2>&1", q_root,
-               q_sdcard, q_bin, cfg->action, power_arg, q_command_log);
+               "PLUMOS_ROOT=%s PLUMOS_SDCARD_ROOT=%s %s --%s %s --no-hold-resume >> %s 2>&1",
+               q_root, q_sdcard, q_bin, cfg->action, power_arg, q_command_log);
   if (n < 0 || (size_t)n >= sizeof(cfg->command)) {
-    fprintf(stderr, "error: safe shutdown command is too long\n");
+    fprintf(stderr, "error: power action command is too long\n");
     return 0;
   }
   return 1;
@@ -488,8 +488,8 @@ static void usage(const char *argv0) {
   printf("  --action NAME          shutdown or sleep. Default: shutdown.\n");
   printf("  --shutdown             Same as --action shutdown.\n");
   printf("  --sleep                Same as --action sleep.\n");
-  printf("  --poweroff             Pass --poweroff to plumos-safe-shutdown.\n");
-  printf("  --no-poweroff          Pass --no-poweroff to plumos-safe-shutdown. Default.\n");
+  printf("  --poweroff             Pass --poweroff to the power action helper.\n");
+  printf("  --no-poweroff          Pass --no-poweroff to the power action helper. Default.\n");
   printf("  --command COMMAND      Shell command to run on trigger.\n");
   printf("  --key-code N           EV_KEY code to watch. Default: %d (KEY_POWER).\n",
          KEY_POWER);
@@ -497,7 +497,7 @@ static void usage(const char *argv0) {
   printf("  --timeout-ms MS        Exit after MS without a trigger. Default: 0, run forever.\n");
   printf("  --debounce-ms MS       Ignore repeated triggers for MS. Default: %d.\n",
          DEFAULT_DEBOUNCE_MS);
-  printf("  --volume-only          Handle volume keys without monitoring the safe key.\n");
+  printf("  --volume-only          Handle volume keys without monitoring the power key.\n");
   printf("  --no-volume-keys       Do not handle KEY_VOLUMEUP/KEY_VOLUMEDOWN.\n");
   printf("  --oneshot              Exit after the first trigger command completes.\n");
   printf("  --dry-run              Log triggers without running the command.\n");
@@ -505,7 +505,7 @@ static void usage(const char *argv0) {
   printf("  --verbose              Mirror log lines to stdout.\n");
   printf("  -h, --help             Show this help.\n");
   printf("\nSignals:\n");
-  printf("  SIGUSR1                Trigger the same command path as the physical safe key.\n");
+  printf("  SIGUSR1                Trigger the same command path as the physical power key.\n");
 }
 
 static int parse_args(struct config *cfg, int argc, char **argv) {
@@ -621,7 +621,7 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
     return 0;
   }
   if (!cfg->safe_key_enabled && !cfg->volume_keys_enabled) {
-    fprintf(stderr, "error: both safe key and volume keys are disabled\n");
+    fprintf(stderr, "error: both power key and volume keys are disabled\n");
     return 0;
   }
   return 1;

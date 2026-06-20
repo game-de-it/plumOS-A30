@@ -26,7 +26,6 @@
 #define TEXT_COMMAND_MAX 8192
 #define TEXT_PATH_MAX 1024
 #define CPU_FREQ_UNSET (-1L)
-#define RETROARCH_SAFE_STATE_SLOT_DEFAULT "999"
 
 struct top_entry {
   char id[64];
@@ -150,11 +149,6 @@ struct resume_session {
   int auto_state_load;
 };
 
-struct resume_hold {
-  char reason[64];
-  int auto_state_load;
-};
-
 struct retroarch_runtime_options {
   char audio_driver[16];
   long audio_latency_ms;
@@ -178,7 +172,6 @@ struct launch_plan {
   char picoarch_launcher_path[TEXT_PATH_MAX];
   char core_path[TEXT_PATH_MAX];
   char config_path[TEXT_PATH_MAX];
-  char safe_state_slot[16];
   char command[TEXT_COMMAND_MAX];
   struct retroarch_runtime_options retroarch_options;
   int auto_state_load;
@@ -475,35 +468,6 @@ static int split_content_suffix(const char *path, char *base_out, size_t base_ou
     *suffix_out = hash;
   }
   return 1;
-}
-
-static int parse_retroarch_state_slot(const char *s, long *out) {
-  char *end = NULL;
-  long value;
-
-  if (!s || !s[0] || !out) {
-    return 0;
-  }
-  errno = 0;
-  value = strtol(s, &end, 10);
-  if (errno != 0 || !end || *end != '\0' || value < 0 || value > 999) {
-    return 0;
-  }
-  *out = value;
-  return 1;
-}
-
-static int resolve_retroarch_safe_state_slot(char *out, size_t out_size) {
-  const char *slot = getenv("PLUMOS_RA_SAFE_STATE_SLOT");
-  long parsed;
-  int written;
-
-  if (!slot || !slot[0] || !parse_retroarch_state_slot(slot, &parsed)) {
-    slot = RETROARCH_SAFE_STATE_SLOT_DEFAULT;
-    parse_retroarch_state_slot(slot, &parsed);
-  }
-  written = snprintf(out, out_size, "%ld", parsed);
-  return written > 0 && (size_t)written < out_size;
 }
 
 static int valid_relative_rom_path(const char *s) {
@@ -1114,6 +1078,22 @@ static void init_frontend_settings(struct frontend_settings *settings) {
   copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
 }
 
+static void normalize_boot_resume_mode(char *mode, size_t mode_size) {
+  if (!mode || mode_size == 0) {
+    return;
+  }
+  if (strcmp(mode, "last") == 0 || strcmp(mode, "Last") == 0 ||
+      strcmp(mode, "on") == 0 || strcmp(mode, "ON") == 0 ||
+      strcmp(mode, "true") == 0 || strcmp(mode, "1") == 0) {
+    copy_string(mode, mode_size, "on");
+  } else if (strcmp(mode, "picker") == 0 || strcmp(mode, "Picker") == 0 ||
+             strcmp(mode, "recent") == 0 || strcmp(mode, "Recent") == 0) {
+    copy_string(mode, mode_size, "recent");
+  } else {
+    copy_string(mode, mode_size, "off");
+  }
+}
+
 static int load_frontend_settings(const char *path, struct frontend_settings *settings) {
   char *json;
   size_t json_size;
@@ -1131,11 +1111,7 @@ static int load_frontend_settings(const char *path, struct frontend_settings *se
   settings->show_empty_systems = json_get_bool(json, json + json_size, "show_empty_systems", 0);
   json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
                   sizeof(settings->boot_resume_mode));
-  if (strcmp(settings->boot_resume_mode, "off") != 0 &&
-      strcmp(settings->boot_resume_mode, "last") != 0 &&
-      strcmp(settings->boot_resume_mode, "picker") != 0) {
-    copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
-  }
+  normalize_boot_resume_mode(settings->boot_resume_mode, sizeof(settings->boot_resume_mode));
   free(json);
   return 1;
 }
@@ -2628,7 +2604,7 @@ static int load_resume_session(const char *path, struct resume_session *session)
                   sizeof(session->launch_profile));
   json_get_string(json, json + json_size, "updated_at", session->updated_at,
                   sizeof(session->updated_at));
-  session->auto_state_load = json_get_bool(json, json + json_size, "auto_state_load", 1);
+  session->auto_state_load = json_get_bool(json, json + json_size, "auto_state_load", 0);
   if (!session->reason[0]) {
     copy_string(session->reason, sizeof(session->reason), session->pending ? "shutdown" : "none");
   }
@@ -2704,55 +2680,6 @@ static void resume_session_from_rom(struct resume_session *session, const char *
   session->auto_state_load = auto_state_load;
 }
 
-static void init_resume_hold(struct resume_hold *hold) {
-  memset(hold, 0, sizeof(*hold));
-  copy_string(hold->reason, sizeof(hold->reason), "shutdown");
-  hold->auto_state_load = 1;
-}
-
-static int valid_resume_reason(const char *reason) {
-  size_t i;
-  size_t len;
-
-  if (!reason || !reason[0]) {
-    return 0;
-  }
-  len = strlen(reason);
-  if (len >= 64) {
-    return 0;
-  }
-  for (i = 0; i < len; i++) {
-    unsigned char ch = (unsigned char)reason[i];
-    if (!(isalnum(ch) || ch == '_' || ch == '-')) {
-      return 0;
-    }
-  }
-  return 1;
-}
-
-static int consume_resume_hold(const char *path, struct resume_hold *hold) {
-  char *json;
-  size_t json_size;
-
-  init_resume_hold(hold);
-  if (!file_exists(path)) {
-    return 0;
-  }
-  json = read_file(path, &json_size);
-  if (!json) {
-    unlink(path);
-    return 0;
-  }
-  json_get_string(json, json + json_size, "reason", hold->reason, sizeof(hold->reason));
-  hold->auto_state_load = json_get_bool(json, json + json_size, "auto_state_load", 1);
-  if (!valid_resume_reason(hold->reason)) {
-    copy_string(hold->reason, sizeof(hold->reason), "shutdown");
-  }
-  free(json);
-  unlink(path);
-  return 1;
-}
-
 static int build_retroarch_core_path(char *out, size_t out_size, const char *plumos_root,
                                      const char *core_id) {
   char file_name[256];
@@ -2801,10 +2728,6 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
     char launcher_dir[PATH_MAX];
 
     copy_string(plan->kind, sizeof(plan->kind), "retroarch");
-    if (!resolve_retroarch_safe_state_slot(plan->safe_state_slot,
-                                           sizeof(plan->safe_state_slot))) {
-      return 0;
-    }
     if (!join_path(launcher_dir, sizeof(launcher_dir), plumos_root, "bin") ||
         !join_path(plan->retroarch_path, sizeof(plan->retroarch_path), launcher_dir,
                    "plumos-retroarch-launch") ||
@@ -2880,17 +2803,8 @@ static int build_launch_plan(struct launch_plan *plan, const char *plumos_root,
         return 0;
       }
     }
-    if (!append_string(plan->command, sizeof(plan->command), &pos, " --safe-state-slot ") ||
-        !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
-                             plan->safe_state_slot)) {
+    if (!append_string(plan->command, sizeof(plan->command), &pos, " --safe-exit false")) {
       return 0;
-    }
-    if (plan->auto_state_load) {
-      if (!append_string(plan->command, sizeof(plan->command), &pos, " --entry-slot ") ||
-          !append_shell_quoted(plan->command, sizeof(plan->command), &pos,
-                               plan->safe_state_slot)) {
-        return 0;
-      }
     }
     plan->can_execute = plan->runtime_exists && plan->core_exists && plan->rom_exists;
     return 1;
@@ -3139,7 +3053,6 @@ static void print_launch_plan(const struct launch_plan *plan) {
   if (plan->retroarch_options.dosbox_pure_cycles[0]) {
     printf("dosbox_pure_cycles: %s\n", plan->retroarch_options.dosbox_pure_cycles);
   }
-  printf("auto_state_load: %s\n", plan->auto_state_load ? "yes" : "no");
   if (plan->retroarch_path[0]) {
     printf("retroarch: %s (%s)\n", plan->retroarch_path,
            plan->runtime_exists ? "exists" : "missing");
@@ -3158,9 +3071,6 @@ static void print_launch_plan(const struct launch_plan *plan) {
   }
   if (plan->core_path[0]) {
     printf("core: %s (%s)\n", plan->core_path, plan->core_exists ? "exists" : "missing");
-  }
-  if (plan->safe_state_slot[0]) {
-    printf("safe_state_slot: %s\n", plan->safe_state_slot);
   }
   printf("rom_exists: %s\n", plan->rom_exists ? "yes" : "no");
   printf("can_execute: %s\n", plan->can_execute ? "yes" : "no");
@@ -3744,7 +3654,7 @@ static void print_resume_session(const struct resume_session *session, const cha
   printf("title: %s\n", session->title);
   printf("launch_profile: %s\n", session->launch_profile);
   printf("updated_at: %s\n", session->updated_at);
-  printf("auto_state_load: %s\n", session->auto_state_load ? "yes" : "no");
+  printf("legacy_auto_state_load: %s\n", session->auto_state_load ? "yes" : "no");
 }
 
 static void print_resume_result(const char *action, const struct resume_session *session,
@@ -3764,9 +3674,9 @@ static void print_boot_resume(const struct frontend_settings *settings,
                               const struct resume_session *session,
                               const struct recent_state *recent, size_t limit,
                               const char *resume_path, const char *recent_path) {
-  printf("plumOS text UI - boot resume\n");
+  printf("plumOS text UI - boot startup\n");
   printf("mode: %s\n", settings->boot_resume_mode);
-  printf("resume: %s\n", resume_path);
+  printf("legacy_resume: %s\n", resume_path);
   printf("recent: %s\n", recent_path);
   printf("\n");
 
@@ -3774,25 +3684,25 @@ static void print_boot_resume(const struct frontend_settings *settings,
     printf("decision: show TOP\n");
     return;
   }
-  if (strcmp(settings->boot_resume_mode, "last") == 0) {
-    if (session->pending && session->system_id[0] && session->relative_path[0]) {
-      printf("decision: launch pending resume\n");
-      printf("system: %s\n", session->system_id);
-      printf("rom: %s\n", session->relative_path);
-      printf("title: %s\n", session->title);
-      printf("launch_profile: %s\n", session->launch_profile);
-      printf("auto_state_load: %s\n", session->auto_state_load ? "yes" : "no");
+  if (strcmp(settings->boot_resume_mode, "on") == 0) {
+    if (recent->count > 0 && recent->entries[0].system_id[0] &&
+        recent->entries[0].relative_path[0]) {
+      printf("decision: launch last ROM\n");
+      printf("system: %s\n", recent->entries[0].system_id);
+      printf("rom: %s\n", recent->entries[0].relative_path);
+      printf("title: %s\n", recent->entries[0].title);
+      printf("launch_profile: %s\n", recent->entries[0].launch_profile);
     } else {
       printf("decision: show TOP\n");
-      printf("reason: no pending resume session\n");
+      printf("reason: no recent ROM\n");
     }
     return;
   }
 
-  printf("decision: show resume picker\n");
+  printf("decision: show Recent\n");
   if (session->pending && session->system_id[0] && session->relative_path[0]) {
     printf("\n");
-    printf("Pending resume:\n");
+    printf("Legacy pending resume ignored:\n");
     printf("  %s / %s / %s / %s\n", session->system_id, session->title,
            session->relative_path, session->launch_profile);
   }
@@ -4561,7 +4471,7 @@ int main(int argc, char **argv) {
       const char *rom_relative_path;
       const char *profile_arg = NULL;
       const char *reason = "shutdown";
-      int auto_state_load = 1;
+      int auto_state_load = 0;
       int scan = 1;
       struct rom_entry rom;
       struct core_system_def system;
@@ -4665,8 +4575,6 @@ int main(int argc, char **argv) {
     static struct recent_state recent;
     struct recent_entry recent_entry;
     static struct resume_session session;
-    struct resume_hold hold;
-    int held_resume = 0;
     char launch_profile[128];
     char cpu_policy[32];
     long cpu_freq_khz = 0;
@@ -4777,24 +4685,14 @@ int main(int argc, char **argv) {
     ok = execute_launch_plan(&plan, plumos_root);
 
     current_utc_timestamp(timestamp, sizeof(timestamp));
-    if (consume_resume_hold(resume_hold_path, &hold)) {
-      held_resume = 1;
-      resume_session_from_rom(&session, system_id, &rom, launch_profile, timestamp, hold.reason, 1,
-                              hold.auto_state_load);
-      if (!save_resume_session(resume_session_path, &session)) {
-        fprintf(stderr, "warning: cannot hold resume session: %s\n", resume_session_path);
-      }
-      printf("resume: held reason=%s auto_state_load=%s\n", hold.reason,
-             hold.auto_state_load ? "yes" : "no");
-    } else {
-      init_resume_session(&session);
-      copy_string(session.updated_at, sizeof(session.updated_at), timestamp);
-      if (!save_resume_session(resume_session_path, &session)) {
-        fprintf(stderr, "warning: cannot clear resume session: %s\n", resume_session_path);
-      }
+    unlink(resume_hold_path);
+    init_resume_session(&session);
+    copy_string(session.updated_at, sizeof(session.updated_at), timestamp);
+    if (!save_resume_session(resume_session_path, &session)) {
+      fprintf(stderr, "warning: cannot clear resume session: %s\n", resume_session_path);
     }
-    printf("execute: %s\n", ok ? "ok" : held_resume ? "safe-exit" : "failed");
-    return (ok || held_resume) ? 0 : 1;
+    printf("execute: %s\n", ok ? "ok" : "failed");
+    return ok ? 0 : 1;
   }
 
   if (strcmp(cmd, "boot") == 0) {
@@ -4814,7 +4712,7 @@ int main(int argc, char **argv) {
     char launch_profile[128];
     char session_launch_path[TEXT_PATH_MAX];
     int execute = 0;
-    int has_pending_resume = 0;
+    int has_recent_rom = 0;
 
     limit = limit_env && limit_env[0] ? (size_t)strtoul(limit_env, NULL, 10) : 10;
     for (i = 2; i < argc; i++) {
@@ -4831,50 +4729,52 @@ int main(int argc, char **argv) {
     if (!load_frontend_settings(settings_path, &settings) ||
         !load_resume_session(resume_session_path, &session) ||
         !load_recent(recent_path, &recent)) {
-      fprintf(stderr, "error: cannot read boot resume state\n");
+      fprintf(stderr, "error: cannot read boot startup state\n");
       return 1;
     }
     print_boot_resume(&settings, &session, &recent, limit, resume_session_path, recent_path);
-    has_pending_resume = session.pending && session.system_id[0] && session.relative_path[0];
-    if (strcmp(settings.boot_resume_mode, "last") == 0 && has_pending_resume) {
-      if (!load_core_system_def(systems_path, session.system_id, &system) ||
+    has_recent_rom = recent.count > 0 && recent.entries[0].system_id[0] &&
+                     recent.entries[0].relative_path[0];
+    if (strcmp(settings.boot_resume_mode, "on") == 0 && has_recent_rom) {
+      const struct recent_entry *last = &recent.entries[0];
+      if (!load_core_system_def(systems_path, last->system_id, &system) ||
           !load_core_overrides(core_overrides_path, &overrides) ||
-          !resolve_cpu_setting(&system, &overrides, session.relative_path, cpu_policy,
+          !resolve_cpu_setting(&system, &overrides, last->relative_path, cpu_policy,
                                sizeof(cpu_policy), &cpu_freq_khz, &cpu_source)) {
-        fprintf(stderr, "error: cannot resolve CPU setting for %s\n", session.system_id);
+        fprintf(stderr, "error: cannot resolve CPU setting for %s\n", last->system_id);
         return 1;
       }
-      if (!resolve_cpu_cores(&system, &overrides, session.relative_path, &cpu_cores,
+      if (!resolve_cpu_cores(&system, &overrides, last->relative_path, &cpu_cores,
                              &cpu_cores_source)) {
-        fprintf(stderr, "error: cannot resolve CPU cores for %s\n", session.system_id);
+        fprintf(stderr, "error: cannot resolve CPU cores for %s\n", last->system_id);
         return 1;
       }
-      copy_string(session_launch_path, sizeof(session_launch_path), session.path);
+      copy_string(session_launch_path, sizeof(session_launch_path), last->path);
       if (!strchr(session_launch_path, '#')) {
-        int rom_idx = find_rom_core_override(&overrides, system.id, session.relative_path);
+        int rom_idx = find_rom_core_override(&overrides, system.id, last->relative_path);
         if (rom_idx >= 0 && overrides.rom_overrides[rom_idx].content_suffix[0]) {
           size_t pos = strlen(session_launch_path);
           if (!append_string(session_launch_path, sizeof(session_launch_path), &pos,
                              overrides.rom_overrides[rom_idx].content_suffix)) {
             fprintf(stderr, "error: cannot apply content suffix for %s\n",
-                    session.relative_path);
+                    last->relative_path);
             return 1;
           }
         }
       }
-      resolve_retroarch_runtime_options(&system, &overrides, session.relative_path,
+      resolve_retroarch_runtime_options(&system, &overrides, last->relative_path,
                                         &retroarch_options);
-      if (core_profile_is_listed(&system, session.launch_profile)) {
-        copy_string(launch_profile, sizeof(launch_profile), session.launch_profile);
-      } else if (!resolve_launch_profile(&system, &overrides, session.relative_path,
+      if (core_profile_is_listed(&system, last->launch_profile)) {
+        copy_string(launch_profile, sizeof(launch_profile), last->launch_profile);
+      } else if (!resolve_launch_profile(&system, &overrides, last->relative_path,
                                          launch_profile, sizeof(launch_profile))) {
-        fprintf(stderr, "error: cannot resolve launch profile for %s\n", session.system_id);
+        fprintf(stderr, "error: cannot resolve launch profile for %s\n", last->system_id);
         return 1;
       }
-      if (!build_launch_plan(&plan, plumos_root, session.system_id, session.relative_path,
-                             session.title, session_launch_path, launch_profile,
+      if (!build_launch_plan(&plan, plumos_root, last->system_id, last->relative_path,
+                             last->title, session_launch_path, launch_profile,
                              cpu_policy, cpu_freq_khz, cpu_cores, &retroarch_options,
-                             session.auto_state_load)) {
+                             0)) {
         fprintf(stderr, "error: cannot build launch plan\n");
         return 1;
       }

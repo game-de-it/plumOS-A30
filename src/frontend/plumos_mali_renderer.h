@@ -2575,7 +2575,8 @@ static void plumos_mali_make_entry(const char *line, const char *screen_title,
       plumos_mali_make_rom_entry(line, out, out_size)) {
     return;
   }
-  if (strstr(screen_title, "SAFE") && plumos_mali_make_safe_entry(line, out, out_size)) {
+  if ((strstr(screen_title, "SAFE") || strstr(screen_title, "POWER")) &&
+      plumos_mali_make_safe_entry(line, out, out_size)) {
     return;
   }
   plumos_mali_compact_spaces(line, compact, sizeof(compact));

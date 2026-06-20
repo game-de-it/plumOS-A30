@@ -1,7 +1,7 @@
 # A30 UI Design Rules
 
 This document defines the design rules for plumOS frontend UI on the A30's
-2.8-inch physical screen. It applies to the Mali renderer TOP/ROM/Settings/SAFE
+2.8-inch physical screen. It applies to the Mali renderer TOP/ROM/Settings/Power
 / network screens and future list/gallery UI work.
 
 ## Display Assumptions
@@ -197,7 +197,7 @@ The current Linux-console-style TOP/list UI should follow these rules.
 ## Graphic Mode
 
 When `UI Mode` is `Graphic`, TOP/ROM/Favorites/Recent use a card/preview UI that
-still works before artwork is curated. Settings, HELP, SAFE, Network, and System
+still works before artwork is curated. Settings, HELP, Power, Network, and System
 operation screens keep the current blue-accent list UI for readability and
 misclick prevention.
 

@@ -252,7 +252,7 @@ CPU policy 実測:
 - plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
   `plumos-joystickd --device-mode xbox` の composite virtual pad は
   `Xbox 360 Controller` mapping として自動認識された
-- RetroArch 実行中の safe shutdown trigger は電源ボタン短押しへ寄せる。
+- 電源操作 menu の trigger は電源ボタン短押しへ寄せる。
   Function button は standalone emulator の menu 操作と競合させない
 
 当面は stock `keymon` を残しつつ、plumOS frontend は `/dev/input/event3` を直接読む方針です。

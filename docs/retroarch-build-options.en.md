@@ -74,7 +74,7 @@ Video4Linux2 no
 | shader | GLSL enabled | The minimal build failed GL initialization when GLSL was disabled. |
 | CPU | `--enable-neon`, `--enable-floathard`, `--enable-threads` | A30 is ARMv7 NEON/VFPv4 hard-float. |
 | archive | `--enable-zlib`, `--enable-builtinzlib`, `--enable-7zip` | The NES/GB ROM set contains zip files, and compressed content is useful later. |
-| remote control | `--enable-networking`, `--enable-command` | Candidate path for safe save/quit from the shutdown/resume flow. |
+| remote control | `--enable-networking`, `--enable-command` | Candidate path for remote close/quit from the frontend power flow. |
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | Stock has both OSS and ALSA. Verify actual A30 device behavior. |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | Avoid stock SDL1; plumOS prefers `plumos-joystickd --device-mode xbox` with SDL2/evdev. |
 | screenshots/images | rpng/rjpeg/screenshots | Enable because manually captured screenshots may be used as gallery/scraping fallbacks. |
@@ -180,28 +180,13 @@ RetroArch 1.22.2 practical:
   system/ROM overrides into `plumos-retroarch-launch --cpu/--freq/--cores`.
 - `--enable-command` is enabled in the practical runtime. Because A30 `lo` can
   be down, the launcher tries `ip link set lo up` before starting RetroArch.
-  As of 2026-06-08, `GET_STATUS`/`QUIT` work through `127.0.0.1:55355`.
-  The direct launcher path also verified `SAVE_STATE` -> `SAVE_FILES` ->
-  `CLOSE_CONTENT` -> `QUIT`, with `GET_STATUS CONTENTLESS` after
-  `CLOSE_CONTENT`. The launcher TERM cleanup now uses `SAVE_STATE_SLOT 999` ->
-  `SAVE_FILES` -> `CLOSE_CONTENT` -> `QUIT` by default when
-  `PLUMOS_RA_SAFE_EXIT=1`, then falls back to kill. The slot is configurable via
-  `PLUMOS_RA_SAFE_STATE_SLOT` / `--safe-state-slot`.
-  `plumos-safe-shutdown --shutdown --no-poweroff` also verifies the
-  FE/text-ui-owned launcher path: it TERM's the launcher and leaves
-  `resume-session.json` pending with `auto_state_load=true`. The controller UI
-  SAFE menu / START Shutdown path also calls `plumos-safe-shutdown --no-poweroff`
-  successfully. The `plumos-safe-hotkeyd` `SIGUSR1` trigger also drives the same
-  safe-exit path while RetroArch is running, with resume hold, CPU restore,
-  frontend restart, and no residual processes. `plumos-text-ui launch --execute`
-  auto-starting `plumos-safe-hotkeyd --oneshot` is also verified.
-  `scripts/probe-a30-safe-hotkeyd.sh --trigger signal|physical` can rerun the
-  path. The physical trigger has moved from Function to power-button `KEY_POWER`.
-  The 2026-06-08 artifact
-  `artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`
-  verifies `SAVE_STATE_SLOT 999`, `.state999` creation, and a resume plan using
-  `--entry-slot 999`. Next is deciding whether an in-game SAFE menu or direct
-  safe-exit is the right UX.
+  As of 2026-06-08, `GET_STATUS`/`QUIT` work through `127.0.0.1:55355`. Older
+  experiments also verified save-state/save-file based exit, but current
+  plumOS policy does not create save states or resume-hold markers before power
+  actions. Launcher TERM cleanup now defaults to `PLUMOS_RA_SAFE_EXIT=0`, and
+  `plumos-text-ui` passes `--safe-exit false`. `plumos-safe-shutdown` remains as
+  a compatibility helper name, but it is now used for process cleanup, `sync`,
+  and sleep/poweroff backend dispatch.
 
 ## Next Practical Build Target
 
@@ -212,9 +197,9 @@ next needed pieces:
   `plumos-volume-control` `Soft Volume Master` as the volume backend.
 - Keep OSS as a compatibility fallback and map the saved volume into RetroArch
   software volume only when OSS is explicitly selected.
-- The safe-exit flow wired through controller UI SAFE/START and
+- The power-action flow wired through controller UI Power/START and
   `plumos-safe-hotkeyd` is verified through power/sleep backend dry-runs. The
   physical trigger has moved to power-button `KEY_POWER`. Next is extending it
-  to an in-game SAFE menu if needed, or live-fire real poweroff / real suspend
+  to an in-game overlay Power menu and live-fire real poweroff / real suspend
   checks.
 - Enable/compare CHD/FLAC before PS1/PCE CD/Mega CD/Neo Geo CD core smoke tests.

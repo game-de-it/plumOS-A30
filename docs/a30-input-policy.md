@@ -96,8 +96,8 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
 | 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
-| 電源 | 116 | `KEY_POWER` | `power` | safe shutdown trigger |
-| Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
+| 電源 | 116 | `KEY_POWER` | `power` | Power menu trigger |
+| Function | 1 | `KEY_ESC` | `function` | emulator 側 menu 用に予約 |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 | 左スティック軸 | - | - | - | kernel input には未露出 |
@@ -106,11 +106,10 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 注意:
 
 - START menu は物理 START (`KEY_ENTER`) で開きます。
-- Function (`KEY_ESC`) は START の代替としては扱わず、frontend 表示中の SAFE menu
-  候補として扱います。
+- Function (`KEY_ESC`) は START や電源 menu の代替としては扱わず、emulator 側 menu と
+  競合しないように予約します。
 - 電源ボタン短押しは `/dev/input/event0` (`axp22-supplyer`) の `KEY_POWER` として
-  読めます。plumOS の emulator 実行中 safe shutdown trigger は Function ではなく
-  電源ボタンを使います。
+  読めます。plumOS の電源操作 menu は Function ではなく電源ボタンを使います。
 - 音量ボタンは plumOS の `volume 0..20` を1段階ずつ更新し、ALSA `Soft Volume Master`
   へ即時反映します。RetroArch 実行中は `plumos-safe-hotkeyd --oneshot`、standalone
   emulator 実行中は `plumos-safe-hotkeyd --volume-only` が同じ処理を担当します。
@@ -263,8 +262,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 - plumOS frontend の操作入力は `/dev/input/event3` の直接読み取りで実装する
 - stock MainUI と共存している間は `EVIOCGRAB` のような排他取得は使わない
 - 電源ボタン短押しを含む button code/action mapping は実機で確定済み
-- emulator 実行中の safe shutdown trigger は電源ボタンに寄せ、Function は emulator
-  側 menu と競合しないようにする
+- 電源操作 menu の trigger は電源ボタンに寄せ、Function は emulator 側 menu と
+  競合しないようにする
 - plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
 - 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
 - emulator 向け analog stick は `plumos-joystickd` の composite virtual pad mode を
@@ -275,7 +274,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
   API からは見えるが、RetroArch log では autoconfig/接続を確認できない。RetroArch は
   plumOS build の SDL2/evdev + composite virtual pad を優先する
 - `plumos-joystickd --device-mode xbox` の button forwarding では Function も
-  `BTN_MODE` として転送できるため、emulator 実行中の safe menu 入力候補にできる
+  `BTN_MODE` として転送できるため、emulator 側 menu 入力候補にできる
 - plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
   `plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2
   GameController として自動認識されることを確認済み

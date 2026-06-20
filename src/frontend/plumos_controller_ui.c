@@ -319,7 +319,7 @@ struct performance_cpu_preset {
   long freq_khz;
 };
 
-struct safe_entry {
+struct power_entry {
   const char *id;
   const char *display_name;
   const char *detail;
@@ -431,7 +431,7 @@ enum ui_screen {
   SCREEN_FAVORITES = 3,
   SCREEN_RECENT = 4,
   SCREEN_SETTINGS = 5,
-  SCREEN_SAFE_MENU = 6,
+  SCREEN_POWER_MENU = 6,
   SCREEN_HELP = 7,
   SCREEN_CORE_SELECT = 8,
   SCREEN_NETWORK_RESCUE = 9,
@@ -478,6 +478,7 @@ enum ui_action {
   ACTION_SELECT,
   ACTION_X,
   ACTION_FUNCTION,
+  ACTION_POWER,
   ACTION_VOLUME_DOWN,
   ACTION_VOLUME_UP,
   ACTION_QUIT
@@ -507,7 +508,7 @@ struct ui_state {
   enum ui_screen screen;
   enum ui_screen rom_entry_screen;
   enum ui_screen back_screen;
-  enum ui_screen safe_back_screen;
+  enum ui_screen power_back_screen;
   enum ui_screen core_back_screen;
   enum ui_screen wifi_back_screen;
   size_t top_cursor;
@@ -534,7 +535,7 @@ struct ui_state {
   size_t settings_blink_cursor;
   int settings_blink_direction;
   long long settings_blink_until_ms;
-  size_t safe_cursor;
+  size_t power_cursor;
   struct top_entry top_entries[UI_MAX_TOP];
   size_t top_count;
   struct rom_entry rom_entries[UI_MAX_ROMS];
@@ -630,9 +631,9 @@ struct ui_state {
   long core_cpu_cores;
   char core_lines[UI_RENDER_MAX_LINES][UI_RENDER_LINE_MAX];
   size_t core_line_count;
-  char safe_target_system_id[64];
-  char safe_target_relative_path[UI_PATH_MAX];
-  char safe_target_launch_profile[128];
+  char power_target_system_id[64];
+  char power_target_relative_path[UI_PATH_MAX];
+  char power_target_launch_profile[128];
   char performance_system_id[64];
   char performance_system_name[128];
   char performance_cpu_policy[32];
@@ -649,13 +650,13 @@ struct ui_state {
 static int load_top_entries(struct ui_state *ui);
 static void set_status(struct ui_state *ui, const char *text);
 
-static const struct safe_entry SAFE_ENTRIES[] = {
-    {"sleep", "Sleep", "save state, flush SRAM, sync, enter sleep"},
-    {"shutdown", "Shutdown", "save state, flush SRAM, sync, power off"},
+static const struct power_entry POWER_ENTRIES[] = {
+    {"sleep", "Sleep", "sync and enter sleep"},
+    {"shutdown", "Shutdown", "sync and power off"},
     {"cancel", "Cancel", "return without changing state"},
 };
 
-static const size_t SAFE_ENTRY_COUNT = sizeof(SAFE_ENTRIES) / sizeof(SAFE_ENTRIES[0]);
+static const size_t POWER_ENTRY_COUNT = sizeof(POWER_ENTRIES) / sizeof(POWER_ENTRIES[0]);
 
 static const struct performance_cpu_preset PERFORMANCE_CPU_PRESETS[] = {
     {"648 MHz", "fixed", 648000},
@@ -2566,6 +2567,22 @@ static void init_frontend_settings(struct frontend_settings *settings) {
   copy_string(settings->rom_scan_policy, sizeof(settings->rom_scan_policy), "on_enter");
 }
 
+static void normalize_boot_resume_mode(char *mode, size_t mode_size) {
+  if (!mode || mode_size == 0) {
+    return;
+  }
+  if (strcmp(mode, "last") == 0 || strcmp(mode, "Last") == 0 ||
+      strcmp(mode, "on") == 0 || strcmp(mode, "ON") == 0 ||
+      strcmp(mode, "true") == 0 || strcmp(mode, "1") == 0) {
+    copy_string(mode, mode_size, "on");
+  } else if (strcmp(mode, "picker") == 0 || strcmp(mode, "Picker") == 0 ||
+             strcmp(mode, "recent") == 0 || strcmp(mode, "Recent") == 0) {
+    copy_string(mode, mode_size, "recent");
+  } else {
+    copy_string(mode, mode_size, "off");
+  }
+}
+
 static int load_settings(const char *path, struct frontend_settings *settings) {
   char *json;
   size_t json_size;
@@ -2585,6 +2602,7 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
       json_get_bool(json, json + json_size, "show_recent_on_top", 1);
   json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
                   sizeof(settings->boot_resume_mode));
+  normalize_boot_resume_mode(settings->boot_resume_mode, sizeof(settings->boot_resume_mode));
   json_get_string(json, json + json_size, "ui_mode", settings->ui_mode,
                   sizeof(settings->ui_mode));
   json_get_string(json, json + json_size, "top_mode", settings->top_mode,
@@ -3802,8 +3820,8 @@ static const struct setting_choice UI_MODE_CHOICES[] = {
 
 static const struct setting_choice BOOT_RESUME_CHOICES[] = {
     {"off", "Off"},
-    {"last", "Last"},
-    {"picker", "Picker"},
+    {"on", "ON"},
+    {"recent", "Recent"},
 };
 
 static const struct setting_choice SORT_SYSTEMS_CHOICES[] = {
@@ -4173,7 +4191,7 @@ static void add_ui_settings_entries(struct ui_state *ui,
                          settings->show_favorites_on_top);
   add_bool_setting_entry(ui, "show_recent_on_top", "Recent On TOP",
                          settings->show_recent_on_top);
-  add_setting_entry(ui, "boot_resume_mode", "Boot Resume Mode",
+  add_setting_entry(ui, "boot_resume_mode", "Open Last ROM At Boot",
                     setting_choice_display_value("boot_resume_mode",
                                                  settings->boot_resume_mode));
   add_setting_entry(ui, "sort_systems", "Sort Systems",
@@ -6655,7 +6673,7 @@ static void render_top(struct ui_state *ui) {
   }
 
   ui_printf(ui, "plumOS controller UI - TOP\n");
-  ui_printf(ui, "A: open  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit\n");
+  ui_printf(ui, "A: open  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit\n");
   ui_printf(ui, "entries=%zu cursor=%zu\n", ui->top_count, ui->top_count ? ui->top_cursor + 1 : 0);
   ui_printf(ui, "\n");
   for (i = start; i < end; i++) {
@@ -6791,7 +6809,7 @@ static void render_roms(struct ui_state *ui) {
   size_t end;
   const char *title = "ROMS";
   const char *subtitle =
-      "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+      "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
 
   if (window == 0) {
     window = 1;
@@ -6805,17 +6823,17 @@ static void render_roms(struct ui_state *ui) {
   if (ui->screen == SCREEN_FAVORITES) {
     title = "FAVORITES";
     subtitle =
-        "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+        "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else if (ui->screen == SCREEN_RECENT) {
     title = "RECENT";
     subtitle =
-        "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+        "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else if (ui->rom_directory[0]) {
     subtitle =
-        "A: open/launch  B: parent  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+        "A: open/launch  B: parent  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else {
     subtitle =
-        "A: open/launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  FUNCTION: safe menu  Q: quit";
+        "A: open/launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   }
 
   if (ui_uses_graphic_mode(ui)) {
@@ -7091,8 +7109,8 @@ static void setting_help_lines(const struct ui_state *ui,
     copy_string(line1, line1_size, "Show Recent on the TOP list.");
     copy_string(line2, line2_size, "Recent behaves like a virtual system.");
   } else if (strcmp(id, "boot_resume_mode") == 0) {
-    copy_string(line1, line1_size, "Choose startup resume behavior.");
-    copy_string(line2, line2_size, "Off ignores; Last resumes; Picker asks.");
+    copy_string(line1, line1_size, "Open the last ROM at startup.");
+    copy_string(line2, line2_size, "No save states are created or loaded.");
   } else if (strcmp(id, "sort_systems") == 0) {
     copy_string(line1, line1_size, "Choose TOP system ordering.");
     copy_string(line2, line2_size, "Sort Order follows config; Name sorts A-Z.");
@@ -7422,26 +7440,26 @@ static void render_settings(struct ui_state *ui) {
   }
 }
 
-static void render_safe_menu(struct ui_state *ui) {
+static void render_power_menu(struct ui_state *ui) {
   size_t i;
 
-  ui_printf(ui, "plumOS controller UI - SAFE\n");
+  ui_printf(ui, "plumOS controller UI - POWER\n");
   ui_printf(ui, "A: run  B: cancel  UP/DOWN: move  Q: quit\n");
-  if (ui->safe_target_relative_path[0]) {
-    ui_printf(ui, "target=%s / %s\n", ui->safe_target_system_id,
-              ui->safe_target_relative_path);
+  if (ui->power_target_relative_path[0]) {
+    ui_printf(ui, "target=%s / %s\n", ui->power_target_system_id,
+              ui->power_target_relative_path);
     ui_printf(ui, "profile=%s\n",
-              ui->safe_target_launch_profile[0] ? ui->safe_target_launch_profile : "-");
+              ui->power_target_launch_profile[0] ? ui->power_target_launch_profile : "-");
   } else {
     ui_printf(ui, "target=(no active ROM target)\n");
   }
-  ui_printf(ui, "entries=%zu cursor=%zu\n", SAFE_ENTRY_COUNT,
-            SAFE_ENTRY_COUNT ? ui->safe_cursor + 1 : 0);
+  ui_printf(ui, "entries=%zu cursor=%zu\n", POWER_ENTRY_COUNT,
+            POWER_ENTRY_COUNT ? ui->power_cursor + 1 : 0);
   ui_printf(ui, "\n");
-  for (i = 0; i < SAFE_ENTRY_COUNT; i++) {
-    const struct safe_entry *entry = &SAFE_ENTRIES[i];
+  for (i = 0; i < POWER_ENTRY_COUNT; i++) {
+    const struct power_entry *entry = &POWER_ENTRIES[i];
     ui_printf(ui, "%c %3zu  %-12s %s\n",
-              i == ui->safe_cursor ? '>' : ' ', i + 1, entry->display_name, entry->detail);
+              i == ui->power_cursor ? '>' : ' ', i + 1, entry->display_name, entry->detail);
   }
   if (ui->status[0]) {
     ui_printf(ui, "\nstatus: %s\n", ui->status);
@@ -7458,7 +7476,7 @@ static void render_help(struct ui_state *ui) {
   ui_printf(ui, "3. B: Back or cancel\n");
   ui_printf(ui, "4. START: Open START menu\n");
   ui_printf(ui, "5. SELECT: Core menu\n");
-  ui_printf(ui, "6. Function: SAFE menu\n");
+  ui_printf(ui, "6. Power: Power menu\n");
   ui_printf(ui, "7. Settings HELP: This screen\n");
   ui_printf(ui, "8. Network: Run Wi-Fi and SSH rescue\n");
   ui_printf(ui, "9. Q: Quit from SSH text input only\n");
@@ -7870,8 +7888,8 @@ static void render_ui(struct ui_state *ui) {
     render_start_menu(ui);
   } else if (ui->screen == SCREEN_SETTINGS) {
     render_settings(ui);
-  } else if (ui->screen == SCREEN_SAFE_MENU) {
-    render_safe_menu(ui);
+  } else if (ui->screen == SCREEN_POWER_MENU) {
+    render_power_menu(ui);
   } else if (ui->screen == SCREEN_HELP) {
     render_help(ui);
   } else if (ui->screen == SCREEN_CORE_SELECT) {
@@ -8030,10 +8048,10 @@ static void open_apps_menu(struct ui_state *ui) {
   }
 }
 
-static void capture_safe_target(struct ui_state *ui) {
-  ui->safe_target_system_id[0] = '\0';
-  ui->safe_target_relative_path[0] = '\0';
-  ui->safe_target_launch_profile[0] = '\0';
+static void capture_power_target(struct ui_state *ui) {
+  ui->power_target_system_id[0] = '\0';
+  ui->power_target_relative_path[0] = '\0';
+  ui->power_target_launch_profile[0] = '\0';
 
   if ((ui->screen == SCREEN_ROMS || ui->screen == SCREEN_FAVORITES ||
       ui->screen == SCREEN_RECENT) &&
@@ -8042,26 +8060,26 @@ static void capture_safe_target(struct ui_state *ui) {
     if (entry->is_navigation_directory) {
       return;
     }
-    copy_string(ui->safe_target_system_id, sizeof(ui->safe_target_system_id),
+    copy_string(ui->power_target_system_id, sizeof(ui->power_target_system_id),
                 entry->system_id[0] ? entry->system_id : ui->current_system_id);
-    copy_string(ui->safe_target_relative_path, sizeof(ui->safe_target_relative_path),
+    copy_string(ui->power_target_relative_path, sizeof(ui->power_target_relative_path),
                 entry->relative_path);
-    copy_string(ui->safe_target_launch_profile, sizeof(ui->safe_target_launch_profile),
+    copy_string(ui->power_target_launch_profile, sizeof(ui->power_target_launch_profile),
                 entry->launch_profile);
   }
 }
 
-static void close_safe_menu(struct ui_state *ui, const char *status) {
-  ui->screen = ui->safe_back_screen;
+static void close_power_menu(struct ui_state *ui, const char *status) {
+  ui->screen = ui->power_back_screen;
   set_status(ui, status);
 }
 
-static void open_safe_menu(struct ui_state *ui) {
-  ui->safe_back_screen = ui->screen;
-  ui->safe_cursor = SAFE_ENTRY_COUNT > 0 ? SAFE_ENTRY_COUNT - 1 : 0;
-  capture_safe_target(ui);
-  ui->screen = SCREEN_SAFE_MENU;
-  set_status(ui, "safe menu ready");
+static void open_power_menu(struct ui_state *ui) {
+  ui->power_back_screen = ui->screen;
+  ui->power_cursor = POWER_ENTRY_COUNT > 0 ? POWER_ENTRY_COUNT - 1 : 0;
+  capture_power_target(ui);
+  ui->screen = SCREEN_POWER_MENU;
+  set_status(ui, "power menu ready");
 }
 
 static void open_favorites_screen(struct ui_state *ui) {
@@ -9036,7 +9054,7 @@ static int run_wifi_connect_selected(struct ui_state *ui) {
   return 0;
 }
 
-static int run_safe_shutdown(struct ui_state *ui, const char *action, int poweroff) {
+static int run_power_action(struct ui_state *ui, const char *action, int poweroff) {
   char script[PATH_MAX];
   char log_dir[PATH_MAX];
   char log_path[PATH_MAX];
@@ -9049,24 +9067,36 @@ static int run_safe_shutdown(struct ui_state *ui, const char *action, int powero
   int rc;
 
   if (!action || (strcmp(action, "shutdown") != 0 && strcmp(action, "sleep") != 0)) {
-    set_status(ui, "safe action is invalid");
+    set_status(ui, "power action is invalid");
     return 0;
   }
   if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-safe-shutdown") ||
       !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
-      !join_path(log_path, sizeof(log_path), log_dir, "frontend-safe-shutdown.log")) {
-    set_status(ui, "safe shutdown path too long");
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-power-action.log")) {
+    set_status(ui, "power action path too long");
     return 0;
   }
   if (!file_exists(script)) {
-    set_status(ui, "safe shutdown script missing");
+    set_status(ui, "power action script missing");
     return 0;
   }
 
-  dry_run = getenv("PLUMOS_CONTROLLER_SAFE_DRY_RUN");
-  sleep_backend = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_BACKEND");
-  sleep_wakeup_sec = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_WAKEUP_SEC");
-  power_backend = getenv("PLUMOS_CONTROLLER_SAFE_POWER_BACKEND");
+  dry_run = getenv("PLUMOS_CONTROLLER_POWER_DRY_RUN");
+  if (!dry_run || !dry_run[0]) {
+    dry_run = getenv("PLUMOS_CONTROLLER_SAFE_DRY_RUN");
+  }
+  sleep_backend = getenv("PLUMOS_CONTROLLER_POWER_SLEEP_BACKEND");
+  if (!sleep_backend || !sleep_backend[0]) {
+    sleep_backend = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_BACKEND");
+  }
+  sleep_wakeup_sec = getenv("PLUMOS_CONTROLLER_POWER_SLEEP_WAKEUP_SEC");
+  if (!sleep_wakeup_sec) {
+    sleep_wakeup_sec = getenv("PLUMOS_CONTROLLER_SAFE_SLEEP_WAKEUP_SEC");
+  }
+  power_backend = getenv("PLUMOS_CONTROLLER_POWER_BACKEND");
+  if (!power_backend || !power_backend[0]) {
+    power_backend = getenv("PLUMOS_CONTROLLER_SAFE_POWER_BACKEND");
+  }
   if (!sleep_backend || !sleep_backend[0]) {
     sleep_backend = "mem";
   }
@@ -9088,62 +9118,63 @@ static int run_safe_shutdown(struct ui_state *ui, const char *action, int powero
       !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
       !append_string(cmd, sizeof(cmd), &pos, " --") ||
       !append_string(cmd, sizeof(cmd), &pos, action)) {
-    set_status(ui, "safe shutdown command too long");
+    set_status(ui, "power action command too long");
     return 0;
   }
   if (strcmp(action, "sleep") == 0) {
     if (!append_string(cmd, sizeof(cmd), &pos, " --sleep-backend ") ||
         !append_shell_quoted(cmd, sizeof(cmd), &pos, sleep_backend) ||
-        !append_string(cmd, sizeof(cmd), &pos, " --no-poweroff")) {
-      set_status(ui, "safe shutdown command too long");
+        !append_string(cmd, sizeof(cmd), &pos, " --no-poweroff --no-hold-resume")) {
+      set_status(ui, "power action command too long");
       return 0;
     }
     if (sleep_wakeup_sec[0] &&
         (!append_string(cmd, sizeof(cmd), &pos, " --wakeup-sec ") ||
          !append_shell_quoted(cmd, sizeof(cmd), &pos, sleep_wakeup_sec))) {
-      set_status(ui, "safe shutdown command too long");
+      set_status(ui, "power action command too long");
       return 0;
     }
   } else if (poweroff) {
     if (!append_string(cmd, sizeof(cmd), &pos, " --poweroff --power-backend ") ||
-        !append_shell_quoted(cmd, sizeof(cmd), &pos, power_backend)) {
-      set_status(ui, "safe shutdown command too long");
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, power_backend) ||
+        !append_string(cmd, sizeof(cmd), &pos, " --no-hold-resume")) {
+      set_status(ui, "power action command too long");
       return 0;
     }
-  } else if (!append_string(cmd, sizeof(cmd), &pos, " --no-poweroff")) {
-    set_status(ui, "safe shutdown command too long");
+  } else if (!append_string(cmd, sizeof(cmd), &pos, " --no-poweroff --no-hold-resume")) {
+    set_status(ui, "power action command too long");
     return 0;
   }
   if (dry_run && dry_run[0] && strcmp(dry_run, "0") != 0 &&
       strcmp(dry_run, "false") != 0 && strcmp(dry_run, "off") != 0 &&
       !append_string(cmd, sizeof(cmd), &pos, " --dry-run")) {
-    set_status(ui, "safe shutdown command too long");
+    set_status(ui, "power action command too long");
     return 0;
   }
   if (!append_string(cmd, sizeof(cmd), &pos, " >>") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
       !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
-    set_status(ui, "safe shutdown command too long");
+    set_status(ui, "power action command too long");
     return 0;
   }
 
-  snprintf(ui->status, sizeof(ui->status), "safe %s running", action);
+  snprintf(ui->status, sizeof(ui->status), "power %s running", action);
   render_ui(ui);
   rc = system(cmd);
   if (rc == -1) {
-    set_status(ui, "safe shutdown system call failed");
+    set_status(ui, "power action system call failed");
     return 0;
   }
   if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
     if (strcmp(action, "sleep") == 0) {
-      snprintf(ui->status, sizeof(ui->status), "safe sleep complete backend=%s", sleep_backend);
+      snprintf(ui->status, sizeof(ui->status), "sleep complete backend=%s", sleep_backend);
     } else {
-      snprintf(ui->status, sizeof(ui->status), "safe shutdown complete%s",
+      snprintf(ui->status, sizeof(ui->status), "shutdown complete%s",
                poweroff ? " poweroff" : " (no poweroff)");
     }
     return 1;
   }
-  set_status(ui, "safe shutdown returned non-zero; see frontend-safe-shutdown.log");
+  set_status(ui, "power action returned non-zero; see frontend-power-action.log");
   return 0;
 }
 
@@ -10838,38 +10869,38 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     }
     return;
   }
-  if (action == ACTION_FUNCTION) {
-    if (ui->screen != SCREEN_SAFE_MENU) {
-      open_safe_menu(ui);
+  if (action == ACTION_POWER) {
+    if (ui->screen != SCREEN_POWER_MENU) {
+      open_power_menu(ui);
     }
     return;
   }
 
-  if (ui->screen == SCREEN_SAFE_MENU) {
+  if (ui->screen == SCREEN_POWER_MENU) {
     if (action == ACTION_UP) {
-      if (ui->safe_cursor > 0) {
-        ui->safe_cursor--;
+      if (ui->power_cursor > 0) {
+        ui->power_cursor--;
       }
       return;
     }
     if (action == ACTION_DOWN) {
-      if (ui->safe_cursor + 1 < SAFE_ENTRY_COUNT) {
-        ui->safe_cursor++;
+      if (ui->power_cursor + 1 < POWER_ENTRY_COUNT) {
+        ui->power_cursor++;
       }
       return;
     }
     if (action == ACTION_B) {
-      close_safe_menu(ui, "safe menu cancelled");
+      close_power_menu(ui, "power menu cancelled");
       return;
     }
-    if (action == ACTION_A && ui->safe_cursor < SAFE_ENTRY_COUNT) {
-      const struct safe_entry *entry = &SAFE_ENTRIES[ui->safe_cursor];
+    if (action == ACTION_A && ui->power_cursor < POWER_ENTRY_COUNT) {
+      const struct power_entry *entry = &POWER_ENTRIES[ui->power_cursor];
       if (strcmp(entry->id, "cancel") == 0) {
-        close_safe_menu(ui, "safe menu cancelled");
+        close_power_menu(ui, "power menu cancelled");
         return;
       }
-      run_safe_shutdown(ui, entry->id, strcmp(entry->id, "shutdown") == 0);
-      ui->screen = ui->safe_back_screen;
+      run_power_action(ui, entry->id, strcmp(entry->id, "shutdown") == 0);
+      ui->screen = ui->power_back_screen;
       return;
     }
     return;
@@ -11254,7 +11285,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       } else if (strcmp(entry->action, "internal:thumbnail-results") == 0) {
         open_thumbnail_results_screen(ui);
       } else if (strcmp(entry->action, "system:shutdown") == 0) {
-        run_safe_shutdown(ui, "shutdown", 1);
+        run_power_action(ui, "shutdown", 1);
       } else if (strcmp(entry->action, "menu:apps") == 0) {
         open_apps_menu(ui);
       } else if (strncmp(entry->action, "shell:", 6) == 0) {
@@ -11544,8 +11575,10 @@ static enum ui_action action_from_key_code(unsigned int code) {
   case KEY_SELECT:
   case BTN_SELECT:
     return ACTION_SELECT;
+  case KEY_POWER:
+    return ACTION_POWER;
   case KEY_ESC:
-    return ACTION_FUNCTION;
+    return ACTION_NONE;
   case KEY_VOLUMEDOWN:
     return ACTION_VOLUME_DOWN;
   case KEY_VOLUMEUP:
@@ -11585,9 +11618,9 @@ static enum ui_action action_from_stdin_char(int ch) {
   case 'c':
   case 'C':
     return ACTION_SELECT;
-  case 'f':
-  case 'F':
-    return ACTION_FUNCTION;
+  case 'p':
+  case 'P':
+    return ACTION_POWER;
   case 'x':
   case 'X':
     return ACTION_X;
@@ -11634,7 +11667,11 @@ static enum ui_action action_from_script_token(const char *token) {
   if (strcmp(token, "x") == 0 || strcmp(token, "gallery") == 0) {
     return ACTION_X;
   }
-  if (strcmp(token, "function") == 0 || strcmp(token, "safe") == 0) {
+  if (strcmp(token, "power") == 0 || strcmp(token, "power_menu") == 0 ||
+      strcmp(token, "safe") == 0) {
+    return ACTION_POWER;
+  }
+  if (strcmp(token, "function") == 0) {
     return ACTION_FUNCTION;
   }
   if (strcmp(token, "volume_down") == 0 || strcmp(token, "volumedown") == 0 ||
@@ -12140,10 +12177,10 @@ static void usage(const char *argv0) {
   printf("     [--rotation auto|none|cw|ccw] [--font PATH]\n");
   printf("     [--tty-entry-scale 1|1.5|2]\n");
   printf("     [--rescue-network]  # disabled compatibility screen\n");
-  printf("  %s --script up,down,a,b,x,select,start,function,volume_up,volume_down,q [--no-clear]\n", argv0);
+  printf("  %s --script up,down,a,b,x,select,start,power,volume_up,volume_down,q [--no-clear]\n", argv0);
   printf("  %s --dump-events [--timeout SEC] [--event PATH]\n", argv0);
   printf("\n");
-  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, x, m, c, f, +/- for volume, q.\n");
+  printf("Keyboard fallback over SSH: w/s/a/d, e or space for A, b, x, m, c, p, +/- for volume, q.\n");
   printf("Environment:\n");
   printf("  PLUMOS_SDCARD_ROOT  Default: /mnt/SDCARD\n");
   printf("  PLUMOS_ROOT         Default: $PLUMOS_SDCARD_ROOT/plumos\n");
@@ -12180,17 +12217,17 @@ static int run_boot_resume_if_needed(struct ui_state *ui,
       strcmp(settings->boot_resume_mode, "off") == 0) {
     return 0;
   }
-  if (strcmp(settings->boot_resume_mode, "last") != 0) {
+  if (strcmp(settings->boot_resume_mode, "on") != 0) {
     return 0;
   }
   if (!join_path(text_ui, sizeof(text_ui), ui->plumos_root, "bin/plumos-text-ui") ||
       !join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
-      !join_path(log_path, sizeof(log_path), log_dir, "frontend-boot-resume.log")) {
-    set_status(ui, "boot resume path too long");
+      !join_path(log_path, sizeof(log_path), log_dir, "frontend-boot-last-rom.log")) {
+    set_status(ui, "boot last ROM path too long");
     return 0;
   }
   if (!file_exists(text_ui)) {
-    set_status(ui, "boot resume skipped; plumos-text-ui missing");
+    set_status(ui, "boot last ROM skipped; plumos-text-ui missing");
     return 0;
   }
 
@@ -12206,20 +12243,20 @@ static int run_boot_resume_if_needed(struct ui_state *ui,
       !append_string(cmd, sizeof(cmd), &pos, " boot --execute >>") ||
       !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
       !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
-    set_status(ui, "boot resume command too long");
+    set_status(ui, "boot last ROM command too long");
     return 0;
   }
 
   rc = system(cmd);
   if (rc == -1) {
-    set_status(ui, "boot resume system call failed");
+    set_status(ui, "boot last ROM system call failed");
     return 0;
   }
   if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
-    set_status(ui, "boot resume checked; TOP ready");
+    set_status(ui, "boot last ROM checked; TOP ready");
     return 1;
   }
-  set_status(ui, "boot resume failed; see frontend-boot-resume.log");
+  set_status(ui, "boot last ROM failed; see frontend-boot-last-rom.log");
   return 0;
 }
 
@@ -12429,9 +12466,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "error: cannot load TOP entries: %s\n", ui.top_cache_path);
     return 1;
   }
-  if (startup_resume_allowed && strcmp(initial_settings.boot_resume_mode, "picker") == 0) {
+  if (startup_resume_allowed && strcmp(initial_settings.boot_resume_mode, "recent") == 0) {
     open_recent_screen(&ui);
-    set_status(&ui, "boot resume picker ready");
+    set_status(&ui, "boot Recent ready");
   }
 
 #ifndef PLUMOS_ENABLE_MALI_RENDERER

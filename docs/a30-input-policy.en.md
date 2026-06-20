@@ -99,8 +99,8 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 | R2 | 20 | `KEY_T` | `r2` | reserved |
 | Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
 | Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
-| Power | 116 | `KEY_POWER` | `power` | safe shutdown trigger |
-| Function | 1 | `KEY_ESC` | `function` | safe menu candidate |
+| Power | 116 | `KEY_POWER` | `power` | Power menu trigger |
+| Function | 1 | `KEY_ESC` | `function` | reserved for emulator-side menus |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
 | Left stick axes | - | - | - | not exposed through kernel input yet |
@@ -109,11 +109,11 @@ using `plumos-input-compare --all-events`. All listed buttons were observed on
 Notes:
 
 - The START menu opens from physical START (`KEY_ENTER`).
-- Function (`KEY_ESC`) is not treated as an alternate START button. It remains a
-  frontend SAFE menu candidate.
+- Function (`KEY_ESC`) is not treated as an alternate START or power-menu button.
+  Keep it reserved so it does not conflict with emulator-side menus.
 - A short power-button press is readable as `KEY_POWER` through
-  `/dev/input/event0` (`axp22-supplyer`). During emulator runs, plumOS uses the
-  power button rather than Function as the safe shutdown trigger.
+  `/dev/input/event0` (`axp22-supplyer`). plumOS uses the power button rather
+  than Function for power-menu actions.
 - The volume buttons update plumOS `volume 0..20` one step at a time and apply
   it immediately to ALSA `Soft Volume Master`. While RetroArch is running,
   `plumos-safe-hotkeyd --oneshot` handles the same path. While standalone
@@ -276,8 +276,8 @@ Judgment:
 - Do not use exclusive mechanisms such as `EVIOCGRAB` while coexisting with
   stock MainUI.
 - Button code/action mapping is confirmed, including short power-button presses.
-- Use the power button as the in-emulator safe shutdown trigger so Function can
-  remain available to emulator-side menus.
+- Use the power button as the power-menu trigger so Function can remain available
+  to emulator-side menus.
 - Revisit whether to keep or stop `keymon` when plumOS becomes the regular
   boot frontend.
 - Do not include the left-stick click in the initial mapping. Revisit only if

@@ -1,7 +1,7 @@
 # A30 UI design rules
 
 この文書は、A30 実機の 2.8-inch 画面で読める plumOS frontend UI を保つための
-設計ルールです。対象は Mali renderer の TOP/ROM/Settings/SAFE/network 画面と、
+設計ルールです。対象は Mali renderer の TOP/ROM/Settings/Power/network 画面と、
 今後追加する list/gallery 系 UI です。
 
 ## 画面前提
@@ -124,7 +124,7 @@
 ## Graphic Mode
 
 `UI Mode` を `Graphic` にした場合の TOP/ROM/Favorites/Recent は、画像が未整備でも
-成立するカード/プレビュー型UIを基準にする。Settings、HELP、SAFE、Network、System系の
+成立するカード/プレビュー型UIを基準にする。Settings、HELP、Power、Network、System系の
 操作画面は視認性と誤操作防止を優先し、当面は現行の青バー付きlist UIを使う。
 
 - TOP は `PLUMOS A30 GUI` のカードUIにする。`tile_grid` は1ページ3列x2行の正方形6件、

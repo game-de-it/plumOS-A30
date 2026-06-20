@@ -436,9 +436,9 @@ the default. Use `cached` or `manual_refresh` only when performance requires it.
 `boot_resume_mode`:
 
 - `off`: show the normal TOP screen on boot.
-- `last`: launch the pending resume session when one exists.
-- `picker`: show the pending resume target plus recent list and let the user
-  choose what to resume.
+- `on`: automatically open the first entry in `recent.json`, which is the last
+  launched ROM/launch profile.
+- `recent`: show the Recent screen on boot and let the user choose from history.
 
 ## TOP Screen
 
@@ -569,9 +569,9 @@ Rules:
 
 ## Recent / Resume Model
 
-Recent and Resume are separate. Recent is the browsing history; Resume is the
-single target that may be offered at the next boot. Keeping them separate avoids
-mixing "played before" with "should be resumed next".
+Recent is the launch history. UI Settings "Open Last ROM At Boot" treats the
+first Recent entry as the last ROM. plumOS does not create or load save states or
+in-game saves for startup behavior.
 
 Recent state path:
 
@@ -600,7 +600,7 @@ Schema:
 }
 ```
 
-Resume state path:
+Legacy resume state path:
 
 ```text
 /mnt/SDCARD/plumos/state/frontend/resume-session.json
@@ -629,15 +629,14 @@ Rules:
 
 - Adding a recent entry moves that ROM to the top.
 - Store the resolved launch profile used for that launch.
-- Resuming from history should prefer the `launch_profile` stored in
-  recent/resume state over the current system default.
-- `pending=true` in `resume-session.json` means the target should be offered on
-  the next boot.
-- `boot_resume_mode=last` launches pending resume directly. The text UI `boot`
-  command prints only the decision and launch plan by default; `boot --execute`
-  performs the launch.
-- `boot_resume_mode=picker` shows pending resume plus recent list so the user can
-  choose what to resume.
+- Opening from history should prefer the `launch_profile` stored in Recent over
+  the current system default.
+- `resume-session.json` remains only as legacy compatibility state from the old
+  power/resume flow. New startup behavior does not use it.
+- `boot_resume_mode=on` launches the first Recent entry directly. The text UI
+  `boot` command prints only the decision and launch plan by default;
+  `boot --execute` performs the launch.
+- `boot_resume_mode=recent` shows the Recent screen.
 - For `retroarch:<core>` launch profiles, the plan is executable only when the
   plumOS RetroArch binary and matching `<core>_libretro.so` exist. Missing
   runtime files keep the launch plan non-executable.
@@ -646,63 +645,57 @@ Rules:
   `standalone:ppsspp`, `standalone:pcsx_rearmed`, `standalone:scummvm`,
   `standalone:easyrpg`, and `standalone:openbor` are A30 first-pass validated
   candidates.
-- Pressing A in the ROM list calls `plumos-text-ui launch ... --execute`; it saves
-  pending resume state before launch and clears it after the emulator returns.
-- RetroArch Auto Save State / Auto Load State integration belongs to the later
-  launcher/RetroArch implementation.
-- While RetroArch is running, use a short power-button press rather than
-  Function as the safe shutdown/resume trigger. On the A30 this is readable as
-  `KEY_POWER` from `/dev/input/event0` (`axp22-supplyer`).
+- Pressing A in the ROM list calls `plumos-text-ui launch ... --execute` and
+  records the last launched ROM/launch profile in Recent.
+- RetroArch Auto Save State / Auto Load State must not be tied to the plumOS
+  power menu or startup behavior. Save/state preservation belongs to explicit
+  user action or normal emulator/core behavior.
+- Use a short power-button press, not Function, as the power menu trigger. On the
+  A30 this is readable as `KEY_POWER` from `/dev/input/event0`
+  (`axp22-supplyer`).
 - While the frontend is blocked waiting for RetroArch, `plumos-safe-hotkeyd`
   watches the power-button event and `/dev/input/event3` (`gpio-keys-polled`)
-  non-exclusively. The power button runs
-  `plumos-safe-shutdown --shutdown --no-poweroff`, while `KEY_VOLUMEUP` /
+  non-exclusively. The current compatibility path runs
+  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`, while `KEY_VOLUMEUP` /
   `KEY_VOLUMEDOWN` are handled like `plumos-volume-control up|down`.
   `plumos-text-ui launch --execute` auto-starts `plumos-safe-hotkeyd --oneshot`
   during RetroArch launches. Standalone emulators auto-start
   `plumos-safe-hotkeyd --volume-only`, which handles only the volume keys.
   Volume changes during gameplay update runtime softvol immediately and defer
   persistent settings writes until after the emulator exits. `SIGUSR1` remains
-  available for tests of the RetroArch safe hotkey path without a physical
+  available for tests of the power hotkey path without a physical
   button.
 
-## SAFE Menu
+## Power Menu
 
-The SAFE menu opened by Function is separate from START menu. START is for
-normal frontend operations such as settings, apps, favorites, and recents. SAFE
-is for game-time save/resume/exit operations.
+A short power-button press opens the Power menu. It only offers Sleep, Shutdown,
+and Cancel. Data preservation such as in-game saves, save states, and SRAM flushes
+is user-owned; plumOS does not perform save work before power actions.
 
 Initial entries:
 
 ```json
 {
-  "id": "safe",
-  "display_name": "SAFE",
+  "id": "power",
+  "display_name": "POWER",
   "entries": [
-    { "id": "sleep", "display_name": "Sleep", "action": "safe:sleep" },
-    { "id": "shutdown", "display_name": "Shutdown", "action": "safe:shutdown" },
-    { "id": "cancel", "display_name": "Cancel", "action": "safe:cancel" }
+    { "id": "sleep", "display_name": "Sleep", "action": "power:sleep" },
+    { "id": "shutdown", "display_name": "Shutdown", "action": "power:shutdown" },
+    { "id": "cancel", "display_name": "Cancel", "action": "power:cancel" }
   ]
 }
 ```
 
 Rules:
 
-- Initial cursor is `Cancel` so pressing Function cannot immediately sleep or
-  shut down by accident.
-- `Sleep` flushes save RAM and keeps the resume candidate. If true suspend is
-  not viable, fall back to pseudo-sleep.
-- `Shutdown` saves state to the dedicated safe state slot 999, flushes save RAM,
-  updates `resume-session.json`, exits RetroArch, runs `sync`, then powers off.
-- `Cancel`, B, LEFT, and Function return to the previous screen.
-- ROM-list A is connected to real launch. SAFE-menu sleep/shutdown actions are
-  wired through `plumos-safe-shutdown --no-poweroff` for launcher/RetroArch save,
-  exit, `sync`, and resume hold. `plumos-safe-shutdown` can select power and
-  sleep backends, but real poweroff/suspend still needs a live-fire check.
-- The direct RetroArch `plumos-safe-hotkeyd` safe-exit path is verified through
-  text-ui launch auto-start and `.state999` creation. The in-game overlay menu
-  still needs validation, but the direct trigger now belongs to the power button
-  so Function can remain available to emulator-side menus.
+- Initial cursor is `Cancel` so accidental presses do not immediately sleep or
+  shut down.
+- `Sleep` runs `sync` and then the configured sleep backend. It does not save.
+- `Shutdown` runs `sync` and then the configured poweroff backend. It does not
+  save.
+- `Cancel` and B return to the previous screen.
+- For compatibility the internal helper is still named `plumos-safe-shutdown`,
+  but it no longer writes resume-hold state or creates state-slot saves.
 
 ## START Menu
 

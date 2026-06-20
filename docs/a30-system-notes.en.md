@@ -247,7 +247,7 @@ On 2026-06-06, `plumos-input-compare` was run on the A30 and confirmed:
 - With the plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe, the
   `plumos-joystickd --device-mode xbox` composite virtual pad was also
   auto-detected through the `Xbox 360 Controller` mapping.
-- Use a short power-button press as the RetroArch safe shutdown trigger.
+- Use a short power-button press as the power menu trigger.
   Function should remain available to standalone emulator menus.
 
 For now, keep stock `keymon` while the plumOS frontend reads

@@ -75,7 +75,7 @@
 - [x] plumOS frontend 独自の system/app/theme data model を設計する。
 - [x] `systems.json` seed、ROM scanner、on-enter scan、directory game scan を実装する。
 - [x] text UI の system/ROM/list/start/settings/core/favorites/recent/resume を実装する。
-- [x] controller UI の TOP/ROM/START/Settings/SAFE/HELP/Core select を実装する。
+- [x] controller UI の TOP/ROM/START/Settings/Power/HELP/Core select を実装する。
 - [x] Mali TTY renderer、rotation auto、A30 compact layout、blue/orange accent を実装する。
 - [x] TOP/ROM list の paging、scroll、key repeat、日本語表示、marquee を実装する。
 - [x] START menu と settings 階層を UI Settings/System/Network/Performance/Apps/HELP/Shutdown に整理する。
@@ -125,19 +125,18 @@
 - [ ] PPSSPP config/controls の backup、restore、factory reset 機能を実装する。
 - [ ] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。
 - [ ] `--config` と override config で system/core ごとの差分を管理する。
-- [ ] RetroArch Auto Save State / Auto Load State と plumOS resume flow を検証する。
 
 ## Phase 8 - A30 Input, Power, and System Policy
 
 - [x] A30 物理入力 mapping と `/dev/input/event*` 経路を確認する。
 - [x] `/dev/ttyS0` serial stick frame と `plumos-joystickd` を実装する。
 - [x] `plumos-joystickd --device-mode xbox` を SDL2/PPSSPP/RetroArch 経路で確認する。
-- [x] Function SAFE menu、safe shutdown、resume hold、mem sleep、poweroff を実装/確認する。
+- [x] 電源ボタン Power menu、sleep、poweroff を実装/確認する。
 - [x] CPU governor/frequency/core policy を計測し、FE default を 648MHz / 2 cores にする。
 - [x] Wi-Fi power sequence、DHCP、Dropbear 復旧を複数回確認する。
 - [ ] 左スティック上下左右を個別 capture し、X/Y と符号を確定する。
 - [x] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
-- [ ] RetroArch 実行中の safe shutdown UX を overlay menu にするか direct power-key exit にするか決める。
+- [ ] emulator 実行中の電源ボタン UX を overlay Power menu にする。
 - [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
 - [ ] SSH を開発用 package のままにするか、plumOS service にするか決める。
 
