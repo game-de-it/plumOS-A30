@@ -295,6 +295,10 @@ Judgment:
   plumOS RetroArch build.
 - `plumos-joystickd --device-mode xbox` forwards Function as `BTN_MODE`, so it
   can be used as a candidate safe-menu input while an emulator is running.
+- In RetroArch, keep `SELECT` as the hotkey modifier for state-save,
+  fast-forward, and similar combos. Do not bind `input_menu_toggle_btn`; while an
+  emulator is running, `plumos-safe-hotkeyd` converts a single physical Function
+  (`KEY_ESC`) press into the RetroArch `MENU_TOGGLE` netcmd.
 - The plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe also
   confirms that `plumos-joystickd --device-mode xbox` is auto-detected as an
   SDL2 GameController.

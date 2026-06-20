@@ -300,8 +300,10 @@ Power menu trigger には使いません。
 power/volume helper です。既定では `/dev/input/event0` (`axp22-supplyer`) の
 電源ボタン短押し `KEY_POWER` で `plumos-power-menu-overlay` を起動します。
 overlay は emulator の `/dev/fb0` owner を一時停止して Power menu を描画し、
-Cancel で emulator を再開します。音量キー用には `gpio-keys-polled`
-(`/dev/input/event3` 相当) も非排他で読みます。`SIGUSR1` でも同じ trigger path を
+Cancel で emulator を再開します。音量キーと Function 用には `gpio-keys-polled`
+(`/dev/input/event3` 相当) も非排他で読みます。Function 単押しは RetroArch へ
+`MENU_TOGGLE` netcmd を送るため、RetroArch 側では `SELECT` hotkey combo とは独立して
+menu を開けます。`SIGUSR1` でも同じ trigger path を
 通るため、物理ボタンなしの実機試験に使えます。
 2026-06-08 に NES/RetroArch 実行中の `SIGUSR1` 試験で、旧 power action、resume hold、
 CPU復元、FE再起動まで確認しました。artifact は

@@ -329,7 +329,7 @@ input_player1_l_y_plus_axis = "+1"
 input_player1_l_y_minus_axis = "-1"
 input_axis_threshold = "0.500000"
 input_enable_hotkey_btn = "4"
-input_menu_toggle_btn = "0"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "6"
 quit_press_twice = "false"
 
@@ -398,7 +398,7 @@ input_r_x_minus_axis = "-2"
 input_r_y_plus_axis = "-3"
 input_r_y_minus_axis = "+3"
 input_enable_hotkey_btn = "4"
-input_menu_toggle_btn = "0"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "6"
 EOF
 
@@ -433,7 +433,7 @@ input_r_x_minus_axis = "-2"
 input_r_y_plus_axis = "-3"
 input_r_y_minus_axis = "+3"
 input_enable_hotkey_btn = "4"
-input_menu_toggle_btn = "0"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "6"
 EOF
 
@@ -464,7 +464,7 @@ input_l_x_minus_axis = "-0"
 input_l_y_plus_axis = "+1"
 input_l_y_minus_axis = "-1"
 input_enable_hotkey_btn = "6"
-input_menu_toggle_btn = "1"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "7"
 EOF
 
@@ -495,7 +495,7 @@ input_l_x_minus_axis = "-0"
 input_l_y_plus_axis = "+1"
 input_l_y_minus_axis = "-1"
 input_enable_hotkey_btn = "6"
-input_menu_toggle_btn = "1"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "7"
 EOF
 
@@ -959,10 +959,11 @@ OPTIONS
   fi
 
   # EightyOne uses SELECT to toggle its virtual keyboard. Keep SELECT available
-  # to the core and move RetroArch combos to the A30 Function/R3 button.
+  # to the core; RetroArch menu is handled by the A30 Function key through
+  # plumos-safe-hotkeyd instead of a hotkey combo.
   cat >> "$APPEND" <<APPEND
 input_enable_hotkey_btn = "8"
-input_menu_toggle_btn = "0"
+input_menu_toggle_btn = "nul"
 input_exit_emulator_btn = "6"
 APPEND
 }

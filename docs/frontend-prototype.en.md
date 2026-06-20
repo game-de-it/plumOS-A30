@@ -312,9 +312,11 @@ blocked by an emulator. By default it watches `/dev/input/event0`
 (`axp22-supplyer`) and launches `plumos-power-menu-overlay` when a short
 power-button press emits `KEY_POWER`. The overlay temporarily stops the emulator
 `/dev/fb0` owner, draws the Power menu, and resumes the emulator on Cancel. It
-also reads `gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively for
-volume keys. `SIGUSR1` uses the same trigger path, so it can be tested without a
-physical button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
+also reads `gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively
+for volume keys and Function. A single Function press sends RetroArch the
+`MENU_TOGGLE` netcmd, so the menu is independent from `SELECT` hotkey combos.
+`SIGUSR1` uses the same trigger path, so it can be tested without a physical
+button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
 completed the old power action, resume hold, CPU restore, and frontend restart. The
 artifact is
 `artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.

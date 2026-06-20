@@ -173,6 +173,10 @@ RetroArch 1.22.2 practical:
   既定で `PLUMOS_RA_SAFE_EXIT=0` とし、`plumos-text-ui` からも `--safe-exit false` を渡す。
   `plumos-safe-shutdown` は互換名として残るが、現在は process cleanup、`sync`、
   sleep/poweroff backend 呼び出しに使う。
+- RetroArch の通常 hotkey modifier は `SELECT` のままにする。state save、
+  fast-forward、exit などは `SELECT+button` に寄せ、menu だけは
+  `input_menu_toggle_btn = "nul"` として hotkey combo から外す。物理 Function 単押しは
+  emulator 実行中の `plumos-safe-hotkeyd` が `MENU_TOGGLE` netcmd を送って開く。
 
 ## 次の実用 build の狙い
 

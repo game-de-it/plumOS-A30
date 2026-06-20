@@ -53,6 +53,7 @@ struct input_event {
 #define DEFAULT_ROOT "/mnt/SDCARD/plumos"
 #define DEFAULT_SDCARD_ROOT "/mnt/SDCARD"
 #define DEFAULT_DEBOUNCE_MS 1500
+#define DEFAULT_FUNCTION_DEBOUNCE_MS 500
 #define DEFAULT_POLL_MS 250
 #define VOLUME_LOCK_PATH "/tmp/plumos-safe-hotkeyd-volume.lock"
 #define POWER_OVERLAY_PIDS_ENV "PLUMOS_POWER_MENU_OVERLAY_PIDS"
@@ -81,6 +82,8 @@ struct config {
   int verbose;
   int safe_key_enabled;
   int volume_keys_enabled;
+  int function_menu_enabled;
+  int function_debounce_ms;
   int event_path_explicit;
   int volume_event_path_explicit;
   int volume_lock_fd;
@@ -301,6 +304,13 @@ static int parse_action(const char *value, char *out, size_t out_size) {
   return 0;
 }
 
+static int flag_value_enabled(const char *value) {
+  return !(strcmp(value, "0") == 0 || strcmp(value, "false") == 0 ||
+           strcmp(value, "False") == 0 || strcmp(value, "no") == 0 ||
+           strcmp(value, "No") == 0 || strcmp(value, "off") == 0 ||
+           strcmp(value, "Off") == 0);
+}
+
 static int discover_named_input_event(char *out, size_t out_size, const char *target_name,
                                       const char *fallback_path) {
   FILE *f;
@@ -518,6 +528,8 @@ static int init_config(struct config *cfg) {
   cfg->volume_lock_fd = -1;
   cfg->safe_key_enabled = 1;
   cfg->volume_keys_enabled = 1;
+  cfg->function_menu_enabled = 1;
+  cfg->function_debounce_ms = DEFAULT_FUNCTION_DEBOUNCE_MS;
 
   env = getenv("PLUMOS_ROOT");
   if (env && env[0] && !copy_string(cfg->root, sizeof(cfg->root), env)) {
@@ -534,11 +546,7 @@ static int init_config(struct config *cfg) {
   }
   env = getenv("PLUMOS_SAFE_HOTKEYD_SAFE_KEY");
   if (env && env[0]) {
-    cfg->safe_key_enabled =
-        !(strcmp(env, "0") == 0 || strcmp(env, "false") == 0 ||
-          strcmp(env, "False") == 0 || strcmp(env, "no") == 0 ||
-          strcmp(env, "No") == 0 || strcmp(env, "off") == 0 ||
-          strcmp(env, "Off") == 0);
+    cfg->safe_key_enabled = flag_value_enabled(env);
   }
   env = getenv("PLUMOS_SAFE_HOTKEY_EVENT");
   if (env && env[0]) {
@@ -587,11 +595,17 @@ static int init_config(struct config *cfg) {
   }
   env = getenv("PLUMOS_SAFE_HOTKEYD_VOLUME_KEYS");
   if (env && env[0]) {
-    cfg->volume_keys_enabled =
-        !(strcmp(env, "0") == 0 || strcmp(env, "false") == 0 ||
-          strcmp(env, "False") == 0 || strcmp(env, "no") == 0 ||
-          strcmp(env, "No") == 0 || strcmp(env, "off") == 0 ||
-          strcmp(env, "Off") == 0);
+    cfg->volume_keys_enabled = flag_value_enabled(env);
+  }
+  env = getenv("PLUMOS_SAFE_HOTKEYD_FUNCTION_MENU");
+  if (env && env[0]) {
+    cfg->function_menu_enabled = flag_value_enabled(env);
+  }
+  env = getenv("PLUMOS_SAFE_HOTKEY_FUNCTION_DEBOUNCE_MS");
+  if (env && env[0] &&
+      !parse_int_arg("PLUMOS_SAFE_HOTKEY_FUNCTION_DEBOUNCE_MS", env, 0, 60000,
+                     &cfg->function_debounce_ms)) {
+    return 0;
   }
   return 1;
 }
@@ -615,8 +629,13 @@ static void usage(const char *argv0) {
   printf("  --timeout-ms MS        Exit after MS without a trigger. Default: 0, run forever.\n");
   printf("  --debounce-ms MS       Ignore repeated triggers for MS. Default: %d.\n",
          DEFAULT_DEBOUNCE_MS);
+  printf("  --function-debounce-ms MS\n");
+  printf("                         Ignore repeated Function menu presses for MS. Default: %d.\n",
+         DEFAULT_FUNCTION_DEBOUNCE_MS);
   printf("  --volume-only          Handle volume keys without monitoring the power key.\n");
   printf("  --no-volume-keys       Do not handle KEY_VOLUMEUP/KEY_VOLUMEDOWN.\n");
+  printf("  --function-menu        Send RetroArch MENU_TOGGLE on Function. Default.\n");
+  printf("  --no-function-menu     Do not handle Function as the RetroArch menu key.\n");
   printf("  --oneshot              Exit after the first trigger command completes.\n");
   printf("  --dry-run              Log triggers without running the command.\n");
   printf("  --trigger-now          Run the trigger command immediately, then exit.\n");
@@ -701,11 +720,20 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       if (!parse_int_arg("--debounce-ms", argv[++i], 0, 60000, &cfg->debounce_ms)) {
         return 0;
       }
+    } else if (strcmp(argv[i], "--function-debounce-ms") == 0 && i + 1 < argc) {
+      if (!parse_int_arg("--function-debounce-ms", argv[++i], 0, 60000,
+                         &cfg->function_debounce_ms)) {
+        return 0;
+      }
     } else if (strcmp(argv[i], "--volume-only") == 0) {
       cfg->safe_key_enabled = 0;
       cfg->volume_keys_enabled = 1;
     } else if (strcmp(argv[i], "--no-volume-keys") == 0) {
       cfg->volume_keys_enabled = 0;
+    } else if (strcmp(argv[i], "--function-menu") == 0) {
+      cfg->function_menu_enabled = 1;
+    } else if (strcmp(argv[i], "--no-function-menu") == 0) {
+      cfg->function_menu_enabled = 0;
     } else if (strcmp(argv[i], "--oneshot") == 0) {
       cfg->oneshot = 1;
     } else if (strcmp(argv[i], "--dry-run") == 0) {
@@ -731,15 +759,15 @@ static int parse_args(struct config *cfg, int argc, char **argv) {
       !discover_input_event(cfg->event_path, sizeof(cfg->event_path), cfg->key_code)) {
     return 0;
   }
-  if (cfg->volume_keys_enabled && !cfg->volume_event_path[0] &&
+  if ((cfg->volume_keys_enabled || cfg->function_menu_enabled) && !cfg->volume_event_path[0] &&
       !discover_volume_input_event(cfg->volume_event_path, sizeof(cfg->volume_event_path))) {
     return 0;
   }
   if (cfg->safe_key_enabled && !cfg->command_set && !build_default_command(cfg)) {
     return 0;
   }
-  if (!cfg->safe_key_enabled && !cfg->volume_keys_enabled) {
-    fprintf(stderr, "error: both power key and volume keys are disabled\n");
+  if (!cfg->safe_key_enabled && !cfg->volume_keys_enabled && !cfg->function_menu_enabled) {
+    fprintf(stderr, "error: power key, volume keys, and Function menu are disabled\n");
     return 0;
   }
   return 1;
@@ -901,6 +929,66 @@ static int run_volume_key_command(struct config *cfg, int direction) {
   return status == 0 ? 0 : 1;
 }
 
+static int run_function_menu_command(struct config *cfg) {
+  char bin[PATH_MAX];
+  char command_log[PATH_MAX];
+  char q_root[SHELL_QUOTE_MAX];
+  char q_bin[SHELL_QUOTE_MAX];
+  char q_command_log[SHELL_QUOTE_MAX];
+  char command[COMMAND_MAX];
+  long long start;
+  long long elapsed;
+  int rc;
+  int status;
+  int n;
+
+  emit_msg(cfg, "trigger source=function action=retroarch_menu dry_run=%d", cfg->dry_run);
+  if (cfg->dry_run) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=0 dry_run=1");
+    return 0;
+  }
+  if (!join_path(bin, sizeof(bin), cfg->root, "bin/plumos-udp-send") ||
+      !join_path(command_log, sizeof(command_log), cfg->root,
+                 "logs/safe-hotkeyd-command.log")) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=1 reason=path");
+    return 1;
+  }
+  if (!shell_quote(q_root, sizeof(q_root), cfg->root) ||
+      !shell_quote(q_bin, sizeof(q_bin), bin) ||
+      !shell_quote(q_command_log, sizeof(q_command_log), command_log)) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=1 reason=quote");
+    return 1;
+  }
+
+  n = snprintf(command, sizeof(command),
+               "(ip link set lo up >/dev/null 2>&1 || ifconfig lo up >/dev/null 2>&1 || true); "
+               "PLUMOS_ROOT=%s %s MENU_TOGGLE >> %s 2>&1",
+               q_root, q_bin, q_command_log);
+  if (n < 0 || (size_t)n >= sizeof(command)) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=1 reason=command_length");
+    return 1;
+  }
+
+  start = now_ms();
+  rc = system(command);
+  elapsed = now_ms() - start;
+  if (rc == -1) {
+    emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=-1 errno=%d elapsed_ms=%lld",
+             errno, elapsed);
+    return 1;
+  }
+  if (WIFEXITED(rc)) {
+    status = WEXITSTATUS(rc);
+  } else if (WIFSIGNALED(rc)) {
+    status = 128 + WTERMSIG(rc);
+  } else {
+    status = 1;
+  }
+  emit_msg(cfg, "result=plumos_safe_hotkeyd_function_menu rc=%d elapsed_ms=%lld", status,
+           elapsed);
+  return status == 0 ? 0 : 1;
+}
+
 static int handle_trigger(struct config *cfg, const char *source, long long *last_trigger_ms) {
   long long now;
   int rc;
@@ -918,8 +1006,23 @@ static int handle_trigger(struct config *cfg, const char *source, long long *las
   return rc;
 }
 
+static void handle_function_menu(struct config *cfg, long long *last_function_ms) {
+  long long now;
+
+  now = now_ms();
+  if (*last_function_ms > 0 && cfg->function_debounce_ms > 0 &&
+      now - *last_function_ms < cfg->function_debounce_ms) {
+    log_msg(cfg, "ignored trigger source=function reason=debounce elapsed_ms=%lld",
+            now - *last_function_ms);
+    return;
+  }
+  *last_function_ms = now;
+  (void)run_function_menu_command(cfg);
+  *last_function_ms = now_ms();
+}
+
 static int drain_event_fd(struct config *cfg, int fd, const char *source, long long *last_trigger_ms,
-                          int *exit_rc) {
+                          long long *last_function_ms, int *exit_rc) {
   for (;;) {
     struct input_event ev;
     ssize_t n = read(fd, &ev, sizeof(ev));
@@ -944,6 +1047,11 @@ static int drain_event_fd(struct config *cfg, int fd, const char *source, long l
       run_volume_key_command(cfg, ev.code == KEY_VOLUMEUP ? 1 : -1);
       continue;
     }
+    if (cfg->function_menu_enabled && ev.type == EV_KEY && ev.code == KEY_ESC &&
+        ev.value == 1 && (!cfg->safe_key_enabled || ev.code != cfg->key_code)) {
+      handle_function_menu(cfg, last_function_ms);
+      continue;
+    }
     if (cfg->safe_key_enabled && ev.type == EV_KEY && ev.code == cfg->key_code &&
         ev.value == 1) {
       *exit_rc = handle_trigger(cfg, "key", last_trigger_ms);
@@ -959,9 +1067,11 @@ static int drain_event_fd(struct config *cfg, int fd, const char *source, long l
 static int event_loop(struct config *cfg) {
   int fd = -1;
   int volume_fd = -1;
+  int aux_keys_enabled = cfg->volume_keys_enabled || cfg->function_menu_enabled;
   long long start;
   long long deadline = 0;
   long long last_trigger_ms = 0;
+  long long last_function_ms = 0;
   int exit_rc = 0;
 
   if (cfg->volume_keys_enabled) {
@@ -978,16 +1088,17 @@ static int event_loop(struct config *cfg) {
       return 1;
     }
   }
-  if (cfg->volume_keys_enabled && cfg->volume_event_path[0] && !same_path(cfg->event_path, cfg->volume_event_path)) {
+  if (aux_keys_enabled && cfg->volume_event_path[0] &&
+      !same_path(cfg->event_path, cfg->volume_event_path)) {
     volume_fd = open(cfg->volume_event_path, O_RDONLY | O_NONBLOCK);
     if (volume_fd < 0) {
-      log_msg(cfg, "warning open_volume_event path=%s errno=%d", cfg->volume_event_path, errno);
+      log_msg(cfg, "warning open_aux_event path=%s errno=%d", cfg->volume_event_path, errno);
     }
   }
   if (fd < 0 && volume_fd < 0) {
     fprintf(stderr, "error: no input event device is available\n");
-    log_msg(cfg, "error no_input_event safe_key=%d volume_keys=%d", cfg->safe_key_enabled,
-            cfg->volume_keys_enabled);
+    log_msg(cfg, "error no_input_event safe_key=%d volume_keys=%d function_menu=%d",
+            cfg->safe_key_enabled, cfg->volume_keys_enabled, cfg->function_menu_enabled);
     release_volume_lock(cfg);
     return 1;
   }
@@ -998,10 +1109,11 @@ static int event_loop(struct config *cfg) {
   }
   emit_msg(cfg,
            "plumos-safe-hotkeyd event=%s key_code=%d volume_event=%s action=%s timeout_ms=%d "
-           "oneshot=%d safe_key=%d volume_keys=%d",
+           "oneshot=%d safe_key=%d volume_keys=%d function_menu=%d",
            cfg->safe_key_enabled ? cfg->event_path : "off", cfg->key_code,
            volume_fd >= 0 ? cfg->volume_event_path : cfg->event_path, cfg->action,
-           cfg->timeout_ms, cfg->oneshot, cfg->safe_key_enabled, cfg->volume_keys_enabled);
+           cfg->timeout_ms, cfg->oneshot, cfg->safe_key_enabled, cfg->volume_keys_enabled,
+           cfg->function_menu_enabled);
 
   while (!g_stop) {
     struct pollfd pfds[2];
@@ -1063,11 +1175,12 @@ static int event_loop(struct config *cfg) {
     }
 
     if (trigger_index >= 0 && (pfds[trigger_index].revents & POLLIN) &&
-        !drain_event_fd(cfg, fd, "trigger", &last_trigger_ms, &exit_rc)) {
+        !drain_event_fd(cfg, fd, "trigger", &last_trigger_ms, &last_function_ms, &exit_rc)) {
       break;
     }
     if (volume_index >= 0 && (pfds[volume_index].revents & POLLIN) &&
-        !drain_event_fd(cfg, volume_fd, "volume", &last_trigger_ms, &exit_rc)) {
+        !drain_event_fd(cfg, volume_fd, "volume", &last_trigger_ms, &last_function_ms,
+                        &exit_rc)) {
       break;
     }
     if (exit_rc != 0 && cfg->oneshot) {

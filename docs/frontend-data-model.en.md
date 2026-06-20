@@ -701,6 +701,10 @@ Rules:
 - After waking from `Sleep` while RetroArch is running, the overlay helper
   resumes the preserved emulator first, then sends an `AUDIO_REINIT` netcmd so
   ALSA PCM is reopened after suspend.
+- While RetroArch is running, a single Function press makes
+  `plumos-safe-hotkeyd` send the `MENU_TOGGLE` netcmd. RetroArch keeps `SELECT`
+  as the hotkey modifier for state-save, fast-forward, and similar actions, so
+  menu toggle is not bound to a hotkey combo.
 - `Shutdown` runs `sync` and then the configured poweroff backend. It does not
   save.
 - `Cancel` and B return to the previous screen.

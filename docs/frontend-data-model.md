@@ -672,6 +672,9 @@ rules:
   状態を維持する
 - RetroArch 実行中の `Sleep` 復帰後は、overlay helper が先に emulator を再開し、その後で
   `AUDIO_REINIT` netcmd を送り、sleep で失効した ALSA PCM を開き直す
+- RetroArch 実行中の Function 単押しは、`plumos-safe-hotkeyd` が `MENU_TOGGLE`
+  netcmd を送って menu を開く。RetroArch 側の `SELECT` は state save / fast-forward
+  などの hotkey modifier として使うため、menu toggle は hotkey combo に割り当てない
 - `Shutdown` は `sync` 後に poweroff backend を呼ぶ。保存処理は行わない
 - `Cancel` と B は元の画面へ戻る
 - emulator 実行中は overlay helper が emulator を一時停止して menu を表示し、Cancel で再開する

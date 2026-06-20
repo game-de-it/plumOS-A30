@@ -277,6 +277,10 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
   plumOS build の SDL2/evdev + composite virtual pad を優先する
 - `plumos-joystickd --device-mode xbox` の button forwarding では Function も
   `BTN_MODE` として転送できるため、emulator 側 menu 入力候補にできる
+- RetroArch では `SELECT` を hotkey modifier として残し、state save / fast-forward
+  などの hotkey combo に使う。menu だけは `input_menu_toggle_btn` を割り当てず、
+  emulator 実行中の `plumos-safe-hotkeyd` が物理 Function (`KEY_ESC`) 単押しを
+  RetroArch netcmd `MENU_TOGGLE` に変換する。
 - plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
   `plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2
   GameController として自動認識されることを確認済み
