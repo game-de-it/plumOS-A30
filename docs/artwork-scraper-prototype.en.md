@@ -309,6 +309,12 @@ queue.
 The runner builds one temporary existing-image lookup per system to avoid
 repeated `find` calls for every ROM. During `--fetch`, newly saved images are
 added to that lookup so duplicate work is skipped within the same run.
+`--fetch` uses `scraper.crc_workers.default` and
+`scraper.download_workers.default` from `systems.json` as the effective worker
+counts. It first distributes the missing-thumbnail queue to CRC workers for
+CRC/DAT/thumbnail-index lookup, then distributes only resolved image URLs to
+download workers. `--plan` does not compute CRCs or touch the network, so worker
+counts are displayed there but do not drive any work.
 
 Fetch columns:
 

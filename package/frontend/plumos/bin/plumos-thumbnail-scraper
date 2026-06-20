@@ -418,7 +418,7 @@ github_thumb_base_url() {
 fetch_url() {
   url="$1"
   output="$2"
-  tmp="${output}.tmp.$$"
+  tmp="${output}.tmp.$$-${SCRAPER_WORKER_ID:-main}"
 
   rm -f "$tmp" 2>/dev/null || true
   mkdir -p "$(dirname "$output")" 2>/dev/null || true
@@ -584,6 +584,7 @@ ensure_dat_index() {
   preloaded="${PRELOAD_DIR}/dat/${system}.crc.tsv"
   cached="${CACHE_DIR}/dat/${system}.crc.tsv"
   source_dat="${CACHE_DIR}/dat-source/${system}.dat"
+  tmp_cached="${cached}.tmp.$$-${SCRAPER_WORKER_ID:-main}"
   url=""
 
   if [ -s "$preloaded" ]; then
@@ -599,8 +600,8 @@ ensure_dat_index() {
   [ -n "$url" ] || return 1
   mkdir -p "${CACHE_DIR}/dat" "${CACHE_DIR}/dat-source" 2>/dev/null || true
   fetch_url "$url" "$source_dat" || return 1
-  dat_to_crc_index "$source_dat" "${cached}.tmp" || return 1
-  mv "${cached}.tmp" "$cached"
+  dat_to_crc_index "$source_dat" "$tmp_cached" || return 1
+  mv "$tmp_cached" "$cached"
   printf '%s\n' "$cached"
 }
 
@@ -609,6 +610,7 @@ ensure_thumb_index() {
   preloaded="${PRELOAD_DIR}/thumb-names/${system}/${KIND}.tsv"
   cached="${CACHE_DIR}/thumb-names/${system}/${KIND}.tsv"
   html="${CACHE_DIR}/thumb-html/${system}/${KIND}.html"
+  tmp_cached="${cached}.tmp.$$-${SCRAPER_WORKER_ID:-main}"
   base=""
 
   if thumb_index_valid "$preloaded"; then
@@ -625,8 +627,8 @@ ensure_thumb_index() {
   [ -n "$base" ] || return 1
   mkdir -p "${CACHE_DIR}/thumb-names/${system}" "${CACHE_DIR}/thumb-html/${system}" 2>/dev/null || true
   fetch_url "${base}/" "$html" || return 1
-  html_to_thumb_index "$html" "${cached}.tmp" || return 1
-  mv "${cached}.tmp" "$cached"
+  html_to_thumb_index "$html" "$tmp_cached" || return 1
+  mv "$tmp_cached" "$cached"
   printf '%s\n' "$cached"
 }
 
@@ -732,7 +734,7 @@ payload_has_ines_header() {
 compute_payload_crc32() {
   crc_system="$1"
   crc_payload="$2"
-  crc_tmp="${STATE_DIR}/crc-nohdr-${crc_system}-$$.rom"
+  crc_tmp="${STATE_DIR}/crc-nohdr-${crc_system}-$$-${SCRAPER_WORKER_ID:-main}.rom"
   crc_value=""
 
   if [ "$crc_system" = "nes" ] && payload_has_ines_header "$crc_payload"; then
@@ -751,11 +753,14 @@ compute_payload_crc32() {
 
 is_png_file() {
   file="$1"
-  sig="${CACHE_DIR}/png-signature.bin"
+  sig="${CACHE_DIR}/png-signature-${SCRAPER_WORKER_ID:-main}.bin"
   [ -s "$file" ] || return 1
   mkdir -p "$CACHE_DIR" 2>/dev/null || true
   printf '\211PNG\r\n\032\n' > "$sig"
   dd if="$file" bs=8 count=1 2>/dev/null | cmp -s - "$sig"
+  png_status=$?
+  rm -f "$sig" 2>/dev/null || true
+  return "$png_status"
 }
 
 first_zip_member() {
@@ -927,6 +932,275 @@ payload_source_system_for_ext() {
   esac
 }
 
+positive_worker_count() {
+  worker_value="$1"
+  case "$worker_value" in
+    ''|*[!0-9]*|0) printf '1\n' ;;
+    *) printf '%s\n' "$worker_value" ;;
+  esac
+}
+
+default_worker_count() {
+  worker_block="$1"
+  set -- $worker_block
+  positive_worker_count "${1:-1}"
+}
+
+init_worker_files() {
+  worker_dir="$1"
+  worker_count="$2"
+  worker_i=1
+
+  rm -rf "$worker_dir" 2>/dev/null || true
+  mkdir -p "$worker_dir" 2>/dev/null || true
+  while [ "$worker_i" -le "$worker_count" ]; do
+    : > "${worker_dir}/${worker_i}.tsv"
+    worker_i=$((worker_i + 1))
+  done
+}
+
+split_worker_queue() {
+  queue_source="$1"
+  queue_dir="$2"
+  worker_count="$3"
+  queue_i=1
+
+  init_worker_files "$queue_dir" "$worker_count"
+  while IFS= read -r queue_line; do
+    printf '%s\n' "$queue_line" >> "${queue_dir}/${queue_i}.tsv"
+    queue_i=$((queue_i + 1))
+    if [ "$queue_i" -gt "$worker_count" ]; then
+      queue_i=1
+    fi
+  done < "$queue_source"
+}
+
+wait_for_worker_pids() {
+  worker_pids="$1"
+  worker_status=0
+
+  for worker_pid in $worker_pids; do
+    wait "$worker_pid" || worker_status=1
+  done
+  return "$worker_status"
+}
+
+aggregate_crc_results() {
+  result_dir="$1"
+  awk -F "$TAB_CHAR" '
+    {
+      for (i = 1; i <= 11; i++) {
+        totals[i] += $i
+      }
+    }
+    END {
+      for (i = 1; i <= 11; i++) {
+        if (i > 1) {
+          printf "\t"
+        }
+        printf "%d", totals[i]
+      }
+      printf "\n"
+    }
+  ' "$result_dir"/*.tsv
+}
+
+aggregate_download_results() {
+  result_dir="$1"
+  awk -F "$TAB_CHAR" '
+    {
+      for (i = 1; i <= 3; i++) {
+        totals[i] += $i
+      }
+    }
+    END {
+      for (i = 1; i <= 3; i++) {
+        if (i > 1) {
+          printf "\t"
+        }
+        printf "%d", totals[i]
+      }
+      printf "\n"
+    }
+  ' "$result_dir"/*.tsv
+}
+
+fetch_crc_worker() {
+  worker_id="$1"
+  worker_queue="$2"
+  worker_result="$3"
+  worker_download_queue="$4"
+  worker_payload_tmp="${STATE_DIR}/payload-${fetch_system_id}-${worker_id}-$$.rom"
+  SCRAPER_WORKER_ID="crc-${worker_id}"
+  worker_index_ready=0
+  worker_index_system=
+  worker_dat_index=
+  worker_thumb_index=
+  worker_rescue_index=
+  worker_thumb_base=
+  worker_index_failed_systems=" "
+
+  : > "$worker_result"
+  : > "$worker_download_queue"
+  while IFS="$TAB_CHAR" read -r alias_dir rom_path; do
+    [ -n "$alias_dir" ] || continue
+    [ -n "$rom_path" ] || continue
+
+    ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
+    if [ -z "$ext" ] || ! extension_allowed "$ext" "$extensions"; then
+      printf '0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' >> "$worker_result"
+      continue
+    fi
+
+    rel_path="${rom_path#"$alias_dir"/}"
+    rel_stem="${rel_path%.*}"
+    flat_stem="${rel_stem##*/}"
+
+    if [ "$REPLACE_EXISTING" != 1 ] &&
+       thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
+      printf '0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' >> "$worker_result"
+      continue
+    fi
+
+    payload="$rom_path"
+    lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ext")"
+    rm -f "$worker_payload_tmp" 2>/dev/null || true
+
+    if [ "$ext" = "zip" ]; then
+      payload_extensions="$(zip_payload_extensions "$fetch_system_id" "$extensions")"
+      if ! extract_zip_payload "$rom_path" "$payload_extensions" "$worker_payload_tmp"; then
+        printf '0\t0\t0\t0\t0\t1\t0\t0\t0\t0\t0\n' >> "$worker_result"
+        continue
+      fi
+      worker_zip_single_payload=0
+      if [ "$ZIP_PAYLOAD_MODE" = single_payload ]; then
+        worker_zip_single_payload=1
+      fi
+      lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ZIP_PAYLOAD_EXT")"
+      payload="$worker_payload_tmp"
+    else
+      worker_zip_single_payload=0
+    fi
+
+    index_available=0
+    if [ "$worker_index_ready" = 1 ] && [ "$worker_index_system" = "$lookup_system" ]; then
+      index_available=1
+    else
+      case "$worker_index_failed_systems" in
+        *" ${lookup_system} "*) index_available=0 ;;
+        *)
+          worker_dat_index="$(ensure_dat_index "$lookup_system" 2>/dev/null || true)"
+          worker_thumb_index="$(ensure_thumb_index "$lookup_system" 2>/dev/null || true)"
+          worker_rescue_index="$(ensure_rescue_index "$lookup_system" 2>/dev/null || true)"
+          worker_thumb_base="$(thumb_base_url "$lookup_system" 2>/dev/null || true)"
+          if [ -z "$worker_dat_index" ] || [ -z "$worker_thumb_index" ] || [ -z "$worker_thumb_base" ]; then
+            worker_index_failed_systems="${worker_index_failed_systems}${lookup_system} "
+            log "fetch skipped system=${fetch_system_id} source=${lookup_system} reason=missing_index_or_source"
+          else
+            worker_index_system="$lookup_system"
+            worker_index_ready=1
+            index_available=1
+          fi
+          ;;
+      esac
+    fi
+
+    if [ "$index_available" != 1 ]; then
+      rm -f "$worker_payload_tmp" 2>/dev/null || true
+      printf '0\t0\t0\t0\t0\t0\t1\t0\t0\t%s\t0\n' "$worker_zip_single_payload" >> "$worker_result"
+      continue
+    fi
+
+    crc="$(compute_payload_crc32 "$lookup_system" "$payload" || true)"
+    rm -f "$worker_payload_tmp" 2>/dev/null || true
+    if [ -z "$crc" ]; then
+      printf '0\t0\t0\t0\t0\t0\t1\t0\t0\t%s\t0\n' "$worker_zip_single_payload" >> "$worker_result"
+      continue
+    fi
+
+    worker_crc_checked=1
+    worker_crc_matched=0
+    worker_no_match=0
+    worker_crc_miss=0
+    worker_thumbnail_miss=0
+    worker_thumbnail_rescued=0
+    worker_external_rescued=0
+    worker_download_queued=0
+    canonical="$(lookup_crc_name "$worker_dat_index" "$crc" || true)"
+    href=""
+
+    if [ -z "$canonical" ]; then
+      href="$(lookup_rescue_href "$worker_rescue_index" "$crc" || true)"
+      if [ -n "$href" ]; then
+        worker_crc_matched=1
+        worker_external_rescued=1
+      else
+        worker_no_match=1
+        worker_crc_miss=1
+      fi
+    else
+      worker_crc_matched=1
+      href="$(lookup_thumb_href "$worker_thumb_index" "$canonical" || true)"
+      if [ -z "$href" ]; then
+        href="$(lookup_thumb_href_rescue "$worker_thumb_index" "$canonical" || true)"
+        [ -n "$href" ] && worker_thumbnail_rescued=1
+      fi
+      if [ -z "$href" ]; then
+        href="$(lookup_rescue_href "$worker_rescue_index" "$crc" || true)"
+        [ -n "$href" ] && worker_external_rescued=1
+      fi
+      if [ -z "$href" ]; then
+        worker_no_match=1
+        worker_thumbnail_miss=1
+      fi
+    fi
+
+    if [ -n "$href" ]; then
+      dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
+      printf '%s\t%s\t%s\t%s\n' "$lookup_system" "$href" "$dest" "$rel_stem" >> "$worker_download_queue"
+      worker_download_queued=1
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t0\t0\t%s\t%s\t%s\t%s\n' \
+      "$worker_crc_checked" "$worker_crc_matched" "$worker_no_match" \
+      "$worker_crc_miss" "$worker_thumbnail_miss" \
+      "$worker_thumbnail_rescued" "$worker_external_rescued" \
+      "$worker_zip_single_payload" "$worker_download_queued" >> "$worker_result"
+  done < "$worker_queue"
+
+  rm -f "$worker_payload_tmp" 2>/dev/null || true
+}
+
+fetch_download_worker() {
+  worker_id="$1"
+  worker_queue="$2"
+  worker_result="$3"
+  worker_success="$4"
+  SCRAPER_WORKER_ID="download-${worker_id}"
+
+  : > "$worker_result"
+  : > "$worker_success"
+  while IFS="$TAB_CHAR" read -r lookup_system href dest rel_stem; do
+    [ -n "$lookup_system" ] || continue
+    [ -n "$href" ] || continue
+    [ -n "$dest" ] || continue
+
+    mkdir -p "$(dirname "$dest")" 2>/dev/null || true
+    tmp_dest="${dest}.tmp.$$.$worker_id"
+    if ! fetch_thumbnail_png "$lookup_system" "$href" "$tmp_dest"; then
+      rm -f "$tmp_dest" 2>/dev/null || true
+      case "$FETCH_THUMBNAIL_ERROR" in
+        invalid_png) printf '0\t0\t1\n' >> "$worker_result" ;;
+        *) printf '0\t1\t0\n' >> "$worker_result" ;;
+      esac
+    else
+      mv "$tmp_dest" "$dest"
+      printf '1\t0\t0\n' >> "$worker_result"
+      [ -n "$rel_stem" ] && printf '%s\n' "$rel_stem" >> "$worker_success"
+    fi
+  done < "$worker_queue"
+}
+
 print_system_policy() {
   policy_system="$1"
   block="$(system_block "$policy_system")"
@@ -1072,6 +1346,10 @@ fetch_system() {
   enabled="$(scraper_enabled "$block")"
   reason="$(scraper_reason "$block")"
   extensions="$(scraper_extensions "$block")"
+  crc_workers="$(scraper_workers "$block" crc_workers)"
+  dl_workers="$(scraper_workers "$block" download_workers)"
+  crc_worker_count="$(default_worker_count "$crc_workers")"
+  dl_worker_count="$(default_worker_count "$dl_workers")"
 
   if [ "${enabled:-false}" != "true" ]; then
     if [ "$explicit" = 1 ]; then
@@ -1088,9 +1366,17 @@ fetch_system() {
   mkdir -p "$STATE_DIR" "$CACHE_DIR" "$LOG_DIR" 2>/dev/null || true
   tmp_list="${STATE_DIR}/fetch-${fetch_system_id}-$$.list"
   missing_list="${STATE_DIR}/missing-${fetch_system_id}-$$.tsv"
-  payload_tmp="${STATE_DIR}/payload-${fetch_system_id}-$$.rom"
   thumb_lookup="${STATE_DIR}/thumbnails-${fetch_system_id}-$$.list"
-  rm -f "$tmp_list" "$missing_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
+  parallel_dir="${STATE_DIR}/parallel-${fetch_system_id}-$$"
+  crc_queue_dir="${parallel_dir}/crc-queue"
+  crc_result_dir="${parallel_dir}/crc-result"
+  crc_download_dir="${parallel_dir}/download-candidates"
+  download_queue_all="${parallel_dir}/download-all.tsv"
+  download_queue_dir="${parallel_dir}/download-queue"
+  download_result_dir="${parallel_dir}/download-result"
+  download_success_dir="${parallel_dir}/download-success"
+  rm -f "$tmp_list" "$missing_list" "$thumb_lookup" 2>/dev/null || true
+  rm -rf "$parallel_dir" 2>/dev/null || true
   : > "$missing_list"
   build_thumbnail_lookup "$fetch_system_id" "$thumb_lookup"
 
@@ -1114,13 +1400,6 @@ fetch_system() {
   seen_dirs=" "
   stop_scan=0
   missing_processed=0
-  dat_index=
-  thumb_index=
-  rescue_index=
-  thumb_base=
-  index_ready=0
-  index_system=
-  index_failed_systems=" "
 
   aliases="$(directory_aliases "$block")"
   for rom_root in $ROM_ROOTS; do
@@ -1179,126 +1458,79 @@ fetch_system() {
 
   emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
 
-  while IFS="$TAB_CHAR" read -r alias_dir rom_path; do
-    [ -n "$alias_dir" ] || continue
-    [ -n "$rom_path" ] || continue
-    ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
-    [ -n "$ext" ] || continue
-    extension_allowed "$ext" "$extensions" || continue
+  mkdir -p "$crc_result_dir" "$crc_download_dir" "$download_result_dir" "$download_success_dir" 2>/dev/null || true
+  split_worker_queue "$missing_list" "$crc_queue_dir" "$crc_worker_count"
+  crc_worker_i=1
+  crc_worker_pids=""
+  while [ "$crc_worker_i" -le "$crc_worker_count" ]; do
+    fetch_crc_worker "$crc_worker_i" \
+      "${crc_queue_dir}/${crc_worker_i}.tsv" \
+      "${crc_result_dir}/${crc_worker_i}.tsv" \
+      "${crc_download_dir}/${crc_worker_i}.tsv" &
+    crc_worker_pids="${crc_worker_pids} $!"
+    crc_worker_i=$((crc_worker_i + 1))
+  done
+  if ! wait_for_worker_pids "$crc_worker_pids"; then
+    skipped_tool=$((skipped_tool + 1))
+    log "fetch worker_failure system=${fetch_system_id} stage=crc"
+  fi
 
-    rel_path="${rom_path#"$alias_dir"/}"
-    rel_stem="${rel_path%.*}"
-    flat_stem="${rel_stem##*/}"
+  set -- $(aggregate_crc_results "$crc_result_dir")
+  crc_checked=$((crc_checked + ${1:-0}))
+  crc_matched=$((crc_matched + ${2:-0}))
+  no_match=$((no_match + ${3:-0}))
+  crc_miss=$((crc_miss + ${4:-0}))
+  thumbnail_miss=$((thumbnail_miss + ${5:-0}))
+  skipped_zip=$((skipped_zip + ${6:-0}))
+  skipped_tool=$((skipped_tool + ${7:-0}))
+  thumbnail_rescued=$((thumbnail_rescued + ${8:-0}))
+  external_rescued=$((external_rescued + ${9:-0}))
+  shift 9
+  zip_single_payload=$((zip_single_payload + ${1:-0}))
+  download_candidates="${2:-0}"
 
-    if [ "$REPLACE_EXISTING" != 1 ] &&
-       thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
-      missing_processed=$((missing_processed + 1))
-      emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
-      continue
+  : > "$download_queue_all"
+  cat "$crc_download_dir"/*.tsv > "$download_queue_all" 2>/dev/null || true
+  if [ "$download_candidates" -gt 0 ]; then
+    missing_processed=$missing_thumbnails
+    emit_fetch_progress "$fetch_system_id" "$missing_processed" "$((missing_thumbnails + download_candidates))"
+
+    split_worker_queue "$download_queue_all" "$download_queue_dir" "$dl_worker_count"
+    download_worker_i=1
+    download_worker_pids=""
+    while [ "$download_worker_i" -le "$dl_worker_count" ]; do
+      fetch_download_worker "$download_worker_i" \
+        "${download_queue_dir}/${download_worker_i}.tsv" \
+        "${download_result_dir}/${download_worker_i}.tsv" \
+        "${download_success_dir}/${download_worker_i}.tsv" &
+      download_worker_pids="${download_worker_pids} $!"
+      download_worker_i=$((download_worker_i + 1))
+    done
+    if ! wait_for_worker_pids "$download_worker_pids"; then
+      skipped_tool=$((skipped_tool + 1))
+      log "fetch worker_failure system=${fetch_system_id} stage=download"
     fi
 
-    payload="$rom_path"
-    lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ext")"
-    rm -f "$payload_tmp" 2>/dev/null || true
+    set -- $(aggregate_download_results "$download_result_dir")
+    downloaded=$((downloaded + ${1:-0}))
+    download_failed=$((download_failed + ${2:-0}))
+    invalid_png=$((invalid_png + ${3:-0}))
 
-    if [ "$ext" = "zip" ]; then
-      payload_extensions="$(zip_payload_extensions "$fetch_system_id" "$extensions")"
-      if ! extract_zip_payload "$rom_path" "$payload_extensions" "$payload_tmp"; then
-        skipped_zip=$((skipped_zip + 1))
-        missing_processed=$((missing_processed + 1))
-        emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
-        continue
-      fi
-      if [ "$ZIP_PAYLOAD_MODE" = single_payload ]; then
-        zip_single_payload=$((zip_single_payload + 1))
-      fi
-      lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ZIP_PAYLOAD_EXT")"
-      payload="$payload_tmp"
-    fi
-
-    index_available=0
-    if [ "$index_ready" = 1 ] && [ "$index_system" = "$lookup_system" ]; then
-      index_available=1
-    else
-      case "$index_failed_systems" in
-        *" ${lookup_system} "*) index_available=0 ;;
-        *)
-          dat_index="$(ensure_dat_index "$lookup_system" 2>/dev/null || true)"
-          thumb_index="$(ensure_thumb_index "$lookup_system" 2>/dev/null || true)"
-          rescue_index="$(ensure_rescue_index "$lookup_system" 2>/dev/null || true)"
-          thumb_base="$(thumb_base_url "$lookup_system" 2>/dev/null || true)"
-          if [ -z "$dat_index" ] || [ -z "$thumb_index" ] || [ -z "$thumb_base" ]; then
-            index_failed_systems="${index_failed_systems}${lookup_system} "
-            skipped_tool=$((skipped_tool + 1))
-            log "fetch skipped system=${fetch_system_id} source=${lookup_system} reason=missing_index_or_source"
-          else
-            index_system="$lookup_system"
-            index_ready=1
-            index_available=1
-          fi
-          ;;
-      esac
-    fi
-
-    if [ "$index_available" = 1 ]; then
-      crc="$(compute_payload_crc32 "$lookup_system" "$payload" || true)"
-      rm -f "$payload_tmp" 2>/dev/null || true
-      if [ -z "$crc" ]; then
-        skipped_tool=$((skipped_tool + 1))
-      else
-        crc_checked=$((crc_checked + 1))
-        canonical="$(lookup_crc_name "$dat_index" "$crc" || true)"
-        href=""
-        if [ -z "$canonical" ]; then
-          href="$(lookup_rescue_href "$rescue_index" "$crc" || true)"
-          if [ -n "$href" ]; then
-            crc_matched=$((crc_matched + 1))
-            external_rescued=$((external_rescued + 1))
-          else
-            no_match=$((no_match + 1))
-            crc_miss=$((crc_miss + 1))
-          fi
-        else
-          crc_matched=$((crc_matched + 1))
-          href="$(lookup_thumb_href "$thumb_index" "$canonical" || true)"
-          if [ -z "$href" ]; then
-            href="$(lookup_thumb_href_rescue "$thumb_index" "$canonical" || true)"
-            [ -n "$href" ] && thumbnail_rescued=$((thumbnail_rescued + 1))
-          fi
-          if [ -z "$href" ]; then
-            href="$(lookup_rescue_href "$rescue_index" "$crc" || true)"
-            [ -n "$href" ] && external_rescued=$((external_rescued + 1))
-          fi
-          if [ -z "$href" ]; then
-            no_match=$((no_match + 1))
-            thumbnail_miss=$((thumbnail_miss + 1))
-          fi
-        fi
-
-        if [ -n "$href" ]; then
-          dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
-          mkdir -p "$(dirname "$dest")" 2>/dev/null || true
-          tmp_dest="${dest}.tmp.$$"
-          if ! fetch_thumbnail_png "$lookup_system" "$href" "$tmp_dest"; then
-            rm -f "$tmp_dest" 2>/dev/null || true
-            case "$FETCH_THUMBNAIL_ERROR" in
-              invalid_png) invalid_png=$((invalid_png + 1)) ;;
-              *) download_failed=$((download_failed + 1)) ;;
-            esac
-          else
-            mv "$tmp_dest" "$dest"
-            thumbnail_lookup_add "$thumb_lookup" "$rel_stem"
-            downloaded=$((downloaded + 1))
-          fi
-        fi
-      fi
-    fi
-
-    missing_processed=$((missing_processed + 1))
+    for success_file in "$download_success_dir"/*.tsv; do
+      [ -r "$success_file" ] || continue
+      while IFS= read -r success_stem; do
+        thumbnail_lookup_add "$thumb_lookup" "$success_stem"
+      done < "$success_file"
+    done
+    missing_processed=$((missing_thumbnails + download_candidates))
+    emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_processed"
+  else
+    missing_processed=$missing_thumbnails
     emit_fetch_progress "$fetch_system_id" "$missing_processed" "$missing_thumbnails"
-  done < "$missing_list"
+  fi
 
-  rm -f "$tmp_list" "$missing_list" "$payload_tmp" "$thumb_lookup" 2>/dev/null || true
+  rm -f "$tmp_list" "$missing_list" "$thumb_lookup" 2>/dev/null || true
+  rm -rf "$parallel_dir" 2>/dev/null || true
 
   printf 'fetch\t%s\ttrue\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$fetch_system_id" "${reason:--}" "$aliases_seen" "$rom_candidates" \
