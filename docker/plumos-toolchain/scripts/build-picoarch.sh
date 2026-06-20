@@ -227,6 +227,8 @@ Environment:
   PLUMOS_PICOARCH_FCEUMM_CORE_PATH
                                 Override fceumm core path used by picoarch:fceumm.
   PLUMOS_PICOARCH_JOYSTICKD_MODE keyboard or xbox. Default: xbox.
+  PLUMOS_PICOARCH_JOYSTICKD_BUTTONS
+                                1 forwards physical buttons through joystickd. Default: 0.
   PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
@@ -246,8 +248,8 @@ Environment:
   PLUMOS_PICOARCH_HATARI_JOYSTICKD_Y_SOURCE, PLUMOS_PICOARCH_PRBOOM_JOYSTICKD_Y_SOURCE,
   PLUMOS_PICOARCH_DOSBOX_PURE_JOYSTICKD_Y_SOURCE
                                 Per-core Y source override for rotated-axis cores.
-  PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 180.
-  PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 550.
+  PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 260.
+  PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 650.
   PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
 USAGE
 }
@@ -531,6 +533,10 @@ start_joystickd() {
   case "${joystickd_mode}" in
     xbox)
       joystickd_opts="--device-mode xbox --trigger-mode buttons --shoulder-layout user"
+      case "${PLUMOS_PICOARCH_JOYSTICKD_BUTTONS:-0}" in
+        1|yes|YES|true|TRUE) ;;
+        *) joystickd_opts="${joystickd_opts} --no-buttons" ;;
+      esac
       ;;
     keyboard)
       joystickd_opts="--device-mode keyboard --keyboard-profile passthrough --trigger-mode buttons --shoulder-layout user"
@@ -956,6 +962,11 @@ write_default_config() {
 # Leave empty to use PicoArch's per-system default: /mnt/SDCARD/Bios/<ROM_DIR>.
 # Example:
 # PLUMOS_PICOARCH_BIOS_DIR=/mnt/SDCARD/Bios
+#
+# PicoArch reads physical A30 buttons directly through SDL1. Keep joystickd in
+# axes-only mode by default so the same A/B/D-pad press is not reported again by
+# the virtual gamepad. Set this to 1 only for input debugging.
+# PLUMOS_PICOARCH_JOYSTICKD_BUTTONS=0
 #
 # ScummVM libretro reads the analog cursor through the gamepad axes. On A30 the
 # PicoArch launcher swaps X/Y for that core by default; override these only if a
