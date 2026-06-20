@@ -177,6 +177,9 @@ RetroArch 1.22.2 practical:
   fast-forward、exit などは `SELECT+button` に寄せ、menu だけは
   `input_menu_toggle_btn = "nul"` として hotkey combo から外す。物理 Function 単押しは
   emulator 実行中の `plumos-safe-hotkeyd` が `MENU_TOGGLE` netcmd を送って開く。
+- A30 の landscape FBO 経路では、GPU viewport screenshot は表示用の回転途中の絵を保存し、
+  PNG が横倒しになることがある。手動 screenshot を `Images/<system_id>/` の thumbnail fallback
+  として使えるよう、既定は `video_gpu_screenshot = "false"` にし、core framebuffer の向きで保存する。
 
 ## 次の実用 build の狙い
 

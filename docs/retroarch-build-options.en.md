@@ -192,6 +192,11 @@ RetroArch 1.22.2 practical:
   menu is removed from the hotkey combo list with `input_menu_toggle_btn =
   "nul"`. During emulator execution, `plumos-safe-hotkeyd` opens the menu by
   sending the `MENU_TOGGLE` netcmd when physical Function is pressed once.
+- On the A30 landscape FBO path, GPU viewport screenshots can save an
+  intermediate display-rotated image and produce sideways PNGs. To make manual
+  screenshots usable as `Images/<system_id>/` thumbnail fallbacks, the default is
+  `video_gpu_screenshot = "false"` so screenshots are saved from the core
+  framebuffer orientation.
 
 ## Next Practical Build Target
 
