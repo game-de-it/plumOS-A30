@@ -34,6 +34,9 @@ RUN dpkg --add-architecture armhf \
     iproute2:armhf \
     libasound2-dev:armhf \
     libacl1:armhf \
+    libavcodec-dev:armhf \
+    libavformat-dev:armhf \
+    libavutil-dev:armhf \
     libegl1-mesa-dev:armhf \
     libexpat1-dev:armhf \
     libflac-dev:armhf \
@@ -60,6 +63,7 @@ RUN dpkg --add-architecture armhf \
     libsndfile1-dev:armhf \
     libsqlite3-dev:armhf \
     libssl-dev:armhf \
+    libswresample-dev:armhf \
     libsdl1.2-dev:armhf \
     libsdl2-dev:armhf \
     libsdl2-gfx-dev:armhf \

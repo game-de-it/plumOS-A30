@@ -15,6 +15,10 @@ CROSS_PREFIX=${CROSS_PREFIX:-arm-linux-gnueabihf-}
 CC=${CC:-${CROSS_PREFIX}gcc}
 STRIP=${STRIP:-${CROSS_PREFIX}strip}
 READELF=${READELF:-${CROSS_PREFIX}readelf}
+PKG_CONFIG=${PKG_CONFIG:-pkg-config}
+PKG_CONFIG_LIBDIR=${PKG_CONFIG_LIBDIR:-/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig}
+PKG_CONFIG_ALLOW_CROSS=${PKG_CONFIG_ALLOW_CROSS:-1}
+export PKG_CONFIG_LIBDIR PKG_CONFIG_ALLOW_CROSS
 
 msg() {
   printf '[music-player] %s\n' "$*" >&2
@@ -177,12 +181,16 @@ main() {
   local log_dir="${TARGET_DIR}/docs/build-logs"
   local build_log="${log_dir}/music-player.log"
   local out_bin="${bin_dir}/plumos-music-player.bin"
+  local av_cflags
+  local av_libs
 
   rm -rf "${TARGET_DIR}"
   mkdir -p "${bin_dir}" "${lib_dir}" "${root_lib_dir}" "${doc_dir}" "${log_dir}" \
     "${TARGET_DIR}/plumos/bin"
 
   include_dir=$(fetch_miniaudio)
+  av_cflags=$("${PKG_CONFIG}" --cflags libavformat libavcodec libavutil libswresample)
+  av_libs=$("${PKG_CONFIG}" --libs libavformat libavcodec libavutil libswresample)
 
   msg "building plumOS music player"
   {
@@ -191,13 +199,16 @@ main() {
       -DPLUMOS_ENABLE_MALI_RENDERER=1 \
       -DPLUMOS_ENABLE_MALI_FREETYPE=1 \
       -DPLUMOS_ENABLE_MALI_PNG=1 \
+      -DPLUMOS_MUSIC_ENABLE_FFMPEG=1 \
       -I"${include_dir}" \
       -I"${ROOT_DIR}/src/frontend" \
       -I/usr/include/freetype2 \
+      ${av_cflags} \
       -Wl,--dynamic-linker=/mnt/SDCARD/plumos/lib/ld-linux-armhf.so.3 \
       -o "${out_bin}" \
       "${ROOT_DIR}/src/apps/plumos_music_player.c" \
-      -ldl -lfreetype -lpng -ljpeg -lz -lm -lpthread
+      -ldl -lfreetype -lpng -ljpeg -lz -lm -lpthread \
+      ${av_libs}
   } >"${build_log}" 2>&1
 
   "${STRIP}" "${out_bin}" 2>/dev/null || true
@@ -209,10 +220,11 @@ main() {
     printf 'binary=plumos/apps/music-player/bin/plumos-music-player.bin\n'
     printf 'launcher=plumos/bin/plumos-music-player-launch\n'
     printf 'music_roots=/mnt/SDCARD/Music,/mnt/SDCARD/Roms/music,/mnt/SDCARD/Roms/MUSIC\n'
-    printf 'formats=mp3,flac,wav\n'
+    printf 'formats=mp3,flac,wav,m4a,m4b,mp4,aac,ogg,oga,opus,wma,aiff,aif,aifc,au,snd,caf,ac3,wv,ape,mpc,tta,mka,webm,3gp,3g2,amr,ra,rm,dts,oma,adx,dsf,dff,mod,xm,s3m,it,mptm,669,amf,ams,dbm,dmf,dsm,far,mdl,med,mtm,okt,ptm,stm,ult,umx,wow,vgm,vgz,spc,nsf,gbs,gym,hes,sap,ay,kss\n'
     printf 'audio_output=/dev/dsp OSS S16 stereo 44100Hz\n'
-    printf 'album_art=ID3v2 APIC embedded PNG/JPEG\n'
-    printf 'decoder=%s\n' "${MINIAUDIO_REPO}"
+    printf 'album_art=ID3v2 APIC or FFmpeg attached picture embedded PNG/JPEG\n'
+    printf 'decoder=miniaudio for mp3/flac/wav; FFmpeg/libav fallback for additional formats\n'
+    printf 'miniaudio_repo=%s\n' "${MINIAUDIO_REPO}"
     printf 'decoder_ref=%s\n' "${MINIAUDIO_REF}"
     printf 'controls=A play/pause; B or Function exit; Left/Right seek 5 seconds; X/Y track; Select EQ; L/R volume\n'
     printf '\n[needed]\n'

@@ -28,6 +28,16 @@
 #include <jpeglib.h>
 #include <png.h>
 
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/error.h>
+#include <libavutil/rational.h>
+#include <libavutil/samplefmt.h>
+#include <libswresample/swresample.h>
+#endif
+
 #if defined(__has_include)
 #if __has_include(<sys/soundcard.h>)
 #include <sys/soundcard.h>
@@ -92,6 +102,28 @@ struct audio_filter {
   int initialized;
 };
 
+enum music_decoder_kind {
+  MUSIC_DECODER_NONE = 0,
+  MUSIC_DECODER_MINIAUDIO,
+  MUSIC_DECODER_FFMPEG,
+};
+
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+struct ffmpeg_audio_decoder {
+  AVFormatContext *format;
+  AVCodecContext *codec;
+  SwrContext *swr;
+  AVPacket *packet;
+  AVFrame *frame;
+  int stream_index;
+  float *pending;
+  ma_uint64 pending_frames;
+  ma_uint64 pending_pos;
+  int eof_sent;
+  ma_uint64 length_frames;
+};
+#endif
+
 struct player_state {
   struct music_track tracks[MUSIC_MAX_TRACKS];
   int track_count;
@@ -105,6 +137,10 @@ struct player_state {
   volatile int running;
 
   ma_decoder decoder;
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  struct ffmpeg_audio_decoder ffmpeg_decoder;
+#endif
+  enum music_decoder_kind decoder_kind;
   int decoder_ready;
   int playing;
   int paused;
@@ -139,20 +175,57 @@ static long long parse_env_ms(const char *name) {
   return parsed;
 }
 
-static int str_ends_with_audio_ext(const char *name) {
+static int lower_audio_extension(const char *name, char *out, size_t out_size) {
   const char *dot = strrchr(name, '.');
-  char ext[16];
   size_t i;
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
   if (!dot || dot[1] == '\0') {
     return 0;
   }
   dot++;
-  for (i = 0; i + 1 < sizeof(ext) && dot[i]; i++) {
-    ext[i] = (char)tolower((unsigned char)dot[i]);
+  for (i = 0; i + 1 < out_size && dot[i]; i++) {
+    out[i] = (char)tolower((unsigned char)dot[i]);
   }
-  ext[i] = '\0';
+  out[i] = '\0';
+  return out[0] != '\0';
+}
+
+static int is_miniaudio_preferred_audio_ext(const char *name) {
+  char ext[16];
+  if (!lower_audio_extension(name, ext, sizeof(ext))) {
+    return 0;
+  }
   return strcmp(ext, "mp3") == 0 || strcmp(ext, "flac") == 0 ||
          strcmp(ext, "wav") == 0;
+}
+
+static int str_ends_with_audio_ext(const char *name) {
+  static const char *const exts[] = {
+      "mp3",  "flac", "wav",  "m4a", "m4b", "mp4", "aac",
+      "ogg",  "oga",  "opus", "wma", "aiff", "aif", "aifc",
+      "au",   "snd",  "caf",  "ac3", "wv",  "ape", "mpc",
+      "tta",  "mka",  "webm", "3gp", "3g2", "amr", "ra",
+      "rm",   "dts",  "oma",  "adx", "dsf", "dff", "mod",
+      "xm",   "s3m",  "it",   "mptm", "669", "amf", "ams",
+      "dbm",  "dmf",  "dsm",  "far", "mdl", "med", "mtm",
+      "okt",  "ptm",  "stm",  "ult", "umx", "wow", "vgm",
+      "vgz",  "spc",  "nsf",  "gbs", "gym", "hes", "sap",
+      "ay",   "kss",
+  };
+  char ext[16];
+  size_t i;
+  if (!lower_audio_extension(name, ext, sizeof(ext))) {
+    return 0;
+  }
+  for (i = 0; i < sizeof(exts) / sizeof(exts[0]); i++) {
+    if (strcmp(ext, exts[i]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 static const char *base_name(const char *path) {
@@ -747,6 +820,50 @@ static int decode_album_art_rgba(const unsigned char *data, size_t size,
          decode_png_rgba_memory(data, size, rgba_out, width_out, height_out);
 }
 
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+static int ffmpeg_extract_attached_art(const char *path, unsigned char **image_out,
+                                       size_t *image_size_out) {
+  AVFormatContext *format = NULL;
+  int ret;
+  unsigned int i;
+  int ok = 0;
+
+  *image_out = NULL;
+  *image_size_out = 0;
+  av_log_set_level(AV_LOG_QUIET);
+  ret = avformat_open_input(&format, path, NULL, NULL);
+  if (ret < 0) {
+    return 0;
+  }
+  ret = avformat_find_stream_info(format, NULL);
+  if (ret < 0) {
+    goto done;
+  }
+  for (i = 0; i < format->nb_streams; i++) {
+    AVStream *stream = format->streams[i];
+    AVPacket *pic = &stream->attached_pic;
+    unsigned char *copy;
+    if ((stream->disposition & AV_DISPOSITION_ATTACHED_PIC) == 0 ||
+        pic->size <= 0 || !pic->data || (size_t)pic->size > MUSIC_ART_MAX_BYTES) {
+      continue;
+    }
+    copy = (unsigned char *)malloc((size_t)pic->size);
+    if (!copy) {
+      break;
+    }
+    memcpy(copy, pic->data, (size_t)pic->size);
+    *image_out = copy;
+    *image_size_out = (size_t)pic->size;
+    ok = 1;
+    break;
+  }
+
+done:
+  avformat_close_input(&format);
+  return ok;
+}
+#endif
+
 static void load_album_art_locked(struct player_state *state, const char *path) {
   unsigned char *image = NULL;
   size_t image_size = 0;
@@ -754,12 +871,19 @@ static void load_album_art_locked(struct player_state *state, const char *path) 
   int width = 0;
   int height = 0;
   char mime[48];
+  int found = 0;
 
   album_art_replace_locked(state, NULL, 0, 0, "no art");
-  if (!path || !str_ends_with_audio_ext(path) || !id3_extract_apic_image(path, &image,
-                                                                         &image_size,
-                                                                         mime,
-                                                                         sizeof(mime))) {
+  if (!path || !str_ends_with_audio_ext(path)) {
+    return;
+  }
+  found = id3_extract_apic_image(path, &image, &image_size, mime, sizeof(mime));
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  if (!found) {
+    found = ffmpeg_extract_attached_art(path, &image, &image_size);
+  }
+#endif
+  if (!found) {
     return;
   }
   if (decode_album_art_rgba(image, image_size, &rgba, &width, &height)) {
@@ -772,11 +896,417 @@ static void load_album_art_locked(struct player_state *state, const char *path) 
   free(image);
 }
 
-static void unload_decoder_locked(struct player_state *state) {
-  if (state->decoder_ready) {
-    ma_decoder_uninit(&state->decoder);
-    state->decoder_ready = 0;
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+static void ffmpeg_error_message(int code, char *out, size_t out_size) {
+  if (!out || out_size == 0) {
+    return;
   }
+  if (av_strerror(code, out, out_size) < 0) {
+    snprintf(out, out_size, "ffmpeg error %d", code);
+  }
+}
+
+static ma_uint64 ffmpeg_length_in_output_frames(AVFormatContext *format,
+                                                int stream_index) {
+  AVStream *stream;
+  int64_t frames = 0;
+  if (!format || stream_index < 0 || stream_index >= (int)format->nb_streams) {
+    return 0;
+  }
+  stream = format->streams[stream_index];
+  if (stream->duration > 0 && stream->duration != AV_NOPTS_VALUE) {
+    frames = av_rescale_q(stream->duration, stream->time_base,
+                          (AVRational){1, MUSIC_OUTPUT_RATE});
+  } else if (format->duration > 0 && format->duration != AV_NOPTS_VALUE) {
+    frames = av_rescale_q(format->duration, AV_TIME_BASE_Q,
+                          (AVRational){1, MUSIC_OUTPUT_RATE});
+  }
+  return frames > 0 ? (ma_uint64)frames : 0;
+}
+
+static void ffmpeg_decoder_clear_pending(struct ffmpeg_audio_decoder *decoder) {
+  if (!decoder) {
+    return;
+  }
+  free(decoder->pending);
+  decoder->pending = NULL;
+  decoder->pending_frames = 0;
+  decoder->pending_pos = 0;
+}
+
+static void ffmpeg_decoder_close(struct ffmpeg_audio_decoder *decoder) {
+  if (!decoder) {
+    return;
+  }
+  ffmpeg_decoder_clear_pending(decoder);
+  if (decoder->frame) {
+    av_frame_free(&decoder->frame);
+  }
+  if (decoder->packet) {
+    av_packet_free(&decoder->packet);
+  }
+  if (decoder->swr) {
+    swr_free(&decoder->swr);
+  }
+  if (decoder->codec) {
+    avcodec_free_context(&decoder->codec);
+  }
+  if (decoder->format) {
+    avformat_close_input(&decoder->format);
+  }
+  memset(decoder, 0, sizeof(*decoder));
+  decoder->stream_index = -1;
+}
+
+static int ffmpeg_decoder_open(const char *path, struct ffmpeg_audio_decoder *decoder,
+                               ma_uint64 *length_out, char *err, size_t err_size) {
+  const AVCodec *codec = NULL;
+  AVStream *stream = NULL;
+  AVChannelLayout out_layout;
+  AVChannelLayout in_layout;
+  int ret;
+
+  if (length_out) {
+    *length_out = 0;
+  }
+  if (!path || !decoder) {
+    return 0;
+  }
+  memset(decoder, 0, sizeof(*decoder));
+  decoder->stream_index = -1;
+  av_log_set_level(AV_LOG_QUIET);
+
+  ret = avformat_open_input(&decoder->format, path, NULL, NULL);
+  if (ret < 0) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+  ret = avformat_find_stream_info(decoder->format, NULL);
+  if (ret < 0) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+  ret = av_find_best_stream(decoder->format, AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
+  if (ret < 0 || !codec) {
+    if (err) {
+      snprintf(err, err_size, "no audio stream");
+    }
+    goto fail;
+  }
+  decoder->stream_index = ret;
+  stream = decoder->format->streams[decoder->stream_index];
+  decoder->codec = avcodec_alloc_context3(codec);
+  if (!decoder->codec) {
+    if (err) {
+      snprintf(err, err_size, "codec allocation failed");
+    }
+    goto fail;
+  }
+  ret = avcodec_parameters_to_context(decoder->codec, stream->codecpar);
+  if (ret < 0) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+  ret = avcodec_open2(decoder->codec, codec, NULL);
+  if (ret < 0) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+  if (decoder->codec->sample_rate <= 0) {
+    if (err) {
+      snprintf(err, err_size, "invalid sample rate");
+    }
+    goto fail;
+  }
+
+  memset(&out_layout, 0, sizeof(out_layout));
+  memset(&in_layout, 0, sizeof(in_layout));
+  av_channel_layout_default(&out_layout, MUSIC_OUTPUT_CHANNELS);
+  if (decoder->codec->ch_layout.nb_channels > 0) {
+    if (av_channel_layout_copy(&in_layout, &decoder->codec->ch_layout) < 0) {
+      av_channel_layout_default(&in_layout, decoder->codec->ch_layout.nb_channels);
+    }
+  } else {
+    av_channel_layout_default(&in_layout, MUSIC_OUTPUT_CHANNELS);
+  }
+  ret = swr_alloc_set_opts2(&decoder->swr, &out_layout, AV_SAMPLE_FMT_FLT,
+                            MUSIC_OUTPUT_RATE, &in_layout, decoder->codec->sample_fmt,
+                            decoder->codec->sample_rate, 0, NULL);
+  av_channel_layout_uninit(&out_layout);
+  av_channel_layout_uninit(&in_layout);
+  if (ret < 0 || !decoder->swr) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+  ret = swr_init(decoder->swr);
+  if (ret < 0) {
+    if (err) {
+      ffmpeg_error_message(ret, err, err_size);
+    }
+    goto fail;
+  }
+
+  decoder->packet = av_packet_alloc();
+  decoder->frame = av_frame_alloc();
+  if (!decoder->packet || !decoder->frame) {
+    if (err) {
+      snprintf(err, err_size, "packet/frame allocation failed");
+    }
+    goto fail;
+  }
+  decoder->length_frames =
+      ffmpeg_length_in_output_frames(decoder->format, decoder->stream_index);
+  if (length_out) {
+    *length_out = decoder->length_frames;
+  }
+  return 1;
+
+fail:
+  ffmpeg_decoder_close(decoder);
+  return 0;
+}
+
+static int ffmpeg_decoder_store_frame(struct ffmpeg_audio_decoder *decoder) {
+  int64_t delay;
+  int out_count;
+  int got;
+  float *buffer;
+  uint8_t *out_planes[1];
+  const uint8_t **in_planes;
+
+  if (!decoder || !decoder->frame || decoder->frame->nb_samples <= 0) {
+    return 0;
+  }
+  delay = swr_get_delay(decoder->swr, decoder->codec->sample_rate);
+  out_count = (int)av_rescale_rnd(delay + decoder->frame->nb_samples,
+                                  MUSIC_OUTPUT_RATE,
+                                  decoder->codec->sample_rate, AV_ROUND_UP);
+  if (out_count <= 0 || out_count > MUSIC_OUTPUT_RATE * 30) {
+    return -1;
+  }
+  buffer = (float *)malloc((size_t)out_count * MUSIC_OUTPUT_CHANNELS * sizeof(float));
+  if (!buffer) {
+    return -1;
+  }
+  out_planes[0] = (uint8_t *)buffer;
+  in_planes = (const uint8_t **)decoder->frame->extended_data;
+  got = swr_convert(decoder->swr, out_planes, out_count, in_planes,
+                    decoder->frame->nb_samples);
+  if (got <= 0) {
+    free(buffer);
+    return got == 0 ? 0 : -1;
+  }
+  ffmpeg_decoder_clear_pending(decoder);
+  decoder->pending = buffer;
+  decoder->pending_frames = (ma_uint64)got;
+  decoder->pending_pos = 0;
+  return 1;
+}
+
+static int ffmpeg_decoder_decode_more(struct ffmpeg_audio_decoder *decoder) {
+  int ret;
+  if (!decoder || !decoder->codec || !decoder->format || !decoder->swr) {
+    return -1;
+  }
+  while (1) {
+    ret = avcodec_receive_frame(decoder->codec, decoder->frame);
+    if (ret == 0) {
+      int stored = ffmpeg_decoder_store_frame(decoder);
+      av_frame_unref(decoder->frame);
+      if (stored > 0) {
+        return 1;
+      }
+      if (stored < 0) {
+        return -1;
+      }
+      continue;
+    }
+    if (ret == AVERROR_EOF) {
+      return 0;
+    }
+    if (ret != AVERROR(EAGAIN)) {
+      return -1;
+    }
+    if (decoder->eof_sent) {
+      return 0;
+    }
+    while ((ret = av_read_frame(decoder->format, decoder->packet)) >= 0) {
+      if (decoder->packet->stream_index == decoder->stream_index) {
+        ret = avcodec_send_packet(decoder->codec, decoder->packet);
+        av_packet_unref(decoder->packet);
+        if (ret < 0 && ret != AVERROR(EAGAIN)) {
+          return -1;
+        }
+        break;
+      }
+      av_packet_unref(decoder->packet);
+    }
+    if (ret < 0) {
+      avcodec_send_packet(decoder->codec, NULL);
+      decoder->eof_sent = 1;
+    }
+  }
+}
+
+static int ffmpeg_decoder_read_pcm_frames(struct ffmpeg_audio_decoder *decoder,
+                                          float *out, ma_uint64 frame_count,
+                                          ma_uint64 *frames_read) {
+  ma_uint64 written = 0;
+  if (frames_read) {
+    *frames_read = 0;
+  }
+  if (!decoder || !out || frame_count == 0) {
+    return 0;
+  }
+  while (written < frame_count) {
+    ma_uint64 available = decoder->pending_frames > decoder->pending_pos ?
+                              decoder->pending_frames - decoder->pending_pos :
+                              0;
+    if (available > 0) {
+      ma_uint64 to_copy = frame_count - written;
+      if (to_copy > available) {
+        to_copy = available;
+      }
+      memcpy(out + (size_t)written * MUSIC_OUTPUT_CHANNELS,
+             decoder->pending + (size_t)decoder->pending_pos * MUSIC_OUTPUT_CHANNELS,
+             (size_t)to_copy * MUSIC_OUTPUT_CHANNELS * sizeof(float));
+      decoder->pending_pos += to_copy;
+      written += to_copy;
+      if (decoder->pending_pos >= decoder->pending_frames) {
+        ffmpeg_decoder_clear_pending(decoder);
+      }
+      continue;
+    }
+    if (ffmpeg_decoder_decode_more(decoder) <= 0) {
+      break;
+    }
+  }
+  if (frames_read) {
+    *frames_read = written;
+  }
+  return 1;
+}
+
+static int ffmpeg_decoder_seek_to_pcm_frame(struct ffmpeg_audio_decoder *decoder,
+                                            ma_uint64 target_frame) {
+  AVStream *stream;
+  int64_t timestamp;
+  int ret;
+  if (!decoder || !decoder->format || !decoder->codec ||
+      decoder->stream_index < 0 ||
+      decoder->stream_index >= (int)decoder->format->nb_streams) {
+    return 0;
+  }
+  stream = decoder->format->streams[decoder->stream_index];
+  timestamp = av_rescale_q((int64_t)target_frame,
+                           (AVRational){1, MUSIC_OUTPUT_RATE}, stream->time_base);
+  ret = av_seek_frame(decoder->format, decoder->stream_index, timestamp,
+                      AVSEEK_FLAG_BACKWARD);
+  if (ret < 0) {
+    ret = avformat_seek_file(decoder->format, decoder->stream_index, INT64_MIN,
+                             timestamp, INT64_MAX, 0);
+  }
+  if (ret < 0) {
+    return 0;
+  }
+  avcodec_flush_buffers(decoder->codec);
+  if (decoder->swr) {
+    swr_close(decoder->swr);
+    swr_init(decoder->swr);
+  }
+  decoder->eof_sent = 0;
+  ffmpeg_decoder_clear_pending(decoder);
+  return 1;
+}
+#endif
+
+static int open_miniaudio_decoder_locked(struct player_state *state, const char *path,
+                                         ma_uint64 *length_out) {
+  ma_decoder_config config;
+  ma_result result;
+  ma_uint64 length = 0;
+  if (length_out) {
+    *length_out = 0;
+  }
+  config = ma_decoder_config_init(ma_format_f32, MUSIC_OUTPUT_CHANNELS,
+                                  MUSIC_OUTPUT_RATE);
+  result = ma_decoder_init_file(path, &config, &state->decoder);
+  if (result != MA_SUCCESS) {
+    return 0;
+  }
+  if (ma_decoder_get_length_in_pcm_frames(&state->decoder, &length) != MA_SUCCESS) {
+    length = 0;
+  }
+  state->decoder_kind = MUSIC_DECODER_MINIAUDIO;
+  state->decoder_ready = 1;
+  if (length_out) {
+    *length_out = length;
+  }
+  return 1;
+}
+
+static int music_decoder_read_pcm_frames_locked(struct player_state *state, float *out,
+                                                ma_uint64 frame_count,
+                                                ma_uint64 *frames_read) {
+  if (!state || !state->decoder_ready) {
+    if (frames_read) {
+      *frames_read = 0;
+    }
+    return 0;
+  }
+  if (state->decoder_kind == MUSIC_DECODER_MINIAUDIO) {
+    return ma_decoder_read_pcm_frames(&state->decoder, out, frame_count,
+                                      frames_read) == MA_SUCCESS;
+  }
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  if (state->decoder_kind == MUSIC_DECODER_FFMPEG) {
+    return ffmpeg_decoder_read_pcm_frames(&state->ffmpeg_decoder, out, frame_count,
+                                          frames_read);
+  }
+#endif
+  if (frames_read) {
+    *frames_read = 0;
+  }
+  return 0;
+}
+
+static int music_decoder_seek_to_pcm_frame_locked(struct player_state *state,
+                                                  ma_uint64 frame) {
+  if (!state || !state->decoder_ready) {
+    return 0;
+  }
+  if (state->decoder_kind == MUSIC_DECODER_MINIAUDIO) {
+    return ma_decoder_seek_to_pcm_frame(&state->decoder, frame) == MA_SUCCESS;
+  }
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  if (state->decoder_kind == MUSIC_DECODER_FFMPEG) {
+    return ffmpeg_decoder_seek_to_pcm_frame(&state->ffmpeg_decoder, frame);
+  }
+#endif
+  return 0;
+}
+
+static void unload_decoder_locked(struct player_state *state) {
+  if (state->decoder_ready && state->decoder_kind == MUSIC_DECODER_MINIAUDIO) {
+    ma_decoder_uninit(&state->decoder);
+  }
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  if (state->decoder_ready && state->decoder_kind == MUSIC_DECODER_FFMPEG) {
+    ffmpeg_decoder_close(&state->ffmpeg_decoder);
+  }
+#endif
+  state->decoder_kind = MUSIC_DECODER_NONE;
+  state->decoder_ready = 0;
   state->playing = 0;
   state->paused = 0;
   state->position_frames = 0;
@@ -786,25 +1316,46 @@ static void unload_decoder_locked(struct player_state *state) {
 }
 
 static int load_track_locked(struct player_state *state, int index, const char *reason) {
-  ma_decoder_config config;
-  ma_result result;
   ma_uint64 length = 0;
+  int loaded = 0;
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  char ffmpeg_error[96] = "";
+#endif
   if (!state || index < 0 || index >= state->track_count) {
     return 0;
   }
   unload_decoder_locked(state);
-  config = ma_decoder_config_init(ma_format_f32, MUSIC_OUTPUT_CHANNELS, MUSIC_OUTPUT_RATE);
-  result = ma_decoder_init_file(state->tracks[index].path, &config, &state->decoder);
-  if (result != MA_SUCCESS) {
+
+  if (is_miniaudio_preferred_audio_ext(state->tracks[index].path)) {
+    loaded = open_miniaudio_decoder_locked(state, state->tracks[index].path, &length);
+  }
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+  if (!loaded) {
+    loaded = ffmpeg_decoder_open(state->tracks[index].path, &state->ffmpeg_decoder,
+                                 &length, ffmpeg_error, sizeof(ffmpeg_error));
+    if (loaded) {
+      state->decoder_kind = MUSIC_DECODER_FFMPEG;
+      state->decoder_ready = 1;
+    }
+  }
+#endif
+  if (!loaded && !is_miniaudio_preferred_audio_ext(state->tracks[index].path)) {
+    loaded = open_miniaudio_decoder_locked(state, state->tracks[index].path, &length);
+  }
+  if (!loaded) {
     char msg[192];
-    snprintf(msg, sizeof(msg), "Cannot play: %s", state->tracks[index].name);
+#ifdef PLUMOS_MUSIC_ENABLE_FFMPEG
+    if (ffmpeg_error[0]) {
+      snprintf(msg, sizeof(msg), "Cannot play: %s (%s)", state->tracks[index].name,
+               ffmpeg_error);
+    } else
+#endif
+    {
+      snprintf(msg, sizeof(msg), "Cannot play: %s", state->tracks[index].name);
+    }
     set_status_locked(state, msg);
     return 0;
   }
-  if (ma_decoder_get_length_in_pcm_frames(&state->decoder, &length) != MA_SUCCESS) {
-    length = 0;
-  }
-  state->decoder_ready = 1;
   state->current = index;
   state->selected = index;
   state->playing = 1;
@@ -961,7 +1512,7 @@ static void handle_seek_locked(struct player_state *state, struct audio_filter *
   if (state->length_frames > 0 && (ma_uint64)target > state->length_frames) {
     target = (ma_int64)state->length_frames;
   }
-  if (ma_decoder_seek_to_pcm_frame(&state->decoder, (ma_uint64)target) == MA_SUCCESS) {
+  if (music_decoder_seek_to_pcm_frame_locked(state, (ma_uint64)target)) {
     state->position_frames = (ma_uint64)target;
     reset_filter(filter);
   }
@@ -1020,8 +1571,8 @@ static void *audio_thread_main(void *arg) {
       handle_seek_locked(state, &filter);
       eq_index = state->eq_index;
       volume = state->volume;
-      if (ma_decoder_read_pcm_frames(&state->decoder, pcm, MUSIC_AUDIO_CHUNK_FRAMES,
-                                     &frames_read) == MA_SUCCESS &&
+      if (music_decoder_read_pcm_frames_locked(state, pcm, MUSIC_AUDIO_CHUNK_FRAMES,
+                                               &frames_read) &&
           frames_read > 0) {
         state->position_frames += frames_read;
       } else {
