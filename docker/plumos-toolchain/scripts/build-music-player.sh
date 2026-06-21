@@ -187,16 +187,17 @@ main() {
   msg "building plumOS music player"
   {
     "$(tool_path "${CC}")" \
-      -std=c11 -O2 -pipe -D_GNU_SOURCE \
+      -std=c11 -O2 -pipe \
       -DPLUMOS_ENABLE_MALI_RENDERER=1 \
       -DPLUMOS_ENABLE_MALI_FREETYPE=1 \
+      -DPLUMOS_ENABLE_MALI_PNG=1 \
       -I"${include_dir}" \
       -I"${ROOT_DIR}/src/frontend" \
       -I/usr/include/freetype2 \
       -Wl,--dynamic-linker=/mnt/SDCARD/plumos/lib/ld-linux-armhf.so.3 \
       -o "${out_bin}" \
       "${ROOT_DIR}/src/apps/plumos_music_player.c" \
-      -ldl -lfreetype -lm -lpthread
+      -ldl -lfreetype -lpng -ljpeg -lz -lm -lpthread
   } >"${build_log}" 2>&1
 
   "${STRIP}" "${out_bin}" 2>/dev/null || true
@@ -210,6 +211,7 @@ main() {
     printf 'music_roots=/mnt/SDCARD/Music,/mnt/SDCARD/Roms/music,/mnt/SDCARD/Roms/MUSIC\n'
     printf 'formats=mp3,flac,wav\n'
     printf 'audio_output=/dev/dsp OSS S16 stereo 44100Hz\n'
+    printf 'album_art=ID3v2 APIC embedded PNG/JPEG\n'
     printf 'decoder=%s\n' "${MINIAUDIO_REPO}"
     printf 'decoder_ref=%s\n' "${MINIAUDIO_REF}"
     printf 'controls=A play/pause; B or Function exit; Left/Right seek 5 seconds; X/Y track; Select EQ; L/R volume\n'

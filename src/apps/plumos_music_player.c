@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <math.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +24,9 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <jpeglib.h>
+#include <png.h>
 
 #if defined(__has_include)
 #if __has_include(<sys/soundcard.h>)
@@ -44,10 +48,27 @@
 #define MUSIC_AUDIO_CHUNK_FRAMES 768
 #define MUSIC_LIST_ROWS 7
 #define MUSIC_BOTTOM_PANEL_HEIGHT 154.0f
+#define MUSIC_ART_MAX_BYTES (6u * 1024u * 1024u)
+#define MUSIC_ART_MAX_DIMENSION 2048
 
 struct music_track {
   char path[PATH_MAX];
   char name[MUSIC_NAME_MAX];
+};
+
+struct album_art {
+  unsigned char *rgba;
+  int width;
+  int height;
+  unsigned int generation;
+  char status[64];
+};
+
+struct album_art_texture {
+  GLuint texture;
+  int width;
+  int height;
+  unsigned int generation;
 };
 
 struct eq_preset {
@@ -94,6 +115,7 @@ struct player_state {
   float volume;
   char status[192];
   char audio_status[128];
+  struct album_art art;
 };
 
 static long long monotonic_ms(void) {
@@ -238,6 +260,518 @@ static void set_audio_status_locked(struct player_state *state, const char *stat
   snprintf(state->audio_status, sizeof(state->audio_status), "%s", status ? status : "");
 }
 
+static unsigned int read_u24_be(const unsigned char *p) {
+  return ((unsigned int)p[0] << 16) | ((unsigned int)p[1] << 8) | (unsigned int)p[2];
+}
+
+static unsigned int read_u32_be(const unsigned char *p) {
+  return ((unsigned int)p[0] << 24) | ((unsigned int)p[1] << 16) |
+         ((unsigned int)p[2] << 8) | (unsigned int)p[3];
+}
+
+static unsigned int read_syncsafe32(const unsigned char *p) {
+  return ((unsigned int)(p[0] & 0x7f) << 21) | ((unsigned int)(p[1] & 0x7f) << 14) |
+         ((unsigned int)(p[2] & 0x7f) << 7) | (unsigned int)(p[3] & 0x7f);
+}
+
+static void album_art_replace_locked(struct player_state *state, unsigned char *rgba,
+                                     int width, int height, const char *status) {
+  free(state->art.rgba);
+  state->art.rgba = rgba;
+  state->art.width = width;
+  state->art.height = height;
+  state->art.generation++;
+  snprintf(state->art.status, sizeof(state->art.status), "%s",
+           status && status[0] ? status : (rgba ? "cover art" : "no art"));
+}
+
+static int id3_load_tag(const char *path, unsigned char **tag_out, size_t *tag_size_out,
+                        int *version_out, int *flags_out) {
+  FILE *f;
+  unsigned char header[10];
+  unsigned int tag_size;
+  unsigned char *tag;
+
+  *tag_out = NULL;
+  *tag_size_out = 0;
+  *version_out = 0;
+  *flags_out = 0;
+  f = fopen(path, "rb");
+  if (!f) {
+    return 0;
+  }
+  if (fread(header, 1, sizeof(header), f) != sizeof(header)) {
+    fclose(f);
+    return 0;
+  }
+  if (memcmp(header, "ID3", 3) != 0 || header[3] < 2 || header[3] > 4) {
+    fclose(f);
+    return 0;
+  }
+  tag_size = read_syncsafe32(header + 6);
+  if (tag_size == 0 || tag_size > MUSIC_ART_MAX_BYTES) {
+    fclose(f);
+    return 0;
+  }
+  tag = (unsigned char *)malloc(tag_size);
+  if (!tag) {
+    fclose(f);
+    return 0;
+  }
+  if (fread(tag, 1, tag_size, f) != tag_size) {
+    free(tag);
+    fclose(f);
+    return 0;
+  }
+  fclose(f);
+  *tag_out = tag;
+  *tag_size_out = tag_size;
+  *version_out = header[3];
+  *flags_out = header[5];
+  return 1;
+}
+
+static unsigned char *id3_unsync_copy(const unsigned char *data, size_t size,
+                                      size_t *out_size) {
+  unsigned char *out;
+  size_t i;
+  size_t pos = 0;
+  if (!data || !out_size) {
+    return NULL;
+  }
+  out = (unsigned char *)malloc(size ? size : 1);
+  if (!out) {
+    return NULL;
+  }
+  for (i = 0; i < size; i++) {
+    out[pos++] = data[i];
+    if (data[i] == 0xff && i + 1 < size && data[i + 1] == 0x00) {
+      i++;
+    }
+  }
+  *out_size = pos;
+  return out;
+}
+
+static size_t id3_skip_apic_description(const unsigned char *data, size_t size,
+                                        size_t pos, unsigned char encoding) {
+  if (encoding == 1 || encoding == 2) {
+    while (pos + 1 < size) {
+      if (data[pos] == 0x00 && data[pos + 1] == 0x00) {
+        return pos + 2;
+      }
+      pos += 2;
+    }
+    return size;
+  }
+  while (pos < size) {
+    if (data[pos] == 0x00) {
+      return pos + 1;
+    }
+    pos++;
+  }
+  return size;
+}
+
+static int id3_apic_payload(const unsigned char *frame, size_t frame_size,
+                            const unsigned char **image_out, size_t *image_size_out,
+                            char *mime_out, size_t mime_out_size) {
+  unsigned char encoding;
+  size_t pos = 1;
+  size_t mime_start;
+  size_t mime_len;
+
+  if (!frame || frame_size < 5 || !image_out || !image_size_out) {
+    return 0;
+  }
+  *image_out = NULL;
+  *image_size_out = 0;
+  if (mime_out && mime_out_size > 0) {
+    mime_out[0] = '\0';
+  }
+  encoding = frame[0];
+  mime_start = pos;
+  while (pos < frame_size && frame[pos] != 0x00) {
+    pos++;
+  }
+  if (pos >= frame_size) {
+    return 0;
+  }
+  mime_len = pos - mime_start;
+  if (mime_out && mime_out_size > 0) {
+    size_t copy_len = mime_len;
+    if (copy_len >= mime_out_size) {
+      copy_len = mime_out_size - 1;
+    }
+    memcpy(mime_out, frame + mime_start, copy_len);
+    mime_out[copy_len] = '\0';
+  }
+  pos++;
+  if (pos >= frame_size) {
+    return 0;
+  }
+  pos++; /* picture type */
+  pos = id3_skip_apic_description(frame, frame_size, pos, encoding);
+  if (pos >= frame_size || frame_size - pos < 16) {
+    return 0;
+  }
+  *image_out = frame + pos;
+  *image_size_out = frame_size - pos;
+  return 1;
+}
+
+static int id3_pic_payload_v22(const unsigned char *frame, size_t frame_size,
+                               const unsigned char **image_out,
+                               size_t *image_size_out, char *mime_out,
+                               size_t mime_out_size) {
+  unsigned char encoding;
+  size_t pos = 5;
+  if (!frame || frame_size < 8 || !image_out || !image_size_out) {
+    return 0;
+  }
+  *image_out = NULL;
+  *image_size_out = 0;
+  encoding = frame[0];
+  if (mime_out && mime_out_size > 0) {
+    snprintf(mime_out, mime_out_size, "%.3s", (const char *)(frame + 1));
+  }
+  pos = id3_skip_apic_description(frame, frame_size, pos, encoding);
+  if (pos >= frame_size || frame_size - pos < 16) {
+    return 0;
+  }
+  *image_out = frame + pos;
+  *image_size_out = frame_size - pos;
+  return 1;
+}
+
+static int id3_extract_apic_image(const char *path, unsigned char **image_out,
+                                  size_t *image_size_out, char *mime_out,
+                                  size_t mime_out_size) {
+  unsigned char *tag = NULL;
+  unsigned char *work = NULL;
+  unsigned char *copy = NULL;
+  size_t tag_size = 0;
+  size_t work_size = 0;
+  size_t pos = 0;
+  int version = 0;
+  int flags = 0;
+  int ok = 0;
+
+  *image_out = NULL;
+  *image_size_out = 0;
+  if (mime_out && mime_out_size > 0) {
+    mime_out[0] = '\0';
+  }
+  if (!id3_load_tag(path, &tag, &tag_size, &version, &flags)) {
+    return 0;
+  }
+  work = tag;
+  work_size = tag_size;
+  if ((flags & 0x80) != 0) {
+    work = id3_unsync_copy(tag, tag_size, &work_size);
+    if (!work) {
+      goto done;
+    }
+  }
+
+  if ((flags & 0x40) != 0 && work_size >= 4) {
+    if (version == 3) {
+      unsigned int ext_size = read_u32_be(work);
+      if ((size_t)ext_size + 4u < work_size) {
+        pos = (size_t)ext_size + 4u;
+      }
+    } else if (version == 4) {
+      unsigned int ext_size = read_syncsafe32(work);
+      if (ext_size < work_size) {
+        pos = ext_size;
+      }
+    }
+  }
+
+  while (pos + (version == 2 ? 6u : 10u) <= work_size) {
+    char id[5] = {0, 0, 0, 0, 0};
+    unsigned int frame_size;
+    const unsigned char *payload;
+    const unsigned char *image = NULL;
+    size_t image_size = 0;
+    int is_art = 0;
+
+    if (version == 2) {
+      if (work[pos] == 0 || work[pos + 1] == 0 || work[pos + 2] == 0) {
+        break;
+      }
+      memcpy(id, work + pos, 3);
+      frame_size = read_u24_be(work + pos + 3);
+      pos += 6;
+      payload = work + pos;
+      is_art = strcmp(id, "PIC") == 0;
+    } else {
+      if (work[pos] == 0 || work[pos + 1] == 0 || work[pos + 2] == 0 ||
+          work[pos + 3] == 0) {
+        break;
+      }
+      memcpy(id, work + pos, 4);
+      frame_size = version == 4 ? read_syncsafe32(work + pos + 4) :
+                                  read_u32_be(work + pos + 4);
+      pos += 10;
+      payload = work + pos;
+      is_art = strcmp(id, "APIC") == 0;
+    }
+    if (frame_size == 0 || (size_t)frame_size > work_size - pos) {
+      break;
+    }
+    if (is_art) {
+      if ((version == 2 && id3_pic_payload_v22(payload, frame_size, &image,
+                                               &image_size, mime_out,
+                                               mime_out_size)) ||
+          (version != 2 && id3_apic_payload(payload, frame_size, &image,
+                                            &image_size, mime_out,
+                                            mime_out_size))) {
+        if (image_size > 0 && image_size <= MUSIC_ART_MAX_BYTES) {
+          copy = (unsigned char *)malloc(image_size);
+          if (copy) {
+            memcpy(copy, image, image_size);
+            *image_out = copy;
+            *image_size_out = image_size;
+            copy = NULL;
+            ok = 1;
+            goto done;
+          }
+        }
+      }
+    }
+    pos += frame_size;
+  }
+
+done:
+  free(copy);
+  if (work != tag) {
+    free(work);
+  }
+  free(tag);
+  return ok;
+}
+
+struct jpeg_error_state {
+  struct jpeg_error_mgr pub;
+  jmp_buf jump;
+};
+
+static void jpeg_error_exit_to_jump(j_common_ptr cinfo) {
+  struct jpeg_error_state *state = (struct jpeg_error_state *)cinfo->err;
+  longjmp(state->jump, 1);
+}
+
+static int decode_jpeg_rgba(const unsigned char *data, size_t size,
+                            unsigned char **rgba_out, int *width_out,
+                            int *height_out) {
+  struct jpeg_decompress_struct cinfo;
+  struct jpeg_error_state jerr;
+  unsigned char *rgba = NULL;
+  JSAMPARRAY row = NULL;
+  int width;
+  int height;
+  int ok = 0;
+
+  *rgba_out = NULL;
+  *width_out = 0;
+  *height_out = 0;
+  memset(&cinfo, 0, sizeof(cinfo));
+  cinfo.err = jpeg_std_error(&jerr.pub);
+  jerr.pub.error_exit = jpeg_error_exit_to_jump;
+  if (setjmp(jerr.jump)) {
+    goto done;
+  }
+  jpeg_create_decompress(&cinfo);
+  jpeg_mem_src(&cinfo, data, (unsigned long)size);
+  jpeg_read_header(&cinfo, TRUE);
+  cinfo.out_color_space = JCS_RGB;
+  jpeg_start_decompress(&cinfo);
+  width = (int)cinfo.output_width;
+  height = (int)cinfo.output_height;
+  if (width <= 0 || height <= 0 || width > MUSIC_ART_MAX_DIMENSION ||
+      height > MUSIC_ART_MAX_DIMENSION || cinfo.output_components != 3) {
+    goto done;
+  }
+  rgba = (unsigned char *)malloc((size_t)width * (size_t)height * 4u);
+  row = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE,
+                                   (JDIMENSION)width * 3u, 1);
+  if (!rgba || !row) {
+    goto done;
+  }
+  while (cinfo.output_scanline < cinfo.output_height) {
+    JDIMENSION y = cinfo.output_scanline;
+    int x;
+    jpeg_read_scanlines(&cinfo, row, 1);
+    for (x = 0; x < width; x++) {
+      size_t src = (size_t)x * 3u;
+      size_t dst = ((size_t)y * (size_t)width + (size_t)x) * 4u;
+      rgba[dst] = row[0][src];
+      rgba[dst + 1u] = row[0][src + 1u];
+      rgba[dst + 2u] = row[0][src + 2u];
+      rgba[dst + 3u] = 0xff;
+    }
+  }
+  jpeg_finish_decompress(&cinfo);
+  *rgba_out = rgba;
+  *width_out = width;
+  *height_out = height;
+  rgba = NULL;
+  ok = 1;
+
+done:
+  jpeg_destroy_decompress(&cinfo);
+  free(rgba);
+  return ok;
+}
+
+struct png_memory_reader {
+  const unsigned char *data;
+  size_t size;
+  size_t offset;
+};
+
+static void png_memory_read(png_structp png, png_bytep out, png_size_t bytes) {
+  struct png_memory_reader *reader =
+      (struct png_memory_reader *)png_get_io_ptr(png);
+  if (!reader || bytes > reader->size - reader->offset) {
+    png_error(png, "read past end");
+    return;
+  }
+  memcpy(out, reader->data + reader->offset, bytes);
+  reader->offset += bytes;
+}
+
+static int decode_png_rgba_memory(const unsigned char *data, size_t size,
+                                  unsigned char **rgba_out, int *width_out,
+                                  int *height_out) {
+  struct png_memory_reader reader;
+  png_structp png = NULL;
+  png_infop info = NULL;
+  png_bytep *rows = NULL;
+  png_bytep pixels = NULL;
+  png_uint_32 width;
+  png_uint_32 height;
+  int bit_depth;
+  int color_type;
+  size_t row_bytes;
+  png_uint_32 y;
+  int ok = 0;
+
+  *rgba_out = NULL;
+  *width_out = 0;
+  *height_out = 0;
+  if (!data || size < 8 || png_sig_cmp((png_bytep)data, 0, 8) != 0) {
+    return 0;
+  }
+  png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if (!png) {
+    return 0;
+  }
+  info = png_create_info_struct(png);
+  if (!info) {
+    png_destroy_read_struct(&png, NULL, NULL);
+    return 0;
+  }
+  if (setjmp(png_jmpbuf(png))) {
+    goto done;
+  }
+  reader.data = data;
+  reader.size = size;
+  reader.offset = 0;
+  png_set_read_fn(png, &reader, png_memory_read);
+  png_read_info(png, info);
+  png_get_IHDR(png, info, &width, &height, &bit_depth, &color_type, NULL, NULL,
+               NULL);
+  if (width == 0 || height == 0 || width > MUSIC_ART_MAX_DIMENSION ||
+      height > MUSIC_ART_MAX_DIMENSION) {
+    goto done;
+  }
+  if (bit_depth == 16) {
+    png_set_strip_16(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_PALETTE) {
+    png_set_palette_to_rgb(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) {
+    png_set_expand_gray_1_2_4_to_8(png);
+  }
+  if (png_get_valid(png, info, PNG_INFO_tRNS)) {
+    png_set_tRNS_to_alpha(png);
+  }
+  if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+    png_set_gray_to_rgb(png);
+  }
+  if ((color_type & PNG_COLOR_MASK_ALPHA) == 0) {
+    png_set_filler(png, 0xff, PNG_FILLER_AFTER);
+  }
+  (void)png_set_interlace_handling(png);
+  png_read_update_info(png, info);
+  row_bytes = png_get_rowbytes(png, info);
+  if (row_bytes != (size_t)width * 4u) {
+    goto done;
+  }
+  pixels = (png_bytep)malloc(row_bytes * (size_t)height);
+  rows = (png_bytep *)malloc(sizeof(png_bytep) * (size_t)height);
+  if (!pixels || !rows) {
+    goto done;
+  }
+  for (y = 0; y < height; y++) {
+    rows[y] = pixels + row_bytes * (size_t)y;
+  }
+  png_read_image(png, rows);
+  png_read_end(png, NULL);
+  *rgba_out = pixels;
+  *width_out = (int)width;
+  *height_out = (int)height;
+  pixels = NULL;
+  ok = 1;
+
+done:
+  free(rows);
+  free(pixels);
+  png_destroy_read_struct(&png, &info, NULL);
+  return ok;
+}
+
+static int decode_album_art_rgba(const unsigned char *data, size_t size,
+                                 unsigned char **rgba_out, int *width_out,
+                                 int *height_out) {
+  if (size >= 8 && png_sig_cmp((png_bytep)data, 0, 8) == 0) {
+    return decode_png_rgba_memory(data, size, rgba_out, width_out, height_out);
+  }
+  if (size >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff) {
+    return decode_jpeg_rgba(data, size, rgba_out, width_out, height_out);
+  }
+  return decode_jpeg_rgba(data, size, rgba_out, width_out, height_out) ||
+         decode_png_rgba_memory(data, size, rgba_out, width_out, height_out);
+}
+
+static void load_album_art_locked(struct player_state *state, const char *path) {
+  unsigned char *image = NULL;
+  size_t image_size = 0;
+  unsigned char *rgba = NULL;
+  int width = 0;
+  int height = 0;
+  char mime[48];
+
+  album_art_replace_locked(state, NULL, 0, 0, "no art");
+  if (!path || !str_ends_with_audio_ext(path) || !id3_extract_apic_image(path, &image,
+                                                                         &image_size,
+                                                                         mime,
+                                                                         sizeof(mime))) {
+    return;
+  }
+  if (decode_album_art_rgba(image, image_size, &rgba, &width, &height)) {
+    album_art_replace_locked(state, rgba, width, height, "cover art");
+    rgba = NULL;
+  } else {
+    album_art_replace_locked(state, NULL, 0, 0, "art decode failed");
+  }
+  free(rgba);
+  free(image);
+}
+
 static void unload_decoder_locked(struct player_state *state) {
   if (state->decoder_ready) {
     ma_decoder_uninit(&state->decoder);
@@ -248,6 +782,7 @@ static void unload_decoder_locked(struct player_state *state) {
   state->position_frames = 0;
   state->length_frames = 0;
   state->seek_delta_seconds = 0;
+  album_art_replace_locked(state, NULL, 0, 0, "no art");
 }
 
 static int load_track_locked(struct player_state *state, int index, const char *reason) {
@@ -277,6 +812,7 @@ static int load_track_locked(struct player_state *state, int index, const char *
   state->position_frames = 0;
   state->length_frames = length;
   state->seek_delta_seconds = 0;
+  load_album_art_locked(state, state->tracks[index].path);
   if (reason && reason[0]) {
     char msg[192];
     snprintf(msg, sizeof(msg), "%s: %s", reason, state->tracks[index].name);
@@ -677,7 +1213,133 @@ static void draw_progress(struct plumos_mali_renderer *renderer, float x, float 
   }
 }
 
-static void render_player(struct plumos_mali_renderer *renderer, struct player_state *state) {
+static void draw_border(struct plumos_mali_renderer *renderer, float x, float y, float w,
+                        float h, float r, float g, float b, float a) {
+  plumos_mali_rect(renderer, x, y, w, 2.0f, r, g, b, a);
+  plumos_mali_rect(renderer, x, y + h - 2.0f, w, 2.0f, r, g, b, a);
+  plumos_mali_rect(renderer, x, y, 2.0f, h, r, g, b, a);
+  plumos_mali_rect(renderer, x + w - 2.0f, y, 2.0f, h, r, g, b, a);
+}
+
+static void album_art_texture_delete(struct plumos_mali_renderer *renderer,
+                                     struct album_art_texture *texture) {
+  if (texture && texture->texture) {
+    renderer->gl.DeleteTextures(1, &texture->texture);
+    texture->texture = 0;
+  }
+  if (texture) {
+    texture->width = 0;
+    texture->height = 0;
+  }
+}
+
+static void album_art_texture_upload(struct plumos_mali_renderer *renderer,
+                                     struct album_art_texture *texture,
+                                     const unsigned char *rgba, int width, int height,
+                                     unsigned int generation) {
+  GLuint gl_texture = 0;
+  if (!texture || texture->generation == generation) {
+    return;
+  }
+  album_art_texture_delete(renderer, texture);
+  texture->generation = generation;
+#ifdef PLUMOS_ENABLE_MALI_PNG
+  if (!rgba || width <= 0 || height <= 0 || !renderer->texture_program) {
+    return;
+  }
+  renderer->gl.GenTextures(1, &gl_texture);
+  if (!gl_texture) {
+    return;
+  }
+  renderer->gl.BindTexture(GL_TEXTURE_2D, gl_texture);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  renderer->gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  renderer->gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+                          GL_UNSIGNED_BYTE, rgba);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, 0);
+  renderer->gl.UseProgram(renderer->program);
+  texture->texture = gl_texture;
+  texture->width = width;
+  texture->height = height;
+#else
+  (void)renderer;
+  (void)rgba;
+  (void)width;
+  (void)height;
+#endif
+}
+
+static int draw_album_art_texture(struct plumos_mali_renderer *renderer,
+                                  const struct album_art_texture *texture, float x,
+                                  float y, float w, float h) {
+#ifdef PLUMOS_ENABLE_MALI_PNG
+  float image_aspect;
+  float target_aspect;
+  float draw_w;
+  float draw_h;
+  float draw_x;
+  float draw_y;
+  GLfloat verts[8];
+  GLfloat tex[8] = {
+      0.0f, 0.0f,
+      1.0f, 0.0f,
+      0.0f, 1.0f,
+      1.0f, 1.0f,
+  };
+
+  if (!renderer || !texture || !texture->texture || texture->width <= 0 ||
+      texture->height <= 0 || !renderer->texture_program) {
+    return 0;
+  }
+  image_aspect = (float)texture->width / (float)texture->height;
+  target_aspect = w / h;
+  draw_w = w;
+  draw_h = h;
+  if (image_aspect > target_aspect) {
+    draw_h = w / image_aspect;
+  } else {
+    draw_w = h * image_aspect;
+  }
+  draw_x = x + (w - draw_w) * 0.5f;
+  draw_y = y + (h - draw_h) * 0.5f;
+  plumos_mali_point_to_ndc(renderer, draw_x, draw_y, &verts[0], &verts[1]);
+  plumos_mali_point_to_ndc(renderer, draw_x + draw_w, draw_y, &verts[2], &verts[3]);
+  plumos_mali_point_to_ndc(renderer, draw_x, draw_y + draw_h, &verts[4], &verts[5]);
+  plumos_mali_point_to_ndc(renderer, draw_x + draw_w, draw_y + draw_h, &verts[6],
+                           &verts[7]);
+
+  renderer->gl.UseProgram(renderer->texture_program);
+  renderer->gl.ActiveTexture(GL_TEXTURE0);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, texture->texture);
+  renderer->gl.Uniform1i(renderer->texture_sampler_uniform, 0);
+  renderer->gl.Enable(GL_BLEND);
+  renderer->gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  renderer->gl.EnableVertexAttribArray(0);
+  renderer->gl.EnableVertexAttribArray(1);
+  renderer->gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
+  renderer->gl.VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, tex);
+  renderer->gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  renderer->gl.DisableVertexAttribArray(1);
+  renderer->gl.Disable(GL_BLEND);
+  renderer->gl.BindTexture(GL_TEXTURE_2D, 0);
+  renderer->gl.UseProgram(renderer->program);
+  renderer->gl.EnableVertexAttribArray(0);
+  return 1;
+#else
+  (void)renderer;
+  (void)texture;
+  (void)x;
+  (void)y;
+  (void)w;
+  (void)h;
+  return 0;
+#endif
+}
+
+static void render_player(struct plumos_mali_renderer *renderer, struct player_state *state,
+                          struct album_art_texture *art_texture) {
   int track_count;
   int selected;
   int current;
@@ -688,6 +1350,10 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
   int volume_percent;
   ma_uint64 pos;
   ma_uint64 len;
+  unsigned int art_generation;
+  int art_width;
+  int art_height;
+  char art_status[64];
   char current_name[MUSIC_NAME_MAX];
   char status[192];
   char audio_status[128];
@@ -709,6 +1375,12 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
            current >= 0 && current < state->track_count ? state->tracks[current].name : "-");
   snprintf(status, sizeof(status), "%s", state->status);
   snprintf(audio_status, sizeof(audio_status), "%s", state->audio_status);
+  art_generation = state->art.generation;
+  art_width = state->art.width;
+  art_height = state->art.height;
+  snprintf(art_status, sizeof(art_status), "%s", state->art.status);
+  album_art_texture_upload(renderer, art_texture, state->art.rgba, state->art.width,
+                           state->art.height, state->art.generation);
   pthread_mutex_unlock(&state->lock);
 
   renderer->gl.Viewport(0, 0, renderer->fb_width, renderer->fb_height);
@@ -730,7 +1402,15 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
                  150.0f, 2, (float)renderer->width - 24.0f, 0.70f, 0.75f, 0.82f,
                  1.0f);
   } else {
+    float art_size = 132.0f;
+    float art_x = (float)renderer->width - art_size - 16.0f;
+    float art_y = 62.0f;
+    float list_w = art_x - 24.0f;
     float y = 62.0f;
+    if (list_w < 300.0f) {
+      list_w = (float)renderer->width - 24.0f;
+      art_size = 0.0f;
+    }
     for (i = 0; i < MUSIC_LIST_ROWS; i++) {
       int idx = scroll + i;
       char line[MUSIC_NAME_MAX + 16];
@@ -741,8 +1421,8 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
       if (idx >= track_count) {
         break;
       }
-      plumos_mali_rect(renderer, 12.0f, row_y, (float)renderer->width - 24.0f, 29.0f,
-                       bg_r, bg_g, bg_b, 1.0f);
+      plumos_mali_rect(renderer, 12.0f, row_y, list_w, 29.0f, bg_r, bg_g, bg_b,
+                       1.0f);
       if (idx == current && playing && !paused) {
         snprintf(line, sizeof(line), "> %s", state->tracks[idx].name);
       } else if (idx == current && paused) {
@@ -751,7 +1431,23 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
         snprintf(line, sizeof(line), "  %s", state->tracks[idx].name);
       }
       draw_text_ft(renderer, line, 22.0f, row_y + 7.0f, 2,
-                   (float)renderer->width - 22.0f, 0.90f, 0.92f, 0.95f, 1.0f);
+                   12.0f + list_w - 8.0f, 0.90f, 0.92f, 0.95f, 1.0f);
+    }
+    if (art_size > 0.0f) {
+      plumos_mali_rect(renderer, art_x, art_y, art_size, art_size, 0.035f, 0.039f,
+                       0.050f, 1.0f);
+      draw_border(renderer, art_x, art_y, art_size, art_size, 0.18f, 0.20f, 0.25f,
+                  1.0f);
+      if (art_texture && art_texture->texture && art_generation == art_texture->generation &&
+          art_width > 0 && art_height > 0) {
+        draw_album_art_texture(renderer, art_texture, art_x + 6.0f, art_y + 6.0f,
+                               art_size - 12.0f, art_size - 12.0f);
+      } else {
+        draw_text_ft(renderer, art_status[0] && strcmp(art_status, "cover art") != 0 ?
+                                   art_status : "NO ART",
+                     art_x + 18.0f, art_y + 56.0f, 2, art_x + art_size - 12.0f,
+                     0.48f, 0.54f, 0.62f, 1.0f);
+      }
     }
   }
 
@@ -820,12 +1516,14 @@ static int init_renderer(struct plumos_mali_renderer *renderer) {
 int main(void) {
   static struct player_state state;
   struct plumos_mali_renderer renderer;
+  struct album_art_texture art_texture;
   int input_fd = -1;
   long long last_input_scan = 0;
   long long start_ms = monotonic_ms();
   long long exit_after_ms = parse_env_ms("PLUMOS_MUSIC_EXIT_AFTER_MS");
 
   memset(&state, 0, sizeof(state));
+  memset(&art_texture, 0, sizeof(art_texture));
   state.running = 1;
   state.current = -1;
   state.volume = 0.80f;
@@ -875,7 +1573,7 @@ int main(void) {
     } else {
       usleep(10000);
     }
-    render_player(&renderer, &state);
+    render_player(&renderer, &state, &art_texture);
     usleep(35000);
   }
 
@@ -889,6 +1587,7 @@ int main(void) {
   if (input_fd >= 0) {
     close(input_fd);
   }
+  album_art_texture_delete(&renderer, &art_texture);
   plumos_mali_renderer_shutdown(&renderer);
   pthread_mutex_destroy(&state.lock);
   return 0;
