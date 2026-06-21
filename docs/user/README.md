@@ -41,6 +41,10 @@ settings.
 plumOS does not provide ROMs or BIOS files. Prepare any required game data and
 BIOS files yourself from legal sources.
 
+plumOS-authored files are MIT-licensed. Bundled third-party components and
+StockOS-origin files keep their own licenses. See
+[Third-party notices](../../THIRD_PARTY_NOTICES.md).
+
 ## Japanese Counterpart
 
 - [Japanese user guide](README.ja.md)

@@ -72,6 +72,12 @@ PPSSPP_FACTORY_STATE_PATHS = [
     "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/controls.ini",
 ]
 
+NOTICE_FILES = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.ja.md",
+]
+
 
 @dataclass(frozen=True)
 class Component:
@@ -348,6 +354,13 @@ echo "installed=${{TARGET_ROOT}}/plumos"
     path.chmod(0o755)
 
 
+def copy_notice_files(package_dir: Path) -> None:
+    for rel in NOTICE_FILES:
+        src = ROOT / rel
+        if src.exists():
+            copy_file(src, package_dir / rel)
+
+
 def write_package_docs(package_dir: Path, component_rows: list[dict[str, str]], archive_name: str) -> None:
     doc_dir = package_dir / "plumos/share/doc/plumos-runtime-package"
     doc_dir.mkdir(parents=True, exist_ok=True)
@@ -455,6 +468,7 @@ def main() -> int:
         raise SystemExit(1)
 
     write_install_script(output_dir / "install-plumos-runtime.sh")
+    copy_notice_files(output_dir)
     write_package_docs(output_dir, component_rows, archive.name)
     if overlay_rows:
         overlay_path = output_dir / "plumos/share/doc/plumos-runtime-package/overlay-overrides.txt"

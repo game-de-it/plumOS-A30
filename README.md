@@ -41,6 +41,8 @@ counterparts use the same path with a `.ja.md` suffix.
 - [Documentation index](docs/README.md)
 - [Japanese README](README.ja.md)
 - [Japanese documentation index](docs/README.ja.md)
+- [License](LICENSE)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [TODO](TODO.md)
 
 ## End-user package
@@ -108,3 +110,9 @@ See [Docker build guide](docs/developer/build.md) for the full workflow.
 - Ship the StockOS SD payload needed for fallback and compatibility.
 - Build libretro cores from source. Prefer the Onion source period for cores that Onion carries.
 - Users provide their own ROMs and BIOS files.
+
+## License
+
+plumOS-authored files are MIT-licensed. Bundled third-party components,
+emulators, cores, StockOS payload files, fonts, and data sources keep their own
+licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

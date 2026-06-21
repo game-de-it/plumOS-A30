@@ -87,6 +87,12 @@ RECREATE_DIRS = [
     "Emu/PS/.pcsx/memcards",
 ]
 
+REQUIRED_NOTICE_PATHS = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.ja.md",
+]
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -266,12 +272,29 @@ def ssh_warnings(root: Path) -> list[Finding]:
     return findings
 
 
+def notice_warnings(root: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    for rel_path in REQUIRED_NOTICE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            findings.append(
+                Finding(
+                    "blocker",
+                    "license_policy",
+                    Path(rel_path),
+                    "missing license/third-party notice file",
+                )
+            )
+    return findings
+
+
 def collect_findings(root: Path) -> list[Finding]:
     return [
         *collect_clear_blockers(root),
         *placeholder_warnings(root),
         *bios_warnings(root),
         *ssh_warnings(root),
+        *notice_warnings(root),
     ]
 
 

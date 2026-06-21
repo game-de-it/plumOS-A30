@@ -50,6 +50,8 @@ standalone emulator、frontend を再ビルドできます。
 - [全ドキュメント索引](docs/README.ja.md)
 - [英語 README](README.md)
 - [英語ドキュメント索引](docs/README.md)
+- [License](LICENSE)
+- [Third-party notices](THIRD_PARTY_NOTICES.ja.md)
 - [TODO](TODO.ja.md)
 
 GitHub で既定表示される英語版を `.md` に置き、日本語版は同じ path の `.ja.md` に置きます。
@@ -118,6 +120,12 @@ A30 実機への command 実行と deploy は helper script を使います。
 - StockOS 由来の SD payload は fallback と互換性のために配布物へ含めます。
 - libretro core は Onion が採用している source 時期を優先し、plumOS 側で source からビルドします。
 - ROM/BIOS はユーザー自身が用意します。
+
+## License
+
+plumOS として作成したファイルは MIT License です。同梱する第三者 component、emulator、
+core、StockOS payload、font、data source はそれぞれの license が適用されます。詳細は
+[THIRD_PARTY_NOTICES.ja.md](THIRD_PARTY_NOTICES.ja.md) を参照してください。
 
 ## 参考
 

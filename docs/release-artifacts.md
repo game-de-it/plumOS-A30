@@ -39,6 +39,9 @@ Includes:
   - `Images/` is the normal plumOS thumbnail location
   - `Imgs/` remains for StockOS artwork compatibility and older data
 - SD-root manifest and checksums
+- `LICENSE`
+- `THIRD_PARTY_NOTICES.md`
+- `THIRD_PARTY_NOTICES.ja.md`
 
 Excludes:
 
@@ -125,6 +128,9 @@ GitHub Release assets are fixed to:
 - `manifest.txt`
 - `RELEASE_NOTES.md`
 
+`LICENSE` and `THIRD_PARTY_NOTICES.md` are included inside the SD-root and
+developer packages rather than uploaded as separate GitHub Release assets.
+
 The release body is based on `RELEASE_NOTES.md`.
 
 ## Build Order
@@ -161,6 +167,10 @@ A formal release must satisfy:
   `docs/emulator-runtime-manifest.tsv`
 - SD-root package includes the stock SD payload, `miyoo/app/MainUI`, and the
   `plumos/` runtime, and excludes ROM/BIOS/user data
+- SD-root package includes `LICENSE`, `THIRD_PARTY_NOTICES.md`, and
+  `THIRD_PARTY_NOTICES.ja.md`
+- public release policy has confirmed the StockOS SD payload and unclear
+  upstream redistribution terms listed in `THIRD_PARTY_NOTICES.md`
 - developer package manifest records `git_dirty=no`
 - release bundle manifest records `git_dirty=no`
 - `SHA256SUMS` verifies all assets

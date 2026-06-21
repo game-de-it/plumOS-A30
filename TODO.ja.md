@@ -9,7 +9,7 @@
 - [x] A30 へ SSH 接続して情報収集できるようにする。
 - [x] 起動フロー、mount、Wi-Fi、stock frontend、RetroArch 構成を文書化する。
 - [x] 英語 `.md` を既定ドキュメント、日本語 `.ja.md` を対応版とする構成にする。
-- [ ] GitHub 公開前に remote、license、release 方針を確定する。
+- [ ] GitHub 公開前に remote と release 方針を確定する。
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
@@ -148,6 +148,8 @@
 - [ ] StockOS と plumOS の差分を整理する。
 - [ ] plumOS 導入メリットを end-user 向けにまとめる。
 - [ ] StockOS から plumOS へ移行する際の制約/トレードオフを整理する。
-- [ ] license notice と upstream attribution を整理する。
+- [x] license notice と upstream attribution を整理する。
+- [ ] public binary release 前に StockOS SD payload の再配布方針を確認する。
+- [ ] public binary release 前に NextCommander の再配布条件を確認するか、ファイルマネージャーを差し替える。
 - [x] GitHub Release 用 package/artifact workflow を作る。
 - [ ] fresh SD card 相当の環境で install/rollback を検証する。

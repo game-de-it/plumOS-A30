@@ -64,6 +64,9 @@ miyoo/lib/
 Emu/
 RetroArch/
 plumos/
+LICENSE
+THIRD_PARTY_NOTICES.md
+THIRD_PARTY_NOTICES.ja.md
 Bios/
 Images/
 Imgs/
@@ -105,6 +108,7 @@ release-policy decisions.
 - `plumos/state/standalone/ppsspp/`: PPSSPP factory state for a fresh SD card
 - `plumos/ssh/`: Dropbear SSH, start/stop scripts, `password.hash`, and optional
   `authorized_keys`
+- `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `THIRD_PARTY_NOTICES.ja.md`
 - placeholder `Bios/`, `Images/`, `Imgs/`, `Roms/`, and `Saves/`
   - normal plumOS thumbnails live in `Images/<system_id>/`
   - `Imgs/` remains for StockOS artwork compatibility and older data
@@ -146,6 +150,7 @@ Before a formal release, verify:
 - `plumos/ssh/start-ssh.sh` and `plumos/ssh/bin/dropbear` exist.
 - `plumos/ssh/etc/password.hash` exists and password login with `plumos` works.
 - `plumos/ssh/etc/authorized_keys` is optional; if present, key auth also works.
+- `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `THIRD_PARTY_NOTICES.ja.md` exist.
 - `Roms/`, `Bios/`, `Images/`, and `Imgs/` contain no user data except
   placeholders.
 - Extracting the `.7z` into an empty directory creates an SD-card-root layout.

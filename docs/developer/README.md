@@ -12,6 +12,7 @@ release plumOS.
 5. [Runtime Package](../runtime-package.md)
 6. [SD Root Package](../sdroot-package.md)
 7. [Release Artifacts](../release-artifacts.md)
+8. [Third-Party Notices](../../THIRD_PARTY_NOTICES.md)
 
 ## Technical Layout
 
@@ -61,6 +62,9 @@ SD-card runtime.
 - Use `scripts/deploy-a30.sh` for deployment.
 - Keep exactly one `/dev/fb0` owner during UI/emulator verification.
 - Do not commit or log ROMs, BIOS files, network secrets, or personal data.
+- Keep `LICENSE` and `THIRD_PARTY_NOTICES.md` in end-user binary packages.
+- Publish the developer source/toolchain package alongside binary SD-root
+  releases.
 
 ## Detailed References
 

@@ -142,6 +142,13 @@ cd plumos-dev-package/source
 ## Excluded Data
 
 ROMs, BIOS files, user save data, state files, screenshots, videos, network secrets, and generated build caches are not release assets.
+
+## License and Notices
+
+plumOS-authored files are MIT-licensed. Bundled third-party components remain
+under their own licenses. See `LICENSE` and `THIRD_PARTY_NOTICES.md` inside the
+SD-root archive, and publish the developer package next to the binary package
+for source/build provenance.
 """,
         encoding="utf-8",
     )

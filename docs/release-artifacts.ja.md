@@ -37,6 +37,9 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
   - `Images/` は plumOS の通常サムネイル置き場
   - `Imgs/` は StockOS artwork 互換/旧置き場として残す
 - SD root manifest/checksum
+- `LICENSE`
+- `THIRD_PARTY_NOTICES.md`
+- `THIRD_PARTY_NOTICES.ja.md`
 
 含めないもの:
 
@@ -120,6 +123,9 @@ GitHub Release の asset は以下に固定する。
 - `manifest.txt`
 - `RELEASE_NOTES.md`
 
+`LICENSE` と `THIRD_PARTY_NOTICES.md` は GitHub Release asset として個別に置くのではなく、
+SD-root package と developer package の中に含める。
+
 release body は `RELEASE_NOTES.md` の内容を元にする。
 
 ## 生成順
@@ -152,6 +158,10 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 
 - runtime package が `docs/emulator-runtime-manifest.tsv` の runtime/core/binary 検証を通過している。
 - SD root package が stock SD payload、`miyoo/app/MainUI`、`plumos/` runtime を含み、ROM/BIOS/user data を含まない。
+- SD root package が `LICENSE`、`THIRD_PARTY_NOTICES.md`、
+  `THIRD_PARTY_NOTICES.ja.md` を含む。
+- `THIRD_PARTY_NOTICES.md` に書かれた StockOS SD payload と再配布条件が不明な upstream の
+  公開方針を確認済みである。
 - developer package の manifest が `git_dirty=no` である。
 - release bundle の manifest が `git_dirty=no` である。
 - `SHA256SUMS` が全 asset で検証できる。

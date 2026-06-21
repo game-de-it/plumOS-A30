@@ -14,7 +14,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Document the boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
 - [x] Use English `.md` documents as the default documentation and Japanese
       `.ja.md` files as counterparts.
-- [ ] Decide the GitHub remote, license, and release policy before public publishing.
+- [ ] Decide the GitHub remote and release policy before public publishing.
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
@@ -152,6 +152,8 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Summarize the differences between StockOS and plumOS.
 - [ ] Summarize plumOS benefits for end users.
 - [ ] Document the constraints and tradeoffs when migrating from StockOS to plumOS.
-- [ ] Organize license notices and upstream attribution.
+- [x] Organize license notices and upstream attribution.
+- [ ] Confirm StockOS SD payload redistribution policy before a public binary release.
+- [ ] Confirm NextCommander redistribution terms or replace the file manager before a public binary release.
 - [x] Create a GitHub Release package/artifact workflow.
 - [ ] Validate install and rollback on a fresh-SD-card-equivalent environment.

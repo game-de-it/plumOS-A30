@@ -47,6 +47,9 @@ A30 実機 deploy loop を中心にまとめます。
 - [FE 実行可能ターゲット一覧](emulator-fe-targets.ja.md)
 - [emulator issue triage](emulator-issue-triage.ja.md)
 - [libretro core version inventory](libretro-core-version-inventory.ja.md)
+- [third-party data](third-party-data.ja.md)
+- [Repository License](../LICENSE)
+- [Third-Party Notices](../THIRD_PARTY_NOTICES.ja.md)
 
 ## 機械可読な表
 

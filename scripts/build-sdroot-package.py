@@ -80,6 +80,12 @@ PPSSPP_FACTORY_STATE_PATHS = [
     "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/controls.ini",
 ]
 
+NOTICE_FILES = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.ja.md",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -221,6 +227,13 @@ def ensure_empty_dirs(output_dir: Path) -> None:
         readme.write_text(USER_DIR_READMES[rel], encoding="utf-8")
 
 
+def copy_notice_files(output_dir: Path) -> None:
+    for rel in NOTICE_FILES:
+        src = ROOT / rel
+        if src.exists():
+            copy_file(src, output_dir / rel)
+
+
 def verify_payload(output_dir: Path, require_stock_payload: bool) -> list[str]:
     required = [
         "miyoo/app/MainUI",
@@ -262,6 +275,8 @@ Expected top-level entries:
 - `miyoo/`: stock SD-card runtime files plus the plumOS boot wrapper at
   `miyoo/app/MainUI`.
 - `plumos/`: plumOS runtime.
+- `LICENSE`, `THIRD_PARTY_NOTICES.md`: plumOS license and bundled component
+  attribution.
 - Optional stock top-level runtimes such as `RetroArch/` or `Emu/`, when present
   in the stock SD-card payload input.
 - `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/`: empty placeholders for user-managed files.
@@ -368,6 +383,7 @@ def main() -> int:
     copy_file(wrapper, output_dir / "miyoo/app/MainUI")
     (output_dir / "miyoo/app/MainUI").chmod(0o755)
     ensure_empty_dirs(output_dir)
+    copy_notice_files(output_dir)
     write_readme(output_dir / "README.txt")
     write_manifest(
         output_dir / "manifest.txt",

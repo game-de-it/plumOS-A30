@@ -17,7 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_SOURCE_PATHS = [
-    "AGENTS.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "THIRD_PARTY_NOTICES.ja.md",
     "TODO.md",
     "docs/docker-toolchain.md",
     "docs/release-artifacts.md",
@@ -185,6 +187,8 @@ cd source
 End-user SD-root package generation is documented in `source/docs/sdroot-package.md`.
 Runtime package generation is documented in `source/docs/runtime-package.md`.
 Docker/toolchain details are documented in `source/docs/docker-toolchain.md`.
+plumOS-authored files are MIT-licensed; bundled third-party notices are in
+`source/THIRD_PARTY_NOTICES.md`.
 """,
         encoding="utf-8",
     )

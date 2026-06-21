@@ -49,6 +49,9 @@ extra detail is useful.
 - [FE Executable Targets](emulator-fe-targets.md)
 - [Emulator Issue Triage](emulator-issue-triage.md)
 - [libretro Core Version Inventory](libretro-core-version-inventory.md)
+- [Third-Party Data](third-party-data.md)
+- [Repository License](../LICENSE)
+- [Third-Party Notices](../THIRD_PARTY_NOTICES.md)
 
 ## Machine-Readable Tables
 
