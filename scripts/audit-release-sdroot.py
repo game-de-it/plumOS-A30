@@ -93,6 +93,12 @@ REQUIRED_NOTICE_PATHS = [
     "THIRD_PARTY_NOTICES.ja.md",
 ]
 
+REQUIRED_PACKAGE_PATHS = [
+    "README.txt",
+    "manifest.txt",
+    "sha256sum.txt",
+]
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -288,6 +294,22 @@ def notice_warnings(root: Path) -> list[Finding]:
     return findings
 
 
+def package_warnings(root: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    for rel_path in REQUIRED_PACKAGE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            findings.append(
+                Finding(
+                    "blocker",
+                    "package_manifest",
+                    Path(rel_path),
+                    "missing SD-root package metadata file",
+                )
+            )
+    return findings
+
+
 def collect_findings(root: Path) -> list[Finding]:
     return [
         *collect_clear_blockers(root),
@@ -295,6 +317,7 @@ def collect_findings(root: Path) -> list[Finding]:
         *bios_warnings(root),
         *ssh_warnings(root),
         *notice_warnings(root),
+        *package_warnings(root),
     ]
 
 
