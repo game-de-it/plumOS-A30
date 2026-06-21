@@ -54,6 +54,24 @@ manifest.txt
 sha256sum.txt
 ```
 
+既存の実機 SD card から作った release staging directory をそのまま配布 archive にする場合は、
+archive 化の前に release preflight を実行する。
+
+```sh
+./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
+```
+
+`blocker` が出た場合は、明確な生成物/履歴/セーブ/バックアップだけを quarantine へ移してから
+再確認する。
+
+```sh
+./scripts/audit-release-sdroot.py dist/plumos-release-sdroot --clean
+./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
+```
+
+`warning` は自動削除しない。特に stock emulator subtree 内の BIOS/system ROM、`Imgs/` の legacy
+artwork、`plumos/ssh/etc/authorized_keys` は配布方針として判断する。
+
 ## 含むもの
 
 - stock SD payload

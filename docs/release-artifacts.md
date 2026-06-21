@@ -132,6 +132,10 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
    `./scripts/build-sdroot-package.py --stock-sdcard-dir <path>` で指定する path へ用意する。
 4. `./scripts/build-runtime-package.py` を実行する。
 5. `./scripts/build-sdroot-package.py` を実行する。
+   実機 SD card 由来の `dist/plumos-release-sdroot` を release staging として使う場合は、
+   archive 化の前に `./scripts/audit-release-sdroot.py dist/plumos-release-sdroot` を実行し、
+   `blocker` が残っていないことを確認する。`--clean` は明確な生成物/履歴/セーブ/バックアップだけを
+   `artifacts/release-sdroot-audit/.../quarantine/` へ移す。
 6. `./scripts/build-dev-package.py` を実行する。
 7. `./scripts/build-release-bundle.py --version <version>` を実行する。
 8. `SHA256SUMS` を検証する。
