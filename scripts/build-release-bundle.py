@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sdroot-archive",
         type=Path,
-        default=ROOT / "dist/plumos-sdroot-package.tar.gz",
+        default=ROOT / "dist/plumos-sdroot-package.7z",
     )
     parser.add_argument(
         "--developer-archive",
@@ -124,7 +124,7 @@ def write_release_notes(path: Path, version: str, sdroot_name: str, developer_na
 End users should download only `{sdroot_name}` unless they need to rebuild plumOS.
 
 ```sh
-tar -xzf {sdroot_name} -C /path/to/SDCARD
+7zz x {sdroot_name} -o/path/to/SDCARD
 ```
 
 The archive expands directly into SD card root entries such as `miyoo/app/MainUI`, `plumos/`, `Roms/`, and `Bios/`.
@@ -181,7 +181,7 @@ def main() -> int:
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True)
 
-    sdroot_name = f"plumos-a30-sdroot-{version}.tar.gz"
+    sdroot_name = f"plumos-a30-sdroot-{version}.7z"
     developer_name = f"plumos-a30-developer-{version}.tar.gz"
     sdroot_out = output_dir / sdroot_name
     developer_out = output_dir / developer_name

@@ -12,7 +12,7 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 
 配布 asset:
 
-- `plumos-a30-sdroot-<version>.tar.gz`
+- `plumos-a30-sdroot-<version>.7z`
 
 含むもの:
 
@@ -93,14 +93,14 @@ GitHub Release に載せる asset directory は以下で生成する。
 
 既定では以下を入力にする。
 
-- `dist/plumos-sdroot-package.tar.gz`
+- `dist/plumos-sdroot-package.7z`
 - `dist/plumos-dev-package.tar.gz`
 
 出力例:
 
 ```text
 dist/plumos-release-<version>/
-  plumos-a30-sdroot-<version>.tar.gz
+  plumos-a30-sdroot-<version>.7z
   plumos-a30-developer-<version>.tar.gz
   RELEASE_NOTES.md
   manifest.txt
@@ -114,7 +114,7 @@ release 用 bundle は clean working tree で生成する。preview だけが必
 
 GitHub Release の asset は以下に固定する。
 
-- `plumos-a30-sdroot-<version>.tar.gz`
+- `plumos-a30-sdroot-<version>.7z`
 - `plumos-a30-developer-<version>.tar.gz`
 - `SHA256SUMS`
 - `manifest.txt`
@@ -137,6 +137,8 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
    archive 化の前に `./scripts/audit-release-sdroot.py dist/plumos-release-sdroot` を実行し、
    `blocker` が残っていないことを確認する。`--clean` は明確な生成物/履歴/セーブ/バックアップだけを
    `artifacts/release-sdroot-audit/.../quarantine/` へ移す。
+   エンドユーザー向け asset は外側 directory を持たない `.7z` として作る。
+   `7zz t dist/plumos-sdroot-package.7z` と `shasum -a 256` で検証する。
 6. `./scripts/build-dev-package.py` を実行する。
 7. `./scripts/build-release-bundle.py --version <version>` を実行する。
 8. `SHA256SUMS` を検証する。
