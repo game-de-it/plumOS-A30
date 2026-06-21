@@ -998,15 +998,53 @@ static int resolve_artwork_dir(const struct scan_ctx *ctx, const struct artwork_
   return 0;
 }
 
-static int find_thumbnail(const struct scan_ctx *ctx, const struct system_def *system,
-                          const char *relative_stem, const char *flat_stem,
-                          char *out, size_t out_size) {
+static int find_thumbnail_in_dir(const char *art_dir, const char *relative_stem,
+                                 const char *flat_stem, char *out, size_t out_size) {
   static const char *image_exts[] = {"png", "jpg", "jpeg", "webp"};
-  size_t i;
   size_t e;
+
+  for (e = 0; e < sizeof(image_exts) / sizeof(image_exts[0]); e++) {
+    char stem_path[PATH_MAX];
+    char candidate[PATH_MAX];
+    char name[PATH_MAX];
+    if (build_stem_ext_name(name, sizeof(name), relative_stem, image_exts[e]) &&
+        join_path(stem_path, sizeof(stem_path), art_dir, name) &&
+        find_case_insensitive_file(stem_path, candidate, sizeof(candidate))) {
+      return copy_string(out, out_size, candidate);
+    }
+  }
+
+  for (e = 0; e < sizeof(image_exts) / sizeof(image_exts[0]); e++) {
+    char stem_path[PATH_MAX];
+    char candidate[PATH_MAX];
+    char name[PATH_MAX];
+    if (build_stem_ext_name(name, sizeof(name), flat_stem, image_exts[e]) &&
+        join_path(stem_path, sizeof(stem_path), art_dir, name) &&
+        find_case_insensitive_file(stem_path, candidate, sizeof(candidate))) {
+      return copy_string(out, out_size, candidate);
+    }
+  }
+
+  return 0;
+}
+
+static int find_thumbnail(const struct scan_ctx *ctx, const struct system_def *system,
+                          const char *directory_alias, const char *relative_stem,
+                          const char *flat_stem, char *out, size_t out_size) {
+  size_t i;
 
   if (out_size > 0) {
     out[0] = '\0';
+  }
+
+  if (directory_alias && directory_alias[0]) {
+    char images_dir[PATH_MAX];
+    char alias_art_dir[PATH_MAX];
+    if (join_path(images_dir, sizeof(images_dir), ctx->sdcard_root, "Images") &&
+        join_path(alias_art_dir, sizeof(alias_art_dir), images_dir, directory_alias) &&
+        find_thumbnail_in_dir(alias_art_dir, relative_stem, flat_stem, out, out_size)) {
+      return 1;
+    }
   }
 
   for (i = 0; i < system->artwork_count; i++) {
@@ -1014,27 +1052,8 @@ static int find_thumbnail(const struct scan_ctx *ctx, const struct system_def *s
     if (!resolve_artwork_dir(ctx, &system->artwork[i], art_dir, sizeof(art_dir))) {
       continue;
     }
-
-    for (e = 0; e < sizeof(image_exts) / sizeof(image_exts[0]); e++) {
-      char stem_path[PATH_MAX];
-      char candidate[PATH_MAX];
-      char name[PATH_MAX];
-      if (build_stem_ext_name(name, sizeof(name), relative_stem, image_exts[e]) &&
-          join_path(stem_path, sizeof(stem_path), art_dir, name) &&
-          find_case_insensitive_file(stem_path, candidate, sizeof(candidate))) {
-        return copy_string(out, out_size, candidate);
-      }
-    }
-
-    for (e = 0; e < sizeof(image_exts) / sizeof(image_exts[0]); e++) {
-      char stem_path[PATH_MAX];
-      char candidate[PATH_MAX];
-      char name[PATH_MAX];
-      if (build_stem_ext_name(name, sizeof(name), flat_stem, image_exts[e]) &&
-          join_path(stem_path, sizeof(stem_path), art_dir, name) &&
-          find_case_insensitive_file(stem_path, candidate, sizeof(candidate))) {
-        return copy_string(out, out_size, candidate);
-      }
+    if (find_thumbnail_in_dir(art_dir, relative_stem, flat_stem, out, out_size)) {
+      return 1;
     }
   }
 
@@ -1096,7 +1115,8 @@ static void add_rom_entry(struct scan_ctx *ctx, size_t system_index, const char 
     stem_from_name(flat_stem, sizeof(flat_stem), entry.file_name);
   }
   if (ctx->resolve_thumbnails &&
-      find_thumbnail(ctx, system, rel_stem, flat_stem, entry.thumbnail, sizeof(entry.thumbnail))) {
+      find_thumbnail(ctx, system, alias_name, rel_stem, flat_stem, entry.thumbnail,
+                     sizeof(entry.thumbnail))) {
     ctx->thumbnails_found++;
   }
 

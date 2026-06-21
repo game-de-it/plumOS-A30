@@ -120,8 +120,9 @@ Important fields:
   treated as ROM entries. This is for directory-based systems such as ScummVM and
   EasyRPG.
 - `extensions`: ROM extensions without dots.
-- `artwork.lookup`: thumbnail/cover lookup path. Normal systems use only
-  `/mnt/SDCARD/Images/<system_id>`.
+- `artwork.lookup`: thumbnail/cover fallback path. Normal runtime lookup first
+  uses `/mnt/SDCARD/Images/<ROM directory alias>` and then falls back to this
+  configured path.
 - `scraper`: optional per-system policy for thumbnail scraper eligibility and
   CRC/download worker counts. When omitted, treat the system as scraper-excluded
   or use the global default.
@@ -219,11 +220,11 @@ directly under the current directory.
 ### Artwork Lookup
 
 Thumbnails are resolved from the representative ROM path stored in `RomEntry`
-using only the canonical per-system thumbnail root
-`/mnt/SDCARD/Images/<system_id>`. Scraped images and user-provided images live
-in the same directory. When a ROM lives in a subdirectory, preserve the path
-relative to the ROM directory alias root when looking under the thumbnail
-directory.
+using the ROM directory alias name under `/mnt/SDCARD/Images/`. Scraped images
+and user-provided images live in the same directory. When a ROM lives in a
+subdirectory, preserve the path relative to the ROM directory alias root when
+looking under the thumbnail directory. The configured per-system `artwork.lookup`
+path remains a fallback for existing images.
 
 Example:
 
@@ -250,11 +251,11 @@ Lookup priority:
 
 Rules:
 
-- `artwork.lookup` normally has exactly one directory per system.
+- `artwork.lookup` normally has one fallback directory per system.
 - The scraper output, user-provided thumbnails, and frontend lookup all use
-  `/mnt/SDCARD/Images/<system_id>`.
+  `/mnt/SDCARD/Images/<ROM directory alias>`.
 - Even for systems excluded from scraping, thumbnails manually placed under
-  `/mnt/SDCARD/Images/<system_id>` are looked up and displayed normally.
+  `/mnt/SDCARD/Images/<ROM directory alias>` are looked up and displayed normally.
 - StockOS `/mnt/SDCARD/Imgs/*` and old lowercase `/mnt/SDCARD/images/*` paths
   are not normal lookup paths. Treat them only as importer/migration inputs if
   needed.

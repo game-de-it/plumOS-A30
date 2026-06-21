@@ -1073,9 +1073,10 @@ fetch_crc_worker() {
 
   : > "$worker_result"
   : > "$worker_download_queue"
-  while IFS="$TAB_CHAR" read -r alias_dir rom_path; do
+  while IFS="$TAB_CHAR" read -r alias_dir rom_path image_dir_name; do
     [ -n "$alias_dir" ] || continue
     [ -n "$rom_path" ] || continue
+    [ -n "$image_dir_name" ] || image_dir_name="${alias_dir##*/}"
 
     ext="$(lower_ext "$rom_path" 2>/dev/null || true)"
     if [ -z "$ext" ] || ! extension_allowed "$ext" "$extensions"; then
@@ -1086,12 +1087,6 @@ fetch_crc_worker() {
     rel_path="${rom_path#"$alias_dir"/}"
     rel_stem="${rel_path%.*}"
     flat_stem="${rel_stem##*/}"
-
-    if [ "$REPLACE_EXISTING" != 1 ] &&
-       thumbnail_exists "$thumb_lookup" "$rel_stem" "$flat_stem"; then
-      printf '0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n' >> "$worker_result"
-      continue
-    fi
 
     payload="$rom_path"
     lookup_system="$(payload_source_system_for_ext "$fetch_system_id" "$ext")"
@@ -1187,7 +1182,7 @@ fetch_crc_worker() {
     fi
 
     if [ -n "$href" ]; then
-      dest="${IMAGE_ROOT}/${fetch_system_id}/${rel_stem}.png"
+      dest="${IMAGE_ROOT}/${image_dir_name}/${rel_stem}.png"
       printf '%s\t%s\t%s\t%s\n' "$lookup_system" "$href" "$dest" "$rel_stem" >> "$worker_download_queue"
       worker_download_queued=1
     fi
@@ -1285,7 +1280,6 @@ plan_system() {
   tmp_list="${STATE_DIR}/planner-${plan_system_id}-$$.list"
   thumb_lookup="${STATE_DIR}/thumbnails-${plan_system_id}-$$.list"
   rm -f "$tmp_list" "$thumb_lookup" 2>/dev/null || true
-  build_thumbnail_lookup "$plan_system_id" "$thumb_lookup"
 
   aliases_seen=0
   rom_candidates=0
@@ -1314,6 +1308,8 @@ plan_system() {
       esac
       seen_dirs="${seen_dirs}${identity} "
       aliases_seen=$((aliases_seen + 1))
+      image_dir_name="${alias_dir##*/}"
+      build_thumbnail_lookup "$image_dir_name" "$thumb_lookup"
 
       find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
       while IFS= read -r rom_path; do
@@ -1409,7 +1405,6 @@ fetch_system() {
   rm -f "$tmp_list" "$missing_list" "$thumb_lookup" 2>/dev/null || true
   rm -rf "$parallel_dir" 2>/dev/null || true
   : > "$missing_list"
-  build_thumbnail_lookup "$fetch_system_id" "$thumb_lookup"
 
   aliases_seen=0
   rom_candidates=0
@@ -1452,6 +1447,8 @@ fetch_system() {
       esac
       seen_dirs="${seen_dirs}${identity} "
       aliases_seen=$((aliases_seen + 1))
+      image_dir_name="${alias_dir##*/}"
+      build_thumbnail_lookup "$image_dir_name" "$thumb_lookup"
 
       find "$alias_dir" -type f > "$tmp_list" 2>/dev/null || true
       while IFS= read -r rom_path; do
@@ -1469,11 +1466,11 @@ fetch_system() {
           existing_thumbnails=$((existing_thumbnails + 1))
           if [ "$REPLACE_EXISTING" = 1 ]; then
             missing_thumbnails=$((missing_thumbnails + 1))
-            printf '%s\t%s\n' "$alias_dir" "$rom_path" >> "$missing_list"
+            printf '%s\t%s\t%s\n' "$alias_dir" "$rom_path" "$image_dir_name" >> "$missing_list"
           fi
         else
           missing_thumbnails=$((missing_thumbnails + 1))
-          printf '%s\t%s\n' "$alias_dir" "$rom_path" >> "$missing_list"
+          printf '%s\t%s\t%s\n' "$alias_dir" "$rom_path" "$image_dir_name" >> "$missing_list"
         fi
 
         if [ "$LIMIT" -gt 0 ] && [ "$rom_candidates" -ge "$LIMIT" ]; then

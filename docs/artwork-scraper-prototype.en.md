@@ -20,17 +20,17 @@ matching and storage rules before any FE integration. The prototype script is
 The scraper output, user-placed thumbnails, and frontend lookup all use:
 
 ```text
-/mnt/SDCARD/Images/<system_id>/<relative stem from the ROM alias root>.png
+/mnt/SDCARD/Images/<ROM directory alias>/<relative stem from the ROM alias root>.png
 ```
 
 Examples:
 
 ```text
 Roms/FC/Nintendo/Mario.nes
-=> Images/nes/Nintendo/Mario.png
+=> Images/FC/Nintendo/Mario.png
 
 Roms/GB/Dracula Densetsu.gb
-=> Images/gb/Dracula Densetsu.png
+=> Images/GB/Dracula Densetsu.png
 ```
 
 ## Repeat-Run Policy
@@ -38,7 +38,7 @@ Roms/GB/Dracula Densetsu.gb
 On the second and later scraper runs, existing thumbnails are treated as the
 user's choice and take priority.
 
-- For each ROM, first look under `/mnt/SDCARD/Images/<system_id>` using the same
+- For each ROM, first look under `/mnt/SDCARD/Images/<ROM directory alias>` using the same
   lookup order as the frontend.
 - If any `png`, `jpg`, `jpeg`, or `webp` thumbnail exists, return `exists`.
 - `exists` does not compute CRCs, read DAT indexes, fetch thumbnail indexes, or
@@ -71,7 +71,7 @@ that preserve timestamps completely.
 
 Keep scraper scope separate from frontend thumbnail display scope. Even when a
 system is excluded from scraping, user-provided thumbnails placed under
-`/mnt/SDCARD/Images/<system_id>/...` are still displayed normally.
+`/mnt/SDCARD/Images/<ROM directory alias>/...` are still displayed normally.
 
 The normal scraper targets cartridge-like systems where a simple ROM payload CRC
 can be matched against libretro database metadata.
@@ -308,7 +308,7 @@ status system enabled reason aliases_seen rom_candidates existing_thumbnails mis
 `rom_candidates` counts files matching `scraper.extensions` from `systems.json`.
 macOS AppleDouble (`._*`), `.DS_Store`, `Thumbs.db`, `desktop.ini`, and files
 under `__MACOSX` are ignored as ROM/thumbnail sidecars.
-`existing_thumbnails` uses the same `/mnt/SDCARD/Images/<system_id>` lookup
+`existing_thumbnails` uses the same `/mnt/SDCARD/Images/<ROM directory alias>` lookup
 order as the frontend, including subdirectory thumbnails before flat fallback
 thumbnails. Only `missing_thumbnails` should enter the next CRC/DAT/download
 queue.
@@ -341,7 +341,7 @@ a small `.png` reference file instead of PNG bytes, the runner resolves that
 reference in the same directory and fetches it again. The old
 `https://thumbnails.libretro.com/` PNG fallback is disabled by default to avoid
 slow server waits; set `PLUMOS_THUMBNAIL_SERVER_FALLBACK=1` to enable it.
-Images are saved to `/mnt/SDCARD/Images/<system_id>/<relative stem>.png`.
+Images are saved to `/mnt/SDCARD/Images/<ROM directory alias>/<relative stem>.png`.
 For ZIP ROMs, the runner parses BusyBox `unzip -lq` output in `Length Date Time Name`
 format and CRCs the first supported ROM payload member. Japanese outer ZIP filenames
 are supported. If the ZIP member name is rounded to `????` by the terminal/BusyBox
@@ -401,7 +401,7 @@ frontend. While running, the UI shows `Scraping Running`; internally it runs
 `plumos-thumbnail-scraper --fetch --kind <kind> --system <id>` for each target
 system. When `Existing < Replace >` is selected, both commands also receive
 `--replace-existing`, replacing the shared
-`/mnt/SDCARD/Images/<system>/<rom>.png` path used by box art and title screens.
+`/mnt/SDCARD/Images/<ROM directory alias>/<rom>.png` path used by box art and title screens.
 The RUNNING screen shows `Progress: current / total`,
 `Phase: Plan|Fetch <system>`, and `Saved / NoMatch / Failed`. Planning reports
 system/phase progress; fetching sets `PLUMOS_THUMBNAIL_PROGRESS=1` so scraper
@@ -458,8 +458,9 @@ artifacts/reference/gb
 ```
 
 `artifacts/reference/nes` also contains `.fds` and `.zip` files. `.fds` files
-are handled as `system_id=fds` and are saved under `Images/fds`. `.zip` files
-use the first `.nes`, `.fds`, or `.gb` member for CRC calculation.
+are handled as `system_id=fds` and are saved under the matching ROM directory
+alias. `.zip` files use the first `.nes`, `.fds`, or `.gb` member for CRC
+calculation.
 
 ## Sources
 
@@ -566,7 +567,7 @@ PLUMOS_SDCARD_ROOT=/mnt/SDCARD \
 - Measure per-system CRC worker counts on the A30 with
   `scripts/benchmark-a30-crc-workers.sh` before writing them into
   `systems.json` policy.
-- Keep originals under `Images/<system_id>` and put disposable resized render
+- Keep originals under `Images/<ROM directory alias>` and put disposable resized render
   cache under something like `/mnt/SDCARD/plumos/cache/frontend/render-cache`.
 - On-device testing must confirm network service availability, free space, and
   `.tmp` cleanup after interruption.

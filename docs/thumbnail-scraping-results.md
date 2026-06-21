@@ -25,7 +25,7 @@ DL workers 2/3/4
 - `reason`: その system がスクレイピング対象になっている理由です。
 - `aliases seen`: 見つかった ROM directory alias 数です。
 - `ROMs`: スクレイピング対象として見つかった ROM 数です。
-- `existing`: すでに `/mnt/SDCARD/Images/<system>/` に画像がある ROM 数です。
+- `existing`: すでに `/mnt/SDCARD/Images/<ROM directory name>/` に画像がある ROM 数です。
 - `missing`: まだ画像がない ROM 数です。Fetch では基本的にこの数が処理対象です。
   `Existing < Replace >` または `--replace-existing` の場合は、既存画像も置き換え対象になるため、
   `missing` は「今回の処理キュー数」として表示されます。
@@ -74,7 +74,7 @@ skipped tool 0
 - `CRC miss` が多い場合:
   正規 dump と CRC が違う、または現在の rescue overlay に未収録の可能性があります。
   吸い出し直し、別 dump の確認、rescue seed の追加、または手動で
-  `/mnt/SDCARD/Images/<system>/` に画像を置く方法を使います。
+  `/mnt/SDCARD/Images/<ROM directory name>/` に画像を置く方法を使います。
 - `image miss` が多い場合:
   ROM は認識されていますが、libretro 側に画像が無い、または現在の救済候補では届かない
   名前になっています。手動画像を置くのが確実です。
@@ -95,4 +95,5 @@ skipped tool 0
   を確認します。
 
 ユーザが自分で用意した画像は、スクレイピング対象外 system でも表示できます。
-画像は `/mnt/SDCARD/Images/<system>/` 配下に置きます。
+画像は `/mnt/SDCARD/Images/<ROM directory name>/` 配下に置きます。
+たとえば `Roms/snes/Game.sfc` の画像は `Images/snes/Game.png` に置きます。

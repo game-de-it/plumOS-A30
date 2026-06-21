@@ -27,13 +27,13 @@ EMPTY_USER_DIRS = [
 USER_DIR_READMES = {
     "Bios": "Place your own BIOS files here. plumOS release packages do not include BIOS files.\n",
     "Images": (
-        "Place plumOS ROM thumbnails here, under Images/<system_id>/.\n"
-        "Example: Images/nes/Akumajou Densetsu.png\n"
+        "Place plumOS ROM thumbnails here, under Images/<ROM directory name>/.\n"
+        "Example: Roms/snes/Game.sfc uses Images/snes/Game.png\n"
         "plumOS release packages do not include user media files.\n"
     ),
     "Imgs": (
         "Legacy StockOS artwork may live here on existing cards.\n"
-        "For new plumOS thumbnails, use Images/<system_id>/ instead.\n"
+        "For new plumOS thumbnails, use Images/<ROM directory name>/ instead.\n"
     ),
     "Roms": "Place your own ROM files here. plumOS release packages do not include ROM files.\n",
     "Saves": "User save data and states may live here. plumOS release packages do not include saves.\n",

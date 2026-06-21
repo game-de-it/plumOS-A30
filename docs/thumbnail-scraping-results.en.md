@@ -26,7 +26,7 @@ DL workers 2/3/4
 - `reason`: why this system is eligible for scraping.
 - `aliases seen`: ROM directory aliases found for the system.
 - `ROMs`: ROM candidates found for scraping.
-- `existing`: ROMs that already have an image under `/mnt/SDCARD/Images/<system>/`.
+- `existing`: ROMs that already have an image under `/mnt/SDCARD/Images/<ROM directory name>/`.
 - `missing`: ROMs that do not have an image yet. Fetch normally works on these.
   With `Existing < Replace >` or `--replace-existing`, existing images are also
   replacement targets, so `missing` is shown as the current fetch queue size.
@@ -98,4 +98,5 @@ skipped tool 0
   plumOS if needed.
 
 User-provided images can still be displayed for systems that are not scraper
-targets. Place images under `/mnt/SDCARD/Images/<system>/`.
+targets. Place images under `/mnt/SDCARD/Images/<ROM directory name>/`; for
+example, `Roms/snes/Game.sfc` uses `Images/snes/Game.png`.
