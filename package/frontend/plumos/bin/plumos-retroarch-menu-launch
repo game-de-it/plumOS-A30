@@ -1,0 +1,92 @@
+#!/bin/sh
+set -u
+
+PLUMOS_ROOT=${PLUMOS_ROOT:-/mnt/SDCARD/plumos}
+RA=${PLUMOS_RETROARCH:-${PLUMOS_ROOT}/bin/plumos-retroarch-practical}
+JOY=${PLUMOS_JOYSTICKD:-${PLUMOS_ROOT}/bin/plumos-joystickd}
+VOLUME_CONTROL=${PLUMOS_VOLUME_CONTROL:-${PLUMOS_ROOT}/bin/plumos-volume-control}
+LOG_DIR=${PLUMOS_ROOT}/retroarch/logs
+RA_HOME=${PLUMOS_ROOT}/retroarch/home
+RA_LOG=${LOG_DIR}/menu-launch-last.log
+JOY_LOG=${LOG_DIR}/menu-launch-joystickd-last.log
+JOY_PID=
+GAMEPAD_JS=
+
+input_device_name() {
+  dev=$1
+  base=${dev##*/}
+  cat "/sys/class/input/${base}/device/name" 2>/dev/null || true
+}
+
+find_gamepad_js() {
+  for dev in /dev/input/js*; do
+    [ -e "${dev}" ] || continue
+    if [ "$(input_device_name "${dev}")" = "plumOS A30 Gamepad" ]; then
+      printf '%s\n' "${dev}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+wait_for_gamepad_js() {
+  i=0
+  while [ "${i}" -lt 30 ]; do
+    GAMEPAD_JS=$(find_gamepad_js || true)
+    [ -n "${GAMEPAD_JS}" ] && return 0
+    i=$((i + 1))
+    sleep 0.1
+  done
+  return 1
+}
+
+kill_pid_quick() {
+  pid=$1
+  [ -n "${pid}" ] || return 0
+  kill "${pid}" 2>/dev/null || return 0
+  i=0
+  while kill -0 "${pid}" 2>/dev/null && [ "${i}" -lt 10 ]; do
+    i=$((i + 1))
+    sleep 0.05
+  done
+  kill -KILL "${pid}" 2>/dev/null || true
+}
+
+cleanup() {
+  rc=$?
+  trap - EXIT HUP INT TERM
+  kill_pid_quick "${JOY_PID}"
+  exit "${rc}"
+}
+
+apply_system_volume() {
+  [ -x "${VOLUME_CONTROL}" ] || return 0
+  "${VOLUME_CONTROL}" apply >/dev/null 2>&1 || true
+}
+
+mkdir -p "${LOG_DIR}" "${RA_HOME}"
+trap cleanup EXIT HUP INT TERM
+
+if [ ! -x "${RA}" ]; then
+  printf 'error: RetroArch wrapper not found: %s\n' "${RA}" >"${RA_LOG}"
+  exit 1
+fi
+
+apply_system_volume
+
+if [ -x "${JOY}" ]; then
+  "${JOY}" --device-mode xbox >"${JOY_LOG}" 2>&1 &
+  JOY_PID=$!
+  wait_for_gamepad_js || true
+fi
+
+export HOME=${RA_HOME}
+export XDG_CONFIG_HOME=${RA_HOME}/.config
+export PLUMOS_RA_DISPLAY_ROTATION=${PLUMOS_RA_DISPLAY_ROTATION:-none}
+export PLUMOS_RA_LANDSCAPE_MODE=${PLUMOS_RA_LANDSCAPE_MODE:-fbo}
+
+if [ -n "${GAMEPAD_JS}" ]; then
+  SDL_JOYSTICK_DEVICE=${GAMEPAD_JS} "${RA}" --menu "$@" >"${RA_LOG}" 2>&1
+else
+  "${RA}" --menu "$@" >"${RA_LOG}" 2>&1
+fi

@@ -38,6 +38,8 @@ app.thumbnail-fetch.name=Télécharger les miniatures
 app.thumbnail-results.name=Résultats des miniatures
 app.settings.name=Paramètres
 app.network.name=Réseau
+app.retroarch.name=RetroArch
+app.ppsspp.name=PPSSPP
 
 scraping.title=Scraping
 scraping.instructions=HAUT/BAS: élément  G/D: changer  A: démarrer  SELECT: résultats  B: applis  Q: quitter

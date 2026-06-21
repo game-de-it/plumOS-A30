@@ -38,6 +38,8 @@ app.thumbnail-fetch.name=获取缩略图
 app.thumbnail-results.name=缩略图结果
 app.settings.name=设置
 app.network.name=网络
+app.retroarch.name=RetroArch
+app.ppsspp.name=PPSSPP
 
 scraping.title=媒体抓取
 scraping.instructions=上下: 项目  左右: 更改  A: 开始  SELECT: 结果  B: 应用  Q: 退出

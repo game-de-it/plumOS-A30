@@ -38,6 +38,8 @@ app.thumbnail-fetch.name=Baixar miniaturas
 app.thumbnail-results.name=Resultados de miniaturas
 app.settings.name=Configurações
 app.network.name=Rede
+app.retroarch.name=RetroArch
+app.ppsspp.name=PPSSPP
 
 scraping.title=Scraping
 scraping.instructions=CIMA/BAIXO: item  ESQ/DIR: mudar  A: iniciar  SELECT: resultados  B: apps  Q: sair

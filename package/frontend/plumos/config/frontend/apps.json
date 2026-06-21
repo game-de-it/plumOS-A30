@@ -26,6 +26,22 @@
       "menu": "apps"
     },
     {
+      "id": "retroarch",
+      "display_name": "RetroArch",
+      "kind": "emulator",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-retroarch-menu-launch",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
+      "id": "ppsspp",
+      "display_name": "PPSSPP",
+      "kind": "emulator",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-standalone-launch ppsspp",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
       "id": "thumbnail-plan",
       "display_name": "Thumbnail Plan",
       "kind": "tool",

@@ -38,6 +38,8 @@ app.thumbnail-fetch.name=サムネイル取得
 app.thumbnail-results.name=サムネイル結果
 app.settings.name=設定
 app.network.name=ネットワーク
+app.retroarch.name=RetroArch
+app.ppsspp.name=PPSSPP
 
 scraping.title=スクレイピング
 scraping.instructions=上下: 項目  左右: 変更  A: 開始  SELECT: 結果  B: アプリ  Q: 終了

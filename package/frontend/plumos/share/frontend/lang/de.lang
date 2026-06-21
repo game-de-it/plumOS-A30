@@ -38,6 +38,8 @@ app.thumbnail-fetch.name=Thumbnails laden
 app.thumbnail-results.name=Thumbnail-Ergebnisse
 app.settings.name=Einstellungen
 app.network.name=Netzwerk
+app.retroarch.name=RetroArch
+app.ppsspp.name=PPSSPP
 
 scraping.title=Scraping
 scraping.instructions=HOCH/RUNTER: Eintrag  LINKS/RECHTS: ändern  A: Start  SELECT: Ergebnisse  B: Apps  Q: Ende
