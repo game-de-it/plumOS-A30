@@ -1,43 +1,44 @@
-# A30 stock SDL 画面出力経路
+# A30 Stock SDL Video Path
 
-2026-06-07 に stockOS 側の SDL library と主要 binary を実機から取得し、
-`strings`, ELF dynamic section, 実機上の SDL2 probe, 実行中 `MainUI.stock` の
-`/proc` 情報で確認しました。stock binary は参照用です。plumOS で流用する場合は
-事前に確認します。
+On 2026-06-07, the stockOS SDL libraries and key binaries were copied from the
+device and inspected with `strings`, ELF dynamic sections, an on-device SDL2
+probe, and `/proc` data from the running `MainUI.stock` process. Stock binaries
+are reference material only. Reusing them in plumOS requires prior confirmation.
 
-## 結論
+## Summary
 
-- stock SDL2 は `libSDL2-2.0.so.0.2600.1` で、実行時の
-  `SDL_GetVersion()` は `2.26.1`。
-- stock SDL2 の video driver は `mali` と `offscreen` の2つ。`dummy` video は
-  build されていません。
-- `SDL_VIDEODRIVER` 未指定では `mali` が選ばれ、480x640 display と
-  `opengles2` renderer を作成できます。
-- `mali` driver は SDL2 に追加された A30/Allwinner 向け custom backend と見られます。
-  文字列上は `mali-fbdev`, `Mali EGL Video Driver`, `/dev/fb0`,
-  `MALI_CreateWindow` を含みます。
-- `libSDL2-2.0.so.0` 自体は `libEGL.so`, `libGLESv2.so`, `libMali.so` に
-  dynamic section では直接リンクしていません。SDL2 側が EGL/GLES library を
-  `dlopen` する構造です。
-- rootfs の `/usr/lib/libEGL.so` と `/usr/lib/libGLESv2.so` は最終的に
-  `/usr/lib/libMali.so` への symlink です。
-- 実行中の stock `MainUI.stock` は stock SDL2 系 library と `/usr/lib/libMali.so`
-  を map し、fd として `/dev/mali` と `/dev/fb0` を開いています。
-- stock SDL1 は `fbcon` と `dummy` video を持ち、`/dev/fb0`, `FBIOPAN_DISPLAY`,
-  `FBIOPUT_VSCREENINFO`, `SDL_VIDEO_FBCON_ROTATION` などの fbdev 経路を含みます。
-- stock SDL1 の汎用 `fbcon` へ 640x480/16bpp をそのまま出すと、
-  `/dev/fb0` capture は正常でも物理 LCD の走査が崩れます。StockOS の SDL1 利用
-  binary は、純粋な SDL1 surface 表示だけではなく、fbdev 直接操作や GL/EGL 併用で
-  A30 の 480x640 raw panel に合わせていると見ます。
+- Stock SDL2 is `libSDL2-2.0.so.0.2600.1`; `SDL_GetVersion()` reports `2.26.1`.
+- Stock SDL2 has two video drivers: `mali` and `offscreen`. It does not include
+  the `dummy` video driver.
+- With `SDL_VIDEODRIVER` unset, SDL2 selects `mali` and can create a 480x640
+  display plus an `opengles2` renderer.
+- The `mali` driver appears to be a Miyoo/Allwinner-specific custom backend
+  added to SDL2. Its strings include `mali-fbdev`, `Mali EGL Video Driver`,
+  `/dev/fb0`, and `MALI_CreateWindow`.
+- `libSDL2-2.0.so.0` does not directly list `libEGL.so`, `libGLESv2.so`, or
+  `libMali.so` in its dynamic section. SDL2 dynamically loads the EGL/GLES
+  libraries.
+- On the rootfs, `/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so` ultimately
+  point to `/usr/lib/libMali.so`.
+- The running stock `MainUI.stock` maps the stock SDL2 libraries and
+  `/usr/lib/libMali.so`, and has open fds for `/dev/mali` and `/dev/fb0`.
+- Stock SDL1 contains `fbcon` and `dummy` video drivers and includes fbdev
+  strings such as `/dev/fb0`, `FBIOPAN_DISPLAY`, `FBIOPUT_VSCREENINFO`, and
+  `SDL_VIDEO_FBCON_ROTATION`.
+- Sending a plain 640x480/16bpp surface through stock SDL1 `fbcon` produces a
+  correct `/dev/fb0` capture but broken physical LCD scanout. Stock SDL1 users on
+  the stock image appear to adapt to the A30's 480x640 raw panel with direct
+  fbdev handling or by combining SDL1 with GL/EGL, not by relying on a generic
+  SDL1 surface path alone.
 
-## stock SDL2 probe
+## Stock SDL2 Probe
 
-既存の `plumos-sdl2-probe.bin` を使い、SDL2 library だけ stock 側を先に解決する
-一時 runtime で確認しました。probe 本体は新しい glibc を要求するため、
-toolchain 側の armhf glibc 一式を `/tmp/plumos-stock-sdl-glibc` に一時展開して
-実行しました。
+The existing `plumos-sdl2-probe.bin` was run with the stock SDL2 library placed
+first in the library path. Because the probe binary requires a newer glibc, the
+toolchain armhf glibc set was temporarily unpacked to
+`/tmp/plumos-stock-sdl-glibc`.
 
-代表出力:
+Representative output:
 
 ```text
 compiled_sdl=2.32.68 linked_sdl=2.26.1
@@ -55,26 +56,26 @@ render info name="opengles2" flags=0xa max_texture=4096x4096
 render present=yes readpixels=yes
 ```
 
-`SDL_VIDEODRIVER=dummy` は以下の通り失敗します。
+`SDL_VIDEODRIVER=dummy` fails:
 
 ```text
 sdl init=no error="dummy not available"
 ```
 
-`SDL_VIDEODRIVER=offscreen` は software renderer で成功しますが、実画面出力では
-ありません。
+`SDL_VIDEODRIVER=offscreen` succeeds with the software renderer, but it is not a
+real display path.
 
-## build の手がかり
+## Build Clues
 
-stock SDL2 の文字列には以下の path が残っています。
+Stock SDL2 contains this build path:
 
 ```text
 /home/alfchen/ProjectData/miyoo_allwinner/a33_tina3.5.1/out/r16-parrot/compile_dir/target/libsdl2/src/render/opengles2/SDL_render_gles2.c
 ```
 
-このため、stock SDL2 は Miyoo/Allwinner Tina 3.5.1 系の build tree で、
-upstream SDL2 2.26.1 に A30 向け `mali` video backend を追加したものと推定します。
-dynamic section の依存は以下のように一般的な libc 系のみで、EGL/GLES は動的ロードです。
+This suggests a Miyoo/Allwinner Tina 3.5.1 build tree with a custom `mali` video
+backend added to upstream SDL2 2.26.1. The dynamic section only lists common
+libc-side dependencies, so EGL/GLES is dynamically loaded:
 
 ```text
 NEEDED libm.so.6
@@ -86,7 +87,7 @@ NEEDED libc.so.6
 SONAME libSDL2-2.0.so.0
 ```
 
-rootfs 側の GPU library は以下の構造です。
+The rootfs GPU library layout is:
 
 ```text
 /usr/lib/libEGL.so -> libEGL.so.1 -> libEGL.so.1.4 -> libMali.so
@@ -96,76 +97,81 @@ rootfs 側の GPU library は以下の構造です。
 /usr/lib/libUMP.so.3.0.0
 ```
 
-`libMali.so` には `__egl_platform_*_fbdev`, `/dev/fb0`, `/dev/mali`,
-`MALI_FBDEV` などの文字列があり、fbdev EGL platform を持っています。
+`libMali.so` contains `__egl_platform_*_fbdev`, `/dev/fb0`, `/dev/mali`, and
+`MALI_FBDEV` strings, confirming that it includes an fbdev EGL platform.
 
-外部参考として、[weimingtom/miyoo_a30_playground](https://github.com/weimingtom/miyoo_a30_playground)
-も A30 SDL 調査に有用です。README には `--enable-video-a30`、
-`libEGL.so`/`libGLESv2.so`、`src/video/a30/SDL_a30_video.c` の記述があります。
-同 repo の `sdltest/sdl-main.tar.gz` には SDL1 A30 backend が含まれ、
-`eglGetDisplay(EGL_DEFAULT_DISPLAY)` と `eglCreateWindowSurface(..., 0, ...)` を
-使う構成を確認できます。これは下記の clean-room probe で `NULL` native window が
-成功した結果と一致します。
+[weimingtom/miyoo_a30_playground](https://github.com/weimingtom/miyoo_a30_playground)
+is also useful external reference material for A30 SDL work. Its README mentions
+`--enable-video-a30`, `libEGL.so`/`libGLESv2.so`, and
+`src/video/a30/SDL_a30_video.c`. The `sdltest/sdl-main.tar.gz` archive contains
+an SDL1 A30 backend that uses `eglGetDisplay(EGL_DEFAULT_DISPLAY)` and
+`eglCreateWindowSurface(..., 0, ...)`, matching the clean-room probe's
+successful `NULL` native-window path below.
 
-## stock app 別の使い方
+## Per-App Usage
 
 `MainUI.stock`:
 
-- `libSDL2-2.0.so.0`, `libSDL2_ttf`, `libSDL2_image`, `libSDL2_mixer` にリンク。
-- 文字列上は `SDL_CreateWindow`, `SDL_CreateRenderer`, `SDL_RenderPresent` を使用。
-- 実行中は `/mnt/SDCARD/miyoo/lib/libSDL2-2.0.so.0` と `/usr/lib/libMali.so` を map。
-- fd として `/dev/mali` と `/dev/fb0` を開く。
+- Links against `libSDL2-2.0.so.0`, `libSDL2_ttf`, `libSDL2_image`, and
+  `libSDL2_mixer`.
+- Contains `SDL_CreateWindow`, `SDL_CreateRenderer`, and `SDL_RenderPresent`
+  strings.
+- Maps `/mnt/SDCARD/miyoo/lib/libSDL2-2.0.so.0` and `/usr/lib/libMali.so` while
+  running.
+- Opens `/dev/mali` and `/dev/fb0`.
 
 `sdlloading`:
 
-- SDL1 を使い、`SDL_SetVideoMode`, `SDL_Flip` と `/dev/fb0` 文字列を持つ。
-- `lcd_fb_init`, `sdl_flip`, `make_zoom_rotate_table90`, `orig: %dx%d -> %dx%d`,
-  `set : %dx%d -> %dx%d` などの文字列を持つ。
-- `./testm.bmp`, `./testr.bmp` を SDL surface として読み、90度回転/拡大縮小 table を
-  作ってから `/dev/fb0` へ直接 mmap/pan する loading 専用処理に見えます。
-- したがって、`sdlloading` が stock SDL1 を使うことは確認できますが、
-  「汎用 SDL1 fbcon に 640x480 を渡せば A30 LCD で正しく見える」という証拠には
-  なりません。
+- Uses SDL1 and contains `SDL_SetVideoMode`, `SDL_Flip`, and `/dev/fb0`.
+- Contains `lcd_fb_init`, `sdl_flip`, `make_zoom_rotate_table90`,
+  `orig: %dx%d -> %dx%d`, and `set : %dx%d -> %dx%d` strings.
+- It appears to load `./testm.bmp` and `./testr.bmp` as SDL surfaces, build a
+  90-degree rotate/scale table, and then mmap/pan `/dev/fb0` directly for its
+  loading animation.
+- This confirms that `sdlloading` uses stock SDL1, but it does not prove that a
+  generic SDL1 `fbcon` 640x480 surface is enough for correct A30 LCD output.
 
 `RetroArch`:
 
-- `retroarch.cfg` は `video_driver = "gl"`, `input_driver = "sdl"`,
-  `input_joypad_driver = "sdl"`。
-- binary は `libSDL-1.2.so.0` と `libMali.so` にリンクし、`egl*`, `SDL_GL*`,
-  `sdl_dingux`, `sunxi`, `/dev/fb0` 文字列を持ちます。
-- 入力は SDL1 ですが、画面は単純な SDL1 fbcon だけではなく GL/EGL/Mali 経路も
-  使う構成です。
-- stock launch script は主に `HOME=/mnt/SDCARD/RetroArch ra32.miyoo -L core rom`
-  形式で、`SDL_VIDEO_FBCON_ROTATION` や `SDL_FBDEV` は明示していません。
-- 一部 core config には `video_driver = "sdl"` が残っていますが、主要 global config は
-  `video_driver = "gl"` です。RetroArch binary 自体にも EGL/OpenGLES 経路が含まれます。
+- `retroarch.cfg` sets `video_driver = "gl"`, `input_driver = "sdl"`, and
+  `input_joypad_driver = "sdl"`.
+- The binary links against `libSDL-1.2.so.0` and `libMali.so`, and contains
+  `egl*`, `SDL_GL*`, `sdl_dingux`, `sunxi`, and `/dev/fb0` strings.
+- Input is SDL1, but video is not just plain SDL1 fbcon; it also uses a
+  GL/EGL/Mali path.
+- Stock launch scripts mostly use the form
+  `HOME=/mnt/SDCARD/RetroArch ra32.miyoo -L core rom`; they do not explicitly set
+  `SDL_VIDEO_FBCON_ROTATION` or `SDL_FBDEV`.
+- Some per-core configs still contain `video_driver = "sdl"`, but the main
+  global config uses `video_driver = "gl"`, and the RetroArch binary includes
+  EGL/OpenGLES paths.
 
 `pcsx`, `sms.elf`:
 
-- `libSDL-1.2.so.0` にリンクし、`SDL_SetVideoMode`, `SDL_UpperBlit`,
-  `SDL_Flip` などを持ちます。
-- どちらも `FBIOPAN_DISPLAY` 失敗時の文字列や `cat /dev/zero > /dev/fb0` を持ち、
-  SDL1 surface だけで完結せず fbdev を直接扱う設計に見えます。
+- Both link against `libSDL-1.2.so.0` and contain `SDL_SetVideoMode`,
+  `SDL_UpperBlit`, and `SDL_Flip`.
+- Both also contain `FBIOPAN_DISPLAY` failure strings and
+  `cat /dev/zero > /dev/fb0`, so they appear to touch fbdev directly instead of
+  relying only on SDL1 surfaces.
 
 `PPSSPPSDL`:
 
-- `libSDL2-2.0.so.0`, `libMali.so`, `libEGL.so` にリンク。
-- SDL2 の window/input と、PPSSPP 側の GLES/EGL renderer を組み合わせていると
-  見られます。
-- `launch.sh` は `miyoo282_xpad_inputd` を起動してから `PPSSPPSDL` を起動します。
+- Links against `libSDL2-2.0.so.0`, `libMali.so`, and `libEGL.so`.
+- It appears to combine SDL2 window/input with PPSSPP's own GLES/EGL renderer.
+- `launch.sh` starts `miyoo282_xpad_inputd` before launching `PPSSPPSDL`.
 
-## plumOS への示唆
+## Implications For plumOS
 
-upstream SDL3+sdl2-compat に stock SDL2 の `mali` driver はありません。このため、
-まず stock SDL にリンクしない `plumos-mali-egl-probe` を実装して、fbdev + Mali EGL
-の最小 presenter を確認しました。
+The upstream SDL3+sdl2-compat runtime does not include the stock SDL2 `mali`
+driver. As a first clean-room step, `plumos-mali-egl-probe` was implemented to
+validate a minimal fbdev + Mali EGL presenter without linking to stock SDL.
 
 ```sh
 ./scripts/docker-build.sh mali-egl-probe
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 500 --frames 30
 ```
 
-実機結果:
+Device result:
 
 ```text
 egl initialize=yes version=1.4
@@ -180,24 +186,26 @@ gl readpixels rgba=381f96ff
 result=mali_egl_present_ok
 ```
 
-`NULL` native window と `uint16_t width,height` の `fbdev_window` はどちらも成功し、
-`uint32_t width,height` は `EGL_BAD_NATIVE_WINDOW` でした。surface handle は
-stock SDL2 probe と同じ `0x20000001` です。
+Both `NULL` native window and a `uint16_t width,height` fbdev window work;
+`uint32_t width,height` fails with `EGL_BAD_NATIVE_WINDOW`. The surface handle
+matches the stock SDL2 probe's `0x20000001`.
 
-今後の実画面出力は次のいずれかで設計します。
+Real display output for plumOS therefore needs one of these paths:
 
-- stock SDL2 の挙動を参考に、clean-room で fbdev + Mali EGL の presenter を作る。
-- SDL3/SDL2 互換 runtime に A30 向け custom video backend を追加する。
-- frontend は direct framebuffer presenter で始め、RetroArch/standalone emulator は
-  各 upstream の EGL/GLES backend を A30 の `/usr/lib/libMali.so` に合わせて検証する。
+- Build a clean-room fbdev + Mali EGL presenter based on the observed stock
+  behavior.
+- Add an A30 custom video backend to the SDL3/SDL2-compatible runtime.
+- Start the frontend with a direct framebuffer presenter, while testing
+  RetroArch and standalone emulators against their upstream EGL/GLES backends
+  using the A30 `/usr/lib/libMali.so` stack.
 
-stock binary/source を plumOS runtime に流用する場合は、方針メモ通り事前確認が必要です。
+Using stock binaries or source in the plumOS runtime requires prior approval.
 
-## stock SDL1 fbcon probe
+## Stock SDL1 Fbcon Probe
 
-2026-06-15 に、stock `libSDL-1.2.so.0` を使う最小描画 probe
-`plumos-sdl1-fbcon-probe` を作りました。package には Docker 由来の SDL1 を入れず、
-runtime では `/mnt/SDCARD/miyoo/lib/libSDL-1.2.so.0` を先に解決します。
+On 2026-06-15, `plumos-sdl1-fbcon-probe` was added as a minimal draw probe using
+the stock `libSDL-1.2.so.0`. The package does not bundle Docker's SDL1; at
+runtime it resolves `/mnt/SDCARD/miyoo/lib/libSDL-1.2.so.0` first.
 
 640x480/16bpp:
 
@@ -208,9 +216,9 @@ Using VESA timings for 640x480
 after_set_video fb xres=640 yres=480 virtual=640x480 offset=0,0 bpp=16
 ```
 
-この状態の `/dev/fb0` capture は probe の絵として正常でしたが、実機 LCD では PicoArch と
-同じように崩れて見えることを目視確認しました。A30 の物理 panel は 480x640 raw で、
-SDL1 fbcon が VESA 640x480 mode set へ進むと scanout と合わないと判断します。
+The `/dev/fb0` capture looked correct, but the physical LCD showed the same kind
+of broken image as PicoArch. The A30 panel is a 480x640 raw panel, and SDL1
+`fbcon`'s VESA 640x480 mode path does not match the physical scanout.
 
 480x640/32bpp:
 
@@ -222,39 +230,8 @@ surface w=480 h=640 pitch=1920 bytespp=4
 frames=603 elapsed_ms=20002 result=ok
 ```
 
-こちらは VESA 640x480 path へ入らず native panel 相当の mode を維持します。PicoArch を
-stock SDL1 で続ける場合の検証対象は、640x480 surface ではなく 480x640/32bpp surface へ
-NES 画面を CPU または NEON で回転/scale して書く経路です。ただし、最終的には SDL1 fbcon
-ではなく、既に plumOS で確認済みの fbdev + Mali EGL presenter へ接続する方が将来性が高いです。
-
-## plumOS `a30mali` backend first pass
-
-2026-06-14 に、SDL3+sdl2-compat runtime へ clean-room の A30 用 video backend
-`a30mali` を追加しました。stock SDL2 binary は使わず、SDL3 の EGL helper から
-`EGL_DEFAULT_DISPLAY`、rootfs の `/usr/lib/libEGL.so` / `/usr/lib/libGLESv2.so`、
-`/dev/fb0`、`/dev/mali` を使います。
-
-同日の後続実装で `PLUMOS_A30MALI_ROTATION=cw|ccw|none` を追加しました。`cw` / `ccw`
-では app 側の GLES 描画先を offscreen pbuffer にし、`SDL_GL_SwapWindow` 直前に
-現在 bind されている framebuffer から texture へコピーします。Pyxel のように app 側が
-内部 FBO を使い、Swap 時に default framebuffer へ戻していない場合もコピーを諦めません。
-その後、物理 fb 用 EGL surface に切り替え、default framebuffer へ GPU 上でアスペクト比を
-維持した回転 quad として描いてから swap します。`PLUMOS_A30MALI_LOGICAL_SIZE=720x480`
-のように論理サイズが指定されている場合は、offscreen surface と present source にその値を
-使います。これにより Pyxel のような標準 SDL2/GLES app を app 側 patch なしで A30 の
-物理横画面へ合わせます。
-
-実機の `plumos-sdl2-probe --gl-test` では以下を確認しました。
-
-```text
-video_driver index=0 name="a30mali"
-sdl init=yes current_video_driver=a30mali
-video_display index=0 name="1" bounds=0,0 480x640
-gl vendor="ARM" renderer="Mali-400 MP"
-gl swap=yes
-```
-
-この first pass は SDL window + GLES2 context + swap を優先した最小実装です。
-Pyxel のように SDL2 window から `SDL_GL_CreateContext` へ進む app はこの経路に乗せられます。
-一方、SDL_Renderer や汎用 window 管理を強く使う app は、必要に応じて backend 側の追加実装を
-行います。
+This keeps the native-panel mode and avoids the VESA 640x480 path. If PicoArch
+work continues on stock SDL1, the useful experiment is a 480x640/32bpp surface
+with CPU or NEON rotate/scale into that raw panel layout, not a 640x480 SDL1
+surface. Long term, routing PicoArch or similar frontends into the already
+validated fbdev + Mali EGL presenter is the cleaner path.

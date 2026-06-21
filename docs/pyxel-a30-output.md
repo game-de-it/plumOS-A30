@@ -1,66 +1,74 @@
-# Pyxel A30 画面出力検討
+# Pyxel A30 Output Path
 
-調査日: 2026-06-14
+Investigation date: 2026-06-14
 
-## 目的
+This document records how Pyxel is made practical on plumOS A30: display,
+audio, input, FE launch behavior, and the relationship between the stock SDL
+path, plumOS SDL runtime, and the optional patched Pyxel fallback.
 
-Pyxel を plumOS の実用アプリ実行環境として扱えるかを判断するため、Pyxel が想定する
-画面出力経路、現行 plumOS runtime での成立可否、A30 の Mali/GLES hardware 経路へ
-乗せられるかを確認した。
+Japanese counterpart: [pyxel-a30-output.ja.md](pyxel-a30-output.ja.md)
 
-## Pyxel が想定する出力経路
+## Goal
 
-Pyxel 2.9.6 は Python package 内の `pyxel_binding.abi3.so` から Rust 実装を呼ぶ。
-Linux では `pyxel/__init__.py` が先に `libSDL2-2.0.so.0` を `RTLD_GLOBAL` で読み、
-失敗した場合だけ package 同梱 SDL2 を読む。
+The goal was to decide whether Pyxel can be treated as a practical plumOS app
+runtime, whether Pyxel's expected output path can work on the current plumOS
+runtime, and whether it can use the A30 Mali/GLES hardware path.
 
-Pyxel core 側の通常表示は SDL2 + OpenGL/GLES 前提で、SDL software renderer ではない。
+## What Pyxel Expects
+
+Pyxel 2.9.6 calls its Rust implementation through `pyxel_binding.abi3.so`. On
+Linux, `pyxel/__init__.py` first tries to load `libSDL2-2.0.so.0` with
+`RTLD_GLOBAL`; only if that fails does it load the SDL2 bundled in the Python
+package.
+
+The normal Pyxel display path is SDL2 + OpenGL/GLES, not an SDL software
+renderer:
 
 - `SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER)`
 - `SDL_CreateWindow(..., SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE)`
 - `SDL_GL_CreateContext`
-  - OpenGL 2.1 を試す
-  - 失敗時に OpenGL ES 2.0 へ fallback
-- `SDL_GL_GetProcAddress` から `glow::Context` を作る
-- Pyxel の 16 色 index screen を GL texture へ upload
-- palette texture と shader で画面へ描画
-- `SDL_GL_SwapWindow` で present
+  - try OpenGL 2.1
+  - fall back to OpenGL ES 2.0
+- create a `glow::Context` from `SDL_GL_GetProcAddress`
+- upload Pyxel's 16-color indexed screen to a GL texture
+- render through palette texture and shader
+- present with `SDL_GL_SwapWindow`
 
-つまり、plumOS 側が用意すべき最小条件は「SDL2 API から GLES2 context と swap できる
-video backend」である。これは Pyxel にとって hardware 描画経路になり得る。
-ただし Pyxel の draw API 自体は CPU side の Canvas に描くため、GPU が肩代わりするのは
-主に texture upload、拡大、shader、present である。
+The minimum plumOS requirement is therefore an SDL2 API surface that can create
+a GLES2 context and swap buffers. This can be a hardware path for Pyxel, even
+though Pyxel drawing APIs still render to a CPU-side canvas; the GPU mainly
+handles texture upload, scaling, shaders, and presentation.
 
-## 現行 plumOS SDL2 での結果
+## Plain plumOS SDL2 Result
 
-通常の `/mnt/SDCARD/plumos/bin/python3` wrapper は library path を以下に固定する。
+The normal `/mnt/SDCARD/plumos/bin/python3` wrapper originally fixed the library
+path to:
 
 ```text
 /mnt/SDCARD/plumos/python/lib:/mnt/SDCARD/plumos/lib:/usr/lib:/lib
 ```
 
-このため Pyxel は plumOS 側の `/mnt/SDCARD/plumos/lib/libSDL2-2.0.so.0` を先に読む。
-この SDL2 互換層で見える driver は以下。
+That made Pyxel load plumOS `libSDL2-2.0.so.0` first. The visible drivers in
+that older compatibility layer were:
 
 ```text
 video: offscreen, dummy, evdev
 audio: disk, dummy
 ```
 
-実機で `pyxel.init(..., headless=False)` を試すと、以下のいずれかになる。
+`pyxel.init(..., headless=False)` failed with one of:
 
-- driver 自動選択: `No available video device`
-- `SDL_VIDEODRIVER=dummy`: window 作成時に OpenGL 不可
-- `SDL_VIDEODRIVER=offscreen`: window 作成時に OpenGL 不可
-- `SDL_VIDEODRIVER=evdev`: window 作成時に OpenGL 不可
+- automatic driver selection: `No available video device`
+- `SDL_VIDEODRIVER=dummy`: no OpenGL window
+- `SDL_VIDEODRIVER=offscreen`: no OpenGL window
+- `SDL_VIDEODRIVER=evdev`: no OpenGL window
 
-したがって、現行 plumOS SDL2 互換層のままでは Pyxel の想定する通常画面出力には
-対応できない。
+That runtime could not support Pyxel's normal output path.
 
-## stock SDL2 mali backend での確認
+## Stock SDL2 Mali Probe
 
-実験として、Python wrapper ではなく dynamic loader を直接呼び、stock 側 SDL2 を
-plumOS SDL2 より先に解決させた。
+As an experiment, the loader was called directly and the stock SDL2 path was
+placed before plumOS SDL2:
 
 ```sh
 /mnt/SDCARD/plumos/lib/ld-linux-armhf.so.3 \
@@ -69,14 +77,14 @@ plumOS SDL2 より先に解決させた。
   /mnt/SDCARD/plumos/python/bin/python3.14 pyxel_stock_sdl_probe.py
 ```
 
-stock SDL2 の driver は以下。
+Stock SDL2 exposed:
 
 ```text
 video: mali, offscreen
 audio: alsa, dsp, disk, dummy
 ```
 
-Pyxel 通常初期化後の実機ログでは以下を確認した。
+The hardware log confirmed the stock `mali` path:
 
 ```text
 current_video_driver mali
@@ -85,108 +93,44 @@ current_mode 480x640
 MALI_CreateWindow:0x20000001 done.
 ```
 
-`artifacts/pyxel-demo/stock-sdl-captures/20260614-081834.visible.png` で、Pyxel の
-通常 SDL2/GLES 描画が実画面に出ていることを確認した。
+That proved Pyxel can draw through SDL2/GLES on the A30. However the raw stock
+path uses the A30 portrait surface and does not match the plumOS landscape
+frontend convention, so it is not the final route.
 
-ただし raw framebuffer 上では 480x640 portrait に対して読める向きで描画されており、
-plumOS FE/RetroArch の横持ち表示規約とは合わない。実用化するには、SDL backend か
-presenter 側で 640x480 logical landscape を報告し、480x640 physical surface へ
-回転 present する必要がある。
+## Adopted Implementation
 
-## 実用化案
+The adopted route is a clean-room plumOS SDL runtime path:
 
-### 1. stock SDL2 を Pyxel launcher だけで使う
+- plumOS SDL2 compatibility layer uses SDL3 underneath.
+- SDL3 has a custom `a30mali` video backend.
+- The backend opens `/dev/fb0` and `/dev/mali`.
+- EGL/GLES2 comes from the A30 rootfs libraries such as `/usr/lib/libEGL.so` and
+  `/usr/lib/libGLESv2.so`.
+- Stock SDL2 binaries are not used by the normal Pyxel launcher.
 
-最短で Pyxel の通常 HW 経路を使える。今回の probe で `mali` driver、`libMali.so`、
-実画面描画は成立した。
-
-課題:
-
-- stock library を runtime dependency にするため、plumOS/stockOS 境界方針上の理由付けが必要
-- Pyxel 2.9.6 の SDL2 binding は新しめの SDL2 API 前提だが、stock SDL2 は 2.26.1 のため
-  ABI/API 差分リスクが残る
-- 横持ち回転が合っていない
-- 入力、音声、終了処理、音量 hotkey 連動は未検証
-
-### 2. plumOS SDL2 互換層へ A30 mali/fbdev video backend を追加する
-
-本命案。Pyxel からは通常通り `libSDL2-2.0.so.0` を読むだけにし、plumOS 側 SDL2 が
-A30 の `/dev/fb0` + `/dev/mali` + EGL/GLES2 を提供する。
-
-必要な機能:
-
-- `SDL_VIDEODRIVER=mali` もしくは A30 用 driver 名
-- `SDL_GetCurrentDisplayMode` は Pyxel 向けに logical landscape、少なくとも 640x480 を
-  扱えること
-- `SDL_CreateWindow(... SDL_WINDOW_OPENGL ...)`
-- `SDL_GL_CreateContext` で GLES2 context 作成
-- `SDL_GL_GetProcAddress`
-- `SDL_GL_SwapWindow`
-- physical 480x640 surface への回転 present
-- `/dev/fb0` owner が FE と重複しない launcher cleanup
-
-`docs/a30-stock-sdl-video.md` の clean-room `plumos-mali-egl-probe` では
-`eglInitialize`、GLES2 context、`gl renderer="Mali-400 MP"`、swap が確認済みなので、
-技術的には成立可能と見る。
-
-利点:
-
-- Pyxel だけでなく、SDL2 + GLES を期待する他の standalone アプリにも効く
-- plumOS 側 runtime として管理でき、stock SDL2 依存を避けられる
-- 回転、解像度、FE復帰、volume/input policy を一箇所に寄せられる
-
-### 3. Pyxel core に A30 専用 platform backend を追加する
-
-Pyxel の Rust `platform` 実装を fork し、SDL video を経由せず A30 EGL presenter を直接
-持たせる案。
-
-成立はし得るが、Pyxel だけの fork maintenance になり、SDL2/GLES app 全体への恩恵がない。
-plumOS としては優先度を下げる。
-
-### 4. headless Pyxel + `/dev/fb0` blit
-
-前回の確認で表示は可能。ただし Python から全画面変換して書く方式は重く、Pyxel の
-通常 input/audio/window/frame loop ともずれるため、実用案からは外す。
-
-## 実装結果
-
-2026-06-14 の first pass では、plumOS SDL2 互換 runtime の下層 SDL3 に A30 専用
-`a30mali` video backend を追加した。これは stock SDL2 binary を読まず、`/dev/fb0`、
-`/dev/mali`、rootfs の `/usr/lib/libEGL.so` / `/usr/lib/libGLESv2.so` から Mali EGL
-surface と GLES2 context を作る。
-
-2026-06-14 の後続実装で、Pyxel の標準経路は A30 専用 patched site 依存から外した。
-通常は pip で入る Pyxel package をそのまま読み、Pyxel の SDL2/GLES 呼び出しを
-plumOS 同梱 sdl2-compat -> SDL3 `a30mali` backend へ通す。これにより、将来
-`pip install --upgrade pyxel` で Pyxel を更新しても、A30 表示経路は Pyxel patch ではなく
-plumOS SDL runtime 側で維持される。
-
-過去に追加した A30 専用 offscreen FBO presenter は fallback として残す。明示的に
-`PLUMOS_PYXEL_USE_PATCHED=1` を指定した場合だけ、`/mnt/SDCARD/plumos/experiments/pyxel-a30-site`
-を `PYTHONPATH` の先頭に入れ、`PLUMOS_PYXEL_A30_PRESENT=1` を有効にする。
-
-追加した成果物:
+The first-pass implementation added:
 
 - `docker/plumos-toolchain/patches/sdl3-3.4.10-a30mali-video-driver.patch`
-- `docker/plumos-toolchain/patches/pyxel-2.9.6-a30-fbo-present.patch` fallback 用
+- `docker/plumos-toolchain/patches/pyxel-2.9.6-a30-fbo-present.patch`
+  for fallback only
 - `docker/plumos-toolchain/pyxel-a30-shim/plumos_pyxel_a30_shim.py`
-- `docker/plumos-toolchain/scripts/build-sdl2-runtime.sh` の `a30mali` patch 適用
+- `docker/plumos-toolchain/scripts/build-sdl2-runtime.sh` patch application
 - `docker/plumos-toolchain/scripts/build-pyxel-a30.sh`
 - `scripts/docker-build.sh pyxel-a30`
 
-build command:
+Build:
 
 ```sh
 scripts/docker-build.sh pyxel-a30
 ```
 
-出力先:
+Artifact:
 
 ```text
 dist/plumos-pyxel-a30/
 ```
 
-A30 へ deploy すると以下が追加される。
+Deployment adds:
 
 ```text
 /mnt/SDCARD/plumos/experiments/pyxel-a30-site/
@@ -196,7 +140,9 @@ A30 へ deploy すると以下が追加される。
 /mnt/SDCARD/plumos/share/doc/plumos-pyxel-a30/manifest.txt
 ```
 
-`plumos-pyxel-a30` は Pyxel 用 Python 実行入口で、以下を既定値にする。
+## Default Runtime Environment
+
+`plumos-pyxel-a30` is the Python entry point for Pyxel. Defaults:
 
 ```text
 HOME=/mnt/SDCARD
@@ -205,45 +151,82 @@ SDL_AUDIODRIVER=alsa
 SDL_OPENGL_LIBRARY=/usr/lib/libGLESv2.so
 SDL_EGL_LIBRARY=/usr/lib/libEGL.so
 PLUMOS_A30MALI_ROTATION=cw
-SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad 用 mapping
+SDL_GAMECONTROLLERCONFIG=plumOS A30 Gamepad mapping
 ```
 
-通常経路では `PYTHONPATH` に `experiments/pyxel-a30-site` を追加しない。そのため
-`/mnt/SDCARD/plumos/python/lib/python3.14/site-packages` に pip で入っている Pyxel が使われる。
-ただし `plumos-pyxel-a30` は `plumos_pyxel_a30_shim` 経由で実行し、公開 API の
-`pyxel.init()` だけを薄く wrap する。この shim は Pyxel 本体を変更せず、`width` / `height` /
-`display_scale` から `PLUMOS_A30MALI_LOGICAL_SIZE` を設定して SDL `a30mali` backend へ
-論理表示サイズを渡す。
-`.pyxapp` 実行時は、展開された startup script の親ディレクトリを `cwd` にして実行する。
-一部の Pyxel app は `fonts/...` や `assets.pyxres` を相対パスで読むため、`pyxel.init()` 後も
-shim が `cwd` を復元する。これにより、Pyxel package 自体を patch せずに packaged app の
-相対リソースを app directory 基準で読める。
-古い検証で使った stock SDL2 `mali` driver は参照用に残すが、通常の Pyxel launcher では
-`/mnt/SDCARD/miyoo/lib` を library path に入れない。
+`HOME` defaults to `/mnt/SDCARD` so Pyxel app user data does not escape into the
+rootfs. Override only with `PLUMOS_PYXEL_HOME` when necessary.
 
-`HOME` は Pyxel app のユーザーデータ保存先が rootfs 側へ逃げないよう `/mnt/SDCARD`
-を既定にする。必要な場合だけ `PLUMOS_PYXEL_HOME` で上書きできる。
+The normal path does not prepend `/mnt/SDCARD/plumos/experiments/pyxel-a30-site`
+to `PYTHONPATH`. It uses the Pyxel package installed under
+`/mnt/SDCARD/plumos/python/lib/python3.14/site-packages`, so future
+`pip install --upgrade pyxel` can keep working without a Pyxel fork.
 
-`PLUMOS_A30MALI_ROTATION=cw` は、標準 Pyxel の GLES 描画先を `a30mali` backend 側の
-offscreen pbuffer にし、`SDL_GL_SwapWindow` 直前で backbuffer を texture にコピーする。
-その後、物理 fb 用 EGL surface に切り替えて GPU 上でアスペクト比を維持したまま
-A30 の画面向きへ回転してから swap する。コピー元は Swap 時点で bind されている
-framebuffer とし、Pyxel が内部 FBO を使っていても default framebuffer 前提で諦めない。
-present 側では明示的に default framebuffer へ戻して回転 quad を描く。表示サイズは
-shim が渡す `PLUMOS_A30MALI_LOGICAL_SIZE` を優先する。Pyxel package 自体は patch しないため、
-`pip install --upgrade pyxel` 後もこの表示経路を維持しやすい。
+`plumos-pyxel-a30` runs through `plumos_pyxel_a30_shim`. The shim wraps only the
+public `pyxel.init()` API, uses `width`, `height`, and `display_scale` to set
+`PLUMOS_A30MALI_LOGICAL_SIZE`, and then lets SDL `a30mali` keep aspect ratio and
+rotation. For `.pyxapp`, it runs from the extracted startup script's parent
+directory so relative resources such as `fonts/...` and `assets.pyxres` resolve
+from the app directory.
 
-`plumos-pyxel-a30-launch` は FE/ユーザー向けの wrapper で、Pyxel 実行前後に以下を行う。
+## Rotation and Aspect Handling
 
-- `PLUMOS_PYXEL_CPU_POLICY` / `PLUMOS_PYXEL_CPU_FREQ` / `PLUMOS_PYXEL_CPU_CORES` が指定された場合の CPU policy 適用と終了時復元
-- `plumos-volume-control apply` / `persist-runtime`
+With `PLUMOS_A30MALI_ROTATION=cw`, the standard Pyxel GLES backbuffer is copied
+to a texture at `SDL_GL_SwapWindow` time. The presenter switches to the physical
+framebuffer EGL surface, returns to the default framebuffer, draws a rotated quad
+on the GPU, preserves aspect ratio, and swaps.
+
+The source size prefers `PLUMOS_A30MALI_LOGICAL_SIZE`, which the shim derives
+from Pyxel initialization. This is why a 720x480 Pyxel app such as
+`LastEmulator.pyxapp` can fit into the A30 640x480 landscape visible area
+without patching Pyxel itself.
+
+`PLUMOS_A30MALI_SHADER_FIT` is enabled by default. Disable only by setting it to
+`0`, `false`, or `off`.
+
+## Fallback Patched Pyxel
+
+The old A30-specific patched Pyxel presenter remains as a fallback in:
+
+```text
+/mnt/SDCARD/plumos/experiments/pyxel-a30-site/
+```
+
+It is not used by default. Enable it explicitly:
+
+```sh
+PLUMOS_PYXEL_USE_PATCHED=1 plumos-pyxel-a30-launch -m pyxel play <path>
+```
+
+When enabled, `plumos-pyxel-a30` prepends that site to `PYTHONPATH` and sets
+`PLUMOS_PYXEL_A30_PRESENT=1` and `PLUMOS_PYXEL_A30_ROTATION=cw`.
+
+## FE Launch
+
+`systems.json` contains the `pyxel` system:
+
+- ROM directory: `/mnt/SDCARD/Roms/pyxel`
+- extensions: `.pyxapp`, `.py`
+- launch profile: `pyxel:a30`
+
+Dispatch:
+
+- `.pyxapp`: `plumos-pyxel-a30-launch -m pyxel play <path>`
+- `.py`: `plumos-pyxel-a30-launch -m pyxel run <path>`
+
+## Launcher Responsibilities
+
+`plumos-pyxel-a30-launch` handles:
+
+- CPU policy apply/restore via `PLUMOS_PYXEL_CPU_POLICY`,
+  `PLUMOS_PYXEL_CPU_FREQ`, and `PLUMOS_PYXEL_CPU_CORES`
+- `plumos-volume-control apply` and `persist-runtime`
 - `plumos-joystickd --device-mode xbox --trigger-mode buttons --shoulder-layout user`
 - `plumos-safe-hotkeyd`
-- 終了時の `joystickd` / `safe-hotkeyd` cleanup
+- cleanup of joystickd, safe-hotkeyd, and runtime state on exit
 
-CPU 設定は `keep|performance|fixed` と `keep|2|4` を独立して扱う。FE の Core menu から
-Pyxel system/ROM に CPU 周波数や core 数を保存すると、`plumos-text-ui launch` が以下の
-環境変数を command の前に付ける。
+When the FE Core menu stores Pyxel CPU frequency/core overrides,
+`plumos-text-ui launch` prefixes the command with variables such as:
 
 ```text
 PLUMOS_PYXEL_CPU_POLICY=fixed
@@ -251,11 +234,16 @@ PLUMOS_PYXEL_CPU_FREQ=1344000
 PLUMOS_PYXEL_CPU_CORES=4
 ```
 
-launcher は適用後の `online`、governor、current/min/max frequency を
-`/mnt/SDCARD/plumos/logs/pyxel/<run>-cpu.log` に記録する。
+The launcher logs applied `online`, governor, and frequency state under:
 
-Pyxel 用の `SDL_GAMECONTROLLERCONFIG` は、`plumos-joystickd` の virtual pad を以下のように
-SDL2 GameController へ見せる。
+```text
+/mnt/SDCARD/plumos/logs/pyxel/<run>-cpu.log
+```
+
+## Input Mapping
+
+The Pyxel launcher overrides SDL GameController mapping for the
+`plumos-joystickd` virtual pad:
 
 ```text
 A/B/X/Y: b0/b1/b2/b3
@@ -266,38 +254,15 @@ D-pad: hat0
 left stick: a0/a1
 ```
 
-stock SDL2 の既定 GameController mapping だけに任せると、START/SELECT/FUNCTION や
-L/R/L2/R2 がずれる。このため Pyxel launcher では mapping override を必須とする。
+Use `--shoulder-layout user` for Pyxel. With `--shoulder-layout standard`, A30
+physical L/R and L2/R2 appear swapped on the Pyxel side.
 
-fallback 用の patched Pyxel は通常の pip site-packages ではなく、以下の分離 site に置く。
+Pyxel analog keys must be read with `btnv()`. Using `btnp()` / `btnr()` on axis
+keys can panic.
 
-```text
-/mnt/SDCARD/plumos/experiments/pyxel-a30-site/
-```
+## Verified Behavior
 
-標準ではこの site は読まない。旧 A30 presenter 経路へ戻したい場合だけ、以下のように
-明示する。
-
-```sh
-PLUMOS_PYXEL_USE_PATCHED=1 plumos-pyxel-a30-launch -m pyxel play <path>
-```
-
-`PLUMOS_PYXEL_USE_PATCHED=1` のときだけ、`plumos-pyxel-a30` はこの site を `PYTHONPATH`
-の先頭に入れ、`PLUMOS_PYXEL_A30_PRESENT=1` と `PLUMOS_PYXEL_A30_ROTATION=cw` を既定にする。
-
-### FE からの起動
-
-frontend の `systems.json` には `pyxel` system を追加する。ROM directory は
-`/mnt/SDCARD/Roms/pyxel`、対応拡張子は `.pyxapp` と `.py` とする。
-
-- `.pyxapp`: `plumos-pyxel-a30-launch -m pyxel play <path>`
-- `.py`: `plumos-pyxel-a30-launch -m pyxel run <path>`
-
-launch profile は `pyxel:a30` とし、`plumos-text-ui launch` が拡張子で上記の command へ
-振り分ける。
-
-実機確認では plumOS SDL runtime の `a30mali` を明示して、SDL2 API から GLES2 context と
-swap が成立することを確認した。
+SDL runtime probe:
 
 ```text
 compiled_sdl=2.32.68 linked_sdl=2.32.68
@@ -308,8 +273,7 @@ gl vendor="ARM" renderer="Mali-400 MP"
 gl swap=yes
 ```
 
-Pyxel 実機確認では `plumos-pyxel-a30-launch /mnt/SDCARD/plumos/demos/pyxel_validation_probe.py`
-で以下を確認した。
+Pyxel validation probe:
 
 ```text
 env SDL_VIDEODRIVER=a30mali
@@ -318,7 +282,7 @@ plumOS Pyxel A30 present enabled logical=640x480 physical=480x640 rotation=cw
 summary events=0 frames=119 seconds=5.01
 ```
 
-capture:
+Important captures:
 
 ```text
 artifacts/pyxel-demo/a30-present-captures/20260614-085325.visible.cw.png
@@ -328,34 +292,11 @@ artifacts/pyxel-demo/shim-fit-probe2/20260614-155501.visible.cw.png
 artifacts/pyxel-demo/shim-lastemulator-final/20260614-155612.visible.cw.png
 ```
 
-この capture で Pyxel の 640x480 landscape 画面が正しい向きに表示されることを確認した。
-さらに `/mnt/SDCARD/Roms/pyxel/LastEmulator.pyxapp` は app 本来の `720x480` logical size で
-初期化されることを確認した。`.pyxapp` は Python script として直接渡さず、
-`plumos-pyxel-a30-launch -m pyxel play /mnt/SDCARD/Roms/pyxel/LastEmulator.pyxapp`
-で起動する。`LastEmulator.pyxapp` はタイトル表示まで時間がかかるため、画面 capture は
-起動後 45 秒以上待ってから行う。
+`LastEmulator.pyxapp` initializes at its native `720x480` logical size and can
+take about 45 seconds before title capture is meaningful.
 
-2026-06-14 の shim 検証では、標準 pip Pyxel 2.9.6 のまま `pyxel.init()` を wrap し、
-LastEmulator 起動時に以下を取得した。
-
-```text
-plumOS Pyxel init shim canvas=720x480 display_scale=auto logical=720x480
-```
-
-SDL `a30mali` 側は `PLUMOS_A30MALI_LOGICAL_SIZE=720x480` を offscreen surface と present
-source に使う。さらに Swap 時に Pyxel 内部 FBO が bind されている場合でも、その FBO から
-texture へコピーし、present surface 側では default framebuffer へ戻して回転 quad を描く。
-`shim-fit-probe2` では 720x480 の四隅と枠が 640x480 landscape へアスペクト維持で収まること、
-`shim-lastemulator-final` では LastEmulator のタイトル画面が左右欠けなしで表示されることを確認した。
-
-その後、SDL3 `a30mali` の offscreen present に shader-fit を追加した。既定では
-`PLUMOS_A30MALI_SHADER_FIT` 未指定時に有効で、無効化したい場合だけ `0` / `false` /
-`off` などを指定する。Pyxel が 720x480 の logical surface を描いた後、present shader 側で
-A30 の 640x480 landscape 表示領域へ source aspect を維持して fit するため、Pyxel 本体や
-patched site に依存しない。
-
-LastEmulator の Prologue 画面で、標準 pip Pyxel + SDL3 `a30mali` shader-fit 版と、
-旧 patched Pyxel 版の表示領域を比較した。
+The SDL3 shader-fit path and the old patched Pyxel reference matched layout for
+the LastEmulator Prologue screen:
 
 ```text
 SDL3 shader-fit:
@@ -371,42 +312,28 @@ old failed FBO path:
   visible bbox: 570x426+35+27
 ```
 
-SDL3 shader-fit と patched Pyxel reference の RMSE は `426.094 (0.00650178)` で、
-レイアウトは一致し、差分は描画タイミングや微小な色差の範囲に収まった。過去の 4:3 風に
-縮んだ FBO path とは bbox と見た目の双方で明確に異なる。
+## Audio, Input, and Hotkey Checks
 
-比較画像:
-
-```text
-artifacts/pyxel-demo/lastemulator-sdl3-prologue-compare/sdl3-vs-patched-plus-diff.png
-```
-
-## 音声・入力・hotkey 検証
-
-2026-06-14 に plumOS SDL `a30mali` 経路の Pyxel で、音声、`plumos-joystickd --device-mode xbox`
-入力、終了/cleanup、音量 hotkey への影響を確認した。
-
-使用した probe:
+Validated with:
 
 ```text
 /mnt/SDCARD/plumos/demos/pyxel_validation_probe.py
 /mnt/SDCARD/plumos/demos/pyxel_guided_mapping_probe.py
 ```
 
-確認結果:
+Confirmed:
 
-- Pyxel process が `/dev/snd/pcmC0D0p`、`/dev/snd/controlC0`、`/dev/snd/timer` を開き、
-  `SDL_AUDIODRIVER=alsa` で音声経路に乗る。
-- Pyxel process が `/dev/fb0`、`/dev/mali`、`/dev/input/event4` を開き、画面、Mali、
-  `plumOS A30 Gamepad` を同時に使う。
-- `plumos-joystickd --device-mode xbox` は `plumOS A30 Gamepad` を `/dev/input/js0` /
-  `/dev/input/event4` として作成する。
-- `plumos-safe-hotkeyd` は Pyxel 実行中に `/dev/input/event3` の音量キーと
-  `/dev/input/event0` の電源キーを読み、音量変更と Power menu overlay を処理できる。
-- wrapper 終了後、`plumos-joystickd`、`plumos-safe-hotkeyd`、Pyxel process の残留はない。
-- `plumos-volume-control persist-runtime` で runtime volume は終了時に保存される。
+- Pyxel opens `/dev/snd/pcmC0D0p`, `/dev/snd/controlC0`, and `/dev/snd/timer`
+  through `SDL_AUDIODRIVER=alsa`.
+- Pyxel opens `/dev/fb0`, `/dev/mali`, and `/dev/input/event4`.
+- `plumos-joystickd --device-mode xbox` exposes `plumOS A30 Gamepad` as
+  `/dev/input/js0` / `/dev/input/event4`.
+- `plumos-safe-hotkeyd` handles volume keys on `/dev/input/event3` and power key
+  overlay handling on `/dev/input/event0` while Pyxel runs.
+- No Pyxel, joystickd, or safe-hotkeyd process remains after wrapper exit.
+- Runtime volume is saved through `plumos-volume-control persist-runtime`.
 
-guided mapping で確認した物理ボタンと Pyxel 側ラベル:
+Guided mapping result:
 
 ```text
 physical A        -> Pyxel A
@@ -424,30 +351,16 @@ physical R2       -> Pyxel RTRIG
 left stick        -> Pyxel LX/LY
 ```
 
-重要な注意:
+## Conclusion
 
-- `--shoulder-layout standard` では A30 物理 L/R と L2/R2 が Pyxel 側で逆に見える。
-- Pyxel 用 wrapper では `--shoulder-layout user` を既定にする。
-- Pyxel の analog key に `btnp()` / `btnr()` を使うと panic するため、axis は `btnv()` で読む。
-
-主な検証ログ:
-
-```text
-/mnt/SDCARD/plumos/logs/pyxel-validation/20260614-002327-audio-fd
-/mnt/SDCARD/plumos/logs/pyxel-validation/20260614-003909-guided-buttons
-/mnt/SDCARD/plumos/logs/pyxel-validation/20260614-004558-shoulder-user
-/mnt/SDCARD/plumos/logs/pyxel-validation/20260614-004849-launch-wrapper
-/mnt/SDCARD/plumos/logs/pyxel-lastemulator/20260614-010902-fit
-```
-
-## 現時点の結論
-
-- plumOS SDL2 互換 runtime に `a30mali` backend を追加し、stock SDL2 binary なしで
-  SDL2/GLES app が `/dev/fb0` + Mali EGL へ乗れる状態になった。
-- Pyxel の通常出力は GLES2 前提なので、A30 の Mali hardware 経路へ乗せられる。
-- 標準 Pyxel 実行は pip site-packages の Pyxel を使い、sdl2-compat -> SDL3 `a30mali`
-  で表示する。Pyxel 更新時もこの経路を維持する。
-- Pyxel 専用 FBO presenter は `PLUMOS_PYXEL_USE_PATCHED=1` の fallback として残す。
-- Pyxel の音声、入力、volume hotkey、cleanup は plumOS SDL `a30mali` 経路でも成立する。
-- first pass の `a30mali` は SDL window + GLES context + swap を優先した最小 backend。
-  SDL_Renderer や汎用window管理を要求するappは、追加実装が必要になる可能性がある。
+- plumOS SDL runtime now has an `a30mali` backend, so SDL2/GLES apps can use
+  `/dev/fb0` + Mali EGL without loading the stock SDL2 binary.
+- Pyxel's normal output path can run on the A30 Mali hardware route.
+- The default Pyxel path uses the standard pip-installed Pyxel package through
+  sdl2-compat -> SDL3 `a30mali`, avoiding a Pyxel fork.
+- The patched Pyxel FBO presenter remains only as an explicit fallback.
+- Audio, input, volume hotkey handling, power overlay support, and cleanup work
+  through the plumOS SDL `a30mali` path.
+- The current `a30mali` backend focuses on SDL window + GLES context + swap.
+  Apps requiring broader SDL_Renderer or window-management behavior may need
+  additional backend work.

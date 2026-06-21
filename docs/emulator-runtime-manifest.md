@@ -1,23 +1,27 @@
-# emulator runtime manifest
+# Emulator Runtime Manifest
 
-更新日: 2026-06-19
+Updated: 2026-06-19
 
-この文書は、plumOS の FE から実行できる emulator / libretro core / Pyxel runtime の
-採用 manifest を固定するためのメモです。機械可読な正本は
-`docs/emulator-runtime-manifest.tsv` です。
+This document explains the adopted emulator, libretro core, and Pyxel runtime
+manifest for profiles that can be launched from the plumOS frontend. The
+machine-readable source of truth is `docs/emulator-runtime-manifest.tsv`.
 
-## 位置づけ
+Japanese counterpart: [emulator-runtime-manifest.ja.md](emulator-runtime-manifest.ja.md)
 
-`docs/emulator-runtime-manifest.tsv` は、次の条件を満たす launch profile だけを列挙します。
+## Positioning
 
-- FE から実行できる。
-- `verification_status` が `pass`、`pass_init`、`untested` のいずれか。
-- `retired` は通常候補から外したものとして除外する。
+`docs/emulator-runtime-manifest.tsv` lists only launch profiles that satisfy all
+of these conditions:
 
-`pass_init` と `untested` は、現時点で追加の合法 ROM / BIOS / 実機操作がないと進められない
-候補です。失敗扱いではなく、採用候補または保留候補として残します。
+- the FE can launch them
+- `verification_status` is `pass`, `pass_init`, or `untested`
+- `retired` profiles are excluded as normal candidates
 
-## 現在の集計
+`pass_init` and `untested` are not failures. They remain as adopted or pending
+candidates because additional legal ROMs, BIOS files, or hardware operation are
+needed before the status can advance.
+
+## Current Counts
 
 | item | count |
 | --- | ---: |
@@ -31,24 +35,27 @@
 | Pyxel profile | 1 |
 | unique libretro core used by FE candidates | 77 |
 
-`fail_*` は採用 manifest には残しません。性能不足、代替あり、入力/映像/音声問題が残るものは
-`docs/emulator-runtime-verification.tsv` 側で `retired` にして、FE 通常候補から外します。
+`fail_*` statuses are not kept in the adoption manifest. Profiles with
+confirmed performance limits, better alternatives, or unresolved input/video/
+audio issues are marked `retired` in
+`docs/emulator-runtime-verification.tsv` and removed from normal FE candidates.
 
-## 正本
+## Source Files
 
 | file | role |
 | --- | --- |
-| `docker/plumos-toolchain/libretro-core-recipes.tsv` | libretro core の full build recipe。repo/ref/makefile/make_args を固定する。 |
-| `docs/onion-libretro-source-lock.tsv` | Onion 採用時期から解決した source commit。Onion prebuilt binary は採用しない。 |
-| `docs/libretro-core-version-inventory.tsv` | Onion prebuilt / Onion builder / plumOS recipe の対応棚卸し。 |
-| `docs/libretro-built-cores.tsv` | 最新 all build manifest から更新した build 済み 97 core の inventory。 |
-| `docs/emulator-fe-libretro-targets.tsv` | FE から実行可能な libretro/RA/PICO profile の検証対象表。 |
-| `docs/emulator-fe-standalone-targets.tsv` | FE から実行可能な standalone/Pyxel profile の検証対象表。 |
-| `docs/emulator-runtime-manifest.tsv` | FE 採用候補 profile と source/ref/build option を結合した最終 manifest。 |
+| `docker/plumos-toolchain/libretro-core-recipes.tsv` | Full libretro build recipe with repo/ref/makefile/make arguments. |
+| `docs/onion-libretro-source-lock.tsv` | Source commits resolved from the Onion source period. Onion prebuilt binaries are not adopted. |
+| `docs/libretro-core-version-inventory.tsv` | Inventory matching Onion prebuilt data, Onion builder data, and plumOS recipes. |
+| `docs/libretro-built-cores.tsv` | Inventory of 97 built cores from the latest all-core build manifest. |
+| `docs/emulator-fe-libretro-targets.tsv` | FE-executable libretro/RA/PICO profile verification targets. |
+| `docs/emulator-fe-standalone-targets.tsv` | FE-executable standalone/Pyxel profile verification targets. |
+| `docs/emulator-runtime-manifest.tsv` | Final joined manifest of adopted FE profile, source/ref, and build option data. |
 
-## 再生成
+## Regeneration
 
-libretro core を rebuild した後は、まず build manifest から built core inventory を更新します。
+After rebuilding libretro cores, update the built-core inventory from the build
+manifest:
 
 ```sh
 ./scripts/update-libretro-built-core-inventory.py \
@@ -56,22 +63,26 @@ libretro core を rebuild した後は、まず build manifest から built core
   --output docs/libretro-built-cores.tsv
 ```
 
-FE target TSV を更新した後、採用 manifest を再生成します。
+After updating FE target TSV files, regenerate the adoption manifest:
 
 ```sh
 ./scripts/generate-emulator-runtime-manifest.py \
   --output docs/emulator-runtime-manifest.tsv
 ```
 
-manifest の `source_ref` は、libretro core では最新 build manifest の `commit` を優先します。
-standalone / Pyxel は build script の既定 `*_REF` を読み取ります。RetroArch と PicoArch は
-各 libretro profile の `frontend_runtime` として記録し、core の source/ref とは分けます。
+For libretro cores, `source_ref` prefers the commit recorded in the latest build
+manifest. Standalone and Pyxel profiles read the default `*_REF` values from
+their build scripts. RetroArch and PicoArch are recorded as `frontend_runtime`
+for each libretro profile and are kept separate from the core source/ref.
 
-## 注意点
+## Notes
 
-- PicoArch は原則として `/mnt/SDCARD/plumos/retroarch/cores` の libretro core を使います。
-  ただし `picoarch:fceumm` は PicoArch package 同梱の互換 core が存在する場合に優先します。
-- `quicknes` は Onion prebuilt に無い plumOS 独自採用 core なので
-  `version_policy=plumos_only_latest` です。
-- Onion prebuilt に存在しても plumOS recipe に無い core は、現時点では FE 採用 manifest に
-  入れません。source provenance と A30 実用性を確認できたものだけ recipe へ追加します。
+- PicoArch normally uses libretro cores from
+  `/mnt/SDCARD/plumos/retroarch/cores`.
+- `picoarch:fceumm` prefers the PicoArch package's compatibility core when that
+  core exists.
+- `quicknes` is a plumOS-only-latest adoption because it is not present in Onion
+  prebuilt cores.
+- Cores present in Onion prebuilt data but missing from plumOS recipes are not
+  added to the FE manifest until source provenance and A30 practicality are
+  confirmed.

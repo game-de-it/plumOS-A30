@@ -1,29 +1,30 @@
-# インストール
+# Installation
 
-この手順は、新しくフォーマットした SD カードへ plumOS を導入するためのものです。
+This procedure installs plumOS to a newly formatted SD card.
 
-## 必要なもの
+## Requirements
 
 - Miyoo A30
-- microSD カード
-- SD カードを読み書きできる PC
-- plumOS の SD root package
+- microSD card
+- PC that can write the SD card
+- plumOS SD root package
 
-配布アーカイブ名は以下を想定します。
+The expected end-user archive is:
 
 ```text
 plumos-sdroot-package.7z
 ```
 
-## SD カードへ展開
+## Extract to the SD Card
 
-1. SD カードを PC でフォーマットします。
-2. `plumos-sdroot-package.7z` を一回だけ解凍します。
-3. 解凍された中身を SD カード root に配置します。
-4. SD カード直下に `miyoo/`、`plumos/`、`Roms/`、`Bios/` などが見える状態にします。
-5. SD カードを A30 に入れて起動します。
+1. Format the SD card on your PC.
+2. Extract `plumos-sdroot-package.7z` once.
+3. Copy the extracted contents to the root of the SD card.
+4. Confirm that `miyoo/`, `plumos/`, `Roms/`, `Bios/`, and similar entries are
+   visible directly at the SD-card root.
+5. Insert the SD card into the A30 and power it on.
 
-正しい配置例:
+Correct layout:
 
 ```text
 SDCARD/
@@ -41,7 +42,7 @@ SDCARD/
   plumos/
 ```
 
-間違った配置例:
+Incorrect layout:
 
 ```text
 SDCARD/
@@ -52,11 +53,12 @@ SDCARD/
     plumos/
 ```
 
-外側の `plumos-sdroot-package/` directory ができている場合は、その中身を SD カード root へ移動してください。
+If the extra `plumos-sdroot-package/` directory appears, move its contents up to
+the SD-card root.
 
-## ROM と BIOS
+## ROMs and BIOS Files
 
-ROM は `Roms/` 以下へ置きます。例:
+Place ROMs under `Roms/`.
 
 ```text
 Roms/nes/
@@ -65,43 +67,47 @@ Roms/gba/
 Roms/psx/
 ```
 
-BIOS は `Bios/` 以下へ置きます。必要な BIOS 名や配置は emulator/core によって異なります。
-plumOS の配布物には BIOS は含まれません。
+Place BIOS files under `Bios/`. Required file names and subdirectories depend on
+the emulator/core. plumOS release packages do not include BIOS files.
 
-## サムネイル
+## Thumbnails
 
-plumOS の通常サムネイル置き場は `Images/<ROM directory name>/` です。
+The normal plumOS thumbnail path is `Images/<ROM directory name>/`.
 
-例:
+Example:
 
 ```text
 Roms/snes/Akumajou Densetsu.sfc
 Images/snes/Akumajou Densetsu.png
 ```
 
-`Imgs/` は StockOS 互換/旧置き場として残しています。新しく作る画像は `Images/` を使ってください。
+`Imgs/` is kept as a legacy StockOS-compatible artwork directory. Use `Images/`
+for new plumOS thumbnails.
 
 ## SSH
 
-Network Settings の `NW Service` で SSH を ON にすると、PC から接続できます。
+Enable SSH from `Network Settings` -> `NW Service`, then connect from your PC:
 
 ```sh
 ssh -p 2222 root@A30_IP_ADDRESS
 ```
 
-初期パスワード:
+Default password:
 
 ```text
 plumos
 ```
 
-SFTP も SSH と同じパスワードで利用できます。`authorized_keys` を置いた場合は鍵認証も使えますが、
-公開配布アーカイブには個人の公開鍵を含めません。
+SFTP uses the same SSH password. Key authentication is also available if you add
+your own `authorized_keys`, but public release archives must not include personal
+keys.
 
-## 既存 SD カードへ上書きする場合
+## Installing Over an Existing SD Card
 
-この SD root package は fresh/formatted SD card 向けです。既存 SD カードへ上書きする場合は、
-事前に ROM、BIOS、save/state、スクリーンショット、動画、個人設定をバックアップしてください。
+The SD root package is primarily intended for a fresh/formatted SD card. If you
+overwrite an existing card, back up ROMs, BIOS files, save/state data,
+screenshots, videos, and personal settings first.
 
-既存環境を安全に更新する runtime installer 方式もありますが、通常ユーザー向けの最初の導入では
-fresh SD card への展開を推奨します。
+## Japanese Counterpart
+
+- [Japanese installation guide](install.ja.md)

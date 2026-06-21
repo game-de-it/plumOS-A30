@@ -1,42 +1,43 @@
-# Stock reuse decision template
+# Stock Reuse Decision Template
 
-この template は、stock A30 仕様を plumOS へそのまま流用したい場合に使います。
-この文書を埋め、ユーザー確認を取るまでは実装しません。
+Use this template when a stock A30 behavior might be reused directly in plumOS.
+Do not implement the reuse until this document is filled out and the user has
+confirmed the decision.
 
-## 対象
+## Target
 
-- 対象の stock 仕様:
-- 関連 file/path:
-- plumOS 側で影響する component:
+- Stock behavior:
+- Related file/path:
+- Affected plumOS component:
 
-## 現状の理解
+## Current Understanding
 
-- stock での使われ方:
-- 実機で確認したこと:
-- まだ推定のこと:
+- How stock uses it:
+- Confirmed on hardware:
+- Still inferred:
 
-## 流用したい理由
+## Reason To Reuse
 
-- 利点:
-- 代替案:
-- 流用しない場合の作業量:
+- Benefits:
+- Alternatives:
+- Cost of not reusing it:
 
-## リスク
+## Risks
 
-- 将来の RetroArch/core 更新への影響:
-- frontend/launcher 設計への影響:
-- CPU/input/audio/video policy への影響:
-- rollback への影響:
+- Impact on future RetroArch/core updates:
+- Impact on frontend/launcher design:
+- Impact on CPU/input/audio/video policy:
+- Impact on rollback:
 
-## 判断
+## Decision
 
-- [ ] compatibility shim に留める
-- [ ] plumOS 独自仕様へ置き換える
-- [ ] stock 仕様を一時的に流用する
-- [ ] stock 仕様を正式に採用する
+- [ ] Keep as a compatibility shim only
+- [ ] Replace with a plumOS-native design
+- [ ] Reuse the stock behavior temporarily
+- [ ] Adopt the stock behavior formally
 
-## ユーザー確認
+## User Confirmation
 
-- 確認日:
-- 確認内容:
-- 結論:
+- Confirmation date:
+- Confirmation summary:
+- Conclusion:

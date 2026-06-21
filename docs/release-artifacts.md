@@ -1,102 +1,107 @@
-# plumOS release artifacts
+# plumOS Release Artifacts
 
-この文書は、plumOS A30 の release artifact の分け方と GitHub Release へ載せる単位を定義する。
+This document defines the release artifact split for plumOS A30 and the files
+uploaded to GitHub Releases.
 
-## release channel
+Japanese counterpart: [release-artifacts.ja.md](release-artifacts.ja.md)
 
-plumOS は end-user release と developer release を分ける。
+## Release Channels
 
-### End-user release
+plumOS uses separate end-user and developer releases.
 
-end-user release は、A30 の SD カード root へそのまま展開する SD root package である。
+### End-User Release
 
-配布 asset:
+The end-user release is the SD-root package extracted directly to the A30 SD
+card root.
+
+Release asset:
 
 - `plumos-a30-sdroot-<version>.7z`
 
-含むもの:
+Includes:
 
 - stock SD payload
   - `miyoo/app/MainUI.stock`
   - `miyoo/app/keymon`, `miyoo/app/sdlloading`
-  - `miyoo/lib/` stock SDL/runtime library
-  - stock payload に含まれる非ユーザーデータ runtime
+  - `miyoo/lib/` stock SDL/runtime libraries
+  - non-user runtime files from the stock payload
 - `miyoo/app/MainUI` plumOS boot wrapper
-- frontend
-- launcher
-- RetroArch runtime
-- 採用済み libretro core
+- frontend and launchers
+- RetroArch runtime and adopted libretro cores
 - PicoArch runtime
-- 採用済み standalone emulator
+- adopted standalone emulators
 - Pyxel runtime
 - SDL/Mali runtime
-- joystick/network/userland helper
-- fresh SD card 用の `plumos/state/standalone/ppsspp` factory state
+- joystick, network, and userland helpers
+- fresh-SD PPSSPP factory state under `plumos/state/standalone/ppsspp`
 - Dropbear SSH kit
-- empty `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/` placeholder
-  - `Images/` は plumOS の通常サムネイル置き場
-  - `Imgs/` は StockOS artwork 互換/旧置き場として残す
-- SD root manifest/checksum
+- empty `Roms/`, `Bios/`, `Images/`, `Imgs/`, and `Saves/` placeholders
+  - `Images/` is the normal plumOS thumbnail location
+  - `Imgs/` remains for StockOS artwork compatibility and older data
+- SD-root manifest and checksums
 
-含めないもの:
+Excludes:
 
-- ROM
-- BIOS
-- user save/state
-- top-level `.config/` user/runtime state
-- network secret
+- ROMs
+- BIOS files
+- user save/state data
+- top-level `.config/` user or runtime state
+- network secrets
 - build cache
-- 開発用 source tree
+- development source tree
 
-SSH は初期パスワード `plumos` でログインできる。hash は
-`plumos/ssh/etc/password.hash` に置く。`plumos/ssh/etc/authorized_keys` は任意の補助認証として扱い、
-公開配布 archive には個人の公開鍵を入れない。
+SSH accepts the initial password `plumos`. Its hash is stored in
+`plumos/ssh/etc/password.hash`. `plumos/ssh/etc/authorized_keys` is optional and
+must not contain personal keys in public archives.
 
-既存 SD card へ安全に上書き更新する用途では、内部成果物として `dist/plumos-runtime-package.tar.gz`
-も生成できる。これは `install-plumos-runtime.sh` で既存設定や save/state を保持する更新用 package であり、
-GitHub Release の通常ユーザー向け primary asset にはしない。
+`dist/plumos-runtime-package.tar.gz` can also be generated as an internal update
+artifact for existing SD cards. It is installed with `install-plumos-runtime.sh`
+and preserves existing settings and save/state data. It is not the primary
+GitHub Release asset for normal users.
 
-### Developer release
+### Developer Release
 
-developer release は、SD root package と runtime package を再 build するための source/toolchain package である。
+The developer release is the source/toolchain package used to rebuild the
+SD-root and runtime packages.
 
-配布 asset:
+Release asset:
 
 - `plumos-a30-developer-<version>.tar.gz`
 
-含むもの:
+Includes:
 
-- git 管理されている source snapshot
+- git-managed source snapshot
 - Dockerfile
-- build script
-- patch
-- libretro/standalone build recipe
-- docs
+- build scripts
+- patches
+- libretro/standalone build recipes
+- documentation
 
-含めないもの:
+Excludes:
 
 - Docker image tarball
 - `build/`
 - `dist/`
 - `artifacts/`
-- ROM/BIOS/user data
+- ROM, BIOS, and user data
 
-Docker image は host 環境差とサイズが大きいため、developer package から再 build する。
+The Docker image is rebuilt from the developer package because image tarballs are
+large and host-sensitive.
 
-## release bundle
+## Release Bundle
 
-GitHub Release に載せる asset directory は以下で生成する。
+Create the GitHub Release asset directory with:
 
 ```sh
 ./scripts/build-release-bundle.py --version <version>
 ```
 
-既定では以下を入力にする。
+Default inputs:
 
 - `dist/plumos-sdroot-package.7z`
 - `dist/plumos-dev-package.tar.gz`
 
-出力例:
+Example output:
 
 ```text
 dist/plumos-release-<version>/
@@ -107,12 +112,12 @@ dist/plumos-release-<version>/
   SHA256SUMS
 ```
 
-release 用 bundle は clean working tree で生成する。preview だけが必要な場合は
-`--allow-dirty` を指定できるが、正式 release には使わない。
+Build release bundles from a clean working tree. Use `--allow-dirty` only for
+previews, never for formal releases.
 
-## GitHub Release に載せるもの
+## GitHub Release Assets
 
-GitHub Release の asset は以下に固定する。
+GitHub Release assets are fixed to:
 
 - `plumos-a30-sdroot-<version>.7z`
 - `plumos-a30-developer-<version>.tar.gz`
@@ -120,41 +125,46 @@ GitHub Release の asset は以下に固定する。
 - `manifest.txt`
 - `RELEASE_NOTES.md`
 
-release body は `RELEASE_NOTES.md` の内容を元にする。
+The release body is based on `RELEASE_NOTES.md`.
 
-## 生成順
+## Build Order
 
-1. clean working tree にする。
-2. runtime package の入力 artifact を build する。SSH 接続確認用に公開鍵も入れたい場合だけ
-   `A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh` で
-   `dist/plumos-a30-ssh-kit` を作る。通常の公開配布では公開鍵を入れず、パスワードログインを初期入口にする。
-3. 正常動作していた stock SD card から ROM/BIOS/save/media/user-data を除いた stock payload を
-   `artifacts/stock-sdl-probe/extracted/mnt/SDCARD`、または
-   `./scripts/build-sdroot-package.py --stock-sdcard-dir <path>` で指定する path へ用意する。
-4. `./scripts/build-runtime-package.py` を実行する。
-5. `./scripts/build-sdroot-package.py` を実行する。
-   実機 SD card 由来の `dist/plumos-release-sdroot` を release staging として使う場合は、
-   archive 化の前に `./scripts/audit-release-sdroot.py dist/plumos-release-sdroot` を実行し、
-   `blocker` が残っていないことを確認する。`--clean` は明確な生成物/履歴/セーブ/バックアップだけを
-   `artifacts/release-sdroot-audit/.../quarantine/` へ移す。
-   エンドユーザー向け asset は外側 directory を持たない `.7z` として作る。
-   `7zz t dist/plumos-sdroot-package.7z` と `shasum -a 256` で検証する。
-6. `./scripts/build-dev-package.py` を実行する。
-7. `./scripts/build-release-bundle.py --version <version>` を実行する。
-8. `SHA256SUMS` を検証する。
-9. fresh SD card 相当の環境で SD root package の boot を検証する。
-10. 必要に応じて既存 SD card 向け runtime install/rollback を検証する。
-11. GitHub Release へ release bundle 内の asset を upload する。
+1. Start from a clean working tree.
+2. Build the runtime package inputs. If a package needs an SSH public key for
+   connection testing, run
+   `A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh`.
+   Public releases should omit personal keys and use password login as the
+   initial path.
+3. Prepare a stock payload without ROMs, BIOS files, saves, media, or user data
+   under `artifacts/stock-sdl-probe/extracted/mnt/SDCARD`, or pass a path with
+   `./scripts/build-sdroot-package.py --stock-sdcard-dir <path>`.
+4. Run `./scripts/build-runtime-package.py`.
+5. Run `./scripts/build-sdroot-package.py`.
+6. If using `dist/plumos-release-sdroot` from a known-good device SD card, audit
+   it before archiving:
+   `./scripts/audit-release-sdroot.py dist/plumos-release-sdroot`.
+   Use `--clean` only for clear generated/history/save/backup files. Create a
+   `.7z` without an outer directory, then verify with `7zz t` and
+   `shasum -a 256`.
+7. Run `./scripts/build-dev-package.py`.
+8. Run `./scripts/build-release-bundle.py --version <version>`.
+9. Verify `SHA256SUMS`.
+10. Validate boot on a fresh-SD-equivalent environment.
+11. Validate existing-SD runtime install/rollback if needed.
+12. Upload the release bundle assets to GitHub Releases.
 
-## 完了条件
+## Done Criteria
 
-正式 release は以下を満たす必要がある。
+A formal release must satisfy:
 
-- runtime package が `docs/emulator-runtime-manifest.tsv` の runtime/core/binary 検証を通過している。
-- SD root package が stock SD payload、`miyoo/app/MainUI`、`plumos/` runtime を含み、ROM/BIOS/user data を含まない。
-- developer package の manifest が `git_dirty=no` である。
-- release bundle の manifest が `git_dirty=no` である。
-- `SHA256SUMS` が全 asset で検証できる。
-- fresh SD card 相当の boot 検証が完了している。
+- runtime package passes the runtime/core/binary checks from
+  `docs/emulator-runtime-manifest.tsv`
+- SD-root package includes the stock SD payload, `miyoo/app/MainUI`, and the
+  `plumos/` runtime, and excludes ROM/BIOS/user data
+- developer package manifest records `git_dirty=no`
+- release bundle manifest records `git_dirty=no`
+- `SHA256SUMS` verifies all assets
+- fresh-SD boot validation is complete
 
-fresh SD card 検証が未完了の間は、GitHub Release を draft または pre-release として扱う。
+Until fresh-SD validation is complete, treat the GitHub Release as a draft or
+pre-release.

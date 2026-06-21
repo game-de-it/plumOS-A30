@@ -1,73 +1,86 @@
-# plumOS 設定ファイル配置方針
+# plumOS Config Layout Policy
 
-plumOS に関する永続ファイルは `/mnt/SDCARD/plumos/` 配下に置きます。stockOS の
-`/config` や stock frontend の設定ファイルは plumOS の通常設定として書き換えません。
+All persistent plumOS-owned files live under `/mnt/SDCARD/plumos/`. plumOS does
+not treat stockOS `/config` files or stock frontend settings as normal writable
+plumOS configuration.
 
-## 基本方針
+## Basic Policy
 
-- 設定は巨大な `system.json` 1本に集約しない。
-- UI、system、network、performance などの責務ごとに分ける。
-- 設定ファイルは人が読める JSON にする。
-- 保存は tmp file、`fsync`、atomic rename、`sync` を使う。
-- 互換性のため、各ファイルに `version` を置く。
-- 機微情報は通常の設定ファイルや git 管理対象に入れない。
-- stockOS-owned な `/config/system.json` は参照・書き込み対象にしない。
-- `deploy-a30.sh` は既存の mutable settings を package default で上書きしない。
-  初回導入では default を配置し、既存ファイルがある場合は展開後に復元する。
-  `config/*/settings.json` と RetroArch の主設定
-  `retroarch/config/retroarch-minimal.cfg` / `retroarch/config/retroarch-practical.cfg`
-  に加えて、standalone emulator の env override
-  `config/standalone/` と PPSSPP runtime 設定
-  `state/standalone/ppsspp/` は保護対象に含める。
+- Do not collapse every setting into one large `system.json`.
+- Split files by responsibility, such as UI, system, network, and performance.
+- Use human-readable JSON for settings.
+- Save with a temporary file, `fsync`, atomic rename, and `sync`.
+- Put `version` in each file for compatibility.
+- Do not store sensitive data in normal config files or git-tracked files.
+- Do not use stockOS-owned `/config/system.json` as a read/write target.
+- `deploy-a30.sh` must not overwrite existing mutable settings with package
+  defaults. It installs defaults on first deploy and restores existing files
+  after extraction when they already exist. Protected files include
+  `config/*/settings.json` and the main RetroArch configs
+  `retroarch/config/retroarch-minimal.cfg` /
+  `retroarch/config/retroarch-practical.cfg`, plus standalone emulator env
+  overrides in `config/standalone/` and PPSSPP runtime settings under
+  `state/standalone/ppsspp/`.
 
-## 現在の配置
+## Current Layout
 
 - `/mnt/SDCARD/plumos/config/frontend/settings.json`
-  - UI Mode、Graphic Theme、TOP/ROM list 表示、sort、scan、「起動時に前回ROMを開く」など frontend の挙動。
+  - Frontend behavior such as UI Mode, Graphic Theme, TOP/ROM list visibility,
+    sorting, scan, and Open Last ROM At Boot.
 - `/mnt/SDCARD/plumos/config/frontend/menus.json`
-  - START menu など、frontend menu 定義。
+  - Frontend menu definitions, including the START menu.
 - `/mnt/SDCARD/plumos/config/frontend/systems.json`
-  - system 定義、ROM directory alias、launch profile、artwork lookup。
+  - System definitions, ROM directory aliases, launch profiles, and artwork
+    lookup.
 - `/mnt/SDCARD/plumos/config/system/settings.json`
-  - plumOS-owned の本体設定。Volume、Brightness、Lumination、Display Color、Time Settings、Language。
+  - plumOS-owned device settings: Volume, Brightness, Lumination, Display Color,
+    Time Settings, and Language.
 - `/mnt/SDCARD/plumos/share/frontend/lang/*.lang`
-  - frontend の UI 文言辞書。`language` 設定で選択し、`key=value` 形式で項目名や説明欄を
-    翻訳する。辞書に存在しない key は英語 fallback を使う。
+  - Frontend UI string dictionaries. The `language` setting selects one of
+    these `key=value` files for item labels and help text. Missing keys fall
+    back to English strings compiled into the FE.
 - `/mnt/SDCARD/plumos/factory-defaults/{ra,pico,sa}/`
-  - RA、PicoArch、standalone emulator の出荷時設定として保存したファイル群。
-  - path は `/mnt/SDCARD/plumos/` からの相対配置を保つ。例:
-    `factory-defaults/ra/retroarch/home/.config/retroarch/retroarch.cfg`。
-  - `plumos-factory-reset` はここに存在する file だけを復元対象にし、ROM、BIOS、
-    save data、shader cache などは対象にしない。
+  - Files saved as factory defaults for RA, PicoArch, and standalone emulator
+    settings.
+  - Paths are preserved relative to `/mnt/SDCARD/plumos/`. Example:
+    `factory-defaults/ra/retroarch/home/.config/retroarch/retroarch.cfg`.
+  - `plumos-factory-reset` only restores files present here. ROMs, BIOS files,
+    save data, shader caches, and similar user data are out of scope.
 
-## 今後の候補
+## Future Candidates
 
 - `/mnt/SDCARD/plumos/config/network/settings.json`
-  - Wi-Fi enable 方針、network recovery 方針など。SSID/PSK は別管理にする。
+  - Wi-Fi enable policy and network recovery policy. SSID/PSK should be managed
+    separately.
 - `/mnt/SDCARD/plumos/state/frontend/core-overrides.json`
-  - 既存の system/ROM 別 launch profile、CPU policy/frequency/core override。
-  - Performance Settings はこの既存機能へ接続済み。
+  - Existing system/ROM launch profile and CPU policy/frequency/core overrides.
+  - Performance Settings now connects to this existing feature.
 - `/mnt/SDCARD/plumos/config/performance/profiles.json`
-  - 将来、global preset や名前付き performance profile が必要になった場合に追加する。
+  - Future global presets or named performance profiles, if needed.
 - `/mnt/SDCARD/plumos/config/standalone/<emulator>.env`
-  - standalone launcher の環境変数 override。PPSSPP の表示、入力、CPU など、実機で調整した
-    起動条件は `plumos-standalone-launch` 本体ではなく `ppsspp.env` に置く。
-  - PicoArch の launch 既定値は `picoarch.env` に置く。BIOS/system directory は
-    `PLUMOS_PICOARCH_BIOS_DIR=/path` で指定できるが、PicoArch 側の core/ROM directory 別
-    `picoarch.cfg` に `bios_dir = /path` がある場合はそちらが優先される。
-  - `deploy-a30.sh` の保護対象なので standalone package を再 deploy しても維持する。
-  - PPSSPP の `ppsspp.ini` / `controls.ini` はユーザーが PPSSPP 側で変更できる設定として扱い、
-    既定の launcher 起動では自動補修しない。補修が必要な場合だけ
-    `PLUMOS_A30_PSP_CONTROLS=standard` を明示する。
+  - Environment overrides for standalone launchers. PPSSPP display, input, CPU,
+    and similar device-tuned launch conditions belong in `ppsspp.env`, not in
+    the generated `plumos-standalone-launch` script.
+  - PicoArch launch defaults belong in `picoarch.env`. Its BIOS/system
+    directory can be set with `PLUMOS_PICOARCH_BIOS_DIR=/path`, but a
+    per core/ROM directory PicoArch `picoarch.cfg` entry `bios_dir = /path`
+    takes precedence.
+  - This directory is protected by `deploy-a30.sh`, so standalone package
+    redeploys keep local tuning.
+  - PPSSPP `ppsspp.ini` / `controls.ini` are user-managed PPSSPP settings and
+    are not repaired during normal launcher startup. Enable
+    `PLUMOS_A30_PSP_CONTROLS=standard` only when controls repair is explicitly
+    needed.
 - `/mnt/SDCARD/plumos/config/input/mapping.json`
-  - plumOS input mapping、hotkey、物理ボタン連動。
+  - plumOS input mapping, hotkeys, and physical button integration.
 
 ## System Settings
 
-System Settings は `/mnt/SDCARD/plumos/config/system/settings.json` を読み書きします。
-stockOS の `/config/system.json` とは切り離します。
+System Settings reads and writes
+`/mnt/SDCARD/plumos/config/system/settings.json`. It is separate from stockOS
+`/config/system.json`.
 
-現在のキー:
+Current keys:
 
 - `volume`: `0..20`
 - `brightness`: `1..20`
@@ -75,50 +88,52 @@ stockOS の `/config/system.json` とは切り離します。
 - `contrast`: `0..20`
 - `hue`: `0..20`
 - `saturation`: `0..20`
-- `language`: `en.lang`, `ja.lang` など。対応する辞書は
-  `/mnt/SDCARD/plumos/share/frontend/lang/` から読み込む
-- `timezone`: POSIX TZ 文字列。既定値は `JST-9`
+- `language`: `en.lang`, `ja.lang`, etc. Matching dictionaries are loaded from
+  `/mnt/SDCARD/plumos/share/frontend/lang/`.
+- `timezone`: POSIX TZ string. Default is `JST-9`
 
-2026-06-20 時点では、`Language` は frontend の `.lang` 辞書を切り替え、
-Settings の項目名と説明欄へ反映します。`Language` 以外の値は保存直後と FE 起動時に A30
-runtime へ反映します。`volume` は `plumos-volume-control` で ALSA default PCM の
-`Soft Volume Master` へ反映し、RetroArch/standalone emulator は ALSA `default` を通すことで
-同じ音量設定を使います。`brightness` は
-`/sys/devices/virtual/disp/disp/attr/lcdbl`、`lumination` / `contrast` / `hue` /
-`saturation` は `/sys/devices/virtual/disp/disp/attr/enhance` を使います。
-`Soft Volume Master` は ALSA default PCM を一度 open した後に作られるため、
-FE と launcher は必要に応じて短い無音再生で初期化してから反映します。
-Brightness は `1..20` を保存し、RAW は
-`2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190` へ割り当てます。
-`timezone` は plumOS config を原本とし、保存時・FE 起動時・MainUI wrapper 起動時に
-`TZ` 環境と runtime `/etc/TZ` へ反映します。stockOS の `/config/system.json` には
-書き込みません。手動時刻設定は選択中の timezone のローカル時刻として入力し、
-UTC epoch に変換して OS 時刻へ適用します。
+As of 2026-06-20, `Language` selects the frontend `.lang` dictionary and is
+applied to Settings item labels and help text. Values other than `Language` are
+applied to the A30 runtime when saved and once during FE startup. `volume` is applied through
+`plumos-volume-control` to the ALSA default PCM `Soft Volume Master`, and
+RetroArch/standalone emulators use ALSA `default` so they share the same volume
+setting. `brightness` uses `/sys/devices/virtual/disp/disp/attr/lcdbl`, and
+`lumination` / `contrast` / `hue` / `saturation` use
+`/sys/devices/virtual/disp/disp/attr/enhance`.
+`Soft Volume Master` is created only after the ALSA default PCM is opened once,
+so the FE and launchers initialize it with short silence playback when needed.
+Brightness stores `1..20`; RAW lcdbl is mapped to
+`2,3,4,5,6,7,8,9,10,26,43,59,75,92,108,125,141,157,174,190`.
+`timezone` is sourced from plumOS config and applied to the `TZ` environment
+and runtime `/etc/TZ` when saved, at FE startup, and from the MainUI wrapper.
+plumOS still does not write stockOS `/config/system.json`. Manual time entry is
+interpreted as local time in the selected timezone, converted to UTC epoch, and
+then applied to the OS clock.
 
 ### Factory Reset
 
-System Settings の `Factory Reset` は `plumos-factory-reset` を呼び出し、
-`factory-defaults/{ra,pico,sa}/` に保存された emulator 設定だけを復元します。
-実行項目は誤操作を避けるため A ボタン 2 回で確定します。
+System Settings `Factory Reset` calls `plumos-factory-reset` and restores only
+emulator settings saved under `factory-defaults/{ra,pico,sa}/`. Each reset
+action requires pressing A twice to avoid accidental resets.
 
-復元前の既存ファイルは
-`/mnt/SDCARD/plumos/backups/factory-reset/<timestamp>/<target>/` に退避します。
-復元は target 内の file 単位の上書きで行い、対象外の save data、BIOS、ROM、
-thumbnail、log は削除しません。
+Before restore, existing files are copied to
+`/mnt/SDCARD/plumos/backups/factory-reset/<timestamp>/<target>/`. Restore is a
+file-level overwrite within the selected target; save data, BIOS files, ROMs,
+thumbnails, and logs are not deleted.
 
 ## Performance Settings
 
-Performance Settings は新しい cpufreq 仕様を先に作るのではなく、既存の
-`plumos-text-ui core system|rom ... --cpu --freq --cores` と
-`/mnt/SDCARD/plumos/state/frontend/core-overrides.json` に接続します。
-`systems.json` の `default_cpu_policy` / `default_cpu_freq_khz` を既定値とし、
-system override、ROM override の順で上書きします。plumOS default は全systemで
-`648MHz` / `2 cores` に揃えます。
+Performance Settings should not invent a new cpufreq model first. It should
+connect to the existing `plumos-text-ui core system|rom ... --cpu --freq --cores`
+flow and `/mnt/SDCARD/plumos/state/frontend/core-overrides.json`.
+`systems.json` provides `default_cpu_policy` / `default_cpu_freq_khz`; system
+overrides and then ROM overrides take precedence. The plumOS default is fixed
+to `648 MHz` / `2 cores` for every system.
 
-2026-06-09 時点では START `Performance Settings` から system を選び、
-`CPU freq` と `CPU Cores` を左右で変更できます。`CPU freq` の候補は
-`648/816/1200/1344 MHz` の固定値だけで、予測しづらい `keep` はユーザー向けから
-削除します。保存は controller UI が
-`plumos-text-ui core system <system> --cpu ... --freq ... --cores ...` を呼ぶことで
-`core-overrides.json` へ入ります。`Reset to Default` は `--clear-cpu` を呼び、
-`systems.json` の `648MHz` / `2 cores` default へ戻します。
+As of 2026-06-09, START `Performance Settings` lets the user choose a system
+and change `CPU freq` and `CPU Cores` with Left/Right. `CPU freq` exposes only
+fixed `648/816/1200/1344 MHz` values; unpredictable `keep` is removed from the
+user-facing UI. The controller UI saves by calling `plumos-text-ui core system
+<system> --cpu ... --freq ... --cores ...`, which writes `core-overrides.json`.
+`Reset to Default` calls `--clear-cpu` and falls back to the `systems.json`
+`648 MHz` / `2 cores` plumOS defaults.

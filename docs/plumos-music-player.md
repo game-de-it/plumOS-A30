@@ -1,65 +1,65 @@
-# plumOS 音楽プレイヤー
+# plumOS Music Player
 
-`plumos-music-player` は、Apps メニューから起動する plumOS ネイティブの音楽プレイヤーです。
-GMU は A30 上の表示と操作が不安定だったため、Mali/FreeType 描画、`plumos-joystickd`
-入力、OSS `/dev/dsp` 音声出力を直接使う小さな専用アプリとして実装します。
+`plumos-music-player` is a native plumOS music player launched from the Apps
+menu. GMU was unstable on the A30 display/input path, so plumOS ships a small
+dedicated player using Mali/FreeType rendering, `plumos-joystickd` input, and
+OSS `/dev/dsp` audio output.
 
-## 配置
+Japanese counterpart: [plumos-music-player.ja.md](plumos-music-player.ja.md)
 
-- ビルド: `./scripts/docker-build.sh music-player`
-- 成果物: `dist/plumos-music-player`
-- 起動スクリプト: `/mnt/SDCARD/plumos/bin/plumos-music-player-launch`
-- 本体: `/mnt/SDCARD/plumos/apps/music-player/bin/plumos-music-player.bin`
+## Placement
 
-`plumos-music-player-launch` は `plumos-joystickd --device-mode xbox` を起動し、
-終了時に joystickd を停止します。
+- Build: `./scripts/docker-build.sh music-player`
+- Artifact: `dist/plumos-music-player`
+- Launcher: `/mnt/SDCARD/plumos/bin/plumos-music-player-launch`
+- Binary: `/mnt/SDCARD/plumos/apps/music-player/bin/plumos-music-player.bin`
 
-## 対応ファイル
+`plumos-music-player-launch` starts `plumos-joystickd --device-mode xbox` before
+launch and stops joystickd on exit.
 
-起動時に以下を再帰スキャンします。
+## Supported Files
+
+At startup the player recursively scans:
 
 - `/mnt/SDCARD/Music`
 - `/mnt/SDCARD/Roms/music`
 - `/mnt/SDCARD/Roms/MUSIC`
 
-軽量で実績のある `.mp3`, `.flac`, `.wav` は miniaudio の pinned single-header を
-優先してデコードします。それ以外の形式は FFmpeg/libav のデコード経路へフォールバックし、
-最終的に 44.1kHz / stereo / float PCM へ揃えてから、A30 で実績のある OSS
-`/dev/dsp` へ S16_LE で書き込みます。
+Lightweight formats with known-good paths, `.mp3`, `.flac`, and `.wav`, use the
+pinned miniaudio single-header decoder first. Other formats fall back to the
+FFmpeg/libav decode path. Audio is normalized to 44.1 kHz stereo float PCM and
+then written to the A30-tested OSS `/dev/dsp` path as S16_LE.
 
-スキャン対象の拡張子は一般的な音声形式の `.mp3`, `.flac`, `.wav`, `.m4a`, `.m4b`,
-`.mp4`, `.aac`, `.ogg`, `.oga`, `.opus`, `.wma`, `.aiff`, `.aif`, `.aifc`, `.au`,
-`.snd`, `.caf`, `.ac3`, `.wv`, `.ape`, `.mpc`, `.tta`, `.mka`, `.webm`, `.3gp`,
-`.3g2`, `.amr`, `.ra`, `.rm`, `.dts`, `.oma`, `.adx`, `.dsf`, `.dff` に加え、
-tracker/chiptune 系の `.mod`, `.xm`, `.s3m`, `.it`, `.mptm`, `.669`, `.amf`,
-`.ams`, `.dbm`, `.dmf`, `.dsm`, `.far`, `.mdl`, `.med`, `.mtm`, `.okt`, `.ptm`,
-`.stm`, `.ult`, `.umx`, `.wow`, `.vgm`, `.vgz`, `.spc`, `.nsf`, `.gbs`, `.gym`,
-`.hes`, `.sap`, `.ay`, `.kss` です。実際の再生可否はビルド時に同梱した
-libavcodec/libavformat がその形式を扱えるかに依存します。
+Scanned extensions include common audio formats such as `.mp3`, `.flac`, `.wav`,
+`.m4a`, `.m4b`, `.mp4`, `.aac`, `.ogg`, `.opus`, `.wma`, `.aiff`, `.au`, `.caf`,
+`.ac3`, `.wv`, `.ape`, `.mpc`, `.tta`, `.mka`, `.webm`, `.3gp`, `.amr`, `.ra`,
+`.dts`, `.oma`, `.adx`, `.dsf`, and `.dff`, plus tracker/chiptune formats such
+as `.mod`, `.xm`, `.s3m`, `.it`, `.vgm`, `.vgz`, `.spc`, `.nsf`, `.gbs`, `.gym`,
+`.hes`, `.sap`, `.ay`, and `.kss`. Actual playback depends on the bundled
+libavcodec/libavformat support.
 
-`.mp3` については ID3v2 `APIC` フレーム内の埋め込み画像を優先して読み取ります。
-それ以外のコンテナでは FFmpeg/libav の attached picture を見ます。埋め込み画像は JPEG
-と PNG に対応します。画像がない曲、または画像をデコードできない曲では `NO ART` /
-`art decode failed` を表示します。
+For `.mp3`, embedded album art is read from the ID3v2 `APIC` frame first. Other
+containers use FFmpeg/libav attached pictures. JPEG and PNG artwork are
+supported. Tracks with no usable artwork show `NO ART` or `art decode failed`.
 
-## 操作
+## Controls
 
-- `A` / `START`: 選択中の曲を再生、再生中の曲なら一時停止/再開
-- `B` / `Function`: 終了
-- `UP` / `DOWN`: 曲選択
-- `LEFT` / `RIGHT`: 5 秒戻し / 5 秒送り
-- `X` / `Y`: 前の曲 / 次の曲
-- `SELECT`: EQ プリセット切替
-- `L` / `R`: 音量を 5% 下げる / 上げる
+- `A` / `START`: play the selected track, or pause/resume the current track
+- `B` / `Function`: exit
+- `UP` / `DOWN`: select track
+- `LEFT` / `RIGHT`: seek backward/forward by 5 seconds
+- `X` / `Y`: previous/next track
+- `SELECT`: switch EQ preset
+- `L` / `R`: lower/raise volume by 5%
 
-EQ プリセットは `Flat`, `Bass`, `Treble`, `Vocal`, `Soft` です。実装は軽量な
-3-band 風のソフトウェア処理で、低域、中域、高域のゲインを再生ループ内で適用します。
+EQ presets are `Flat`, `Bass`, `Treble`, `Vocal`, and `Soft`. The EQ is a small
+3-band-style software adjustment applied inside the playback loop.
 
-## 注意
+## Notes
 
-- ユーザーの音楽ファイルは配布物へ含めません。
-- 現時点のスキャンは起動時のみです。再スキャンしたい場合は一度終了して起動し直します。
-- `/dev/dsp` を他プロセスが掴んでいると再生できません。検証時は古い emulator/app を
-  `scripts/stop-a30-display-processes.sh` で停止してから確認します。
-- 検証用に `PLUMOS_MUSIC_AUTOPLAY=1` と `PLUMOS_MUSIC_EXIT_AFTER_MS=ミリ秒` を
-  指定できます。通常の Apps 起動では使いません。
+- User music files are not included in release packages.
+- Scanning currently happens only at startup. Exit and restart the player to
+  rescan.
+- Playback cannot start if another process owns `/dev/dsp`.
+- Test-only variables are `PLUMOS_MUSIC_AUTOPLAY=1` and
+  `PLUMOS_MUSIC_EXIT_AFTER_MS=<milliseconds>`.

@@ -1,9 +1,12 @@
-# RetroArch 現時点動作バックアップ基準
+# RetroArch Current Working Baseline
 
-この文書は、2026-06-11 時点で「完全版ではないが、現時点で正しく動作している」
-RetroArch runtime を復旧基準として固定するための記録です。
+This document fixes the RetroArch runtime that was confirmed on 2026-06-11 as
+not final, but correctly working for the important paths at that time. Use it as
+a recovery comparison point for future RetroArch regressions.
 
-## バックアップ
+Japanese counterpart: [retroarch-known-working-baseline.ja.md](retroarch-known-working-baseline.ja.md)
+
+## Backup
 
 - Backup ID: `retroarch-known-working-20260611-070551`
 - A30 backup: `/mnt/SDCARD/plumos/backups/retroarch-known-working-20260611-070551`
@@ -15,34 +18,33 @@ RetroArch runtime を復旧基準として固定するための記録です。
   `artifacts/a30-backups/retroarch-known-working-20260611-070551/MANIFEST.txt`
 
 ROM files are not part of this backup. The snapshot covers the plumOS RetroArch
-runtime and the launch/profile files needed to reproduce the current working
-state.
+runtime and launch/profile files needed to reproduce the then-working state.
 
-## 状態の位置付け
+## Status
 
-このバックアップは PPSSPP の known-good baseline と違い、RetroArch 全体の完成版では
-ありません。`fceumm`、`gambatte`、practical runtime の音声/入力経路、FE からの
-RetroArch launch、safe exit 系の主要経路が現時点で正しく動いている状態として扱います。
+Unlike the PPSSPP known-good baseline, this is not a final RetroArch baseline.
+It records the state where `fceumm`, `gambatte`, the practical runtime
+audio/input path, FE-owned RetroArch launch, and safe exit paths were working.
 
-一方で、41 core すべての system 別起動、性能、音声、入力、save/state 挙動はまだ
-検証途中です。今後 RetroArch に障害が出た場合は、このバックアップを「現時点で戻れる
-動作基準」として比較してください。
+The 41 cores were not all validated for per-system boot, performance, audio,
+input, or save/state behavior at that point. If RetroArch regresses, compare
+against this snapshot as the known return point.
 
-## バックアップ範囲
+## Backup Scope
 
 - `/mnt/SDCARD/plumos/retroarch/`
-  - RetroArch binary、config、core、info、autoconfig、save/state/log 等。
+  - RetroArch binary, config, cores, info, autoconfig, saves/states/logs.
   - Captured core count: `41`
 - `/mnt/SDCARD/plumos/bin/plumos-retroarch-launch`
-  - RetroArch 起動時の config、core、CPU、audio/input、safe exit を組み立てる launcher。
+  - Launcher that assembles config, core, CPU, audio/input, and safe exit.
 - `/mnt/SDCARD/plumos/bin/plumos-joystickd`
-  - RetroArch SDL2 joypad 経路で使う A30 virtual gamepad。
+  - A30 virtual gamepad used by the RetroArch SDL2 joypad path.
 - `/mnt/SDCARD/plumos/config/frontend/systems.json`
-  - FE から選択される RetroArch launch profile の元データ。
+  - Source data for FE-selected RetroArch launch profiles.
 - `/mnt/SDCARD/plumos/state/frontend/core-overrides.json`
-  - system/ROM 別の core、CPU、audio 等の override 状態。
+  - System/ROM-specific core, CPU, audio, and other override state.
 
-## 主要 hash
+## Key Hashes
 
 - `retroarch/bin/retroarch`:
   `b12efdb65a13d08eab8452571694c01815a68c4af5941873887d7b5c38b65642`
@@ -70,9 +72,9 @@ Representative validated cores:
 - `quicknes_libretro.so`:
   `8ea4cd5764654d65ea48a37014cd1f260a19969644999862508abb4b2fc5008e`
 
-## Captured practical config highlights
+## Captured Practical Config Highlights
 
-`retroarch-practical.cfg` の主要値:
+Important `retroarch-practical.cfg` values:
 
 - `video_driver = "gl"`
 - `video_context_driver = "mali_fbdev"`
@@ -88,14 +90,14 @@ Representative validated cores:
 - `savestate_auto_load = "false"`
 - `savestate_auto_save = "false"`
 
-## 復旧ルール
+## Recovery Rule
 
-RetroArch の不具合を調査する場合、`retroarch/` だけでなく、
-`plumos-retroarch-launch`、`plumos-joystickd`、`systems.json`、
-`core-overrides.json` を同じ組として比較します。core の `.so`、config、FE の
-launch profile、system/ROM override のどれか一つだけを戻すと、現在の動作条件と
-ずれる可能性があります。
+When investigating RetroArch issues, compare `retroarch/` together with
+`plumos-retroarch-launch`, `plumos-joystickd`, `systems.json`, and
+`core-overrides.json`. Restoring only one core `.so`, config file, launch
+profile, or override file can produce a state that no longer matches the working
+conditions.
 
-このバックアップは完成版の配布基準ではありません。今後の全 core 検証、CD 系、
-arcade 系、save/state/resume、per-ROM profile の検証が進んだ段階で、別の
-baseline を作る可能性があります。
+This backup is not the completed distribution baseline. A newer baseline may be
+created after broader core, CD-system, arcade, save/state, resume, and per-ROM
+profile validation.

@@ -1,24 +1,26 @@
-# 対応システム/エミュレータ一覧
+# Supported Systems and Emulator Profiles
 
-この一覧は現在の `systems.json` と `docs/emulator-runtime-manifest.tsv` を元にしたユーザー向け要約です。
-詳細な build commit、source repository、検証状態の正本は開発者向けの
-[emulator runtime manifest](../emulator-runtime-manifest.md) を参照してください。
+This is the user-facing summary generated from the current `systems.json` and `docs/emulator-runtime-manifest.tsv`.
+For exact build commits, source repositories, and verification status, see the developer-facing
+[emulator runtime manifest](../emulator-runtime-manifest.md).
 
-## Runtime 表記
+Japanese counterpart: [emulators.ja.md](emulators.ja.md)
 
-| 表記 | 意味 |
+## Runtime Labels
+
+| Label | Meaning |
 | --- | --- |
 | RA | RetroArch |
 | PICO | PicoArch |
 | SA | Standalone emulator |
 | PYXEL | Pyxel runtime |
 
-`pass_init` と `untested` は、起動候補として残しているものの、追加の ROM/BIOS/操作確認が必要なものです。
-通常の実用確認済み profile は `pass` です。
+`pass_init` and `untested` are retained launch candidates, but they still need additional ROM, BIOS, or gameplay confirmation.
+Normal practical profiles are marked `pass`.
 
-## ROM directory と default profile
+## ROM Directory and Default Profile
 
-| system_id | 表示名 | 認識する主な directory | 主な拡張子 | default |
+| system_id | Display name | Main recognized directories | Main extensions | default |
 | --- | --- | --- | --- | --- |
 | `nes` | NES | `FC`, `nes`, `famicom` | `nes`, `unf`, `unif`, `zip`, `7z` | `retroarch:fceumm` |
 | `fds` | FDS | `FDS`, `FC`, `fds` | `fds`, `zip`, `7z` | `retroarch:fceumm` |
@@ -95,7 +97,7 @@
 | `zx81` | ZX-81 | `ZXEIGHTYONE`, `zx81` | `p`, `tzx`, `t81`, `zip` | `retroarch:81` |
 | `zxspectrum` | ZX Spectrum | `ZXS`, `zxspectrum` | `tzx`, `tap`, `z80`, `rzx`, `scl`, `trd`, `dsk`, `sna`, `szx`, `zip`, `gz` | `retroarch:fuse` |
 
-## Runtime/core 候補
+## Runtime/Core Candidates
 
 | system_id | System | Runtime | Status | Profiles |
 | --- | --- | --- | --- | --- |
@@ -174,9 +176,9 @@
 | `zx81` | ZX-81 | PICO, RA | pass_init | `picoarch:81`, `retroarch:81` |
 | `zxspectrum` | ZX Spectrum | PICO, RA | pass | `picoarch:fuse`, `retroarch:fuse` |
 
-## 通常表示から外している system
+## Systems Hidden from Normal Display
 
-以下は性能、実用性、代替 route、BIOS/ROM 条件などの理由で通常候補から外しています。
+The following systems are hidden from normal candidates because of performance, practicality, better alternative routes, BIOS/ROM requirements, or similar constraints.
 
 ```text
 N64, Dreamcast, Saturn, MAME 2003+, 2048, 3DO, Elektronika BK,

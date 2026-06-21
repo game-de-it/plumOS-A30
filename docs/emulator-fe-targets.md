@@ -1,48 +1,75 @@
-# FE 実行可能ターゲット一覧
+# FE Executable Targets
 
-この一覧は、plumOS でビルドした core、実機にデプロイ済みの runtime、FE から選択できる
-launch profile を突き合わせたものです。動作確認対象は `target_for_verification=yes` の行だけです。
+This inventory cross-checks cores built for plumOS, runtimes deployed to the
+A30, and launch profiles selectable from the frontend. Only rows with
+`target_for_verification=yes` are active verification targets.
 
-## 出力ファイル
+Japanese counterpart: [emulator-fe-targets.ja.md](emulator-fe-targets.ja.md)
+
+## Output Files
 
 - `docs/emulator-fe-libretro-targets.tsv`
-  - RetroArch (`RA`) と PicoArch (`PICO`) の FE 実行可能 profile。
-  - `picoarch:*` として明示された profile と、FE が RetroArch profile から自動追加する
-    companion profile の両方を含みます。
+  - FE-executable RetroArch (`RA`) and PicoArch (`PICO`) profiles.
+  - Includes profiles explicitly written as `picoarch:*` and companion profiles
+    that the FE can derive from RetroArch profiles.
 - `docs/emulator-fe-standalone-targets.tsv`
-  - `standalone:*` と、libretro ではない `pyxel:a30` の FE 実行可能 profile。
+  - FE-executable `standalone:*` profiles and the non-libretro `pyxel:a30`
+    profile.
 
-## 判定ルール
+## Rule Definitions
 
-- `built_core=yes`: `docs/libretro-built-cores.tsv` に plumOS build 済み core として存在する。
-- `deployed_core=yes`: 実機 `/mnt/SDCARD/plumos/retroarch/cores/*_libretro.so` に存在する。
-- `fe_selectable=yes`: enabled system の launch profile、または FE が追加する PicoArch companion。
-- `fe_executable=yes`: FE が起動計画を作れる runtime/core/launcher が実機に存在する。
-- `target_for_verification=yes`: build、deploy、FE 実行可能条件がすべて揃っていて、
-  `verification_status` が `retired` ではない。
-- `verification_status`: `docs/emulator-runtime-verification.tsv` の現在の検証状態。
-  - `pass`: video/audio/input/performance が実用範囲で確認済み。
-  - `pass_init`: 起動や初期表示は改善済みだが、入力や gameplay の追加確認が必要。
-  - `fail_audio`: 映像や起動は成立するが、音声再生や codec 対応が実用判定に届かない。
-  - `fail_boot`: FE から起動は試せるが、ゲーム本編や content 起動に進めない。
-  - `fail_input`: 画面や動作は成立するが、入力方向やボタン割り当てが実用判定に届かない。
-  - `fail_perf`: 起動はするが performance、音声、フレーム pacing などが実用判定に届かない。
-  - `fail_video`: 起動はするが、画面崩れや表示異常で実用判定に届かない。
-  - `fail`: 画面非表示、起動不能など、実用確認に進めない。
-  - `retired`: 検証や方針判断の結果、通常FE/動作確認対象から外した。
-  - `untested`: FE から実行可能だが、まだ実機確認していない。
+- `built_core=yes`: the core exists as a plumOS-built core in
+  `docs/libretro-built-cores.tsv`.
+- `deployed_core=yes`: the core exists on device under
+  `/mnt/SDCARD/plumos/retroarch/cores/*_libretro.so`.
+- `fe_selectable=yes`: the profile belongs to an enabled system or is a
+  frontend-generated PicoArch companion.
+- `fe_executable=yes`: the runtime/core/launcher needed to build a launch plan
+  exists on the device.
+- `target_for_verification=yes`: build, deployment, and FE execution conditions
+  are all satisfied, and `verification_status` is not `retired`.
+- `verification_status`: current result from
+  `docs/emulator-runtime-verification.tsv`.
+  - `pass`: video, audio, input, and performance are practical.
+  - `pass_init`: boot or initial display is fixed, but gameplay/input/audio or
+    performance needs more confirmation.
+  - `fail_audio`: video/boot works but audio or codec support is not practical.
+  - `fail_boot`: FE can attempt boot, but the game/content cannot start.
+  - `fail_input`: display and execution work, but input mapping is not
+    practical.
+  - `fail_perf`: boot works, but performance, audio underrun, or frame pacing is
+    not practical.
+  - `fail_video`: boot works, but display corruption prevents practical use.
+  - `fail`: no usable display, no boot, or another blocker prevents validation.
+  - `retired`: removed from normal FE/verification targets by policy.
+  - `untested`: FE-executable but not yet tested on hardware.
 
-PicoArch profile は `systems.json` に `picoarch:*` として明示できます。明示 profile がない core のうち、
-PicoArch companion は FE 側で `retroarch:*` profile から自動追加されます。ただし
-`easyrpg`、`freeintv`、`mame2003_plus`、`mednafen_pce`、`nekop2`、`nxengine`、`np2kai`、`quasi88`、`retro8`、`squirreljme`、`tgbdual` は既知問題または別の実用 route があるため自動追加対象から外しています。
-また `arcade` system では `fbneo`、`fbalpha2012`、`mame2000` の PicoArch companion も通常候補から外しています。これらの core は他 system では PICO 実機確認済みのものがあるため、core 全体ではなく system+core 単位で除外します。
+## PicoArch Companion Rules
 
-N64 は Class C の実験対象でしたが、性能と描画経路の都合で正式な検証対象から外しました。
-stockOS 由来の N64 core は plumOS の build/deploy 一覧に含めません。
+PicoArch profiles can be written explicitly in `systems.json` as
+`picoarch:*`. When no explicit profile exists, the FE may add a PicoArch
+companion from a matching `retroarch:*` profile.
 
-## 再生成手順
+Known-problem or better-routed cores are excluded from automatic PicoArch
+companions:
 
-実機の deployed 状態を回収してから TSV を生成します。
+```text
+easyrpg, freeintv, mame2003_plus, mednafen_pce, nekop2, nxengine,
+np2kai, quasi88, retro8, squirreljme, tgbdual
+```
+
+For the `arcade` system, PicoArch companions for `fbneo`, `fbalpha2012`, and
+`mame2000` are also excluded from normal candidates. Some of these cores are
+confirmed as PICO-pass under other systems, so the exclusion is system+core
+specific rather than a global core ban.
+
+N64 was a Class C experiment. It is excluded from formal verification because of
+performance and display-route constraints. StockOS-derived N64 cores are not
+part of the plumOS build/deploy inventory.
+
+## Regeneration
+
+Collect deployed state from the device, then regenerate the TSV files:
 
 ```sh
 mkdir -p artifacts/a30-core-inventory

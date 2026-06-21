@@ -1,21 +1,21 @@
-# Frontend prototype
+# Frontend Prototype
 
-最初の plumOS frontend は、画面描画を始める前の stock inventory scanner です。A30 上で
-stock SD カード構成を読み、`Emu`, `RApp`, `App`, `Themes` の `config.json` と、そこから
-参照される ROM/artwork/metadata の存在を確認します。
+The first plumOS frontend is a stock inventory scanner before any real rendering
+work. It runs on the A30, reads stock SD-card configuration from `Emu`, `RApp`,
+`App`, and `Themes`, and checks the referenced ROM/artwork/metadata paths.
 
-この scanner は stock 仕様を plumOS frontend の新仕様として採用するためのものでは
-ありません。既存仕様を観察し、移行/互換/破棄の判断材料を集めるためのものです。
-`config.json` の位置づけは [Stock frontend inventory](stock-frontend-inventory.md) に
-まとめます。
+This scanner does not mean stock behavior will become the new plumOS frontend
+specification. It gathers evidence for migration, compatibility, or replacement
+decisions. The role of `config.json` is documented in
+[Stock frontend inventory](stock-frontend-inventory.md).
 
-## build
+## Build
 
 ```sh
 ./scripts/docker-build.sh frontend
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
@@ -37,93 +37,102 @@ dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
-## deploy
+## Deploy
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 ```
 
-## manual run
+## Manual Run
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
 ```
 
-manual mode は `0` で終了します。wrapper から起動される通常 mode では、現時点では
-stock MainUI へ fallback するために `75` で終了します。
-通常 mode は stdout を抑制し、詳細は `/mnt/SDCARD/plumos/logs/plumos-frontend.log`
-へ記録します。必要な場合は `PLUMOS_FRONTEND_STDOUT=1` で stdout へも出力します。
+Manual mode exits with `0`. Normal mode, as launched by the wrapper, currently
+exits with `75` so the wrapper falls back to stock MainUI.
+Normal mode suppresses stdout and writes details to
+`/mnt/SDCARD/plumos/logs/plumos-frontend.log`. Set `PLUMOS_FRONTEND_STDOUT=1`
+to also print to stdout.
 
-## plumOS library scan
+## plumOS Library Scan
 
-`plumos-library-scan` は plumOS 独自の `systems.json` を読み、Miyoo/ROCKNIX directory
-alias を使って ROM を scan し、`library-index.json` を生成する prototype です。
+`plumos-library-scan` is a prototype that reads the plumOS-native
+`systems.json`, scans ROMs through Miyoo/ROCKNIX directory aliases, and writes
+`library-index.json`.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-library-scan'
 ```
 
-default path:
+Default paths:
 
 ```text
 systems: /mnt/SDCARD/plumos/config/frontend/systems.json
-full output:      /mnt/SDCARD/plumos/state/frontend/library-index.json
-on-enter output:  /mnt/SDCARD/plumos/state/frontend/systems/<system>.json
+full output:     /mnt/SDCARD/plumos/state/frontend/library-index.json
+on-enter output: /mnt/SDCARD/plumos/state/frontend/systems/<system>.json
 roms:    /mnt/SDCARD/Roms, /mnt/SDCARD/roms
 ```
 
-`--on-enter nes` を指定すると、対象 system だけを scan し、全体 cache を壊さず
-`state/frontend/systems/nes.json` に保存します。ROM list に入る瞬間の再 scan はこの動作を
-使います。
+Pass `--on-enter nes` to scan one system and write
+`state/frontend/systems/nes.json` without replacing the full cache. The ROM-list
+entry refresh flow uses this behavior.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-library-scan --on-enter nes'
 ```
 
-`--on-enter` では text mode の初回表示を優先し、thumbnail lookup は default で遅延します。
-thumbnail も同時に解決したい場合は `--with-thumbnails` を使います。
-controller UI は Text mode では ROM list cache が既にある場合、まず cache を読んで画面遷移を完了し、
-scan refresh は background で実行します。cache が無い初回だけ、thumbnail lookup なしの
-`--on-enter` を同期実行して最小のROM listを作ります。
-Graphic mode では `media.thumbnail` が初回入場時から必要なため、cache の有無に関わらず
-`--with-thumbnails` scan を同期実行してから
-`state/frontend/systems/<system>.json` の `media.thumbnail` をプレビュー表示に使います。
+`--on-enter` prioritizes the first text-mode display and defers thumbnail lookup
+by default. Use `--with-thumbnails` when thumbnails should be resolved during the
+scan.
+In Text mode, when a ROM-list cache already exists, the controller UI reads that
+cache first so the screen transition can finish immediately, then refreshes the
+scan in the background. When no cache exists, it runs one synchronous
+`--on-enter` scan without thumbnail lookup to create the minimal ROM list.
+In Graphic mode, `media.thumbnail` is needed for the first entry display, so the
+controller UI runs a synchronous `--with-thumbnails` scan before reading
+`state/frontend/systems/<system>.json` for the preview panel.
 
-環境変数:
+Environment:
 
-- `PLUMOS_SDCARD_ROOT`: SD card root。default は `/mnt/SDCARD`
-- `PLUMOS_ROOT`: plumOS root。default は `$PLUMOS_SDCARD_ROOT/plumos`
-- `PLUMOS_SYSTEMS_JSON`: system 定義 file
-- `PLUMOS_LIBRARY_INDEX`: 出力先 cache file
+- `PLUMOS_SDCARD_ROOT`: SD card root. Default: `/mnt/SDCARD`
+- `PLUMOS_ROOT`: plumOS root. Default: `$PLUMOS_SDCARD_ROOT/plumos`
+- `PLUMOS_SYSTEMS_JSON`: system definition file
+- `PLUMOS_LIBRARY_INDEX`: generated cache file
 
-実装済み:
+Implemented:
 
-- `systems.json` の初期 seed
-- Miyoo 大文字 alias と ROCKNIX lowercase alias の scan
-- subdirectory を含む recursive ROM scan
-- ROM extension filter
-- `RomEntry` 生成
-- ROM alias root からの相対 path を保持した thumbnail lookup
-- canonical thumbnail root `/mnt/SDCARD/Images/<system_id>` の単一路線
-- subdirectory artwork 優先、flat artwork fallback、placeholder fallback
-- `png`, `jpg`, `jpeg`, `webp` の case-insensitive lookup
-- `Roms` と `roms`、`GBA` と `gba` のような大文字小文字違いの重複 scan 抑制
-- `--on-enter` の per-system cache 出力
-- text mode 初回表示向けの deferred thumbnail lookup
+- Initial `systems.json` seed.
+- Miyoo uppercase aliases and ROCKNIX lowercase alias scanning.
+- Recursive ROM scan including subdirectories.
+- ROM extension filtering.
+- `RomEntry` generation.
+- Thumbnail lookup that preserves paths relative to the ROM alias root.
+- Single canonical thumbnail root per ROM directory alias:
+  `/mnt/SDCARD/Images/<ROM directory alias>`.
+- Subdirectory artwork priority, flat artwork fallback, and placeholder
+  fallback.
+- Case-insensitive lookup for `png`, `jpg`, `jpeg`, and `webp`.
+- Duplicate scan suppression for case variants such as `Roms`/`roms` and
+  `GBA`/`gba`.
+- Per-system cache output for `--on-enter`.
+- Deferred thumbnail lookup for the first text-mode display.
 
-## ROM scan benchmark
+## ROM Scan Benchmark
 
-1000 dummy ROM files の実機計測は以下の script で実行します。dummy file は
-`/mnt/SDCARD/plumos/tmp/rom-scan-bench` だけに作られ、計測後に削除されます。
+Run the 1000 dummy ROM benchmark with:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/benchmark-a30-rom-scan.sh 1000
 ```
 
-2026-06-06 の A30 実機結果:
+Dummy files are created only under `/mnt/SDCARD/plumos/tmp/rom-scan-bench` and
+removed after the run.
+
+A30 device result on 2026-06-06:
 
 ```text
 system nes roms=1000 thumbnails=0
@@ -131,87 +140,89 @@ timing load_ms=10 scan_ms=362 sort_ms=2 ready_ms=374 write_ms=29 total_ms=403
 summary alias_dirs=1 files_seen=1000 matched=1000 roms=1000 thumbnails=0 elapsed_ms=403
 ```
 
-`ready_ms=374` なので、text mode の初回表示については 500ms 基準を下回りました。
-このため、現時点では stock FE 方式の manual refresh へ戻さず、on-enter scan を維持します。
+`ready_ms=374` is below the 500 ms threshold for the first text-mode display, so
+plumOS keeps the on-enter scan policy instead of switching to stock-style manual
+refresh.
 
-## plumOS text UI
+## plumOS Text UI
 
-`plumos-text-ui` は、画面描画/input 実装へ入る前に system list と ROM list の data flow を
-確認するための SSH 向け text UI prototype です。現時点では実機の MainUI replacement として
-自動起動しません。
+`plumos-text-ui` is an SSH-facing text UI prototype for validating the system
+list and ROM list data flow before real rendering/input work. It is not
+auto-launched as the MainUI replacement yet.
 
-TOP 表示:
+TOP view:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui top'
 ```
 
-`top` は既存の `library-index.json` を読みます。cache がなければ full scan を実行します。
-明示的に更新したい場合は `top --refresh` を使います。
-`settings.json` の `show_favorites_on_top=true` の場合、`Favorites` を仮想 system として
-TOP に表示します。仮想 entry は `internal:favorites` へ遷移します。
+`top` reads the existing `library-index.json`. If the cache is missing, it runs
+a full scan. Use `top --refresh` to refresh explicitly.
+When `show_favorites_on_top=true` in `settings.json`, `Favorites` appears as a
+virtual TOP system. The virtual entry opens `internal:favorites`.
 
-ROM list 表示:
+ROM list view:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui roms ports --limit 10'
 ```
 
-`roms <system>` は内部で `plumos-library-scan --on-enter <system>` を実行し、
-`state/frontend/systems/<system>.json` を読んで一覧表示します。これは将来の
-「機種選択時に毎回ROM listを読み込む」動作の最小prototypeです。
-Graphic mode の controller UI では、既存 cache を即表示しつつ、background refresh に
-`--with-thumbnails` を付けて ROM preview 用の thumbnail path を同じ cache に保存します。
+`roms <system>` runs `plumos-library-scan --on-enter <system>` internally, then
+reads `state/frontend/systems/<system>.json`. This is the first prototype of the
+future "re-read ROM list whenever entering a system" behavior.
+In Graphic mode, the controller UI shows the existing cache immediately and adds
+`--with-thumbnails` only to the background refresh, so the same cache also stores
+thumbnail paths for ROM previews.
 
-START menu 表示:
+START menu view:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui menu start'
 ```
 
-Apps submenu 表示:
+Apps submenu view:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui menu apps'
 ```
 
-`menu start` は `menus.json` を読み、settings/apps/favorites/network/shutdown へ
-辿る menu model を表示します。A30 の stock MainUI には reboot 項目がないため、
-安全な再起動手順が分かるまで `Reboot` は START menu に出しません。
-この prototype は action を表示するだけで、shutdown は実行しません。
-`menu apps` は `apps.json` の `menu=apps` entry を表示します。
+`menu start` reads `menus.json` and displays the path to
+settings/apps/favorites/network/shutdown. Since the A30 stock MainUI has no
+reboot item, `Reboot` is not shown in START menu until a safe reboot path is
+known. This prototype only displays actions; it does not execute shutdown.
+`menu apps` displays `apps.json` entries where `menu=apps`.
 
-System core 選択表示:
+System core selection view:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes'
 ```
 
-System default core/profile を保存:
+Set a system default core/profile:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui core system nes --set retroarch:nestopia'
 ```
 
-ROM 別 core/profile override を保存:
+Set a per-ROM core/profile override:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui core rom nes FC/example.nes --set retroarch:fceumm'
 ```
 
-`core system` は TOP 画面で system に cursor が合っている状態の SELECT に相当します。
-`core rom` は ROM list で ROM に cursor が合っている状態の SELECT に相当します。
-保存先は `state/frontend/core-overrides.json` です。保存する値は core `.so` path ではなく
-`launch_profile` id です。優先順位は
-`ROM override > system override > default_launch_profile > auto detect` です。
-`--clear` を指定すると対象の override を削除して fallback へ戻します。
+`core system` corresponds to pressing SELECT on a highlighted TOP system.
+`core rom` corresponds to pressing SELECT on a highlighted ROM list entry. State
+is saved to `state/frontend/core-overrides.json`. The stored value is a
+`launch_profile` id, not a core `.so` path. Priority is
+`ROM override > system override > default_launch_profile > auto detect`.
+`--clear` removes the matching override and falls back to the next layer.
 
 Favorite toggle:
 
@@ -220,27 +231,27 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui favorite rom ports "PORTS/Start SSH.sh" --toggle'
 ```
 
-Favorites 一覧:
+Favorites list:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui favorites'
 ```
 
-TOP の仮想 system から Favorites 一覧へ入る動作:
+Open Favorites through the TOP virtual system flow:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui roms favorites'
 ```
 
-`favorite rom` は ROM list で favorite toggle を押す操作に相当します。保存先は
-`state/frontend/favorites.json` です。ROM list 表示の `Fav` 列では favorite entry に
-`*` を表示します。START menu の `Favorites` entry は、この Favorites 一覧へ辿るための
-入口です。`show_favorites_on_top=true` の場合は、START menu だけでなく TOP からも
-Favorites へ入れます。
+`favorite rom` corresponds to pressing the favorite toggle in the ROM list.
+State is saved to `state/frontend/favorites.json`. The ROM list `Fav` column
+shows `*` for favorite entries. The START menu `Favorites` entry is the path to
+this Favorites list. When `show_favorites_on_top=true`, Favorites can also be
+opened from the TOP screen.
 
-Recent 追加と一覧:
+Add and list Recent:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
@@ -250,7 +261,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui recent'
 ```
 
-Resume session 設定と表示:
+Set and show Resume session:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
@@ -260,7 +271,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui resume show'
 ```
 
-起動時 resume 判断:
+Boot resume decision:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
@@ -270,92 +281,99 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute'
 ```
 
-`recent.json` は履歴一覧、`resume-session.json` は旧 power/resume flow の
-互換状態です。新しい起動時動作は `resume-session.json` を使いません。
-`settings.json` の `boot_resume_mode` は `off`, `on`, `recent` を指定できます。
-`boot` は default では判断と launch plan を表示するだけです。`--execute` を付けた場合だけ、
-`boot_resume_mode=on` かつ Recent の先頭がある時に前回 ROM/launch profile を実行します。
-`boot_resume_mode=recent` は Recent 画面を表示します。plumOS は起動時再開のために
-save state やゲーム内 save を作成・読み込みしません。
+`recent.json` is the browsing history; `resume-session.json` is legacy
+compatibility state from the old power/resume flow. New startup behavior
+does not use `resume-session.json`. `boot_resume_mode` in `settings.json`
+accepts `off`, `on`, and `recent`. By default, `boot` only prints the decision
+and launch plan. With `--execute`, `boot_resume_mode=on` launches the first
+Recent entry with the same launch profile. `boot_resume_mode=recent` shows the
+Recent screen. plumOS does not create or load save states or in-game saves for
+startup resume.
 
-`plumos-frontend` は boot mode で起動した時に
-`/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` を一度呼びます。既定値は
-`boot_resume_mode=off` なので、通常は TOP 表示へ進むだけです。
+When `plumos-frontend` starts in boot mode, it calls
+`/mnt/SDCARD/plumos/bin/plumos-text-ui boot --execute` once. The default
+`boot_resume_mode=off` only continues to the normal TOP flow.
 
-## plumOS controller UI
+## plumOS Controller UI
 
-`plumos-controller-ui` は controller-first の最小 prototype です。既定の
-`plumos-controller-ui` は SSH stdout に TOP/ROM list/START menu/Favorites/Recent/Settings の
-状態を描き、`/dev/input/event*` または stdin fallback から入力を受けます。A30 では
-`/proc/bus/input/devices` から `gpio-keys-polled` を探し、通常は `/dev/input/event3` を
-自動選択します。
-`plumos-input-compare` では、stock `keymon` と stock `MainUI` が動作中でも
-`/dev/input/event3` を非排他で直接 open/poll できることを確認しています。
-実機 mapping では A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`,
-SELECT=`KEY_RIGHTCTRL` を使います。電源ボタン短押し `KEY_POWER` は Power menu の
-trigger です。Function=`KEY_ESC` は emulator 側 menu 用に予約し、frontend の
-Power menu trigger には使いません。
+`plumos-controller-ui` is the first controller-first prototype. The default
+`plumos-controller-ui` renders TOP/ROM-list/START-menu/Favorites/Recent/
+Settings state to SSH stdout and reads input from `/dev/input/event*` or stdin
+fallback. On the A30 it looks for `gpio-keys-polled` in
+`/proc/bus/input/devices`, which normally resolves to `/dev/input/event3`.
+`plumos-input-compare` confirms that `/dev/input/event3` can be opened and
+polled non-exclusively even while stock `keymon` and stock `MainUI` are running.
+The device mapping uses A=`KEY_SPACE`, B=`KEY_LEFTCTRL`, START=`KEY_ENTER`, and
+SELECT=`KEY_RIGHTCTRL`. A short power-button press (`KEY_POWER`) is the Power
+menu trigger. Function=`KEY_ESC` is reserved for emulator-side menus and is not
+the frontend Power menu trigger.
 
-`plumos-safe-hotkeyd` は、emulator 実行中に frontend がブロックされる間の
-power/volume helper です。既定では `/dev/input/event0` (`axp22-supplyer`) の
-電源ボタン短押し `KEY_POWER` で `plumos-power-menu-overlay` を起動します。
-overlay は emulator の `/dev/fb0` owner を一時停止して Power menu を描画し、
-Cancel で emulator を再開します。音量キーと Function 用には `gpio-keys-polled`
-(`/dev/input/event3` 相当) も非排他で読みます。Function 単押しは RetroArch へ
-`MENU_TOGGLE` netcmd を送るため、RetroArch 側では `SELECT` hotkey combo とは独立して
-menu を開けます。`SIGUSR1` でも同じ trigger path を
-通るため、物理ボタンなしの実機試験に使えます。
-2026-06-08 に NES/RetroArch 実行中の `SIGUSR1` 試験で、旧 power action、resume hold、
-CPU復元、FE再起動まで確認しました。artifact は
-`artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes` です。
-`plumos-text-ui launch --execute` は RetroArch / PicoArch / standalone emulator
-launch 中に `plumos-safe-hotkeyd` を自動起動します。
-`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` で無効化できます。自動起動した RetroArch 用
-hotkeyd の `SIGUSR1` trigger は
-`artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`
-で確認済みです。
-再実行用に `scripts/probe-a30-safe-hotkeyd.sh` を追加しました。`--trigger signal` は
-自動試験、`--trigger physical` は実機の安全終了キー押下待ちです。script経由の最新
-signal artifact は
-`artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes` です。
-この artifact は旧仕様の `SAVE_STATE_SLOT 999` と `.state999` 作成、pending resume plan の
-`--entry-slot 999` を示す履歴です。現在の power action flow ではこれらを使いません。
-物理 Function 押下での旧 trigger は
-`artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`
-で確認済みでした。現在の物理 trigger は電源ボタン `KEY_POWER` です。ゲーム中の
-Power menu は `plumos-power-menu-overlay` で重ねて表示します。
+`plumos-safe-hotkeyd` is the power/volume helper for periods where the frontend is
+blocked by an emulator. By default it watches `/dev/input/event0`
+(`axp22-supplyer`) and launches `plumos-power-menu-overlay` when a short
+power-button press emits `KEY_POWER`. The overlay temporarily stops the emulator
+`/dev/fb0` owner, draws the Power menu, and resumes the emulator on Cancel. It
+also reads `gpio-keys-polled` (`/dev/input/event3` equivalent) non-exclusively
+for volume keys and Function. A single Function press sends RetroArch the
+`MENU_TOGGLE` netcmd, so the menu is independent from `SELECT` hotkey combos.
+`SIGUSR1` uses the same trigger path, so it can be tested without a physical
+button press. On 2026-06-08, a NES/RetroArch run triggered by `SIGUSR1`
+completed the old power action, resume hold, CPU restore, and frontend restart. The
+artifact is
+`artifacts/a30-probes/safe-shutdown/20260608-165456-safe-hotkeyd-sigusr1-nes`.
+`plumos-text-ui launch --execute` automatically starts `plumos-safe-hotkeyd`
+during RetroArch, PicoArch, and standalone emulator launches. Set
+`PLUMOS_SAFE_HOTKEYD_AUTOSTART=0` to disable this. The auto-started RetroArch
+hotkeyd `SIGUSR1` trigger is verified in
+`artifacts/a30-probes/safe-shutdown/20260608-170909-text-ui-autohotkey-sigusr1-nes`.
+`scripts/probe-a30-safe-hotkeyd.sh` can rerun this path. `--trigger signal`
+runs the automated test, while `--trigger physical` waits for the physical power
+key. The latest script-driven signal artifact is
+`artifacts/a30-probes/safe-shutdown/20260608-173024-text-ui-autohotkey-signal-nes`.
+That artifact is old-spec evidence for `SAVE_STATE_SLOT 999`, `.state999`
+creation, and a pending resume plan using `--entry-slot 999`. The current power
+action flow does not use those behaviors.
+The old physical Function trigger was verified in
+`artifacts/a30-probes/safe-shutdown/20260608-171641-text-ui-autohotkey-physical-nes`;
+the current physical trigger is the power button `KEY_POWER`. The in-game Power
+menu is shown through `plumos-power-menu-overlay`.
 
-`plumos-controller-ui-mali` は同じ controller UI の Mali EGL renderer 付き binary です。
-`/dev/fb0` と `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so` を使い、stock SDL にはリンクしません。
-wrapper は bundled dynamic loader/glibc で `plumos-controller-ui-mali.bin` を起動しますが、
-`LD_LIBRARY_PATH` は export しません。これは、UI 内の `plumos-library-scan` 呼び出しで
-stock `/bin/sh` が同梱 glibc を誤って読むのを防ぐためです。
+`plumos-controller-ui-mali` is the same controller UI with a Mali EGL renderer.
+It uses `/dev/fb0` and `/usr/lib/libEGL.so`/`/usr/lib/libGLESv2.so`, without
+linking to stock SDL. Its wrapper starts `plumos-controller-ui-mali.bin` through
+the bundled dynamic loader/glibc, but does not export `LD_LIBRARY_PATH`. This
+prevents scanner calls inside the UI from making the stock `/bin/sh` load the
+bundled glibc by accident.
 
-A30 の `/dev/fb0` は `480x640` の portrait framebuffer として見えますが、stock MainUI は
-raw framebuffer 上では横画面 UI を回転した向きに描いています。`plumos-controller-ui-mali`
-は `--rotation auto|none|cw|ccw` を持ち、`auto` では `480x640` framebuffer に対して
-stock と同じ raw 向きへ論理 `640x480` UI を描きます。PC で raw capture をそのまま見ると
-縦に見える場合がありますが、stock raw capture と同じく 90 度回すと横向きで読める状態が
-A30 実画面向けの想定です。
+The A30 exposes `/dev/fb0` as a `480x640` portrait framebuffer, while stock
+MainUI draws its landscape UI rotated in the raw framebuffer. The Mali renderer
+accepts `--rotation auto|none|cw|ccw`; `auto` draws a logical `640x480` UI into
+the `480x640` framebuffer in the same raw orientation as stock. A raw capture may
+look portrait on a PC, but, like the stock raw capture, it becomes a readable
+landscape frame after a 90-degree rotation. That is the expected orientation for
+the A30 physical screen.
 
-plumOS としての本試験では、stock `MainUI.stock` と `keymon` は起動していない前提にします。
-`--stop-mainui --stop-keymon --no-restart-stock` を使うと、stock `/etc/main` supervisor を
-一時停止してから `MainUI.stock`/`keymon` を止め、probe 終了時にも stock 側を戻しません。
-Wi-Fi/SSH は `wpa_supplicant`/`udhcpc`/`dropbear` が維持しており、MainUI/keymon 停止後も
-接続が残ることを確認済みです。比較用に stock 側を戻したい場合だけ `--no-restart-stock`
-を外します。
+For plumOS-target tests, stock `MainUI.stock` and `keymon` are expected to be
+stopped. Use `--stop-mainui --stop-keymon --no-restart-stock` to pause the stock
+`/etc/main` supervisor, stop `MainUI.stock`/`keymon`, and leave the stock side
+stopped after the probe exits. Wi-Fi/SSH are maintained by
+`wpa_supplicant`/`udhcpc`/`dropbear`, and remained connected after
+MainUI/keymon were stopped. Omit `--no-restart-stock` only for comparison runs
+where the stock side should be restored.
 
-boot wrapper は `plumos-network-rescue` を自動実行せず、通常FE TOPへ進めます。
-START menu と Network Settings から Network Recovery へ入る導線は持ちません。
-古い `internal:network-recovery` や `--rescue-network` 経路が残っていても、互換画面で
-disabled status を出すだけで helper は呼びません。SSH がない状態での復旧は、
-StockOS MainUI から直接起動できる独立した shell script として別途設計します。
+The boot wrapper does not run `plumos-network-rescue`; it proceeds to the normal
+FE TOP screen. The START menu and Network Settings do not expose Network
+Recovery. If an old `internal:network-recovery` or `--rescue-network` route is
+still invoked, it only shows a disabled compatibility screen and does not call
+the helper. Recovery for cases where SSH is unavailable should be designed as a
+separate shell script launched directly from StockOS MainUI.
 
-A30 実機向け UI の文字サイズ、bitmap/FreeType の使い分け、list column alignment の
-ルールは [A30 UI design rules](a30-ui-design.md) にまとめます。特に、ユーザーに見える
-文字は `1x` 未満にせず、主要項目は `2x` を基準にします。
+Text sizing, bitmap/FreeType usage, and list column alignment rules for the A30
+device UI are documented in [A30 UI Design Rules](a30-ui-design.md). In
+particular, user-visible text must not be rendered below `1x`, and primary rows
+use `2x` as the baseline.
 
-Mali renderer の実機確認:
+Mali renderer device checks:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
@@ -367,40 +385,46 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_ROOT=/mnt/SDCARD/plumos /mnt/SDCARD/plumos/bin/plumos-controller-ui-mali --rescue-network --script a,q --timeout 1 --rotation auto'
 ```
 
-2026-06-07 の A30 実機確認では、full scan 後に TOP を表示し、
-`down,a,b,q` script で TOP から ROM list に入り TOP へ戻る流れまで
-`result=frontend_mali_renderer_rc_0` でした。
-その後、Mali renderer は A30 向け compact layout に変更しました。長い help 行を
-下部の2行ヒントへ分離し、リスト行は空白圧縮と profile 省略で 480px 幅に収めます。
-`--exercise 3` で TOP/ROM/Settings/Power を自動往復し、stock `MainUI.stock` と
-`keymon` が動いたまま 30 秒保持しても `result=frontend_mali_renderer_rc_0` でした。
-さらに `--stop-mainui --stop-keymon --no-restart-stock --rotation auto --exercise 2` で、
-stock `/etc/main`、`MainUI.stock`、`keymon` が動いていない plumOS 想定状態でも
-`result=frontend_mali_renderer_rc_0` でした。終了後も stock 側は復帰させず、
-Wi-Fi/SSH は維持され、stale `plumos-controller-ui-mali` process は残っていません。
-`/dev/fb0` capture は raw では縦に見えますが、stock MainUI capture と同じく 90 度回転後に
-横画面として読めることを確認しました。
-当時の `--rescue-network --script a,q` では、Mali UI から A 相当で network rescue helper を呼び、
-exit code `0` で終了することを確認しました。2026-06-10 以降、この経路は helper を呼ばない
-disabled compatibility screen に変更しています。
-Mali renderer はASCIIを組み込みbitmap font、非ASCIIをFreeType fontで描画します。
-font は `PLUMOS_MALI_FONT`、theme `font_ui`、A30既存CJK font候補の順で選びます。
-UTF-8はbyteではなくcodepoint単位で処理するため、日本語ROM名は `???` になりません。
-2026-06-08 に一時 `PLUMOS_ROOT=/tmp/plumos-fonttest` の日本語ROM一覧で
-`ドラゴンクエストIII`、`悪魔城伝説`、`ファイナルファンタジー` の表示を
-`artifacts/a30-probes/frontend-font-jp-clean2/20260608-215527.visible.cw.png` で確認しました。
-ただし `reboot` command は暗転/LED消灯後に Miyoo logo へ進まず、ユーザーが電源長押しで
-強制終了してから電源投入しました。当時は A ボタンの network rescue で SSH が復旧しましたが、
-現在はこのFE内導線を無効化しています。
+On June 7, 2026, the A30 completed a full scan, displayed TOP, and ran the
+`down,a,b,q` script from TOP into a ROM list and back with
+`result=frontend_mali_renderer_rc_0`.
+The Mali renderer was then changed to an A30-oriented compact layout. Long help
+lines are moved into two bottom hint lines, and list rows are space-compacted
+with profile details omitted so they fit the 480px width. `--exercise 3`
+automatically walked through TOP/ROM/Settings/Power, and a 30-second hold while
+stock `MainUI.stock` and `keymon` were still running also finished with
+`result=frontend_mali_renderer_rc_0`.
+`--stop-mainui --stop-keymon --no-restart-stock --rotation auto --exercise 2`
+also finished with `result=frontend_mali_renderer_rc_0` in the plumOS target
+state with stock `/etc/main`, `MainUI.stock`, and `keymon` stopped. After the
+probe, the stock side was left stopped, Wi-Fi/SSH remained connected, and no
+stale `plumos-controller-ui-mali` process remained. The `/dev/fb0` capture is
+portrait when viewed raw, but, like the stock MainUI capture, it is readable as
+landscape after a 90-degree rotation.
+At the time, `--rescue-network --script a,q` also succeeded by invoking the
+network rescue helper through the Mali UI A action and exiting with code `0`.
+As of 2026-06-10, this route is a disabled compatibility screen and no longer
+calls the helper.
+The Mali renderer draws ASCII with the built-in bitmap font and non-ASCII text
+with a FreeType font. Font selection tries `PLUMOS_MALI_FONT`, theme `font_ui`,
+then known A30 CJK font candidates. UTF-8 is processed by codepoint instead of
+byte, so Japanese ROM names no longer become `???`.
+On 2026-06-08, a temporary `PLUMOS_ROOT=/tmp/plumos-fonttest` Japanese ROM list
+confirmed `ドラゴンクエストIII`, `悪魔城伝説`, and
+`ファイナルファンタジー` in
+`artifacts/a30-probes/frontend-font-jp-clean2/20260608-215527.visible.cw.png`.
+However, the `reboot` command went dark/LED-off and did not reach the Miyoo logo.
+The user held power to force off, powered on again, and at the time restored SSH
+by pressing A on the network rescue UI. That FE route is now disabled.
 
-TOP を 1 回だけ表示:
+Render TOP once:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --once --no-clear'
 ```
 
-script 入力で状態遷移を確認:
+Check state transitions with scripted input:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
@@ -416,87 +440,104 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script a,function,up,a,q'
 ```
 
-実機ボタンの raw event を確認:
+Dump raw device button events:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --dump-events --timeout 10'
 ```
 
-操作:
+Controls:
 
-- D-pad up/down: cursor 移動。物理キーは上下のみ software key repeat を持つ
-- D-pad right/left: TOP/ROM list/Favorites/Recent では1ページ送り/戻し
-- A: TOP では ROM list へ入る。ROM list/Favorites/Recent では launch を実行する
-- B: ROM list、Favorites、Recent から TOP へ戻る。Settings/HELP では
-  START menu へ戻り、System Settings の `Display Color` / `INFORMATION` サブ項目では
-  System Settings へ戻り、Network Settings の `INFORMATION` サブ項目では
-  Network Settings へ戻る。START menu では元の画面へ戻る
-- START: START menu を開く
-- START menu: Settings/Favorites/Recent は実画面へ遷移し、Shutdown は Power menu と同じ shutdown backend を実行する。その他は action preview を出す
-- 左右キーは決定/実行/戻る/キャンセルには使わない。決定/実行はA、戻る/キャンセルはBで統一する
-- SELECT: system/per-ROM core menu
-- Power: Power menu を開く。Power menu は `Sleep`, `Shutdown`, `Cancel` を持つ
-- UI Settings: checkbox は A/左右で保存し、選択系は左右で保存する。TOP/ROM の
-  表示項目、並び順、ROM scan policy、「起動時に前回ROMを開く」は保存後の実挙動へ反映する
-- Network Settings: 第一階層は `Wi-Fi`、`Connect Wi-Fi`、`NW Service`、`INFORMATION`。
-  `Wi-Fi` の OFF は runtime を停止し、接続開始は `Connect Wi-Fi` で行う。`NW Service` は SSH/FTP/SFTP/Samba/USB Disk Mode を扱う。
-  Connection/IP/Signal などの情報系は `INFORMATION` サブ項目へ置き、SSID/PSK は表示しない
-- SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `p`, `q`
+- D-pad up/down: move cursor. Physical Up/Down have software key repeat.
+- D-pad right/left: page down/up on TOP/ROM list/Favorites/Recent.
+- A: enter ROM list on TOP; execute launch on ROM list/Favorites/Recent.
+- B: return from ROM list, Favorites, or Recent to TOP. Settings and HELP return
+  to START; the System Settings `Display Color` and
+  `INFORMATION` subpages return to System Settings; the Network Settings
+  `INFORMATION` subpage returns to Network Settings. START returns to the
+  previous screen.
+- START: open START menu.
+- START menu: Settings/Favorites/Recent open real screens; Shutdown runs the
+  same shutdown backend as the Power menu; other actions show previews.
+- Left/Right are never confirm/run/back/cancel. A confirms/runs and B
+  backs/cancels.
+- SELECT: system/per-ROM core menu.
+- Power: open the Power menu. Power menu contains `Sleep`, `Shutdown`, and
+  `Cancel`.
+- UI Settings: `Refresh TOP` is the first action and explicitly runs a TOP full
+  scan and reload. Checkboxes save through A/Left/Right, and choices save
+  through Left/Right. TOP/ROM visibility, ordering, ROM scan policy, and boot
+  resume are reflected in runtime behavior after saving.
+- Network Settings: the first layer contains `Wi-Fi`, `Connect Wi-Fi`,
+  `NW Service`, and `INFORMATION`. `Wi-Fi` OFF stops the runtime, connection
+  starts through `Connect Wi-Fi`, and `NW Service` owns SSH/FTP/SFTP/Samba/USB Disk
+  Mode. Connection/IP/Signal details live under `INFORMATION`. SSID/PSK are not
+  displayed.
+- SSH stdin fallback: `w/s/a/d`, `e` or space, `b`, `m`, `c`, `p`, `q`.
 
 Power menu:
 
-- Power はどの画面からでも Power menu を開く
-- 初期 cursor は誤操作防止のため `Cancel`
-- `Sleep` は `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume` 相当を実行する。
-  emulator overlay では helper が選択結果を受け取り、復帰後に emulator を再開してから
-  RetroArch へ `AUDIO_REINIT` を送る
-- `Shutdown` は `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume` 相当を実行する
-- `Cancel` と B は元の画面へ戻る。LEFT/RIGHT と Power は決定/戻るには使わない
-- `plumos-safe-shutdown` 側には power/sleep backend 選択を接続済み。Power menu は
-  frontend 側で保存や resume hold を作らず、`sync` と backend dispatch だけを行う
-- emulator 実行中は `plumos-safe-hotkeyd` が `plumos-power-menu-overlay` を起動し、
-  emulator の `/dev/fb0` owner を一時停止して Power menu を重ねる
+- Power opens Power menu from any screen.
+- Initial cursor is `Cancel` to reduce accidental actions.
+- `Sleep` runs the equivalent of
+  `plumos-safe-shutdown --sleep --no-poweroff --no-hold-resume`. In emulator
+  overlays, the helper receives the selected action, resumes the emulator after
+  wake, then sends RetroArch `AUDIO_REINIT`.
+- `Shutdown` runs the equivalent of
+  `plumos-safe-shutdown --shutdown --no-poweroff --no-hold-resume`.
+- `Cancel` and B return to the previous screen. LEFT/RIGHT and Power are not
+  used for confirm/back.
+- Power/sleep backend selection is wired in `plumos-safe-shutdown`. The Power
+  menu does not create saves or resume holds; it only runs `sync` and backend
+  dispatch.
+- While an emulator is running, `plumos-safe-hotkeyd` launches
+  `plumos-power-menu-overlay`, which temporarily stops the emulator `/dev/fb0`
+  owner and draws the Power menu on top.
 
-Settings 画面では plumOS frontend 設定と theme 状態に加えて、plumOS-owned な
-system 設定も表示します。UI Settings の先頭には `Refresh TOP` を置き、
-TOP 用 full scan と reload を明示的に実行します。`Show Empty Systems`、
-`Favorites On TOP`、`Recent On TOP`、`Sort Systems`、`Sort ROMs`、`Scan On Enter`、
-`Open Last ROM At Boot` は保存後の controller UI に反映します。System Settings は
-`/mnt/SDCARD/plumos/config/system/settings.json` から volume、brightness、lumination、
-display color、language、theme 情報を読みます。
-System Settings の第一階層は `Volume`、`Brightness`、`Lumination`、`Display Color`、
-`Time Settings`、`Language`、`Theme`、`INFORMATION` です。`Volume`、`Brightness`、
-`Lumination`、`Language` は左右で plumOS system settings へ保存します。`Display Color`
-は A で `Contrast`、`Hue`、`Saturation` のサブ項目へ入り、それぞれ左右で保存します。
-`Time Settings` は `Timezone` と `Manual Time` を持ち、timezone は `TZ` 環境と runtime
-`/etc/TZ` へ適用します。手動時刻は選択中 timezone のローカル時刻として入力し、
-OS 時刻へ反映します。保存は初回 backup、tmp file、fsync、rename、sync を通します。
-本体モデル、kernel、SD カード使用量、メモリ使用量、A30 firmware は
-`INFORMATION` サブ項目へ集約します。
-redacted Wi-Fi runtime status は Network Settings で扱い、
-SSID/PSK は読みません。CPU mode は Performance Settings で扱います。
-Performance Settings は既存の `plumos-text-ui core system ... --cpu --freq --cores`
-経路へ接続済みで、system ごとの `CPU freq` と `CPU Cores` を
-`core-overrides.json` に保存します。`CPU freq` は `648/816/1200/1344 MHz` の
-固定値だけを見せ、予測しづらい `keep` は削除します。`Reset to Default` で
-`systems.json` の `648MHz` / `2 cores` plumOS default に戻します。
-TOP/ROM の SELECT core menu は共通画面で、操作説明promptは表示せず
-`Cores < RA: fceumm >` / `Cores < PICO: fceumm >` / `Cores < SA: ppsspp >` のように
-実行経路の省略接頭辞付き候補を左右で変更して `launch_profile` override を保存します。
-区切り線の下には `CPU freq < value >` と `CPU Cores < value >` を置き、
-TOPではsystem override、ROM listではROM overrideとして同じ `core-overrides.json` へ保存します。
-Theme は候補名と path の扱いが固まるまで read-only です。Mali renderer では Settings 先頭の `HELP` から操作説明画面へ入ります。
-通常画面の下部には常時操作説明を出しません。
+The Settings screen also shows plumOS-owned system settings, separate from
+frontend settings and theme state. UI Settings entries such
+as `Show Empty Systems`, `Favorites On TOP`, `Recent On TOP`, `Sort Systems`,
+`Sort ROMs`, `Scan On Enter`, and `Open Last ROM At Boot` are reflected in controller
+UI behavior after saving. System Settings reads volume, brightness, lumination,
+display color, language, and theme information from
+`/mnt/SDCARD/plumos/config/system/settings.json`. Its top level is `Volume`,
+`Brightness`, `Lumination`, `Display Color`, `Time Settings`, `Language`,
+`Theme`, and `INFORMATION`. `Volume`, `Brightness`, `Lumination`, and
+`Language` save to plumOS system settings with Left/Right. `Display Color`
+opens a subpage for `Contrast`, `Hue`, and `Saturation`, which also save with
+Left/Right. `Time Settings` owns `Timezone` and `Manual Time`; timezone is
+applied to the `TZ` environment and runtime `/etc/TZ`, and manual time is
+entered as local time in the selected timezone before applying it to the OS
+clock. Writes use a first backup, temporary file, fsync, rename, and sync.
+Device model, kernel, SD-card usage, memory usage, and A30 firmware live under
+the `INFORMATION` subpage.
+Redacted Wi-Fi runtime status belongs to Network Settings, which does not read
+SSID or PSK. CPU mode belongs to Performance Settings. Performance Settings now
+connects to the existing `plumos-text-ui core system ... --cpu --freq --cores`
+flow and saves per-system `CPU freq` and `CPU Cores` to `core-overrides.json`.
+`CPU freq` exposes only fixed `648/816/1200/1344 MHz` values; unpredictable
+`keep` is removed. `Reset to Default` falls back to the `systems.json`
+`648 MHz` / `2 cores` plumOS defaults.
+The TOP/ROM SELECT core menu is a shared screen. It does not show an operation
+prompt; it changes the `launch_profile` override with Left/Right through
+runtime-prefixed candidates such as `Cores < RA: fceumm >`,
+`Cores < PICO: fceumm >`, or `Cores < SA: ppsspp >`. Below a separator, `CPU freq < value >` and
+`CPU Cores < value >` save to the same `core-overrides.json`; TOP writes a
+system override, while ROM lists write a ROM override.
+`Theme` remains read-only
+until candidate names and paths are defined safely. In the Mali renderer, the
+first Settings row is `HELP`, which opens the
+controls help screen. Normal screens do not keep persistent bottom control hints.
 
-確認例:
+Example check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-controller-ui --no-clear --script start,a,q | grep -E "A30|Wi-Fi|Volume|Brightness|Keymap|Input"'
 ```
 
-2026-06-06 の A30 実機確認:
+A30 device check on 2026-06-06:
 
 ```text
 plumOS text UI - TOP
@@ -533,19 +574,21 @@ plumOS text UI - Favorites
 count: 0
 ```
 
-## 現在読む情報
+## Current Inputs
 
 - `/mnt/SDCARD/Emu/*/config.json`
 - `/mnt/SDCARD/RApp/*/config.json`
 - `/mnt/SDCARD/App/*/config.json`
 - `/mnt/SDCARD/Themes/*/config.json`
-- `rompath` が指す ROM directory の存在、通常 file 数、`extlist` 一致数
-- `imgpath` が指す artwork directory の存在と画像 file 数
-- `gamelist` が指す file の存在と size
-- `launchlist` entry 数
-- `/mnt/SDCARD/Roms/recentlist.json` の存在確認、size、非空行 entry 数
+- Existence, regular-file count, and `extlist` match count for `rompath`
+  directories.
+- Existence and image-file count for `imgpath` artwork directories.
+- Existence and size for `gamelist` files.
+- `launchlist` entry count.
+- Existence, size, and non-empty-line entry count for
+  `/mnt/SDCARD/Roms/recentlist.json`
 
-現時点で読む field:
+Fields currently read:
 
 - `label`
 - `name`
@@ -556,13 +599,13 @@ count: 0
 - `gamelist`
 - `launchlist`
 
-`rompath`, `imgpath`, `gamelist` は `config.json` のある directory から相対解決します。
-`extlist` は大文字小文字を区別せずに一致確認します。現時点では ROM/artwork の file 名は
-log に出さず、件数だけを記録します。
+`rompath`, `imgpath`, and `gamelist` are resolved relative to the directory that
+contains each `config.json`. `extlist` matching is case-insensitive. The scanner
+does not log ROM/artwork filenames yet; it only records counts.
 
-## 実機確認
+## Device Check
 
-2026-06-06 に A30 上で manual mode を実行し、以下を確認しました。
+Manual mode was run on the A30 on 2026-06-06 and confirmed:
 
 ```text
 summary configs emu=18 rapp=27 app=5 themes=42
@@ -571,23 +614,23 @@ summary artwork dirs=41 images=4027
 summary metadata gamelists=0 launchers=22
 ```
 
-`Roms/recentlist.json` は `size=234 entries=3` として検出しました。現状は値を出力せず、
-非空行数だけを entry 数として扱っています。
+`Roms/recentlist.json` was detected as `size=234 entries=3`. The scanner does
+not log the values; it only treats non-empty lines as entries for now.
 
-観察:
+Observations:
 
-- 現在の SD カードでは、多くの configured ROM directory は存在しますが、ROM file は
-  ほぼ空です。
-- `Imgs` 側には stock artwork が入っています。plumOS の通常 thumbnail 置き場は
-  `/mnt/SDCARD/Images/<system_id>` に集約し、`Imgs` は必要になった場合の importer 入力として
-  扱います。
-- `RApp/mednafen_wswan/config.json` の `imgpath` は `../..Imgs/WSC` になっており、
-  `../../Imgs/WSC` の typo と思われます。stock 互換では、このような設定ミスも
-  検出・補正対象にします。
+- On the current SD card, many configured ROM directories exist, but ROM files
+  are almost empty.
+- `Imgs` contains stock artwork. The normal plumOS thumbnail location is
+  `/mnt/SDCARD/Images/<ROM directory alias>`; `Imgs` is treated as an importer
+  input if migration is needed.
+- `RApp/mednafen_wswan/config.json` has `imgpath` set to `../..Imgs/WSC`, which
+  appears to be a typo for `../../Imgs/WSC`. Stock compatibility should detect
+  and optionally correct cases like this.
 
-## 次に足すもの
+## Next Additions
 
-- ROM file と artwork file の名前対応 rule
-- `gamelist` XML の parse
-- `recentlist.json` の parse/update
-- plumOS 同梱 SDL2 を使った render test と最小 UI
+- Match ROM filenames to artwork filenames.
+- Parse `gamelist` XML.
+- Parse/update `recentlist.json`.
+- Build a render test and minimal UI with plumOS-bundled SDL2.

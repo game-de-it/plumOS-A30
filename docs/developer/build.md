@@ -1,64 +1,57 @@
-# Docker ビルドガイド
+# Docker Build Guide
 
-plumOS の A30 向け binary は、基本的に Docker 内でビルドします。host 側の compiler や
-library に依存させず、Docker image、build script、patch、recipe を git 管理して再現性を保ちます。
+plumOS builds A30-targeted binaries inside Docker. The goal is to keep the host
+machine from influencing compiler, library, or toolchain behavior. Dockerfiles,
+build scripts, patches, hashes, and recipes are kept in git.
 
-## 前提
-
-開発 PC に以下を用意します。
+## Requirements
 
 - Git
 - Docker
-- `7zz` または 7-Zip compatible tool
-- A30 実機へ SSH 接続できる環境
+- `7zz` or a compatible 7-Zip tool
+- SSH access to an A30 for device validation
 
-標準の実機 target は以下です。
+Default A30 target:
 
 ```text
 root@192.168.10.165
 port 2222
 ```
 
-環境が違う場合は `A30_TARGET` と `A30_SSH_PORT` を指定します。
+Override the target when needed:
 
 ```sh
 A30_TARGET=root@192.168.10.165 A30_SSH_PORT=2222 ./scripts/run-a30.sh 'uname -a'
 ```
 
-## 1. Docker image を作る
-
-最初に toolchain image を作ります。
+## 1. Build the Docker Image
 
 ```sh
 ./scripts/docker-build.sh image
 ```
 
-以後の build command は、この image が無ければ自動で作成します。
+Most later build commands automatically create the image if it is missing.
 
-## 2. 最小 smoke build
-
-Docker と cross build の入口確認です。
+## 2. Smoke Build
 
 ```sh
 ./scripts/docker-build.sh smoke
 ```
 
-生成物:
+Output:
 
 ```text
 dist/docker-smoke/
 ```
 
-実機へ転送して実行します。
+Deploy and run on the A30:
 
 ```sh
 ./scripts/deploy-a30.sh dist/docker-smoke /mnt/SDCARD/plumos/smoke
 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plumos-smoke-armhf
 ```
 
-## 3. 基本 runtime を build
-
-frontend や emulator の前に、基礎 component を作ります。
+## 3. Build Core Runtime Pieces
 
 ```sh
 ./scripts/docker-build.sh userland
@@ -69,7 +62,7 @@ frontend や emulator の前に、基礎 component を作ります。
 ./scripts/build-ssh-kit.sh
 ```
 
-主な出力:
+Main outputs:
 
 ```text
 dist/plumos-userland/
@@ -80,9 +73,7 @@ dist/plumos-network-services/
 dist/plumos-a30-ssh-kit/
 ```
 
-## 4. 描画/runtime library を build
-
-SDL/Mali 経路、Python/Pyxel、アプリ類を作ります。
+## 4. Build Display, Python, and Apps
 
 ```sh
 ./scripts/docker-build.sh sdl2-runtime
@@ -92,7 +83,7 @@ SDL/Mali 経路、Python/Pyxel、アプリ類を作ります。
 ./scripts/docker-build.sh music-player
 ```
 
-必要に応じて probe も作ります。
+Optional probes:
 
 ```sh
 ./scripts/docker-build.sh runtime-probe
@@ -100,38 +91,31 @@ SDL/Mali 経路、Python/Pyxel、アプリ類を作ります。
 ./scripts/docker-build.sh sdl2-probe
 ```
 
-## 5. RetroArch と libretro core を build
-
-通常利用する RetroArch runtime を作ります。
+## 5. Build RetroArch and libretro Cores
 
 ```sh
 ./scripts/docker-build.sh retroarch-practical
-```
-
-libretro core は recipe に基づいて build します。
-
-```sh
 ./scripts/docker-build.sh libretro-cores
 ```
 
-既定の `PLUMOS_CORE_FILTER=plumos` は plumOS default の採用対象を build します。
-全候補を build したい場合は以下です。
+The default `PLUMOS_CORE_FILTER=plumos` builds the normal plumOS target set.
+To build every candidate:
 
 ```sh
 PLUMOS_CORE_FILTER=all FAIL_ON_CORE_ERROR=1 ./scripts/docker-build.sh libretro-cores
 ```
 
-主な環境変数:
+Important environment variables:
 
-| 変数 | 用途 |
+| Variable | Purpose |
 | --- | --- |
-| `PLUMOS_CORE_FILTER` | `plumos`, `onion`, `all`, core id の絞り込み |
-| `LIBRETRO_CORE_BUILD_CONCURRENCY` | 同時に build する core 数。既定は `4` |
-| `JOBS` | 各 core 内の並列数 |
+| `PLUMOS_CORE_FILTER` | `plumos`, `onion`, `all`, or specific core IDs |
+| `LIBRETRO_CORE_BUILD_CONCURRENCY` | Number of cores built concurrently. Default: `4` |
+| `JOBS` | Per-core parallel build job count |
 | `LIBRETRO_OPTIMIZATION_PROFILE` | `speed`, `compat`, `aggressive`, `size`, `debug` |
-| `FAIL_ON_CORE_ERROR` | `1` で失敗 core があれば command 全体を失敗にする |
+| `FAIL_ON_CORE_ERROR` | `1` makes any core failure fail the command |
 
-core の source/ref/build option は以下で管理します。
+Core source/ref/build options are tracked in:
 
 ```text
 docker/plumos-toolchain/libretro-core-recipes.tsv
@@ -139,24 +123,24 @@ docs/onion-libretro-source-lock.tsv
 docs/libretro-core-version-inventory.tsv
 ```
 
-## 6. PicoArch を build
-
-PicoArch は lightweight libretro frontend です。core は原則として
-`plumos/retroarch/cores/` の libretro core を共有します。
+## 6. Build PicoArch
 
 ```sh
 ./scripts/docker-build.sh picoarch
 ```
 
-生成物:
+Output:
 
 ```text
 dist/plumos-picoarch/
 ```
 
-## 7. standalone emulator を build
+PicoArch generally shares the libretro cores under
+`plumos/retroarch/cores/`.
 
-採用済み standalone emulator を build します。
+## 7. Build Standalone Emulators
+
+Build the adopted standalone emulator set:
 
 ```sh
 PLUMOS_STANDALONE_FILTER=ppsspp,scummvm,easyrpg,pcsx_rearmed,openbor \
@@ -165,47 +149,45 @@ TARGET_DIR=/workspace/dist/plumos-standalone-emulators-adopted \
 ./scripts/docker-build.sh standalone-emulators
 ```
 
-個別に試す場合:
+Build one emulator for testing:
 
 ```sh
 PLUMOS_STANDALONE_FILTER=ppsspp ./scripts/docker-build.sh standalone-emulators
 ```
 
-## 8. runtime package を作る
-
-各 component の `dist/` artifact を overlay して、`plumos/` runtime 一式を作ります。
+## 8. Build the Runtime Package
 
 ```sh
 ./scripts/build-runtime-package.py
 ```
 
-生成物:
+Output:
 
 ```text
 dist/plumos-runtime-package/
 dist/plumos-runtime-package.tar.gz
 ```
 
-`build-runtime-package.py` は `docs/emulator-runtime-manifest.tsv` を読み、FE から実行できる
-profile に必要な binary/core が揃っているか検証します。
+The script checks `docs/emulator-runtime-manifest.tsv` and verifies that required
+launchers, binaries, and cores are present.
 
-## 9. SD root package を作る
+## 9. Build or Stage the SD Root Package
 
-fresh SD card 向けの root 構成を作ります。
+Script-generated package:
 
 ```sh
 ./scripts/build-sdroot-package.py
 ```
 
-生成物:
+Output:
 
 ```text
 dist/plumos-sdroot-package/
 dist/plumos-sdroot-package.tar.gz
 ```
 
-現在の手動 release staging では、実機で正常動作している SD カードから ROM/BIOS/save/media を
-除外して `dist/plumos-release-sdroot/` を作り、これを `.7z` 化しています。
+Current end-user releases use the validated SD-root staging directory from a
+known-good SD card:
 
 ```sh
 ./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
@@ -217,46 +199,38 @@ cd ../..
 shasum -a 256 dist/plumos-sdroot-package.7z
 ```
 
-`.7z` は SD カード root へ一回解凍すればよい形式です。外側の package directory は含めません。
+The `.7z` archive expands directly into the SD-card root and does not contain an
+outer package directory.
 
-## 10. A30 へ deploy
-
-通常 deploy は `scripts/deploy-a30.sh` を使います。
+## 10. Deploy to the A30
 
 ```sh
 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 ```
 
-`deploy-a30.sh` は既存の mutable config を保護します。設定を意図的に初期化したい場合だけ
-`PLUMOS_DEPLOY_PROTECT_CONFIG=0` を指定します。
+`deploy-a30.sh` preserves mutable config by default. Use
+`PLUMOS_DEPLOY_PROTECT_CONFIG=0` only when intentionally resetting settings.
 
-FE の起動/停止/再起動/状態確認は必ず `scripts/a30-fe-control.sh` を使います。
+Use the FE control helper for frontend state:
 
 ```sh
 ./scripts/a30-fe-control.sh restart
 ./scripts/a30-fe-control.sh status
 ```
 
-`status` で `/dev/fb0` owner が 1 process だけであることを確認します。
+`status` should report exactly one `/dev/fb0` owner.
 
-## 11. 実機 command と log 回収
-
-実機 command:
+## 11. Run Commands and Collect Logs
 
 ```sh
 ./scripts/run-a30.sh 'free -m'
 ./scripts/run-a30.sh 'ps | grep plumOS'
-```
-
-log 回収:
-
-```sh
 ./scripts/collect-a30-logs.sh
 ```
 
-## 12. よく使う検証
+## 12. Common Probes
 
-frontend:
+Frontend:
 
 ```sh
 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
@@ -282,9 +256,7 @@ Mali EGL:
 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
 ```
 
-## 13. release 前チェック
-
-正式 release 前に最低限確認します。
+## 13. Release Checklist
 
 ```sh
 git status --short
@@ -293,12 +265,17 @@ git status --short
 shasum -a 256 dist/plumos-sdroot-package.7z
 ```
 
-さらに fresh SD card へ展開して実機 boot を確認します。
+Then extract the SD-root archive to a fresh SD card and boot it on real
+hardware.
 
-## 詳細資料
+## Detailed References
 
-- [Docker toolchain 詳細](../docker-toolchain.md)
-- [runtime package](../runtime-package.md)
-- [SD root package](../sdroot-package.md)
-- [release artifacts](../release-artifacts.md)
-- [emulator runtime manifest](../emulator-runtime-manifest.md)
+- [Docker Toolchain Details](../docker-toolchain.md)
+- [Runtime Package](../runtime-package.md)
+- [SD Root Package](../sdroot-package.md)
+- [Release Artifacts](../release-artifacts.md)
+- [Emulator Runtime Manifest](../emulator-runtime-manifest.md)
+
+## Japanese Counterpart
+
+- [Japanese Docker build guide](build.ja.md)

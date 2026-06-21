@@ -1,32 +1,37 @@
-# plumOS 設計方針
+# plumOS Design Policy
 
-この文書は、Miyoo A30 向け plumOS の構成方針を固定するためのメモです。
+This document records the design direction for plumOS on the Miyoo A30.
 
-## 基本方針
+## Principles
 
-- plumOS の実体は `/mnt/SDCARD/plumos` 配下に集約する
-- stock の `/mnt/SDCARD/miyoo/lib` や `/mnt/SDCARD/RetroArch` に依存しない
-- フロントエンド、ライブラリ、RetroArch、libretro core、設定、cache、log を
-  plumOS 側で管理する
-- A30 の rootfs/NAND は初期段階では書き換えない
-- 既存ファイルは「互換性調査の入力」として読むが、実行時依存は減らしていく
-- 既存仕様は正解として扱わず、計測と検証で置き換え判断をする
-- stock の `config.json`, `launch.sh`, CPU policy, RetroArch 起動方式は
-  plumOS の新仕様として自動採用しない
-- stock 仕様をそのまま流用する場合は、理由と代替案を整理し、実装前にユーザー確認を取る
-- plumOS 側のライブラリ、standalone emulator、RetroArch は、build 時点で
-  upstream の最新 stable release を確認して採用候補にする
-- libretro core は、Onion が採用している core を plumOS へ取り込み、Onion 側に
-  実績 version/commit/build recipe がある場合はそれを優先する。Onion に無い
-  plumOS 独自採用 core は upstream latest/HEAD を採用候補にできる
-- stockOS 側の library/emulator version は互換調査の参考値に留め、通常は version
-  pinning の基準にしない。動作異常、性能退行、A30 固有不具合が出た場合だけ、
-  stockOS 側の version や patch level へ寄せることを検討する
-- build は基本的に Docker 内で行い、生成物を実機へ転送して確認する
-- 最終的な配布物には、end-user 向け runtime だけでなく developer 向け Docker
-  toolchain も含める
+- Keep the plumOS runtime under `/mnt/SDCARD/plumos`.
+- Do not depend on stock `/mnt/SDCARD/miyoo/lib` or `/mnt/SDCARD/RetroArch`.
+- Manage the frontend, libraries, RetroArch, libretro cores, configuration,
+  cache, and logs from plumOS.
+- Do not modify the A30 rootfs/NAND during the early bring-up phase.
+- Treat stock files as compatibility input, not as long-term runtime
+  dependencies.
+- Do not assume the stock behavior is optimal; measure and replace it when a
+  better approach is proven.
+- Do not automatically adopt stock `config.json`, `launch.sh`, CPU policy, or
+  RetroArch startup behavior as plumOS specifications.
+- Before directly reusing a stock behavior, document the reason and
+  alternatives, then ask the user for confirmation before implementation.
+- For plumOS libraries, standalone emulators, and RetroArch, check the upstream
+  latest stable release at build time and treat that as the default candidate.
+- For libretro cores, import the cores Onion carries and prefer Onion's proven
+  version/commit/build recipe when one exists. plumOS-only cores that Onion does
+  not carry may still use upstream latest/HEAD as candidates.
+- Treat stockOS library/emulator versions as compatibility reference points, not
+  normal pinning targets. Only consider matching stockOS versions or patch
+  levels when hardware validation shows breakage, performance regressions, or
+  A30-specific issues.
+- Build primarily inside Docker, transfer artifacts to the device, and validate
+  them on real hardware.
+- Include developer-facing Docker toolchain files as part of the final project
+  deliverables, alongside the end-user runtime package.
 
-## 想定 directory 構成
+## Proposed Directory Layout
 
 ```text
 /mnt/SDCARD/plumos/
@@ -56,13 +61,13 @@
   ssh/
 ```
 
-## Docker/toolchain 方針
+## Docker/toolchain Policy
 
-plumOS の build は、作業用 PC のローカル環境に強く依存させず、Docker 内で再現できる
-形にします。A30 向け toolchain、sysroot、build dependency、RetroArch/core build
-helper は plumOS 用に custom して構いません。
+plumOS builds should be reproducible inside Docker instead of depending on the
+workstation's local environment. The A30 toolchain, sysroot, build dependencies,
+and RetroArch/core build helpers can be customized specifically for plumOS.
 
-想定する repository 側の構成:
+Expected repository layout:
 
 ```text
 docker/
@@ -78,213 +83,229 @@ scripts/
   package-release.sh
 ```
 
-build/deploy の基本 loop:
+Basic build/deploy loop:
 
-1. Docker image を build する
-2. Docker container 内で frontend、helper、RetroArch、core、runtime package を build する
-3. 生成物を `dist/` または staging directory へ出す
-4. SSH/SCP/rsync 相当で A30 の `/mnt/SDCARD/plumos` へ転送する
-5. 実機上で command を実行する
-6. log と結果を回収して、次の修正へ反映する
+1. Build the Docker image.
+2. Build the frontend, helpers, RetroArch, cores, and runtime package inside the
+   container.
+3. Write outputs to `dist/` or a staging directory.
+4. Transfer artifacts to `/mnt/SDCARD/plumos` on the A30 through SSH/SCP/rsync
+   or an equivalent path.
+5. Run commands on the device.
+6. Collect logs/results and feed them into the next iteration.
 
-Docker 化する対象:
+Docker build targets:
 
-- A30 向け sysroot/toolchain
-- framebuffer/input/audio runtime probe
-- plumOS 同梱 SDL2 の test binary
-- plumOS userland command package
-- plumOS frontend/helper
-- RetroArch
-- libretro core
-- packaging/release tooling
+- A30 sysroot/toolchain.
+- Framebuffer/input/audio runtime probe.
+- plumOS-bundled SDL2 test binary.
+- plumOS userland command package.
+- plumOS frontend/helpers.
+- RetroArch.
+- libretro cores.
+- Packaging/release tooling.
 
-Docker image 自体は大きくなる可能性があるため、git には Dockerfile、script、lock/hash、
-patch、build recipe を入れます。巨大な build cache や生成済み binary archive は
-release artifact として扱い、必要に応じて GitHub Release へ分けて配置します。
+The Docker image may become large, so git should contain Dockerfiles, scripts,
+locks/hashes, patches, and build recipes. Large build caches and generated
+binary archives should be treated as release artifacts and split across GitHub
+Release assets when needed.
 
-## upstream version 方針
+## Upstream Version Policy
 
-plumOS の runtime/library/emulator 構成は、stockOS の古い構成を再現することではなく、
-A30 上で安定して動く範囲で新しい upstream を使うことを基本方針にします。ただし
-libretro core は、Onion で実用実績のある core catalog と version/commit を優先しつつ、
-Onion に無い plumOS 独自採用 core は upstream latest/HEAD を候補にできます。
+The goal is not to reproduce the stockOS runtime stack. plumOS should use newer
+upstream components wherever they remain stable on the A30. For libretro cores,
+prefer the Onion-proven core catalog and version/commit choices when Onion
+carries that core; plumOS-only cores can still start from upstream latest/HEAD.
 
-- SDL2、RetroArch、standalone emulator、補助 library は、作業時点の latest stable
-  release を確認してから build する
-- libretro core は Onion 採用 core を取り込み、同じ名前、同じ source 由来、同じ実績
-  commit または Onion builder recipe に寄せる。正確な commit が未確定のものは暫定
-  recipe として扱い、A30 build と実機検証で採用可否を決める
-- Onion に無い plumOS 独自採用 core は、通常の upstream latest/HEAD 候補として扱い、
-  実機 regression が見えた時点で pin または差し替えを検討する
-- 既知の regression がある場合は latest tag ではなく、修正済み commit または直近の
-  安定版を選ぶ
-- A30 の kernel、GPU/framebuffer、audio、input、glibc/runtime との相性で問題が出た場合は、
-  stockOS 側の version、patch、build option を比較対象として調査する
-- stockOS と同じ version に寄せるのは、最新版での問題が実機検証で確認され、version 差が
-  原因候補として強い場合だけにする
-- 採用した version、source URL、commit/tag、重要な build option、stockOS との差分は
-  docs または manifest に残す
+- Before building SDL2, RetroArch, standalone emulators, or helper libraries,
+  check the latest stable upstream release available at that time.
+- For libretro cores, import Onion-adopted cores and align them with Onion's
+  core names, source provenance, and proven commit or builder recipe. Treat
+  recipes without exact provenance as provisional until an A30 build and
+  hardware validation prove them.
+- For plumOS-only cores that Onion does not carry, use upstream latest/HEAD as
+  the normal candidate and pin only when hardware testing shows a regression.
+- If a known regression exists, use a fixed commit or the nearest stable release
+  instead of blindly taking the latest tag.
+- If the A30 kernel, GPU/framebuffer, audio, input, or runtime stack exposes an
+  issue, compare against stockOS versions, patches, and build options as
+  debugging references.
+- Match a stockOS version only when hardware validation shows a real problem
+  with the newer build and version difference is a strong cause candidate.
+- Record the selected version, source URL, commit/tag, important build options,
+  and differences from stockOS in docs or manifests.
 
-## 既存起動フローとの境界
+## Boundary With The Stock Boot Flow
 
-A30 の stock 起動処理は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動します。このため、
-完全に独立した構成を目指す場合でも、最初の起動口として以下のどちらかが必要です。
+The stock A30 boot flow executes `/mnt/SDCARD/miyoo/app/MainUI` directly. Even
+with an independent plumOS runtime, the first boot entry point needs to be one
+of these:
 
-- `/mnt/SDCARD/miyoo/app/MainUI` を小さな wrapper に置き換える
-- rootfs 側の `/etc/main` 相当を将来的に置き換える
+- Replace `/mnt/SDCARD/miyoo/app/MainUI` with a small wrapper.
+- Eventually replace the rootfs-side `/etc/main` behavior.
 
-初期段階では安全性を優先し、前者を採用します。`MainUI` wrapper は最小限の処理だけを
-行い、実体は `/mnt/SDCARD/plumos/bin/plumos-frontend` を起動します。
+For the early phase, use the safer first option. The `MainUI` wrapper should do
+only the minimum necessary work, then execute
+`/mnt/SDCARD/plumos/bin/plumos-frontend`.
 
-wrapper に必要な条件:
+Wrapper requirements:
 
-- 起動失敗時に stock MainUI へ戻せること
-- SD カードだけで復旧できること
-- log を `/mnt/SDCARD/plumos/logs` へ残すこと
-- plumOS 側の runtime path を明示すること
+- Fall back to stock MainUI on failure.
+- Be recoverable through SD-card changes only.
+- Write logs under `/mnt/SDCARD/plumos/logs`.
+- Set the plumOS runtime paths explicitly.
 
-## ランタイム方針
+## Runtime Policy
 
-stock library を流用しないため、plumOS の binary は以下のどちらかで動かします。
+Because plumOS should not reuse stock libraries, binaries should use one of
+these strategies:
 
-- musl などで静的リンクできるものは静的リンクする
-- 動的リンクが必要なものは plumOS 側に dynamic linker と shared library を同梱する
+- Static linking where practical, especially for small utilities.
+- A bundled dynamic linker and shared libraries under plumOS when dynamic
+  linking is required.
 
-RetroArch や SDL など、動的 library 依存が大きいものは、A30 向け sysroot を明示して
-build します。A30 の stock glibc は `2.23` なので、汎用 Linux armhf binary に
-依存しない前提で進めます。
+RetroArch, SDL, and other dependency-heavy components should be built against an
+explicit A30 sysroot. Since the stock A30 runtime uses glibc `2.23`, do not
+assume generic Linux armhf binaries will work.
 
-runtime package は Docker build の成果物として作成し、SD カードへ展開したときに
-`/mnt/SDCARD/plumos` 配下だけで動くことを目標にします。
+The runtime package should be produced by Docker builds and should run from
+`/mnt/SDCARD/plumos` after extraction to the SD card.
 
-## userland command 方針
+## Userland Command Policy
 
-A30 stock の BusyBox は option や tar/ps/top まわりに癖があります。開発効率と
-移植性を上げるため、plumOS 側に独自の command set を同梱します。
+The stock A30 BusyBox has quirks around options and commands such as `tar`,
+`ps`, and `top`. To make development more predictable, plumOS should bundle its
+own command set.
 
-段階:
+Stages:
 
-1. 静的 link の BusyBox を `/mnt/SDCARD/plumos/bin/busybox` に置く
-2. vfat でも動くよう、applet は symlink ではなく wrapper script として生成する
-3. `plumos-env` で `/mnt/SDCARD/plumos/gnu/bin` と `/mnt/SDCARD/plumos/bin` を
-   stock PATH より前に置く
-4. BusyBox では互換性が足りない command を `procps-ng`, `coreutils`, `util-linux`
-   などの GNU/Linux userland へ置き換える
+1. Put a statically linked BusyBox at `/mnt/SDCARD/plumos/bin/busybox`.
+2. Install applets as wrapper scripts instead of symlinks so they work on vfat.
+3. Use `plumos-env` to put `/mnt/SDCARD/plumos/gnu/bin` and
+   `/mnt/SDCARD/plumos/bin` before the stock PATH.
+4. Replace commands where BusyBox compatibility is not enough with
+   `procps-ng`, `coreutils`, `util-linux`, and similar GNU/Linux userland tools.
 
-特に `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`,
-`lsof`, `strace` は優先度の高い command として扱います。
+High-priority commands include `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`,
+`sed`, `awk`, `ip`, `ss`, `lsof`, and `strace`.
 
-目標は、rootfs を変えずに SD カード上の plumOS だけで Debian に近い操作感を得る
-ことです。
+The goal is a Debian-like command experience from the SD-card plumOS runtime
+without changing the rootfs.
 
-## RetroArch 方針
+## RetroArch Policy
 
-- RetroArch は `/mnt/SDCARD/plumos/retroarch/bin/retroarch` へ配置する
-- core は `/mnt/SDCARD/plumos/retroarch/cores` へ配置する
-- RetroArch 本体は build 時点で upstream の latest stable を確認し、A30 実機検証で
-  問題がなければ stockOS 側 version へ合わせない
-- libretro core は Onion の採用 catalog と実績 version/commit/build recipe を優先する。
-  Onion に無い plumOS 独自採用 core は latest upstream/HEAD 候補として残せる
-- `HOME=/mnt/SDCARD/RetroArch` のような既存方式には依存しない
-- `--config` で plumOS 管理の `retroarch.cfg` を明示する
-- system ごとの差分は launch profile または override config で管理する
-- core 更新は system ごとに段階的に行い、起動、save/state、input、performance を
-  確認してから採用する
+- Put RetroArch at `/mnt/SDCARD/plumos/retroarch/bin/retroarch`.
+- Put cores under `/mnt/SDCARD/plumos/retroarch/cores`.
+- Check the upstream latest stable RetroArch release at build time; do not match
+  stockOS RetroArch unless A30 hardware validation gives a reason.
+- For libretro cores, prefer Onion's adopted catalog and proven
+  version/commit/build recipes. Cores that Onion does not carry may remain
+  plumOS-only latest-upstream candidates.
+- Do not depend on the stock `HOME=/mnt/SDCARD/RetroArch` layout.
+- Use `--config` to point RetroArch at a plumOS-managed config.
+- Manage per-system differences through launch profiles or override configs.
+- Update cores in stages, validating boot, save/state, input, and performance
+  before adoption.
 
-既存 script 互換が必要な期間は、compatibility launcher で stock の `launch` /
-`launchlist` を読めるようにします。ただし最終的には shell script が散らばる構成から、
-plumOS 側の launch profile へ寄せます。
+During the compatibility phase, a launcher can still read stock `launch` and
+`launchlist` entries. Long term, prefer plumOS launch profiles over scattered
+shell scripts.
 
-## Frontend 方針
+## Frontend Policy
 
-stock `config.json` は stock MainUI の menu/ROM/artwork/launch 定義であり、plumOS
-frontend の正式仕様ではありません。詳細は
-[Stock frontend inventory](stock-frontend-inventory.md) に分離します。
+Stock `config.json` files are stock MainUI menu/ROM/artwork/launch definitions;
+they are not the official plumOS frontend specification. Details live in
+[Stock frontend inventory](stock-frontend-inventory.md).
 
-plumOS frontend は、以下を新しく設計します。
+plumOS should design these pieces independently:
 
-- system/app/theme の data model
-- ROM list と artwork lookup
-- recent/favorite の state format
-- RetroArch/core launch profile との接続
-- CPU/input/audio/video policy との境界
+- System/app/theme data model.
+- ROM list and artwork lookup.
+- Recent/favorite state format.
+- Connection to RetroArch/core launch profiles.
+- Boundaries with CPU/input/audio/video policy.
 
-既存 SD カードを読む必要はありますが、それは migration/inventory/compatibility shim の
-入力として扱います。stock 仕様を UI や launcher の新仕様へ昇格させる場合は、必ず個別に
-判断します。
+Existing SD-card data still needs to be readable, but only as input for
+migration, inventory, or compatibility shims. Promoting stock behavior into the
+new UI or launcher specification requires an explicit decision.
 
-独自 data model は [plumOS frontend data model](frontend-data-model.md) にまとめます。
-判断記録には [Stock reuse decision template](decisions/stock-reuse-template.md) を使います。
+The native model is documented in
+[plumOS frontend data model](frontend-data-model.md).
+Use the [Stock reuse decision template](decisions/stock-reuse-template.md)
+for decision records.
 
-## CPU 方針
+## CPU Policy
 
-既存 script は CPU governor を `performance` にしたり、CPU2/CPU3 を offline にする
-ことがあります。これは最適化の可能性もありますが、現時点では妥当性未確認です。
+Stock launch scripts sometimes set the CPU governor to `performance` and take
+CPU2/CPU3 offline. This may be an optimization, but it has not been validated
+yet.
 
-plumOS では以下を検証します。
+plumOS should test:
 
-- すべての CPU core を online にした場合の performance
-- CPU2/CPU3 を offline にした場合の発熱、battery、stutter
-- `performance`, `ondemand`, `interactive` governor の違い
-- system/core ごとの必要 clock
-- game 終了後に CPU 状態を確実に戻す仕組み
+- All CPU cores online.
+- CPU2/CPU3 offline and its effect on heat, battery, and stutter.
+- `performance`, `ondemand`, and `interactive` governors.
+- Required clocks per system/core.
+- Reliable CPU state restoration after game exit.
 
-CPU policy は launch script に分散させず、plumOS の launcher が一元管理します。
+CPU policy should be centralized in the plumOS launcher, not spread across
+per-system scripts.
 
-## Wi-Fi 方針
+## Wi-Fi Policy
 
-Wi-Fi は kernel driver、電源投入、`wlan0`、`wpa_supplicant`、DHCP client が関係します。
-stock の init script は `devmem` で電源系を操作しているため、最初は既存手順を観察し、
-plumOS 側で安全に再現できるか確認します。
+Wi-Fi involves the kernel driver, power sequencing, `wlan0`, `wpa_supplicant`,
+and a DHCP client. The stock init script uses `devmem` for radio power control,
+so first observe and reproduce the stock sequence safely.
 
-目標:
+Goals:
 
-- Wi-Fi 設定 UI は plumOS frontend に持たせる
-- 機微情報は `/config` または plumOS の private config に置き、git へ入れない
-- userland の `wpa_supplicant` と DHCP client は可能なら plumOS 同梱へ移す
-- kernel module や radio power sequence は、A30 固有の制約として扱う
+- Put Wi-Fi configuration UI in the plumOS frontend.
+- Keep secrets in `/config` or private plumOS config, never in git.
+- Bundle userland `wpa_supplicant` and DHCP client if practical.
+- Treat kernel modules and radio power sequencing as A30-specific constraints.
 
-## Input 方針
+## Input Policy
 
-stock は `keymon` を companion process として起動します。まずは `keymon` を残して
-frontend の置き換えを進めます。2026-06-06 の `plumos-input-compare` では、
-`keymon` と stock `MainUI` が `/dev/input/event3` を開いている状態でも、plumOS が
-同じ event を非排他で直接 open/poll できることを確認しました。
+The stock system starts `keymon` as a companion process. Keep it initially while
+replacing the frontend. On 2026-06-06, `plumos-input-compare` confirmed that
+plumOS can open and poll `/dev/input/event3` non-exclusively even while `keymon`
+and stock `MainUI` also have it open.
 
-- plumOS frontend は `/dev/input/event3` を直接読む
-- stock MainUI と共存中は排他取得をしない
-- 物理ボタンの code/action mapping を実機操作で確定する
-- SDL2 game controller mapping で十分か
-- RetroArch hotkey と frontend 操作をどう分離するか
-- suspend/resume や brightness/volume key の扱い
+- Read `/dev/input/event3` directly in the plumOS frontend.
+- Avoid exclusive grabs while coexisting with stock MainUI.
+- Confirm physical button code/action mapping on hardware.
+- Whether SDL2 game controller mapping is sufficient.
+- Separating RetroArch hotkeys from frontend controls.
+- Handling suspend/resume, brightness, and volume keys.
 
-## 既存仕様を見直す観点
+## Stock Behavior To Revisit
 
-置き換え候補:
+Replacement candidates:
 
-- system ごとの shell launch script
-- `HOME` と relative path に強く依存する RetroArch 起動
-- CPU governor/offline/overclock の分散管理
-- stock `miyoo/lib` 依存
-- stock `keymon` 依存
-- stock Wi-Fi userland 依存
+- Per-system shell launch scripts.
+- RetroArch startup that depends heavily on `HOME` and relative paths.
+- Distributed CPU governor/offline/overclock logic.
+- Stock `miyoo/lib` dependency.
+- Stock `keymon` dependency.
+- Stock Wi-Fi userland dependency.
 
-維持すべき互換性:
+Compatibility to preserve:
 
-- 既存 SD カードの `Emu`, `RApp`, `App`, `Roms`, `Imgs`, `Themes` を読めること
-- 既存 ROM や artwork を移動せずに認識できること
-- 既存の save/state を移行できること
-- 起動に失敗しても SD カード操作だけで戻せること
+- Read existing SD-card `Emu`, `RApp`, `App`, `Roms`, `Imgs`, and `Themes`.
+- Recognize existing ROMs and artwork without moving them.
+- Migrate existing saves and states.
+- Recover through SD-card changes if boot fails.
 
-## 直近の実験
+## Immediate Experiments
 
-1. plumOS 用 Docker toolchain の最小 Dockerfile を作る
-2. Docker build output を実機へ転送する deploy helper を作る
-3. rollback 可能な `MainUI` wrapper を作る
-4. `/mnt/SDCARD/plumos/bin/plumos-env` で runtime path を固定する
-5. stock MainUI を残したまま、plumOS frontend prototype を手動起動する
-6. framebuffer/input/audio の最小 runtime probe を A30 上で動かす
-7. plumOS 同梱 SDL2 の最小 linked/window/input probe を A30 上で動かす
-8. plumOS 同梱 SDL2 の framebuffer/render backend を A30 上で検証する
-9. build 時点で最新 stable の RetroArch を確認し、A30 向けに build して 1 system だけで検証する
-10. CPU policy の比較 log を取る
+1. Build the minimal Dockerfile for the plumOS toolchain.
+2. Add a deploy helper that transfers Docker build output to the device.
+3. Build a rollback-safe `MainUI` wrapper.
+4. Add `/mnt/SDCARD/plumos/bin/plumos-env` to set runtime paths.
+5. Manually run a plumOS frontend prototype while keeping stock MainUI.
+6. Run a minimal framebuffer/input/audio runtime probe on the A30.
+7. Run a minimal linked/window/input probe with plumOS-bundled SDL2 on the A30.
+8. Validate the framebuffer/render backend for plumOS-bundled SDL2 on the A30.
+9. Check the latest stable RetroArch release at build time, build it for the
+   A30, and validate one system first.
+10. Collect comparison logs for CPU policies.

@@ -1,83 +1,89 @@
-# MainUI bootstrap
+# MainUI Bootstrap
 
-A30 の stock boot flow は `/mnt/SDCARD/miyoo/app/MainUI` を直接起動します。plumOS
-ではこの位置に小さな wrapper を置き、実体を
-`/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` へ逃がします。
+The stock A30 boot flow runs `/mnt/SDCARD/miyoo/app/MainUI` directly. plumOS
+uses that path as a small wrapper and moves the actual frontend entry point to
+`/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali`.
 
-## 方針
+## Policy
 
-- stock MainUI は `/mnt/SDCARD/miyoo/app/MainUI.stock` として退避する
-- `/mnt/SDCARD/miyoo/app/MainUI` は shell wrapper にする
-- wrapper は `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` を通常FEとして起動する
-- wrapper は stock `/etc/main` が先に起動した `keymon` を止める
-- wrapper は `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` で StockOS の
-  `MtpDaemon`、`adbd`、`sysntpd` を止め、StockOS が SD card を ASCII filename
-  conversion で mount した場合は vfat UTF-8 mount へ正規化する
-- wrapper は SD card 正規化後に `plumos-sdcard-cleanup` を background 実行し、
-  macOS/Windows 由来の sidecar file (`._*`, `.DS_Store`, `Thumbs.db`, `desktop.ini`,
-  `__MACOSX`) を削除する。通常 scope は `Roms`/`roms` と `Images` に限定し、
-  FE 起動は cleanup 完了を待たない。全SD scan は `--all` の診断/手動用途に残す
-- controller UI は START menu に入る/戻るタイミングでも同じ cleanup を background
-  実行する。短時間の連続実行は FE 側で抑制し、ユーザー操作は待たせない
-- ROM scanner は sidecar file を ROM/thumbnail 候補から常に除外し、scan 開始時にも
-  cache を消さない cleanup を background 起動する。scan 結果の正確さは無視ルールで守り、
-  実ファイル削除は非同期で行う
-- wrapper は boot 時に `plumos-network-rescue` を自動実行しない
-- wrapper は `plumos-network-control --wifi on` を実行するが、既に `wlan0` に IP がある場合は
-  wpa_supplicant/udhcpc を停止せず接続を維持し、runtime status とSSHだけを確認する。
-  IP が無い場合だけ保存済み Wi-Fi 設定から DHCP/IP取得を試みる
-- wrapper は `plumos-network-services start-enabled` で SSH と有効化済み network service を起動する
-- `wlan0` に IP が既にある場合だけ `plumos-stock-services network-ready` を呼び、
-  plumOS 管理の `ntpd` を起動する
-- START menu と Network Settings から Network Recovery へ入る導線は持たない
-- 通常FEが Mali renderer の初期化と初回描画に成功したら
-  `/tmp/plumos-fe-ready` を作る。wrapper はこの flag がある場合、FE がその後
-  終了しても stock MainUI へ fallback しない
-- controller UI が初回描画前に無い/異常終了した場合は旧 `plumos-frontend`、
-  それも失敗した場合は stock MainUI へ fallback する
-- log は `/mnt/SDCARD/plumos/logs/` へ出す
-- SD カード上のファイル操作だけで rollback できるようにする
+- Back up stock MainUI to `/mnt/SDCARD/miyoo/app/MainUI.stock`.
+- Replace `/mnt/SDCARD/miyoo/app/MainUI` with a shell wrapper.
+- Launch `/mnt/SDCARD/plumos/bin/plumos-controller-ui-mali` as the normal FE.
+- Stop stock `keymon` after stock `/etc/main` starts the wrapper path.
+- Run `/mnt/SDCARD/plumos/bin/plumos-stock-services boot` to stop StockOS
+  `MtpDaemon`, `adbd`, and `sysntpd`, then normalize `/mnt/SDCARD` to a vfat
+  UTF-8 mount when StockOS mounted it with ASCII filename conversion.
+- After SD-card normalization, run `plumos-sdcard-cleanup` in the background to
+  remove macOS/Windows sidecar files (`._*`, `.DS_Store`, `Thumbs.db`,
+  `desktop.ini`, and `__MACOSX`). The normal scope is limited to `Roms`/`roms`
+  and `Images`, and FE startup does not wait for cleanup completion. Full-SD
+  cleanup stays available through `--all` for manual diagnostics.
+- The controller UI also starts the same cleanup in the background when entering
+  or returning to the START menu. Short repeated runs are throttled by the FE,
+  and user input does not wait for cleanup completion.
+- The ROM scanner always excludes sidecar files from ROM/thumbnail candidates
+  and starts a no-cache-invalidation cleanup in the background at scan startup.
+  Scan correctness comes from the ignore rules; physical deletion happens
+  asynchronously.
+- Do not run `plumos-network-rescue` automatically at boot.
+- Run `plumos-network-control --wifi on`, but if `wlan0` already has an IP
+  address, preserve the active wpa_supplicant/udhcpc runtime and only refresh
+  runtime status / SSH. Only attempt saved-config DHCP/IP acquisition when no IP
+  is present.
+- Start SSH and enabled network services through `plumos-network-services start-enabled`.
+- If `wlan0` already has an IP address, call `plumos-stock-services network-ready`
+  to start plumOS-managed `ntpd`.
+- Do not expose Network Recovery from the START menu or Network Settings.
+- After the normal FE initializes the Mali renderer and completes its first
+  frame, it creates `/tmp/plumos-fe-ready`. If this flag exists, the wrapper
+  does not fall back to stock MainUI even if the FE exits later.
+- Fall back to the legacy `plumos-frontend`, then stock MainUI, only if the
+  controller UI is missing or exits before that first successful frame.
+- Write logs under `/mnt/SDCARD/plumos/logs/`.
+- Keep rollback possible through SD-card file changes only.
 
-## package build
+## Package Build
 
 ```sh
 ./scripts/build-bootstrap-package.sh
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-bootstrap/
 dist/plumos-bootstrap.tar.gz
 ```
 
-## install
+## Install
 
-A30 の SSH が起動している状態で実行します。
+Run this while SSH is active on the A30.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/install-mainui-wrapper-a30.sh
 ```
 
-install script は以下を行います。
+The install script:
 
-- `dist/plumos-bootstrap` を `/mnt/SDCARD` へ転送する
-- `/mnt/SDCARD/miyoo/app/MainUI.stock` がなければ作成する
-- `/mnt/SDCARD/miyoo/app/MainUI` を wrapper に置き換える
+- Deploys `dist/plumos-bootstrap` to `/mnt/SDCARD`.
+- Creates `/mnt/SDCARD/miyoo/app/MainUI.stock` if it does not exist.
+- Replaces `/mnt/SDCARD/miyoo/app/MainUI` with the wrapper.
 
-bootstrap package は controller UI 本体を含みません。frontend は
-`./scripts/docker-build.sh frontend` で別 package として build/deploy します。
-wrapper 起動時は `plumos-network-rescue` を実行せず、そのまま通常FEを表示します。
-Wi-Fi が既に接続済みの場合はその接続を維持し、未接続の場合だけ保存済み Wi-Fi 設定での
-接続を試みます。SSH を含む有効化済み network service は background で開始します。
-左右キーは実行/戻るに使わず、実行は A、戻る/キャンセルは B に統一します。
+The bootstrap package does not include the controller UI binary. Build and
+deploy the frontend package separately with `./scripts/docker-build.sh frontend`.
+At startup the wrapper does not run `plumos-network-rescue`; it shows the normal
+FE, preserves an already-connected Wi-Fi runtime, only tries saved-config Wi-Fi
+when disconnected, and starts enabled network services, including SSH, in the
+background.
+Left/Right are not used for confirm/run/back/cancel; A confirms/runs and B
+backs/cancels.
 
-SSH が復旧していない状態でのネットワーク復旧は、FE 内の Network Recovery ではなく、
-StockOS MainUI から直接起動できる独立した shell script として設計します。
+Network recovery for cases where SSH is unavailable should be designed as a
+separate shell script launched directly from StockOS MainUI, not as an FE route.
 
-## FE control
+## FE Control
 
-FE の通常操作は以下の単一入口を使います。
+Use this single entry point for normal FE operations:
 
 ```sh
 ./scripts/a30-fe-control.sh status
@@ -86,56 +92,61 @@ FE の通常操作は以下の単一入口を使います。
 ./scripts/a30-fe-control.sh start
 ```
 
-`plumos-fe-control stop` は `/tmp/plumos-fe-paused` を作成してから FE と wrapper を止めます。
-stock `/etc/main` は wrapper を再実行しますが、wrapper は pause file が存在する間は
-FE を起動せず待機します。`start` または `restart` は pause file を削除し、
-起動後に `/dev/fb0` owner が plumOS FE 1 process だけであることを確認します。
+`plumos-fe-control stop` creates `/tmp/plumos-fe-paused`, then stops the FE and
+wrapper. Stock `/etc/main` will run the wrapper again, but the wrapper waits
+while the pause file exists instead of launching the FE. `start` and `restart`
+remove the pause file and verify that `/dev/fb0` is owned by exactly one plumOS
+FE process after startup.
 
-## 起動スプラッシュ
+## Boot Splash
 
-StockOS の `LOADING` 表示は kernel logo ではなく、`/etc/init.d/boot` が
-`/usr/miyoo/res/loading.data.tgz` を展開して `/dev/fb0` へ書き込む userland 表示です。
-rootfs は変更せず、plumOS の `MainUI.wrapper` が起動した直後に
-`/mnt/SDCARD/plumos/bin/plumos-boot-splash` で `/dev/fb0` へ plumOS splash を描き直します。
-helper は描画後すぐ終了するため、直後の SD card UTF-8 remount をブロックしません。
-`/mnt/SDCARD/plumos/config/disable-mainui-wrapper` がある場合は splash も表示しません。
+The StockOS `LOADING` screen is not a kernel logo. `/etc/init.d/boot` extracts
+`/usr/miyoo/res/loading.data.tgz` and writes it to `/dev/fb0` from userland.
+plumOS does not modify the rootfs; instead, `MainUI.wrapper` redraws the screen
+with `/mnt/SDCARD/plumos/bin/plumos-boot-splash` immediately after the wrapper
+starts. The helper exits as soon as it has drawn the splash, so it does not block
+the following SD-card UTF-8 remount. If
+`/mnt/SDCARD/plumos/config/disable-mainui-wrapper` exists, the splash is skipped.
 
-リリース標準の splash 画像は `/mnt/SDCARD/plumos/config/frontend/boot-splash.png` に置きます。
-ユーザーは同じパスの PNG を差し替えることで任意の splash 画像を使えます。
-推奨解像度は横向き `640x480`、PNG 24bit/32bit sRGB です。A30 の framebuffer は
-物理的には `480x640` ですが、plumOS UI と同じ横向き論理解像度 `640x480` として扱います。
-画像が無い、または PNG として読めない場合は内蔵 splash に fallback します。サイズが
-`640x480` 以外の場合は縦横比を維持して画面内に収め、余白は内蔵 splash と同じ背景で埋めます。
+The release default splash art lives at
+`/mnt/SDCARD/plumos/config/frontend/boot-splash.png`. Users can replace that PNG
+at the same path to use their own splash art. The recommended image is a
+landscape `640x480` PNG, 24-bit/32-bit sRGB. The A30 framebuffer is physically
+`480x640`, but plumOS treats the screen as the same `640x480` landscape logical
+space used by the UI. If the file is missing or cannot be decoded as PNG, the
+built-in splash is used. Images with other sizes are aspect-fit inside the
+screen, with the built-in splash background filling any margins.
 
-## disable
+## Disable
 
-wrapper を残したまま stock MainUI を起動したい場合は、A30 上で以下を作ります。
+To keep the wrapper installed but boot stock MainUI directly, create this file
+on the A30:
 
 ```sh
 touch /mnt/SDCARD/plumos/config/disable-mainui-wrapper
 ```
 
-解除:
+Remove it to re-enable the wrapper path:
 
 ```sh
 rm -f /mnt/SDCARD/plumos/config/disable-mainui-wrapper
 ```
 
-## restore
+## Restore
 
-stock MainUI へ戻します。
+Restore stock MainUI:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/restore-mainui-wrapper-a30.sh
 ```
 
-SD カードを直接編集する場合は、以下でも戻せます。
+When editing the SD card directly, this also restores stock MainUI:
 
 ```sh
 cp /mnt/SDCARD/miyoo/app/MainUI.stock /mnt/SDCARD/miyoo/app/MainUI
 ```
 
-## logs
+## Logs
 
 ```text
 /mnt/SDCARD/plumos/logs/mainui-wrapper.log

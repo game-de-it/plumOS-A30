@@ -1,24 +1,25 @@
 # A30 joystickd
 
-`plumos-joystickd` は、Miyoo A30 の serial raw joystick frame を Linux の
-virtual input device に変換する実験用 daemon です。
+`plumos-joystickd` is an experimental daemon that converts Miyoo A30 serial raw
+joystick frames into a Linux virtual input device.
 
-目的:
+Goals:
 
-- `/dev/ttyS0` から 9600/8N1 の `ff b1 b2 b3 b4 fe` frame を読む
-- `/config/joypad.config` の calibration 値を適用する
-- `/dev/uinput` で `ABS_X`/`ABS_Y` を持つ virtual analog stick を作る
-- RetroArch や standalone emulator から通常の Linux input device として見せる
+- Read 9600/8N1 `ff b1 b2 b3 b4 fe` frames from `/dev/ttyS0`.
+- Apply calibration from `/config/joypad.config`.
+- Create a virtual analog stick with `ABS_X`/`ABS_Y` through `/dev/uinput`.
+- Expose the stick to RetroArch and standalone emulators as a normal Linux
+  input device.
 
-stock/spruce の binary は流用しません。
+It does not reuse stock/spruce binaries.
 
-## build
+## Build
 
 ```sh
 ./scripts/docker-build.sh joystickd
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-joystickd/plumos/bin/plumos-joystickd
@@ -26,80 +27,83 @@ dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 
-## deploy/run
+## Deploy/Run
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-joystickd /mnt/SDCARD
 ```
 
-読み取りと正規化だけを確認:
+Read and normalize only:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
-短時間だけ virtual stick を作る:
+Create a virtual stick briefly:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --timeout-ms 2000 --print-every 50'
 ```
 
-PPSSPP 型の composite gamepad を短時間だけ作る:
+Create a PPSSPP-style composite gamepad briefly:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --device-mode xbox --timeout-ms 5000'
 ```
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-xbox.sh --deploy
 ```
 
-この mode は `/dev/ttyS0` の左スティック軸と `/dev/input/event3` の物理ボタンを
-1つの virtual gamepad へ合成します。常駐候補ですが、FE/`keymon`/emulator での
-二重入力がないことを確認してから default service 化します。
+This mode combines the `/dev/ttyS0` left-stick axes and physical buttons from
+`/dev/input/event3` into one virtual gamepad. It is the leading candidate for an
+always-running plumOS input service, but duplicate input across the frontend,
+`keymon`, and emulators must be checked before making it the default.
 
-daemon が作った `js0`/`event4` を Linux joystick API と evdev で読む:
+Read the daemon-created `js0`/`event4` device through the Linux joystick API and
+evdev:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --timeout-ms 3000 >/tmp/plumos-joystickd.log 2>&1 & sleep 0.5; /mnt/SDCARD/plumos/bin/plumos-joystick-reader --timeout-ms 1000; wait; cat /tmp/plumos-joystickd.log; rm -f /tmp/plumos-joystickd.log'
 ```
 
-## default mapping
+## Default Mapping
 
-現在の仮設定:
+Current provisional mapping:
 
 | virtual input | raw source | calibration |
 | --- | --- | --- |
 | `ABS_X` | `axisXR` | `x_min/x_max/x_zero` |
 | `ABS_Y` | `axisYR` | `y_min/y_max/y_zero` |
 
-根拠:
+Reasoning:
 
-- `/dev/ttyS0` の frame は `ff axisYL axisXL axisYR axisXR fe` として解釈している
-- 実機で左スティックを回したとき、`axisYR`/`axisXR` の min/max が
-  `/config/joypad.config` の値に近かった
+- `/dev/ttyS0` frames are interpreted as `ff axisYL axisXL axisYR axisXR fe`.
+- When the stick was moved on hardware, `axisYR`/`axisXR` min/max values closely
+  matched `/config/joypad.config`.
 
-未確定:
+Unconfirmed:
 
-- `axisXR` が物理 X で正しいか
-- `axisYR` が物理 Y で正しいか
-- 上下左右の符号
+- Whether `axisXR` is the physical X axis.
+- Whether `axisYR` is the physical Y axis.
+- Up/down/left/right sign.
 
-左スティック押し込みは、stockOS/spruceOS の設定保存内容と実機 event 結果から
-初期 plumOS では未接続/未対応として扱います。
+Based on stockOS/spruceOS setting storage and hardware event results, initial
+plumOS treats the left-stick click as unconnected/unsupported.
 
-これらは個別 capture で確定します。それまでは `--x-source`, `--y-source`,
-`--invert-x`, `--invert-y` で調整可能にします。
+These will be confirmed with separate direction captures. Until then,
+`--x-source`, `--y-source`, `--invert-x`, and `--invert-y` are available for
+adjustment.
 
-## 2026-06-06 実機結果
+## Device Result On 2026-06-06
 
-読み取りと正規化:
+Read and normalize:
 
 ```text
 plumOS joystickd
@@ -122,15 +126,16 @@ B: EV=9
 B: ABS=3
 ```
 
-`plumos-joystickd` は A30 実機で `/dev/uinput` から axes-only の virtual input device を
-作成できました。押し込み未対応方針に合わせ、仮の `BTN_THUMBL` は出していません。
+`plumos-joystickd` can create a virtual input device through `/dev/uinput` on
+the A30. The device is axes-only; the provisional `BTN_THUMBL` was removed
+because the left-stick click is treated as unsupported.
 
-## Linux joystick API / evdev 確認
+## Linux Joystick API / evdev Check
 
-`plumos-joystick-reader` で、daemon が作った `js0`/`event4` を読み取れることを
-A30 実機で確認しました。
+`plumos-joystick-reader` was confirmed on the A30 to read the `js0`/`event4`
+device created by the daemon.
 
-stick を動かさずに open/init だけ確認した結果:
+Open/init result without moving the stick:
 
 ```text
 plumOS joystick reader
@@ -142,23 +147,24 @@ js event index=2 time=328840 type=0x82 type_name=JS_AXIS_INIT number=1 value=-66
 summary js_events=2 evdev_events=0 timeout_ms=1000
 ```
 
-実際に左スティックを動かした 10 秒確認では、Linux joystick API と evdev の両方で
-event を確認しました。
+During a 10-second hardware test with stick movement, events were observed from
+both the Linux joystick API and evdev:
 
 ```text
 summary js_events=370 evdev_events=759 timeout_ms=10000
 ```
 
-このため、`plumos-joystickd` が作る device は Linux joystick API/evdev から見えると
-判断します。次は RetroArch/SDL からの認識確認へ進みます。
+The device created by `plumos-joystickd` can therefore be treated as visible
+through the Linux joystick API and evdev. Next, verify RetroArch/SDL recognition.
 
-左スティック押し込みは `plumos-input-compare --all-events` と `/dev/ttyS0` serial frame の
-確認では観測できておらず、stockOS/spruceOS の保存項目にも見当たりません。このため、
-初期 plumOS の analog stick daemon は X/Y 軸だけを提供します。
+The left-stick click was not observed with `plumos-input-compare --all-events`
+or `/dev/ttyS0` serial frames, and no saved stockOS/spruceOS setting for it was
+observed. Initial plumOS therefore exposes only X/Y axes from the analog stick
+daemon.
 
-## RetroArch / SDL 確認
+## RetroArch / SDL Check
 
-stock RetroArch 1.16.0 の build feature は以下でした。
+Stock RetroArch 1.16.0 reports these build features:
 
 ```text
 SDL             - SDL input/audio/video drivers: yes
@@ -166,11 +172,11 @@ SDL2            - SDL2 input/audio/video drivers: no
 UDEV            - UDEV/EVDEV input driver: no
 ```
 
-stock `retroarch.cfg` は `input_driver = "sdl"`、
-`input_joypad_driver = "sdl"` です。そのため stock RetroArch では SDL1 joystick 経路が
-確認対象になります。
+Stock `retroarch.cfg` uses `input_driver = "sdl"` and
+`input_joypad_driver = "sdl"`, so the stock path to check is SDL1 joystick
+input.
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --deploy
@@ -178,7 +184,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --devic
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-joystick.sh --device-mode xbox
 ```
 
-2026-06-06 の確認結果:
+Result observed on 2026-06-06:
 
 ```text
 js info path=/dev/input/js0 name="plumOS A30 Analog Stick" axes=2 buttons=0
@@ -188,10 +194,11 @@ evdev info path=/dev/input/event4 name="plumOS A30 Analog Stick"
 result=retroarch_sdl_driver_only
 ```
 
-`sdl` と `sdl_dingux` の一時 autoconfig を試しましたが、RetroArch log には
-`plumOS A30 Analog Stick` の configured/connection log は出ませんでした。
+Temporary `sdl` and `sdl_dingux` autoconfig files were tested, but the RetroArch
+log did not show configured/connection lines for `plumOS A30 Analog Stick`.
 
-同じ script を `--device-mode xbox` に拡張し、`plumOS A30 Gamepad` でも確認しました。
+The same script was extended with `--device-mode xbox` and re-run with
+`plumOS A30 Gamepad`.
 
 ```text
 detected mode=xbox name="plumOS A30 Gamepad" js=/dev/input/js0 event=/dev/input/event4
@@ -202,36 +209,42 @@ evdev info path=/dev/input/event4 name="plumOS A30 Gamepad"
 result=retroarch_sdl_driver_only
 ```
 
-stock RetroArch の stdout には `joystick read cal` と `thread serial joystick` が出ますが、
-RetroArch log には axes-only/composite のどちらでも `plumOS A30 ...` device の
-configured/connection log は出ませんでした。
+Stock RetroArch stdout prints `joystick read cal` and `thread serial joystick`,
+but RetroArch logs still do not show configured/connection lines for either the
+axes-only or composite `plumOS A30 ...` device.
 
-MainUI から stock RetroArch を起動した手動確認では、Port1 Controls の bind 待ち受けで
-左スティックが `Axis -2`/`±2` として検出される一方、実際に左スティックを動かしても
-メニューカーソルは移動しませんでした。SSH 側で確認した stock RetroArch process は
-`libSDL-1.2.so.0` を map していましたが、開いていた input fd は `/dev/input/event0`
-のみで、`/dev/input/js*` や `event4` は開いていませんでした。
+In a manual stock RetroArch launch from MainUI, the Port 1 Controls binding UI
+detects the left stick as `Axis -2`/`+/-2`, but moving the stick does not move
+the menu cursor. From SSH, the stock RetroArch process mapped `libSDL-1.2.so.0`,
+but its open input fd was only `/dev/input/event0`; it did not open
+`/dev/input/js*` or `event4`.
 
-現時点の判断:
+Current judgment:
 
-- `plumos-joystickd` の virtual device は Linux joystick API/evdev では正常に見える
-- stock RetroArch の SDL1 joypad driver は有効だが、log 上は axes-only `js0` と
-  composite `plumOS A30 Gamepad` のどちらも autoconfig/接続を確認できていない
-- stock RetroArch は bind 待ち受けで軸らしき入力を拾うが、通常操作には使えていない
-- RetroArch 向け analog strategy は stock SDL1 挙動を前提にせず、plumOS RetroArch
-  build の SDL2/evdev 対応と buttons+axes の composite virtual pad を優先する
+- The `plumos-joystickd` virtual device is visible through the Linux joystick
+  API and evdev.
+- The stock RetroArch SDL1 joypad driver is enabled, but logs do not confirm
+  autoconfig/connection for either the axes-only `js0` device or the composite
+  `plumOS A30 Gamepad`.
+- Stock RetroArch appears to detect an axis during binding, but that does not
+  translate into normal menu/game operation.
+- The RetroArch analog strategy should not rely on this stock SDL1 behavior.
+  Prioritize a plumOS RetroArch build with SDL2/evdev support plus the
+  buttons+axes composite virtual pad.
 
-## PPSSPP / SDL2 GameController 確認
+## PPSSPP / SDL2 GameController Check
 
-stock PPSSPP を MainUI から起動し、左スティックが動作している状態で確認しました。
+This was checked while stock PPSSPP was launched from MainUI and the left stick
+was working in PPSSPP.
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 ```
 
-`/mnt/SDCARD/Emu/PPSSPP/launch.sh` は PPSSPP 起動前に専用 daemon を起動しています。
+`/mnt/SDCARD/Emu/PPSSPP/launch.sh` starts a dedicated input daemon before
+starting PPSSPP.
 
 ```sh
 ./miyoo282_xpad_inputd&
@@ -239,7 +252,7 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 killall miyoo282_xpad_inputd
 ```
 
-PPSSPP 起動中の process:
+Processes observed while PPSSPP was running:
 
 ```text
 /mnt/SDCARD/Emu/PPSSPP/launch.sh
@@ -247,7 +260,7 @@ PPSSPP 起動中の process:
 ./PPSSPPSDL /mnt/SDCARD/Emu/PPSSPP/../../Roms/PSP/Puzzle_Bobble.cso
 ```
 
-`/proc/bus/input/devices` には次の virtual pad が追加されます。
+The following virtual pad appears in `/proc/bus/input/devices`:
 
 ```text
 I: Bus=0003 Vendor=045e Product=028e Version=045e
@@ -259,15 +272,15 @@ B: KEY=7cdb0000 0 0 0 0 0 0 0 0 0
 B: ABS=3003f
 ```
 
-`plumos-joystick-reader` で読むと、`MIYOO Pad1` は 8 axes / 11 buttons の
-composite device として見えました。
+Through `plumos-joystick-reader`, `MIYOO Pad1` appears as an 8-axis /
+11-button composite device.
 
 ```text
 js info path=/dev/input/js0 name="MIYOO Pad1" axes=8 buttons=11
 evdev info path=/dev/input/event4 name="MIYOO Pad1"
 ```
 
-process fd の観測:
+Observed process fds:
 
 ```text
 miyoo282_xpad_inputd -> /dev/uinput
@@ -276,7 +289,7 @@ PPSSPPSDL -> /dev/input/event4
 PPSSPPSDL -> /dev/ttyS0
 ```
 
-`miyoo282_xpad_inputd` の文字列には以下がありました。
+`miyoo282_xpad_inputd` contains strings for:
 
 ```text
 /config/joypad.config
@@ -285,35 +298,35 @@ MIYOO Pad1
 /dev/uinput
 ```
 
-`PPSSPPSDL` は `libSDL2-2.0.so.0` と `SDL_GameController*` /
-`SDL_Joystick*` API を使っており、binary 内の path から PPSSPP 1.16.6 系と
-判断できます。`assets/gamecontrollerdb.txt` には Xbox 360 controller mapping が
-含まれており、`MIYOO Pad1` の `045e:028e` はこの系統の mapping に乗せている
-可能性が高いです。
+`PPSSPPSDL` uses `libSDL2-2.0.so.0` and `SDL_GameController*` /
+`SDL_Joystick*` APIs. Embedded paths indicate a PPSSPP 1.16.6-based build.
+`assets/gamecontrollerdb.txt` contains Xbox 360 controller mappings, and
+`MIYOO Pad1`'s `045e:028e` identity is likely routed through that family of
+mappings.
 
-現時点の判断:
+Current judgment:
 
-- PPSSPP で analog stick が動く理由は、PPSSPP 本体が raw serial を直接処理している
-  からではなく、起動 script が `miyoo282_xpad_inputd` を起動して composite virtual
-  pad を作っているため
-- `miyoo282_xpad_inputd` は `/dev/ttyS0` と `/config/joypad.config` を読み、
-  `/dev/uinput` で Xbox 360 互換風の `MIYOO Pad1` を作る
-- PPSSPP は SDL2 GameController/Joystick 経路で `/dev/input/event4` の
-  `MIYOO Pad1` を読む
-- 左スティック押し込みは PPSSPP の controller 設定でも反応しなかったため、引き続き
-  未接続/未対応として扱う
-- plumOS では stock binary を流用せず、`plumos-joystickd` を axes-only から
-  buttons+axes の composite virtual pad mode へ拡張する案を優先する
-- plumOS RetroArch は stock SDL1 経路に依存せず、SDL2/evdev + composite virtual pad
-  を優先して検証する
+- PPSSPP analog stick support works because the launch script starts
+  `miyoo282_xpad_inputd`, which creates a composite virtual pad, not because
+  PPSSPP itself directly handles the raw serial stick protocol.
+- `miyoo282_xpad_inputd` reads `/dev/ttyS0` and `/config/joypad.config`, then
+  creates an Xbox 360-like `MIYOO Pad1` through `/dev/uinput`.
+- PPSSPP reads `MIYOO Pad1` from `/dev/input/event4` through SDL2
+  GameController/Joystick APIs.
+- The left-stick click did not react in PPSSPP controller settings, so keep
+  treating it as unconnected/unsupported.
+- plumOS should not reuse the stock binary, but this strongly supports adding a
+  buttons+axes composite virtual pad mode to `plumos-joystickd`.
+- The plumOS RetroArch path should prioritize SDL2/evdev plus a composite
+  virtual pad instead of relying on the stock SDL1 path.
 
-## composite gamepad mode
+## Composite Gamepad Mode
 
-`plumos-joystickd` には 2026-06-06 時点で `--device-mode xbox` を追加しました。
-この mode は stock `miyoo282_xpad_inputd` を流用せず、PPSSPP の観測結果から
-plumOS 側で同じ原理を実装するものです。
+As of 2026-06-06, `plumos-joystickd` has a `--device-mode xbox` mode. This does
+not reuse stock `miyoo282_xpad_inputd`; it implements the same principle on the
+plumOS side based on the PPSSPP observations.
 
-作る device:
+Created device:
 
 ```text
 name="plumOS A30 Gamepad"
@@ -322,7 +335,7 @@ axes=ABS_X,ABS_Y,ABS_Z,ABS_RX,ABS_RY,ABS_RZ,ABS_HAT0X,ABS_HAT0Y
 buttons=BTN_A,BTN_B,BTN_X,BTN_Y,BTN_TL,BTN_TR,BTN_SELECT,BTN_START,BTN_MODE,BTN_THUMBL,BTN_THUMBR
 ```
 
-mapping:
+Mapping:
 
 | source | virtual output |
 | --- | --- |
@@ -333,26 +346,29 @@ mapping:
 | L2/R2 | `ABS_Z` / `ABS_RZ` digital trigger value |
 | START/SELECT | `BTN_START` / `BTN_SELECT` |
 | Function | `BTN_MODE` |
-| left-stick click | 未対応。button capability はあるが event は出さない |
+| left-stick click | unsupported; capability exists, but no event is emitted |
 
-`--button-event PATH` で物理ボタンの input event を指定できます。既定値は
-`/dev/input/event3` です。`--no-buttons` を付けると、左スティック軸だけを
-composite gamepad に流します。
+`--button-event PATH` selects the physical button input event source. The
+default is `/dev/input/event3`. Use `--no-buttons` to forward only the left-stick
+axes into the composite gamepad.
 
-常駐方針:
+Always-running policy:
 
-- plumOS 常用時は `--device-mode xbox` の常駐を第一候補にする
-- stock MainUI/PPSSPP と同時に動かすと input device が複数増えるため、調査時は
-  `--timeout-ms` 付きで短時間確認する
-- plumOS frontend は自分の操作用には引き続き `/dev/input/event3` を直接読み、
-  emulator には composite gamepad を渡す構成を優先する
-- PPSSPP は direct launch でも `event4` に加えて `/dev/input/event3` と `/dev/ttyS0`
-  を開くため、default launch profile 化の前に物理操作時の二重入力や serial 競合を確認する
+- Treat `--device-mode xbox` as the leading candidate for normal plumOS runtime.
+- During stock MainUI/PPSSPP investigation, run it with `--timeout-ms` because it
+  adds another input device.
+- Let the plumOS frontend continue reading `/dev/input/event3` directly for its
+  own UI, and prefer passing the composite gamepad to emulators.
+- PPSSPP direct launch still opens `/dev/input/event3` and `/dev/ttyS0` in
+  addition to `event4`, so check physical duplicate input and serial contention
+  before making it the default PPSSPP launch profile.
 
-2026-06-06 実機結果:
+Hardware result on 2026-06-06:
 
-stock PPSSPP が起動しており、stock 側の `MIYOO Pad1` が `js0`/`event4` にいる状態で
-`plumos-joystickd --device-mode xbox --timeout-ms 5000` を実行しました。
+This was run while stock PPSSPP was active, so stock `MIYOO Pad1` occupied
+`js0`/`event4`. Running
+`plumos-joystickd --device-mode xbox --timeout-ms 5000` created the plumOS
+device as `js1`/`event5`.
 
 ```text
 detected js=/dev/input/js1 event=/dev/input/event5
@@ -366,24 +382,24 @@ evdev info path=/dev/input/event5 name="plumOS A30 Gamepad"
 summary frames=196 emitted=1 button_events=0 last_x=0 last_y=0 duration_ms=5133
 ```
 
-これにより、`xbox` mode の virtual device capability は PPSSPP で観測した
-`MIYOO Pad1` と同系統の 8 axes / 11 buttons として A30 実機に作成できることを
-確認しました。次は SDL2 GameController と RetroArch/standalone emulator からの
-認識確認を行います。
+This confirms that `xbox` mode can create an 8-axis / 11-button virtual device
+on A30 hardware with capabilities matching the family observed from PPSSPP's
+`MIYOO Pad1`. Next, verify SDL2 GameController recognition and
+RetroArch/standalone emulator behavior.
 
-### PPSSPP direct launch 確認
+### PPSSPP Direct Launch Check
 
-PPSSPP を停止した状態では、`plumOS A30 Gamepad` は `js0`/`event4` に作成されます。
-その状態で stock `miyoo282_xpad_inputd` を起動せず、`PPSSPPSDL` だけを直接起動して
-確認しました。
+When PPSSPP is stopped, `plumOS A30 Gamepad` is created as `js0`/`event4`.
+With that device active, stock `PPSSPPSDL` was launched directly without
+starting stock `miyoo282_xpad_inputd`.
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-plumos-gamepad.sh
 ```
 
-確認結果:
+Observed result:
 
 ```text
 N: Name="plumOS A30 Gamepad"
@@ -402,23 +418,24 @@ found control pad: Atari Xbox 360 Game Controller, loading mapping: SUCCESS
 pad 1 has been assigned to control pad: Atari Xbox 360 Game Controller
 ```
 
-この結果から、`plumos-joystickd --device-mode xbox` は stock PPSSPP の SDL2
-GameController 経路から認識され、GameController mapping も成功すると判断します。
-PPSSPP は process fd と log の両方で plumOS gamepad を使っていることを確認済みです。
-PPSSPP direct launch と stock RetroArch probe の終了後、`plumos-joystickd` process、
-`plumOS A30 Gamepad` device、`/dev/uinput`/`event4`/`ttyS0` fd が残らないことも
-確認しました。
+This confirms that `plumos-joystickd --device-mode xbox` is recognized through
+stock PPSSPP's SDL2 GameController path and successfully loads a GameController
+mapping. Both process fds and PPSSPP logs show PPSSPP using the plumOS gamepad.
+After the PPSSPP direct-launch and stock RetroArch probes finished, no stale
+`plumos-joystickd` process, `plumOS A30 Gamepad` device, or
+`/dev/uinput`/`event4`/`ttyS0` fd remained.
 
-### button forwarding 確認
+### Button Forwarding Check
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-buttons.sh
 ```
 
-2026-06-06 に stock MainUI/keymon が動作中のまま、`plumos-joystickd --device-mode xbox`
-を短時間起動し、物理ボタンが `plumOS A30 Gamepad` に転送されることを確認しました。
+On 2026-06-06, with stock MainUI/keymon still running,
+`plumos-joystickd --device-mode xbox` was started briefly and physical buttons
+were confirmed to forward into `plumOS A30 Gamepad`.
 
 ```text
 A      -> BTN_A
@@ -433,7 +450,7 @@ SELECT -> BTN_SELECT
 FUNC   -> BTN_MODE
 ```
 
-確認時の summary:
+Observed summary:
 
 ```text
 js info path=/dev/input/js0 name="plumOS A30 Gamepad" axes=8 buttons=11
@@ -442,29 +459,31 @@ summary frames=1538 emitted=1 button_events=30 last_x=0 last_y=0 duration_ms=231
 result=button_forwarding_observed
 ```
 
-Function button は個別に追加確認し、`EV_KEY code=316 key=BTN_MODE`、joystick API では
-`JS_BUTTON number=8` として出ました。probe 終了後、`plumos-joystickd` process と
-`plumOS A30 Gamepad` device は残りませんでした。
+Function was also checked separately and appeared as
+`EV_KEY code=316 key=BTN_MODE`; through the joystick API it was
+`JS_BUTTON number=8`. After the probe finished, no `plumos-joystickd` process or
+`plumOS A30 Gamepad` device remained.
 
-### plumOS 同梱 SDL2 GameController 確認
+### plumOS-Bundled SDL2 GameController Check
 
-plumOS 側で upstream SDL3 3.4.10 と sdl2-compat 2.32.68、dynamic loader/shared
-libraries を同梱し、`plumos-joystickd --device-mode xbox` の composite virtual pad が
-SDL2 API から自動認識されるか確認しました。
+Upstream SDL3 3.4.10, sdl2-compat 2.32.68, the dynamic loader, and required
+shared libraries were bundled on the plumOS side to check whether the
+`plumos-joystickd --device-mode xbox` composite virtual pad is auto-detected
+through the SDL2 API.
 
-build:
+Build:
 
 ```sh
 ./scripts/docker-build.sh sdl2-probe
 ```
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
 ```
 
-2026-06-06 実機結果:
+Hardware result on 2026-06-06:
 
 ```text
 detected js=/dev/input/js0 event=/dev/input/event4
@@ -481,23 +500,24 @@ summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joys
 result=sdl2_gamecontroller_visible
 ```
 
-この結果から、stock PPSSPP だけでなく plumOS 同梱 SDL2 API でも `xbox` mode の
-virtual pad は GameController mapping に乗ると判断します。RetroArch 向けには引き続き、
-stock SDL1 ではなく plumOS build の SDL2/evdev とこの composite pad を優先して検証します。
+This confirms that `xbox` mode lands on the SDL2 GameController mapping not only
+in stock PPSSPP, but also with the plumOS-bundled SDL2 API runtime. For RetroArch,
+continue prioritizing the plumOS SDL2/evdev build plus this composite pad rather
+than tuning for the stock SDL1 path.
 
-### 常駐 probe
+### Residency Probe
 
-stock `/etc/main`、`MainUI.stock`、`keymon` を止めた plumOS 想定状態で、
-`plumos-joystickd --device-mode xbox` を 30 秒常駐させたまま FE、SDL2 probe、
-PPSSPP direct launch を順に確認しました。
+With stock `/etc/main`, `MainUI.stock`, and `keymon` stopped, `plumos-joystickd
+--device-mode xbox` was kept resident for 30 seconds while the FE, SDL2 probe,
+and PPSSPP direct launch were checked in sequence.
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-joystickd-residency.sh
 ```
 
-2026-06-07 実機結果:
+Hardware result on 2026-06-07:
 
 ```text
 check=gamepad_detected status=pass
@@ -509,7 +529,7 @@ check=stale_processes status=pass
 result=joystickd_residency_ok
 ```
 
-観測した fd:
+Observed fds:
 
 ```text
 plumos-joystickd -> /dev/ttyS0
@@ -521,50 +541,55 @@ PPSSPPSDL -> /dev/ttyS0
 PPSSPPSDL -> /dev/input/event3
 ```
 
-FE と `plumos-joystickd` は `/dev/input/event3` を非排他で同時に読めました。
-SDL2 probe と PPSSPP direct launch は resident `plumOS A30 Gamepad` を
-GameController として認識しました。probe 終了後、`plumos-joystickd` process、
-`plumOS A30 Gamepad` device、`/dev/uinput`/`event4`/`ttyS0` fd は残りませんでした。
+The FE and `plumos-joystickd` can read `/dev/input/event3` concurrently without
+exclusive grabs. The SDL2 probe and PPSSPP direct launch both recognize the
+resident `plumOS A30 Gamepad` as a GameController. After the probe exits, no
+stale `plumos-joystickd` process, `plumOS A30 Gamepad` device, or
+`/dev/uinput`/`event4`/`ttyS0` fd remains.
 
-注意点として、PPSSPP は plumOS gamepad の `event4` だけでなく `/dev/input/event3` と
-`/dev/ttyS0` も開きます。実際の物理操作で二重入力や serial read 競合が出ないかは、
-PPSSPP launch profile 化の前に追加確認します。
+One caveat: PPSSPP opens `/dev/input/event3` and `/dev/ttyS0` as well as the
+plumOS gamepad `event4`. Before turning this into a default PPSSPP launch
+profile, check whether real physical input causes duplicate actions or serial
+read contention.
 
-## options
+## Options
 
-- `--serial PATH`: serial raw stick path。既定値は `/dev/ttyS0`
-- `--calibration PATH`: calibration file。既定値は `/config/joypad.config`
-- `--uinput PATH`: uinput path。既定値は `/dev/uinput`
-- `--device-mode MODE`: `analog` または `xbox`。既定値は `analog`
-- `--button-event PATH`: `xbox` mode で合成する物理ボタン event。既定値は
-  `/dev/input/event3`
-- `--no-buttons`: `xbox` mode で物理ボタンを合成しない
-- `--timeout-ms MS`: 指定時間後に終了。既定値 `0` は signal まで常駐
-- `--no-uinput`: virtual input を作らず、読み取り/正規化だけ確認
-- `--x-source NAME`: `axisYL`, `axisXL`, `axisYR`, `axisXR`
-- `--y-source NAME`: `axisYL`, `axisXL`, `axisYR`, `axisXR`
-- `--invert-x`, `--invert-y`: 正規化後の符号を反転
-- `--deadzone-raw N`: raw center 周辺の deadzone。既定値は `8`
-- `--print-every N`: N frame ごとに raw/normalized 値を表示
+- `--serial PATH`: serial raw stick path. Default: `/dev/ttyS0`.
+- `--calibration PATH`: calibration file. Default: `/config/joypad.config`.
+- `--uinput PATH`: uinput path. Default: `/dev/uinput`.
+- `--device-mode MODE`: `analog` or `xbox`. Default: `analog`.
+- `--button-event PATH`: physical button event source for `xbox` mode. Default:
+  `/dev/input/event3`.
+- `--no-buttons`: do not forward physical buttons in `xbox` mode.
+- `--timeout-ms MS`: stop after this long. Default `0` runs until signaled.
+- `--no-uinput`: read and normalize without creating a virtual input device.
+- `--x-source NAME`: `axisYL`, `axisXL`, `axisYR`, or `axisXR`.
+- `--y-source NAME`: `axisYL`, `axisXL`, `axisYR`, or `axisXR`.
+- `--invert-x`, `--invert-y`: invert normalized output.
+- `--deadzone-raw N`: raw deadzone around center. Default: `8`.
+- `--print-every N`: print raw/normalized values every N frames.
 
-## joystick-reader options
+## joystick-reader Options
 
-- `--js PATH`: joystick API path。既定値は `/dev/input/js0`
-- `--event PATH`: evdev path。未指定時は device name から自動検出し、fallback は
-  `/dev/input/event4`
-- `--name NAME`: evdev 自動検出に使う device name。既定値は `plumOS A30 Analog Stick`
-- `--timeout-ms MS`: 監視時間
-- `--no-js`, `--no-event`: 片方だけ確認したい場合に使う
+- `--js PATH`: joystick API path. Default: `/dev/input/js0`.
+- `--event PATH`: evdev path. If omitted, auto-detect by device name and fall
+  back to `/dev/input/event4`.
+- `--name NAME`: device name for evdev auto-detection. Default:
+  `plumOS A30 Analog Stick`.
+- `--timeout-ms MS`: monitor duration.
+- `--no-js`, `--no-event`: check only one side.
 
-## 実装方針
+## Direction
 
-- frontend は当面 `/dev/input/event3` の button event を直接読む
-- `plumos-joystickd` は RetroArch/standalone emulator 用の analog stick 経路として扱う
-- `analog` mode は `ABS_X`/`ABS_Y` の axes-only device、`xbox` mode は
-  emulator 向けの buttons+axes composite virtual pad として扱う
-- 左スティック押し込みは初期 plumOS では event を出さない
-- emulator 起動中だけ daemon を有効化する運用も検討する
-- stock RetroArch/SDL1 には寄せず、plumOS RetroArch build の SDL2/evdev と
-  `xbox` mode composite pad を優先して検証する
-- 最終的には plumOS の launch profile から「input daemon が必要か」と device mode を
-  選べるようにする
+- The frontend should keep reading button events directly from `/dev/input/event3`
+  for now.
+- Treat `plumos-joystickd` as the analog-stick path for RetroArch and standalone
+  emulators.
+- Treat `analog` mode as the `ABS_X`/`ABS_Y` axes-only device and `xbox` mode as
+  the emulator-facing buttons+axes composite virtual pad.
+- Do not emit a left-stick click event in initial plumOS.
+- Consider enabling the daemon only while an emulator is running.
+- Do not tune for stock RetroArch/SDL1; prioritize the plumOS RetroArch build
+  with SDL2/evdev and the `xbox` mode composite pad.
+- Eventually, launch profiles should declare whether they need the input daemon
+  and which device mode to use.

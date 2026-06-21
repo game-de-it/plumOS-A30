@@ -1,41 +1,45 @@
-# plumOS SD root package
+# plumOS SD-Root Package
 
-この文書は、ユーザー配布用の SD card root package を定義する。
+This document defines the SD-card root package distributed to end users.
 
-## 目的
+Japanese counterpart: [sdroot-package.ja.md](sdroot-package.ja.md)
 
-`dist/plumos-release-sdroot` または `dist/plumos-sdroot-package` は、A30 の `/mnt/SDCARD`
-の配布用完成形である。
+## Purpose
 
-ユーザーは archive をフォーマット済み SD カードの root に展開するだけで、StockOS の boot flow から plumOS frontend を起動できる。
-plumOS は stockOS の SD card runtime と分離して成立するものではなく、`miyoo/` などの stock SD payload に
-plumOS runtime を overlay して配布する。
+`dist/plumos-release-sdroot` or `dist/plumos-sdroot-package` is the finished
+contents of `/mnt/SDCARD` for distribution.
 
-## 生成
+Users extract the archive to the root of a formatted SD card. The StockOS boot
+flow then starts the plumOS frontend. plumOS is distributed as an overlay on top
+of the stock SD payload; it is not independent of stock SD-side files such as
+`miyoo/`.
 
-SD root package は runtime package と stock SD payload を入力にして作る。
+## Build
+
+The SD-root package is built from the runtime package and stock SD payload:
 
 ```sh
 ./scripts/build-runtime-package.py
 ./scripts/build-sdroot-package.py
 ```
 
-既定の stock SD payload 入力は以下。
+Default stock payload input:
 
 ```text
 artifacts/stock-sdl-probe/extracted/mnt/SDCARD
 ```
 
-正式 release 前には、実機で正常動作していた stock SD card から ROM/BIOS/save/media/user-data を除いた
-payload を再取得し、この入力を更新する。
+Before a formal release, refresh this input from a known-good stock SD card with
+ROMs, BIOS files, saves, media, and user data removed.
 
-script 生成物は以下に出力される。
+Script outputs:
 
 - `dist/plumos-sdroot-package`
 - `dist/plumos-sdroot-package.tar.gz`
 
-現在のエンドユーザー向け release asset は、実機で正常動作していた SD card 由来の
-`dist/plumos-release-sdroot` を監査し、外側 directory を持たない `.7z` として固める。
+The current end-user asset is made by auditing the known-good
+`dist/plumos-release-sdroot` directory and archiving it as a `.7z` without an
+outer package directory:
 
 ```sh
 ./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
@@ -47,9 +51,9 @@ cd ../..
 shasum -a 256 dist/plumos-sdroot-package.7z
 ```
 
-`.7z` は SD card root へ一回解凍すればよい形式である。
+The `.7z` format is chosen so users only need one extraction step.
 
-archive は外側の package directory を持たず、展開先 root に直接以下の top-level entry を作る。
+After extraction, the destination root directly contains entries such as:
 
 ```text
 miyoo/app/MainUI
@@ -57,8 +61,8 @@ miyoo/app/MainUI.stock
 miyoo/app/keymon
 miyoo/app/sdlloading
 miyoo/lib/
-Emu/                 # stock payload に存在する場合
-RetroArch/           # stock payload に存在する場合
+Emu/
+RetroArch/
 plumos/
 Bios/
 Images/
@@ -70,73 +74,79 @@ manifest.txt
 sha256sum.txt
 ```
 
-既存の実機 SD card から作った release staging directory をそのまま配布 archive にする場合は、
-archive 化の前に release preflight を実行する。
+Run the release preflight before archiving any SD-root staging directory:
 
 ```sh
 ./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
 ```
 
-`blocker` が出た場合は、明確な生成物/履歴/セーブ/バックアップだけを quarantine へ移してから
-再確認する。
+If blockers remain, move only clear generated files, history, saves, or backups
+into quarantine and recheck:
 
 ```sh
 ./scripts/audit-release-sdroot.py dist/plumos-release-sdroot --clean
 ./scripts/audit-release-sdroot.py dist/plumos-release-sdroot
 ```
 
-`warning` は自動削除しない。特に stock emulator subtree 内の BIOS/system ROM、`Imgs/` の legacy
-artwork、`plumos/ssh/etc/authorized_keys` は配布方針として判断する。
+Warnings are not deleted automatically. Stock emulator BIOS/system ROMs,
+legacy `Imgs/` artwork, and `plumos/ssh/etc/authorized_keys` need explicit
+release-policy decisions.
 
-## 含むもの
+## Included
 
 - stock SD payload
   - `miyoo/app/MainUI.stock`: stock MainUI fallback
   - `miyoo/app/keymon`, `miyoo/app/sdlloading`
-  - `miyoo/lib/`: stock SDL1/SDL2 と関連 library
-  - `Emu/`, `RetroArch/` など、stock payload に含まれる非ユーザーデータ runtime
-- `miyoo/app/MainUI`: plumOS `MainUI.wrapper`。stock `MainUI` は `MainUI.stock` として残す
-- `plumos/`: frontend、runtime、emulator、core、config default、helper
-- `plumos/state/standalone/ppsspp/`: fresh SD card 用の PPSSPP factory state。
-  既存 SD card 更新時は user-managed state として保護する
-- `plumos/ssh/`: Dropbear SSH、起動/停止 script、`password.hash`、任意の `authorized_keys`
-- `Bios/`, `Images/`, `Imgs/`, `Roms/`, `Saves/`: 空の placeholder
-  - plumOS の通常サムネイル置き場は `Images/<system_id>/`
-  - `Imgs/` は既存 StockOS artwork 互換/旧置き場として残す
+  - `miyoo/lib/`: stock SDL1/SDL2 and related libraries
+  - non-user runtime trees from stock payload, such as `Emu/` and `RetroArch/`
+- `miyoo/app/MainUI`: plumOS `MainUI.wrapper`; stock `MainUI` is preserved as
+  `MainUI.stock`
+- `plumos/`: frontend, runtime, emulators, cores, default config, helpers
+- `plumos/state/standalone/ppsspp/`: PPSSPP factory state for a fresh SD card
+- `plumos/ssh/`: Dropbear SSH, start/stop scripts, `password.hash`, and optional
+  `authorized_keys`
+- placeholder `Bios/`, `Images/`, `Imgs/`, `Roms/`, and `Saves/`
+  - normal plumOS thumbnails live in `Images/<system_id>/`
+  - `Imgs/` remains for StockOS artwork compatibility and older data
 - `README.txt`
 - `manifest.txt`
 - `sha256sum.txt`
 
-## 含めないもの
+## Excluded
 
-- ROM
-- BIOS
-- save/state
-- screenshot/video
-- top-level `.config/` user/runtime state
-- network secret
-- user log
+- ROMs
+- BIOS files
+- saves/states
+- screenshots/videos
+- top-level `.config/` user or runtime state
+- network secrets
+- user logs
 - build cache
 
-## 注意点
+## Notes
 
-この package は fresh/formatted SD card へ展開することを主目的にする。既存 StockOS SD card に上書き展開する場合は、事前に `miyoo/app/MainUI` を退避する。
+This package is primarily for fresh/formatted SD cards. If extracting over an
+existing StockOS SD card, back up `miyoo/app/MainUI` first.
 
-既存 SD card へ安全に上書き更新したい場合は、`docs/runtime-package.md` の runtime installer を使う。
+For safe updates to an existing SD card, use the runtime installer described in
+[runtime-package.md](runtime-package.md).
 
-## 検証観点
+## Release Checks
 
-正式 release 前に以下を確認する。
+Before a formal release, verify:
 
-- `miyoo/app/MainUI` が executable な wrapper である。
-- `plumos/bootstrap/MainUI.wrapper` と `miyoo/app/MainUI` が同一内容である。
-- `miyoo/app/MainUI.stock`、`miyoo/app/keymon`、`miyoo/app/sdlloading` が存在する。
-- `miyoo/lib/libSDL2-2.0.so.0` が存在する。
-- `plumos/bin/plumos-controller-ui-mali` が存在する。
-- `plumos/config/frontend/systems.json` が存在する。
-- `plumos/ssh/start-ssh.sh` と `plumos/ssh/bin/dropbear` が存在する。
-- `plumos/ssh/etc/password.hash` が存在し、初期パスワード `plumos` でログインできる。
-- `plumos/ssh/etc/authorized_keys` は任意。入っていれば鍵認証も使える。
-- `Roms/`、`Bios/`、`Images/`、`Imgs/` などには placeholder 以外のユーザーデータが含まれない。
-- `.7z` archive を空 directory に展開すると、その directory が SD card root と同じ構成になる。
-- fresh SD card 相当の実機で boot する。
+- `miyoo/app/MainUI` is an executable wrapper.
+- `plumos/bootstrap/MainUI.wrapper` and `miyoo/app/MainUI` have identical
+  content.
+- `miyoo/app/MainUI.stock`, `miyoo/app/keymon`, and `miyoo/app/sdlloading`
+  exist.
+- `miyoo/lib/libSDL2-2.0.so.0` exists.
+- `plumos/bin/plumos-controller-ui-mali` exists.
+- `plumos/config/frontend/systems.json` exists.
+- `plumos/ssh/start-ssh.sh` and `plumos/ssh/bin/dropbear` exist.
+- `plumos/ssh/etc/password.hash` exists and password login with `plumos` works.
+- `plumos/ssh/etc/authorized_keys` is optional; if present, key auth also works.
+- `Roms/`, `Bios/`, `Images/`, and `Imgs/` contain no user data except
+  placeholders.
+- Extracting the `.7z` into an empty directory creates an SD-card-root layout.
+- A fresh-SD-equivalent device boots successfully.

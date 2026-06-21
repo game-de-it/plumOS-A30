@@ -1,51 +1,54 @@
-# Red Viper A30 設定
+# Red Viper A30 Settings
 
-この文書は Virtual Boy 用 standalone `red-viper-a30` の設定項目を整理します。
-ユーザーが変更できることを原則にし、A30 で即時反映できる項目、次回起動から反映する項目、
-upstream にはあるが A30 backend が未実装の項目を分けて扱います。
+This document inventories settings for the Virtual Boy standalone
+`red-viper-a30`. The policy is to make settings user-changeable where the A30
+backend can apply them, while clearly separating immediate settings,
+next-launch settings, and upstream settings that still need an A30 backend.
 
-2026-06-13 時点では、Virtual Boy の標準 profile は最適化済み
-`retroarch:mednafen_vb` です。Red Viper standalone は StockOS 由来の
-SDL2 `mali` + GLES2 描画経路を `red-viper-sdlgl-a30` として build します。
-画面の向き、fit、単眼描画、SDL audio queue 設定は接続済みですが、Bad Apple の高負荷場面で
-音声途切れが残るため、通常配布と FE profile からは外します。今後の調査が必要な場合だけ
-`PLUMOS_STANDALONE_FILTER=red_viper` で明示ビルドします。
+As of 2026-06-13, the standard Virtual Boy profile is the optimized
+`retroarch:mednafen_vb` core. Red Viper standalone builds the StockOS-derived
+SDL2 `mali` + GLES2 rendering path as `red-viper-sdlgl-a30`. Orientation and
+fit, single-eye rendering, and SDL audio queue settings are wired, but Bad
+Apple still drops audio in heavy scenes. Red Viper is therefore removed from
+normal distribution and the FE profile list. Build it explicitly with
+`PLUMOS_STANDALONE_FILTER=red_viper` only when probing.
 
-## A30 in-game menu
+## A30 In-Game Menu
 
-`red-viper-a30` 実行中に Function (`KEY_ESC`) を押すと、A30 用の軽量メニューを表示します。
-上下で移動、左右または A で変更、B または Function で戻ります。`START+SELECT` 終了は維持します。
+Press Function (`KEY_ESC`) while `red-viper-a30` is running to open the A30 menu.
+Up/down moves, left/right or A changes a value, and B or Function returns.
+`START+SELECT` still exits.
 
-| 項目 | 保存先 | 反映 | 内容 |
+| Item | Stored as | Applies | Notes |
 | --- | --- | --- | --- |
-| Eye | `PLUMOS_A30_RED_VIPER_EYE` | 即時 | `both`, `left`, `right`。単眼表示で画面二重表示を避けられます。 |
-| Scale | `PLUMOS_A30_RED_VIPER_SCALE` | 即時 | `fit`, `stretch`, `integer`。 |
-| Rotation | `PLUMOS_A30_RED_VIPER_ROTATION` | 即時 | `ccw`, `cw`, `none`。 |
-| Wait Vsync | `PLUMOS_A30_RED_VIPER_WAIT_VSYNC` | 即時 | framebuffer pan の vsync wait。ちらつき確認用に切替可能です。 |
-| Color | `PLUMOS_A30_RED_VIPER_COLOR` | 即時 | `red`, `white`, `green`, `amber`, `blue`, または `R,G,B`。 |
-| Frame Skip | `PLUMOS_A30_RED_VIPER_FRAME_SKIP` | 即時 | A30 framebuffer への表示転送を間引く `0..3`。Red Viper 内部の software render は毎 frame 継続し、fast-forward にはしません。 |
-| Fast Fwd | `PLUMOS_A30_RED_VIPER_FAST_FORWARD` | 即時 | frame pacing を外す fast-forward。 |
-| FF Mode | `PLUMOS_A30_RED_VIPER_FF_TOGGLE` | 保存 | upstream の hold/toggle 設定。A30 では fast-forward 操作の拡張時に使います。 |
-| VIP OC | `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK` | 即時 | VIP 処理時間を短縮する upstream timing shortcut。 |
-| Perf Info | `PLUMOS_A30_RED_VIPER_PERF_INFO` | 即時 | `EMU`, `SPD`, `PRES`, `REND`, `LATE`, `AUD` を左上 overlay に表示します。 |
-| Sound | `PLUMOS_A30_RED_VIPER_AUDIO` | 即時 | `alsa` / `off`。起動時に audio off だった場合の再有効化は backend 状態に依存します。 |
-| Audio Lat | `PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US` | 次回起動 | ALSA latency。 |
-| Prebuffer | `PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS` | 次回起動 | 起動時 audio prebuffer chunk 数。 |
-| Queue | `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS` | 次回起動 | producer queue chunk 数。 |
-| Audio Gap | `PLUMOS_A30_RED_VIPER_AUDIO_GAP` | 即時 | 音声生成が追いつかない時の隙間埋め。`fade`, `silence`, `repeat`。 |
-| CPU Policy | `PLUMOS_A30_RED_VIPER_CPU_POLICY` | 次回起動 | `fixed` / `performance`。launcher が適用し終了時に戻します。 |
-| CPU Freq | `PLUMOS_A30_RED_VIPER_CPU_FREQ` | 次回起動 | `648000`, `816000`, `1008000`, `1200000`, `1344000`。 |
-| CPU Cores | `PLUMOS_A30_RED_VIPER_CPU_CORES` | 次回起動 | `2` / `4`。launcher 方針に合わせます。 |
-| Renderer | `PLUMOS_A30_RED_VIPER_RENDERER` | 次回起動 | `sdlgl` / `fbdev`。既定は stock SDL2 `mali` + GLES2 の `sdlgl`。fbdev は従来 wrapper です。 |
-| Reset Game | なし | 即時 | emulation reset。 |
-| Quit | なし | 即時 | emulator 終了。 |
+| Eye | `PLUMOS_A30_RED_VIPER_EYE` | Immediate | `both`, `left`, `right`. Useful for avoiding double-image output on the single A30 screen. |
+| Scale | `PLUMOS_A30_RED_VIPER_SCALE` | Immediate | `fit`, `stretch`, `integer`. |
+| Rotation | `PLUMOS_A30_RED_VIPER_ROTATION` | Immediate | `ccw`, `cw`, `none`. |
+| Wait Vsync | `PLUMOS_A30_RED_VIPER_WAIT_VSYNC` | Immediate | Framebuffer pan vsync wait. Useful when checking flicker. |
+| Color | `PLUMOS_A30_RED_VIPER_COLOR` | Immediate | `red`, `white`, `green`, `amber`, `blue`, or `R,G,B`. |
+| Frame Skip | `PLUMOS_A30_RED_VIPER_FRAME_SKIP` | Immediate | Skips A30 framebuffer presentation `0..3`; Red Viper's internal software render still runs every frame, and this does not enable fast-forward. |
+| Fast Fwd | `PLUMOS_A30_RED_VIPER_FAST_FORWARD` | Immediate | Removes frame pacing. |
+| FF Mode | `PLUMOS_A30_RED_VIPER_FF_TOGGLE` | Stored | Upstream hold/toggle setting, reserved for A30 fast-forward hotkey expansion. |
+| VIP OC | `PLUMOS_A30_RED_VIPER_VIP_OVERCLOCK` | Immediate | Upstream VIP timing shortcut. |
+| Perf Info | `PLUMOS_A30_RED_VIPER_PERF_INFO` | Immediate | Shows `EMU`, `SPD`, `PRES`, `REND`, `LATE`, and `AUD` in a top-left overlay. |
+| Sound | `PLUMOS_A30_RED_VIPER_AUDIO` | Immediate | `alsa` / `off`. Re-enabling from an audio-off launch depends on backend state. |
+| Audio Lat | `PLUMOS_A30_RED_VIPER_AUDIO_LATENCY_US` | Next launch | ALSA latency. |
+| Prebuffer | `PLUMOS_A30_RED_VIPER_AUDIO_PREBUFFER_CHUNKS` | Next launch | Startup audio prebuffer chunks. |
+| Queue | `PLUMOS_A30_RED_VIPER_AUDIO_QUEUE_CHUNKS` | Next launch | Producer queue chunks. |
+| Audio Gap | `PLUMOS_A30_RED_VIPER_AUDIO_GAP` | Immediate | Gap fill used when audio generation cannot keep up: `fade`, `silence`, `repeat`. |
+| CPU Policy | `PLUMOS_A30_RED_VIPER_CPU_POLICY` | Next launch | `fixed` / `performance`; the launcher applies and restores it. |
+| CPU Freq | `PLUMOS_A30_RED_VIPER_CPU_FREQ` | Next launch | `648000`, `816000`, `1008000`, `1200000`, `1344000`. |
+| CPU Cores | `PLUMOS_A30_RED_VIPER_CPU_CORES` | Next launch | `2` / `4`. |
+| Renderer | `PLUMOS_A30_RED_VIPER_RENDERER` | Next launch | `sdlgl` / `fbdev`. The default is the stock SDL2 `mali` + GLES2 `sdlgl` path. fbdev is the older wrapper. |
+| Reset Game | none | Immediate | Emulation reset. |
+| Quit | none | Immediate | Exit emulator. |
 
-## A30 launcher 設定
+## A30 Launcher Settings
 
-`/mnt/SDCARD/plumos/config/standalone/red_viper.env` は user-mutable とし、deploy では保持します。
-in-game menu で変更した値もこの file に保存します。
+`/mnt/SDCARD/plumos/config/standalone/red_viper.env` is user-mutable and
+preserved by deploy. Values changed in the in-game menu are written back there.
 
-A30 固有の設定は以下です。
+A30-specific settings are:
 
 - Renderer/display/input: `PLUMOS_A30_RED_VIPER_RENDERER`,
   `PLUMOS_A30_RED_VIPER_FB`, `PLUMOS_A30_RED_VIPER_INPUT`,
@@ -66,34 +69,34 @@ A30 固有の設定は以下です。
 - CPU launcher policy: `PLUMOS_A30_RED_VIPER_CPU_POLICY`,
   `PLUMOS_A30_RED_VIPER_CPU_FREQ`, `PLUMOS_A30_RED_VIPER_CPU_CORES`
 
-## upstream Red Viper 設定 inventory
+## Upstream Red Viper Inventory
 
-Red Viper upstream の `VB_OPT` には以下の設定が存在します。A30 では、移植 backend があるものから
-順に menu/env へ接続します。
+Upstream Red Viper's `VB_OPT` contains the following settings. The A30 port
+connects the settings that have a meaningful A30 backend first.
 
-| 分類 | 主な upstream 項目 | A30 での扱い |
+| Category | Upstream fields | A30 handling |
 | --- | --- | --- |
-| Video/stereo | `DSPMODE`, `DSPSWAP`, `DSP2X`, `SLIDERMODE`, `DEFAULT_EYE`, `ANAGLYPH`, `ANAGLYPH_LEFT`, `ANAGLYPH_RIGHT`, `ANAGLYPH_DEPTH` | A30 は単一 framebuffer なので、まず `Eye` と `Color` として接続。anaglyph/depth は A30 renderer 側の追加実装が必要です。 |
-| Color/palette | `MULTICOL`, `TINT`, `MULTIID`, `MTINT`, `STINT`, `PALMODE`, `FIXPAL`, `BFACTOR` | A30 menu は単色 tint と任意 RGB を先に接続。multicolor palette editor は追加対象です。 |
-| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | fbdev A30 backend は `RM_CPUONLY` 固定。stock SDL2 `mali` + GLES2 の `sdlgl` backend は `Mali-400 MP` を使い、最終 quad の回転で A30 の `480x640` raw framebuffer へ横画面として出します。2026-06-13 の Bad Apple 120秒測定は平均35.18fps、最小14.49fpsだったため、性能面では標準 profile にはしません。framebuffer 側 vsync は fbdev wrapper の `Wait Vsync` として接続。 |
-| Performance | `MAXCYCLES`, `FRMSKIP`, `FASTFORWARD`, `FF_TOGGLE`, `N3DS_SPEEDUP`, `VIP_OVERCLOCK`, `VIP_OVER_SOFT`, `ANTIFLICKER`, `PERF_INFO` | `FRMSKIP`, fast-forward, `VIP_OVERCLOCK` を接続済み。`N3DS_SPEEDUP` や `ANTIFLICKER` は 3DS path 依存のため A30 効果を確認してから接続します。 |
-| Audio | `SOUND` | A30 ALSA backend では Sound/latency/prebuffer/queue/gap fill を接続済み。 |
-| Input | `ABXY_MODE`, `ZLZR_MODE`, `DPAD_MODE`, `CUSTOM_CONTROLS`, `CUSTOM_MAPPING_*`, `CUSTOM_MOD`, `INPUTS` | A30 物理 button mapping は wrapper 側で固定実装。ユーザー remap UI は追加対象です。 |
-| Touch/3DS device | `TOUCH_*`, `TOUCH_SWITCH`, `CPP_ENABLED`, `PAUSE_RIGHT` | 3DS touch screen / Circle Pad Pro 用。A30 には同等 device がないため、代替 UI を作る場合だけ意味を持ちます。 |
-| Multiplayer | `INPUT_BUFFER` と multiplayer path | 3DS local multiplayer 用。A30 backend は未実装です。 |
-| Files/game | `ROM_PATH`, `RAM_PATH`, `LAST_ROM`, `HOME_PATH`, `GAME_SETTINGS`, `CRC32`, `GAME_ID` | A30 launcher が ROM/save path を設定。game-specific settings は今後 per-ROM override と接続します。 |
+| Video/stereo | `DSPMODE`, `DSPSWAP`, `DSP2X`, `SLIDERMODE`, `DEFAULT_EYE`, `ANAGLYPH`, `ANAGLYPH_LEFT`, `ANAGLYPH_RIGHT`, `ANAGLYPH_DEPTH` | The A30 has one framebuffer, so `Eye` and `Color` are connected first. Anaglyph/depth need extra A30 renderer work. |
+| Color/palette | `MULTICOL`, `TINT`, `MULTIID`, `MTINT`, `STINT`, `PALMODE`, `FIXPAL`, `BFACTOR` | The menu currently exposes mono tint and arbitrary RGB. A multicolor palette editor is future work. |
+| Render backend | `RENDERMODE`, `SOFT_FLUSH`, `DOUBLE_BUFFER`, `VSYNC` | The fbdev A30 backend runs `RM_CPUONLY`. The stock SDL2 `mali` + GLES2 `sdlgl` backend uses `Mali-400 MP` and rotates the final quad into the A30 `480x640` raw framebuffer as a landscape image. The 2026-06-13 Bad Apple 120 second run still averaged 35.18fps and bottomed at 14.49fps, so it is not the standard profile for performance reasons. Framebuffer vsync is exposed through the fbdev wrapper's `Wait Vsync`. |
+| Performance | `MAXCYCLES`, `FRMSKIP`, `FASTFORWARD`, `FF_TOGGLE`, `N3DS_SPEEDUP`, `VIP_OVERCLOCK`, `VIP_OVER_SOFT`, `ANTIFLICKER`, `PERF_INFO` | `FRMSKIP`, fast-forward, and `VIP_OVERCLOCK` are connected. `N3DS_SPEEDUP` and `ANTIFLICKER` need A30 effect checks. |
+| Audio | `SOUND` | The A30 ALSA backend exposes sound, latency, prebuffer, queue, and gap-fill settings. |
+| Input | `ABXY_MODE`, `ZLZR_MODE`, `DPAD_MODE`, `CUSTOM_CONTROLS`, `CUSTOM_MAPPING_*`, `CUSTOM_MOD`, `INPUTS` | A30 physical mapping is currently implemented in the wrapper. User remap UI is future work. |
+| Touch/3DS device | `TOUCH_*`, `TOUCH_SWITCH`, `CPP_ENABLED`, `PAUSE_RIGHT` | These are for 3DS touchscreen / Circle Pad Pro. They only matter on A30 if an equivalent UI is implemented. |
+| Multiplayer | `INPUT_BUFFER` and multiplayer path | 3DS local multiplayer path. A30 backend is not implemented. |
+| Files/game | `ROM_PATH`, `RAM_PATH`, `LAST_ROM`, `HOME_PATH`, `GAME_SETTINGS`, `CRC32`, `GAME_ID` | The A30 launcher sets ROM/save paths. Game-specific settings should connect to per-ROM overrides later. |
 
-## 方針
+## Policy
 
-- A30 で効果がある設定は menu/env へ接続します。
-- 起動時にしか安全に変えられない設定は、保存して次回起動から反映します。
-- 3DS 専用の設定は silently hide せず、A30 では backend 未実装として inventory に残します。
-- `RM_GPUONLY`, `RM_TOGPU`, `RM_TOCPU` は Citro3D/GPU backend 前提です。A30 では stock SDL2 `mali` + GLES2 frontend の実験で一部効果を確認し、画面回転/fit と単眼描画は GLES 経路で修正しました。ただし高負荷場面では音声途切れが残り、深い SDL audio queue でも改善しなかったため、Red Viper は通常配布と FE profile から外します。
+- Settings that affect the A30 backend are exposed through menu/env.
+- Settings that are only safe at launch are saved and applied on the next run.
+- 3DS-only settings are not silently hidden; they remain inventoried as backend gaps.
+- `RM_GPUONLY`, `RM_TOGPU`, and `RM_TOCPU` assume the Citro3D/GPU backend. A stock SDL2 `mali` + GLES2 frontend experiment confirmed a partial A30 benefit, and orientation/fit plus single-eye rendering are now handled in the GLES path. Heavy scenes still drop audio, and a deeper SDL audio queue did not materially improve it, so Red Viper is removed from normal distribution and the FE profile list.
 
-## Perf Info の読み方
+## Reading Perf Info
 
-- `EMU` / `SPD`: emulation frame rate と実機速度比。50.0fps / `100%` 付近なら実機速度です。50 未満なら処理落ち、50 超過なら早送りです。
-- `PRES`: A30 framebuffer へ実際に表示転送した fps。Frame Skip を上げるとこの値だけ下がります。
-- `REND`: Red Viper software render を実行した fps。通常は `EMU` と同じ付近になります。
-- `LATE`: 50Hz pacing に間に合わず sleep できなかった frame 割合です。
-- `AUD R/D/X`: 直近約1秒の音声 repeat/drop/xrun 回数です。`R` が増える場合は音声生成が実時間に追いつかず gap fill が走っています。
+- `EMU` / `SPD`: emulation frame rate and speed ratio. Around 50.0fps / `100%` means full Virtual Boy speed. Below 50 means slowdown; above 50 means fast-forward.
+- `PRES`: fps actually presented to the A30 framebuffer. This should drop when Frame Skip is raised.
+- `REND`: Red Viper software-render fps. It should usually stay near `EMU`.
+- `LATE`: percentage of frames where the 50Hz pacing deadline was missed and no sleep occurred.
+- `AUD R/D/X`: audio repeat/drop/xrun counts over roughly the last second. If `R` rises, audio generation is not keeping up with real time and gap fill is active.

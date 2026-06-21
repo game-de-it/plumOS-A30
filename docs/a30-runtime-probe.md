@@ -1,19 +1,19 @@
-# A30 runtime probe
+# A30 Runtime Probe
 
-`plumos-runtime-probe` は、A30 の frontend/runtime 置き換え前に、最小限の
-video/input/audio interface を確認するための静的リンク診断 binary です。
+`plumos-runtime-probe` is a statically linked diagnostic binary for checking the
+minimal video/input/audio interfaces before replacing the A30 frontend/runtime.
 
-`plumos-runtime-probe` は stock SDL library にはリンクせず、まず Linux interface を
-直接確認します。SDL2 の動的 link/runtime 方針は、別の `plumos-sdl2-probe` で
-検証します。
+`plumos-runtime-probe` does not link against the stock SDL libraries; it checks
+the Linux interfaces directly. The dynamic-link/runtime strategy for SDL2 is
+validated separately with `plumos-sdl2-probe`.
 
-## build
+## Build
 
 ```sh
 ./scripts/docker-build.sh runtime-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
@@ -31,7 +31,7 @@ SDL2 linked/GameController probe:
 ./scripts/docker-build.sh sdl2-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
@@ -40,10 +40,10 @@ dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
 
-`plumos-sdl2-probe` は upstream SDL3 3.4.10 と sdl2-compat 2.32.68、その実行に
-必要な dynamic loader / shared library を `/mnt/SDCARD/plumos/lib` へ同梱して実行します。
-A30 の SD カードは symlink を作れないため、soname は symlink ではなく通常ファイルとして
-複製します。
+`plumos-sdl2-probe` runs with upstream SDL3 3.4.10 and sdl2-compat 2.32.68 plus
+the required dynamic loader and shared libraries bundled under
+`/mnt/SDCARD/plumos/lib`. Because the A30 SD card cannot create symlinks,
+sonames are copied as regular files rather than symlinks.
 
 Mali EGL presenter probe:
 
@@ -51,7 +51,7 @@ Mali EGL presenter probe:
 ./scripts/docker-build.sh mali-egl-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe
@@ -60,9 +60,9 @@ dist/plumos-mali-egl-probe/plumos/lib/
 dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
 ```
 
-`plumos-mali-egl-probe` は stock SDL にはリンクせず、A30 rootfs の
-`/usr/lib/libEGL.so` と `/usr/lib/libGLESv2.so` を `dlopen` します。probe 本体は
-bundled dynamic loader/shared libraries で起動します。
+`plumos-mali-egl-probe` does not link to stock SDL. It dlopens the A30 rootfs
+`/usr/lib/libEGL.so` and `/usr/lib/libGLESv2.so`, while the probe binary itself
+runs with bundled dynamic loader/shared libraries.
 
 RetroArch minimal display probe:
 
@@ -70,7 +70,7 @@ RetroArch minimal display probe:
 ./scripts/docker-build.sh retroarch-minimal
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
@@ -81,9 +81,9 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-この build は RetroArch 1.22.2 の最小 RGUI 表示確認用です。`video_driver = "gl"` と
-`video_context_driver = "mali_fbdev"` を使い、audio/input/core loading はまだ最終 runtime
-として扱いません。
+This is the minimal RGUI display check for RetroArch 1.22.2. It uses
+`video_driver = "gl"` and `video_context_driver = "mali_fbdev"`. Audio, input,
+and core loading are not treated as the final runtime yet.
 
 libretro core smoke package:
 
@@ -91,7 +91,7 @@ libretro core smoke package:
 ./scripts/docker-build.sh libretro-cores
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
@@ -101,93 +101,95 @@ dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
 ```
 
-## deploy/run
+## Deploy/Run
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-runtime-probe /mnt/SDCARD
 ```
 
-安全な読み取り寄りの確認:
+Read-oriented safe check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-runtime-probe --input-ms 100 --no-audio'
 ```
 
-短時間の framebuffer draw/restore と audio 状態確認:
+Short framebuffer draw/restore plus audio-state check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-runtime-probe --draw-ms 80 --input-ms 100 --audio-ms 80 --allow-busy-audio'
 ```
 
-`--allow-busy-audio` は、stock MainUI が PCM device を掴んでいる状態を失敗ではなく
-観測結果として扱うための option です。
+`--allow-busy-audio` treats the stock MainUI holding the PCM device as an
+observed state rather than a probe failure.
 
-RetroArch minimal 上で `fceumm` と `gambatte` の core-loaded video を確認:
+Check core-loaded video with `fceumm` and `gambatte` on RetroArch minimal:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
 ```
 
-2026-06-07 の実機確認では、`fceumm` は
-`/mnt/SDCARD/Roms/FC/Legend of Zelda, The (USA) (Rev 1).nes`、`gambatte` は
-`/mnt/SDCARD/Roms/GB/Dracula Densetsu.gb` を読み込み、
-`result=libretro_core_smoke_ok` になりました。ユーザー目視でも両方のゲーム画面表示を
-確認済みです。音声は現在の `retroarch-minimal.cfg` で無効化しているため、この段階では
-出ません。
+On the 2026-06-07 device check, `fceumm` loaded
+`/mnt/SDCARD/Roms/FC/Legend of Zelda, The (USA) (Rev 1).nes`, `gambatte` loaded
+`/mnt/SDCARD/Roms/GB/Dracula Densetsu.gb`, and the probe returned
+`result=libretro_core_smoke_ok`. Both game screens were visually confirmed on
+the A30. Sound does not play at this stage because the current
+`retroarch-minimal.cfg` disables audio.
 
-probe log:
+Probe logs:
 
 ```text
 /mnt/SDCARD/plumos/retroarch/logs/libretro-fceumm-last.log
 /mnt/SDCARD/plumos/retroarch/logs/libretro-gambatte-last.log
 ```
 
-stock `keymon`/`MainUI` の SysV shared memory を read-only で監視:
+Read-only SysV shared memory watch for stock `keymon`/`MainUI`:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-shm-watch --timeout-ms 10000 --interval-ms 100 --max-bytes 128'
 ```
 
-`plumos-shm-watch` は、左スティック calibration のように kernel input event に出ない
-経路を調べるための補助 binary です。shared memory へ書き込みは行いません。
+`plumos-shm-watch` is a helper for investigating paths that do not appear as
+kernel input events, such as left stick calibration. It does not write to shared
+memory.
 
-framebuffer mode/RGBA mask を復旧:
+Restore framebuffer mode/RGBA masks:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-fb-restore'
 ```
 
-`plumos-fb-restore` は `/dev/fb0` を A30 の通常表示向けに戻します。具体的には
-`480x640`, virtual `480x1280`, bpp `32`, `rgba=8/16,8/8,8/0,8/24` へ復元します。
-SDL1/fbcon 系 standalone emulator が framebuffer mode や RGBA mask を変えた後、
-次の SDL2/Mali 起動前に使います。double-buffered fbdev の page offset は probe 上で
-`0,0` または `0,640` が見えることがあります。
+`plumos-fb-restore` restores `/dev/fb0` to the normal A30 display mode:
+`480x640`, virtual `480x1280`, bpp `32`, and `rgba=8/16,8/8,8/0,8/24`.
+Use it before the next SDL2/Mali launch after an SDL1/fbcon standalone emulator
+changes the framebuffer mode or RGBA masks. The double-buffered fbdev page
+offset may appear as either `0,0` or `0,640` in probes.
 
-serial joystick raw data を確認:
+Serial joystick raw-data check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-serial-joy-probe --timeout-ms 5000 --stats-only'
 ```
 
-spruceOS では A30 joystick reader が `/dev/ttyS2` を使う実装になっています。一方、
-2026-06-06 の stock A30 実機では `/dev/ttyS0` から joystick frame を確認しました。
-`/dev/ttyS2` node は初期状態で存在せず、`/proc/tty/drivers` では `ttyS` minor 0-4 が
-利用可能として表示されますが、一時 node `c 250 2` は `ENXIO` で open できませんでした。
+The spruceOS A30 joystick reader uses `/dev/ttyS2`. On the stock A30 observed on
+2026-06-06, joystick frames were found on `/dev/ttyS0` instead. `/dev/ttyS2`
+does not exist initially, and although `/proc/tty/drivers` reports `ttyS` minors
+0-4, a temporary `c 250 2` node failed to open with `ENXIO`.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'rm -f /tmp/plumos-ttyS2; mknod /tmp/plumos-ttyS2 c 250 2; /mnt/SDCARD/plumos/bin/plumos-serial-joy-probe --port /tmp/plumos-ttyS2 --timeout-ms 10000 --stats-only; rm -f /tmp/plumos-ttyS2'
 ```
 
-`plumos-serial-joy-probe` は 9600/8N1 の raw serial と、spruceOS で使われている
-可能性が高い `ff axisYL axisXL axisYR axisXR fe` 形式の6バイト frame を表示します。
-`--stats-only` では frame ごとの出力を抑制し、各 axis の min/max/avg だけを表示します。
+`plumos-serial-joy-probe` prints 9600/8N1 raw serial data and candidate 6-byte
+frames in the likely spruceOS format: `ff axisYL axisXL axisYR axisXR fe`.
+With `--stats-only`, it suppresses per-frame output and prints min/max/avg for
+each axis.
 
 SDL2 linked/GameController probe:
 
@@ -195,11 +197,11 @@ SDL2 linked/GameController probe:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
 ```
 
-この script は `plumos-joystickd --device-mode xbox` を短時間起動し、
-`plumOS A30 Gamepad` が SDL2 の Joystick/GameController として見えるか確認します。
-既定では `SDL_JOYSTICK_DEVICE` を指定せず、SDL2 の通常の自動検出を使います。
-`--force-js-device` を付けると、検出した `/dev/input/js*` を
-`SDL_JOYSTICK_DEVICE` に渡す比較確認ができます。
+This script starts `plumos-joystickd --device-mode xbox` briefly and checks
+whether `plumOS A30 Gamepad` is visible through SDL2 Joystick/GameController
+APIs. By default it does not set `SDL_JOYSTICK_DEVICE`, so SDL2 uses normal
+auto-detection. Use `--force-js-device` to pass the detected `/dev/input/js*`
+path through `SDL_JOYSTICK_DEVICE` for comparison.
 
 SDL2 render backend probe:
 
@@ -207,9 +209,9 @@ SDL2 render backend probe:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
-この script は `SDL_VIDEODRIVER` なしの auto、`dummy`, `offscreen`, `evdev`,
-`kmsdrm` を順に試し、window 作成、renderer 作成、`SDL_RenderPresent`、
-`SDL_RenderReadPixels` の成否を記録します。
+This script tries auto-detection with no `SDL_VIDEODRIVER`, then `dummy`,
+`offscreen`, `evdev`, and `kmsdrm`, recording window creation, renderer
+creation, `SDL_RenderPresent`, and `SDL_RenderReadPixels`.
 
 Mali EGL presenter probe:
 
@@ -217,9 +219,9 @@ Mali EGL presenter probe:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
 ```
 
-この script は `/dev/fb0`, `/dev/mali`, `/usr/lib/libEGL.so`,
-`/usr/lib/libGLESv2.so` を確認し、`eglCreateWindowSurface`,
-`eglMakeCurrent`, `eglSwapBuffers`, `glReadPixels` の成否を記録します。
+This script records `/dev/fb0`, `/dev/mali`, `/usr/lib/libEGL.so`,
+`/usr/lib/libGLESv2.so`, `eglCreateWindowSurface`, `eglMakeCurrent`,
+`eglSwapBuffers`, and `glReadPixels`.
 
 RetroArch minimal display probe:
 
@@ -227,28 +229,29 @@ RetroArch minimal display probe:
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
 ```
 
-この script は plumOS としての試験条件に寄せ、既定で stock `MainUI`/`keymon` を止めます。
-`--rotation ccw` は `video_rotation = "1"` と
-`PLUMOS_RA_DISPLAY_ROTATION=ccw` を渡し、A30 GL2 menu MVP patch を有効にします。
-log は `/tmp/plumos-retroarch-minimal.log` と
-`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log` に残します。
+This script defaults to plumOS-target test conditions and stops stock
+`MainUI`/`keymon`. `--rotation ccw` passes `video_rotation = "1"` and
+`PLUMOS_RA_DISPLAY_ROTATION=ccw`, enabling the A30 GL2 menu MVP patch. Logs are
+kept in `/tmp/plumos-retroarch-minimal.log` and
+`/mnt/SDCARD/plumos/retroarch/logs/minimal-last.log`.
 
-## options
+## Options
 
-- `--fb PATH`: framebuffer path。既定値は `/dev/fb0`
-- `--input PATH`: input event path。既定値は `gpio-keys-polled` の自動検出
-- `--dsp PATH`: OSS audio path。既定値は `/dev/dsp`
-- `--draw-ms MS`: 小さい framebuffer patch を描いて復元する時間
-- `--input-ms MS`: input event を poll する時間
-- `--audio-ms MS`: OSS へ短い test tone を書く時間
-- `--allow-busy-audio`: audio device の `EBUSY` を成功扱いにする
-- `--no-video`, `--no-input`, `--no-audio`: 個別 probe を省略
+- `--fb PATH`: framebuffer path. Default: `/dev/fb0`.
+- `--input PATH`: input event path. Default: auto-detected `gpio-keys-polled`.
+- `--dsp PATH`: OSS audio path. Default: `/dev/dsp`.
+- `--draw-ms MS`: draw and restore a small framebuffer patch.
+- `--input-ms MS`: poll input events for this long.
+- `--audio-ms MS`: write a short OSS test tone.
+- `--allow-busy-audio`: treat `EBUSY` on the audio device as success.
+- `--no-video`, `--no-input`, `--no-audio`: skip individual probes.
 
-環境変数 `PLUMOS_FB`, `PLUMOS_INPUT_EVENT`, `PLUMOS_DSP` でも path を上書きできます。
+`PLUMOS_FB`, `PLUMOS_INPUT_EVENT`, and `PLUMOS_DSP` can override paths through
+the environment.
 
-## 2026-06-06 実機結果
+## Device Result On 2026-06-06
 
-read-only 寄りの確認:
+Read-oriented check:
 
 ```text
 plumOS runtime probe
@@ -259,7 +262,7 @@ audio skipped
 result=ok
 ```
 
-draw/audio 状態確認:
+Draw/audio-state check:
 
 ```text
 plumOS runtime probe
@@ -270,11 +273,12 @@ audio path=/dev/dsp open=busy allowed=yes errno=16 Device or resource busy
 result=ok
 ```
 
-`offset` は stock MainUI の framebuffer/pan 状態により `0,0` または `0,640` として
-観測されることがあります。
+`offset` can appear as `0,0` or `0,640` depending on the stock MainUI
+framebuffer/pan state.
 
-追加確認では、stock `MainUI` が `/dev/snd/pcmC0D0p` を保持していました。そのため、
-stock frontend を動かしたままでは `/dev/dsp` への test tone 書き込みはできません。
+Additional inspection showed that the stock `MainUI` holds
+`/dev/snd/pcmC0D0p`. While the stock frontend is running, the probe cannot write
+a test tone through `/dev/dsp`.
 
 SDL2 linked/GameController probe:
 
@@ -298,12 +302,14 @@ summary joysticks=1 controllers_open=1 joysticks_open=0 controller_events=1 joys
 result=sdl2_gamecontroller_visible
 ```
 
-`SDL_VIDEODRIVER=dummy` で window 作成まで確認しました。実 framebuffer/render backend は
-下の SDL2 render backend probe で別途確認しています。
+This confirms SDL initialization and window creation with
+`SDL_VIDEODRIVER=dummy`. The real framebuffer/render backend is checked
+separately in the SDL2 render backend probe below.
 
-`--force-js-device` で `SDL_JOYSTICK_DEVICE=/dev/input/js0` を渡すと、
-SDL2 は同じ virtual pad を `plumOS A30 Gamepad` と `Xbox 360 Controller` の2 entry として
-列挙しました。通常運用に近い条件では、環境変数なしの自動検出を優先します。
+With `--force-js-device` and `SDL_JOYSTICK_DEVICE=/dev/input/js0`, SDL2 listed
+the same virtual pad as two entries: `plumOS A30 Gamepad` and
+`Xbox 360 Controller`. For normal operation, prefer the auto-detected path
+without that environment variable.
 
 SDL2 render backend probe:
 
@@ -350,10 +356,11 @@ case_rc=1
 result=sdl2_renderer_only_dummy_offscreen_or_evdev
 ```
 
-A30 には `/dev/fb*`, `/dev/mali`, `/dev/disp` はありますが `/dev/dri` はありません。
-今回の upstream SDL3+sdl2-compat runtime では `offscreen`, `dummy`, `evdev` の
-software renderer だけが使え、実画面に出る framebuffer/render backend は確認できません。
-`evdev` は SDL3 の dummy video driver with evdev input で、実表示 backend ではありません。
+The A30 exposes `/dev/fb*`, `/dev/mali`, and `/dev/disp`, but not `/dev/dri`.
+With the current upstream SDL3+sdl2-compat runtime, only software renderers
+under `offscreen`, `dummy`, and `evdev` work. No real framebuffer/render backend
+that presents to the A30 display was found. `evdev` is SDL3's dummy video driver
+with evdev input, not a real display backend.
 
 Mali EGL presenter probe:
 
@@ -374,10 +381,10 @@ gl readpixels rgba=381f96ff
 result=mali_egl_present_ok
 ```
 
-これで、stock SDL にリンクしない clean-room の fbdev + Mali EGL presenter が
-A30 上で実画面へ swap できることを確認しました。`NULL` native window と
-`uint16_t width,height` の `fbdev_window` は成功し、`uint32_t width,height` は
-`EGL_BAD_NATIVE_WINDOW` でした。
+This confirms that a clean-room fbdev + Mali EGL presenter, without linking to
+stock SDL, can swap to the A30 display. `NULL` native window and a
+`uint16_t width,height` fbdev window work; `uint32_t width,height` fails with
+`EGL_BAD_NATIVE_WINDOW`.
 
 RetroArch minimal display probe:
 
@@ -390,61 +397,69 @@ RetroArch minimal display probe:
 result=retroarch_minimal_survived_10s
 ```
 
-2026-06-07 の A30 実機確認では、RetroArch 1.22.2 minimal RGUI build が
-`fbdev_mali` + GLES/EGL で 10 秒保持でき、ユーザー目視で横向き表示を確認しました。
+On the A30 device on 2026-06-07, the RetroArch 1.22.2 minimal RGUI build held
+for 10 seconds through `fbdev_mali` + GLES/EGL, and the user visually confirmed
+horizontal display.
 
-注意点:
+Notes:
 
-- `--enable-dynamic_egl` を使った build は `eglGetDisplay` fallback 直後に SIGSEGV した。
-  A30 では `/usr/lib/libEGL.so.1` と `/usr/lib/libGLESv2.so.2` が `libMali.so` へ繋がるため、
-  最小 build では EGL/GLES を通常リンクし、wrapper の library path に `/usr/lib:/lib` を
-  入れる方針にした。
-- GLSL を無効化すると `Shader driver initialization failed` で起動できなかったため、
-  minimal build でも GLSL backend は残す。
-- RetroArch 標準の `video_rotation = "1"` / `"3"` だけでは RGUI の物理向きは変わらなかった。
-  A30 の `fbdev_mali` context で `PLUMOS_RA_DISPLAY_ROTATION` が指定されている場合だけ、
-  GL2 menu/default draw の MVP を `mvp_no_rot` ではなく rotation 済み `mvp` に切り替える
-  patch を当てている。
-- `audio_enable = "false"` / `audio_driver = "null"` でも log に
-  `failed_to_start_audio_driver` が出ることがある。今回の表示確認では非致命扱いにし、
-  audio は full runtime 段階で再検証する。
+- A build with `--enable-dynamic_egl` crashed with SIGSEGV immediately after
+  the `eglGetDisplay` fallback. Since the A30 `/usr/lib/libEGL.so.1` and
+  `/usr/lib/libGLESv2.so.2` resolve to `libMali.so`, the minimal build now
+  links EGL/GLES normally and the wrapper includes `/usr/lib:/lib` in the
+  runtime library path.
+- Disabling GLSL caused `Shader driver initialization failed`, so the minimal
+  build still keeps the GLSL backend.
+- RetroArch's normal `video_rotation = "1"` / `"3"` did not change the physical
+  RGUI orientation by itself. When the `fbdev_mali` context is active and
+  `PLUMOS_RA_DISPLAY_ROTATION` is set, the A30 patch switches GL2
+  menu/default drawing from `mvp_no_rot` to the rotated `mvp`.
+- Even with `audio_enable = "false"` / `audio_driver = "null"`, logs may still
+  include `failed_to_start_audio_driver`. For this display-only probe, that is
+  non-fatal; audio will be rechecked in the full runtime phase.
 
-## 判断
+## Decision
 
-- video: `/dev/fb0` は 480x640、32bpp、line length 1920 として取得でき、短時間の
-  draw/restore も成功
-- input: `gpio-keys-polled` は `/dev/input/event3` として open/poll 可能
-- shared memory: `plumos-shm-watch` で stock `keymon`/`MainUI` の SysV shm を read-only
-  attach できる
-- serial joystick: `ttyS` driver は minor 0-4 を持つが、初期 `/dev` には
-  `/dev/ttyS0` と `/dev/ttyS1` のみ存在する。`/dev/ttyS0` は 9600/8N1 で
-  joystick frame を出力する
-- audio: OSS `/dev/dsp` は存在するが、stock MainUI が PCM を保持している間は busy
-- SDL2: plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 と bundled
-  dynamic loader/shared libraries で linked probe が起動し、
-  `plumos-joystickd --device-mode xbox` の composite virtual pad を GameController として
-  自動認識した
-- SDL2 render: `dummy`/`offscreen`/`evdev` の software renderer は作成できるが、
-  実画面に出る upstream SDL backend は無い。A30 は fbdev + Mali/disp 構成で
-  `/dev/dri` が無く、`kmsdrm` は利用不可
-- Mali EGL: stock SDL にリンクしない `plumos-mali-egl-probe` で
-  `/usr/lib/libEGL.so`/`libGLESv2.so` を `dlopen` し、fbdev EGL surface、
-  GLES2 context、`eglSwapBuffers`、`glReadPixels` まで成功した
-- frontend Mali: 推奨案として frontend 直結の `plumos-controller-ui-mali` を追加し、
-  TOP 表示、full scan、`down,a,b,q` による ROM list 遷移/復帰を A30 上で確認した
-- frontend Mali readability/stability: A30 向け compact layout に変更し、`--exercise 3`
-  と stock `MainUI.stock`/`keymon` 併用 30 秒保持が `result=frontend_mali_renderer_rc_0`
-  で完了した
-- frontend Mali stockless: Wi-Fi/SSH が `wpa_supplicant`/`udhcpc`/`dropbear` で
-  維持されることを確認した上で、stock `/etc/main`、`MainUI.stock`、`keymon` を止めた
-  plumOS 想定状態でも `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`
-  が `result=frontend_mali_renderer_rc_0` で完了した。終了後も stock 側は戻していない
-- RetroArch minimal: RetroArch 1.22.2 を A30 armv7 hard-float 向けに最小 build し、
-  `mali_fbdev` + GLES/EGL + RGUI 表示まで成功した。A30 物理画面の横向き表示は
-  GL2 menu MVP patch と `--rotation ccw` で確認済み。core/audio/input は未検証
+- Video: `/dev/fb0` reports 480x640, 32bpp, line length 1920, and short
+  draw/restore succeeds.
+- Input: `gpio-keys-polled` opens and polls as `/dev/input/event3`.
+- Shared memory: `plumos-shm-watch` can attach to stock `keymon`/`MainUI` SysV
+  shm read-only.
+- Serial joystick: the `ttyS` driver supports minors 0-4, but the initial
+  `/dev` only contains `/dev/ttyS0` and `/dev/ttyS1`. `/dev/ttyS0` emits
+  joystick frames at 9600/8N1.
+- Audio: OSS `/dev/dsp` exists, but is busy while stock MainUI holds PCM.
+- SDL2: the plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 plus
+  bundled dynamic loader/shared libraries starts successfully and automatically
+  recognizes the `plumos-joystickd --device-mode xbox` composite virtual pad as
+  a GameController.
+- SDL2 render: software renderers can be created with `dummy`, `offscreen`, and
+  `evdev`, but there is no upstream SDL backend that presents to the real A30
+  display. The A30 is fbdev + Mali/disp with no `/dev/dri`, so `kmsdrm` is not
+  available.
+- Mali EGL: `plumos-mali-egl-probe` dlopens `/usr/lib/libEGL.so` and
+  `libGLESv2.so` without linking to stock SDL, then successfully creates an
+  fbdev EGL surface, GLES2 context, `eglSwapBuffers`, and `glReadPixels`.
+- Frontend Mali: the recommended first path is now a frontend-integrated
+  presenter. `plumos-controller-ui-mali` displayed TOP, ran a full scan, and
+  navigated into/back from a ROM list with `down,a,b,q` on the A30.
+- Frontend Mali readability/stability: the renderer now uses an A30-oriented
+  compact layout. `--exercise 3` and a 30-second hold while stock
+  `MainUI.stock`/`keymon` were still running finished with
+  `result=frontend_mali_renderer_rc_0`.
+- Frontend Mali stockless: after confirming Wi-Fi/SSH stay up through
+  `wpa_supplicant`/`udhcpc`/`dropbear`, the probe also finished with
+  `result=frontend_mali_renderer_rc_0` in the plumOS target state using
+  `--stop-mainui --stop-keymon --no-restart-stock --rotation auto`, with stock
+  `/etc/main`, `MainUI.stock`, and `keymon` stopped. The stock side was left
+  stopped afterward.
+- RetroArch minimal: RetroArch 1.22.2 now has an A30 armv7 hard-float minimal
+  build that reaches `mali_fbdev` + GLES/EGL + RGUI display. Horizontal display
+  on the physical A30 screen is confirmed with the GL2 menu MVP patch and
+  `--rotation ccw`. Core/audio/input behavior is still unvalidated.
 
-stock `keymon` と直接 input event の比較は [A30 input policy](a30-input-policy.md) に
-分離しました。次は、`plumos-controller-ui-mali` の実機画面での文字可読性/余白/配色の
-目視調整と、RetroArch full runtime の core/audio/input smoke に進みます。
-SDL3/sdl2-compat custom video backend 化は
-frontend presenter の挙動が固まってから再判断します。
+The stock `keymon` comparison is split into
+[A30 input policy](a30-input-policy.md). Next steps are visual tuning of text
+readability, spacing, colors, and selection display on the device screen, plus
+RetroArch full-runtime core/audio/input smoke testing. SDL3/sdl2-compat custom video backend work
+should be revisited after the frontend presenter behavior is stable.

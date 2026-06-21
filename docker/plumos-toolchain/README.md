@@ -1,27 +1,27 @@
 # plumOS Toolchain Docker
 
-plumOS 用の A30 build environment です。まずは Docker 内で armhf binary を作り、
-生成物を `dist/` に出すところまでを最小ゴールにしています。
+This is the A30 build environment for plumOS. The first goal is to build armhf
+artifacts inside Docker and write them to `dist/`.
 
-## image build
+## Image Build
 
 ```sh
 ./scripts/docker-build.sh image
 ```
 
-default image tag は `plumos-a30-toolchain:dev` です。変更する場合:
+The default image tag is `plumos-a30-toolchain:dev`. To override it:
 
 ```sh
 PLUMOS_DOCKER_IMAGE=plumos-a30-toolchain:local ./scripts/docker-build.sh image
 ```
 
-## smoke build
+## Smoke Build
 
 ```sh
 ./scripts/docker-build.sh smoke
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/docker-smoke/plumos-smoke-armhf
@@ -29,16 +29,17 @@ dist/docker-smoke/plumos-smoke-armhf.sha256
 dist/docker-smoke/plumos-smoke-armhf.manifest.txt
 ```
 
-この smoke binary は `arm-linux-gnueabihf-gcc` で静的 link します。A30 の stock glibc
-`2.23` に直接依存しない小さな実機確認用 binary として使います。
+The smoke binary is statically linked with `arm-linux-gnueabihf-gcc`, so it can
+be used as a small device validation binary without directly depending on the
+stock A30 glibc `2.23`.
 
-## plumOS userland build
+## plumOS Userland Build
 
 ```sh
 ./scripts/docker-build.sh userland
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-userland/plumos/bin/busybox
@@ -53,32 +54,32 @@ dist/plumos-userland/plumos/share/doc/busybox/
 dist/plumos-userland/plumos/share/doc/gnu-userland/
 ```
 
-BusyBox は公式 `1.38.0` tarball を SHA-256 検証してから build します。SD カードは
-vfat で symlink を扱いにくいため、各 applet は symlink ではなく小さな wrapper script
-として生成します。
-`iproute2` の `ip`/`ss`、`rsync`、`strace` は Debian armhf package 由来の実体を
-`plumos/gnu/libexec` に置き、`plumos/gnu/bin` の wrapper から plumOS 同梱
-dynamic loader と library path で起動します。
+BusyBox is built from the official `1.38.0` tarball after SHA-256 verification.
+Since the SD card is vfat and does not handle symlinks well, applets are
+installed as small wrapper scripts instead of symlinks.
+`iproute2` `ip`/`ss`, `rsync`, and `strace` come from Debian armhf packages; the real
+binaries live in `plumos/gnu/libexec`, and `plumos/gnu/bin` wrappers run them
+through the plumOS-bundled dynamic loader and library path.
 
-転送:
+Deploy:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-userland /mnt/SDCARD
 ```
 
-実行:
+Run:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh '/mnt/SDCARD/plumos/bin/plumos-env free -m'
 ```
 
-## frontend prototype build
+## Frontend Prototype Build
 
 ```sh
 ./scripts/docker-build.sh frontend
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-frontend/plumos/bin/plumos-frontend
@@ -93,20 +94,20 @@ dist/plumos-frontend/plumos/lib/
 dist/plumos-frontend/plumos/share/doc/plumos-frontend/
 ```
 
-転送:
+Deploy:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-frontend /mnt/SDCARD
 ```
 
-手動実行:
+Manual run:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   'PLUMOS_FRONTEND_MODE=manual /mnt/SDCARD/plumos/bin/plumos-frontend'
 ```
 
-Mali EGL renderer の実機確認:
+Mali EGL renderer device check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --deploy --timeout 3
@@ -115,17 +116,17 @@ A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --no-scan --
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-frontend-mali.sh --stop-mainui --stop-keymon --no-restart-stock --no-scan --timeout 5 --exercise 2 --rotation auto
 ```
 
-plumOS としての本試験では、最後の例のように stock `/etc/main`、`MainUI.stock`、
-`keymon` を止めた状態で確認します。A30 の `/dev/fb0` は `480x640` のため、
-`--rotation auto` で stock と同じ raw 向きに横画面 UI を描きます。
+For plumOS-target tests, use the last example to stop stock `/etc/main`,
+`MainUI.stock`, and `keymon`. Because the A30 framebuffer is `480x640`,
+`--rotation auto` draws the landscape UI in the same raw orientation as stock.
 
-## runtime probe build
+## Runtime Probe Build
 
 ```sh
 ./scripts/docker-build.sh runtime-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-runtime-probe/plumos/bin/plumos-runtime-probe
@@ -136,13 +137,13 @@ dist/plumos-runtime-probe/plumos/bin/plumos-fb-restore
 dist/plumos-runtime-probe/plumos/share/doc/plumos-runtime-probe/
 ```
 
-転送:
+Deploy:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-runtime-probe /mnt/SDCARD
 ```
 
-実行:
+Run:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
@@ -152,13 +153,13 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 100'
 ```
 
-## joystickd build
+## joystickd Build
 
 ```sh
 ./scripts/docker-build.sh joystickd
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-joystickd/plumos/bin/plumos-joystickd
@@ -166,26 +167,26 @@ dist/plumos-joystickd/plumos/bin/plumos-joystick-reader
 dist/plumos-joystickd/plumos/share/doc/plumos-joystickd/
 ```
 
-転送:
+Deploy:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-joystickd /mnt/SDCARD
 ```
 
-読み取り確認:
+Read check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-joystickd --no-uinput --timeout-ms 1000 --print-every 20'
 ```
 
-## Mali EGL probe build
+## Mali EGL Probe Build
 
 ```sh
 ./scripts/docker-build.sh mali-egl-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-mali-egl-probe/plumos/bin/plumos-mali-egl-probe
@@ -194,35 +195,35 @@ dist/plumos-mali-egl-probe/plumos/lib/
 dist/plumos-mali-egl-probe/plumos/share/doc/plumos-mali-egl-probe/
 ```
 
-実機確認:
+Device check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-mali-egl.sh --deploy --run-ms 300 --frames 20
 ```
 
-## SDL2 runtime build
+## SDL2 Runtime Build
 
 ```sh
 ./scripts/docker-build.sh sdl2-runtime
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-sdl2-runtime/plumos/lib/
 dist/plumos-sdl2-runtime/plumos/share/doc/plumos-sdl2-runtime/
 ```
 
-既定では upstream SDL3 3.4.10 と sdl2-compat 2.32.68 を build し、
-tag/URL/SHA-256/build option を manifest に記録します。
+By default this builds upstream SDL3 3.4.10 and sdl2-compat 2.32.68, recording
+the tag, URL, SHA-256, and build options in the manifest.
 
-## SDL2 probe build
+## SDL2 Probe Build
 
 ```sh
 ./scripts/docker-build.sh sdl2-probe
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-sdl2-probe/plumos/bin/plumos-sdl2-probe
@@ -231,27 +232,27 @@ dist/plumos-sdl2-probe/plumos/lib/
 dist/plumos-sdl2-probe/plumos/share/doc/plumos-sdl2-probe/
 ```
 
-既定では `sdl2-runtime` の成果物を同梱します。
+By default this bundles the `sdl2-runtime` output.
 
-実機確認:
+Device check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-gamepad.sh --deploy --run-ms 5000
 ```
 
-SDL2 render backend 確認:
+SDL2 render backend check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-sdl2-render.sh --deploy --run-ms 100
 ```
 
-## RetroArch minimal display probe build
+## RetroArch Minimal Display Probe Build
 
 ```sh
 ./scripts/docker-build.sh retroarch-minimal
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-retroarch-minimal/plumos/bin/plumos-retroarch-minimal
@@ -262,27 +263,29 @@ dist/plumos-retroarch-minimal/plumos/lib/
 dist/plumos-retroarch-minimal/docs/manifest.txt
 ```
 
-この build は、RetroArch 本体の RGUI が A30 の Mali fbdev 経路で表示できるかを
-確認する最小構成です。core/audio/input はまだ最終runtimeでは扱いません。
+This is the smallest current build for checking whether RetroArch itself can
+display RGUI through the A30 Mali fbdev path. It is not the final
+core/audio/input runtime yet.
 
-実機確認:
+Device check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-retroarch-minimal.sh --deploy --duration 10 --rotation ccw
 ```
 
-`--rotation ccw` では A30 の物理画面で横向き RGUI を表示します。
+`--rotation ccw` displays the RGUI horizontally on the physical A30 screen.
 
-## libretro core smoke build
+## libretro Core Smoke Build
 
-`fceumm` と `gambatte` を A30 armv7 hard-float 向けに build します。source は
-build 時点の upstream HEAD で、commit と依存関係は manifest に残します。
+Build `fceumm` and `gambatte` for the A30 armv7 hard-float target. Sources use
+upstream HEAD at build time, with commits and dependencies recorded in the
+manifest.
 
 ```sh
 ./scripts/docker-build.sh libretro-cores
 ```
 
-生成物:
+Outputs:
 
 ```text
 dist/plumos-libretro-cores/plumos/retroarch/cores/fceumm_libretro.so
@@ -293,48 +296,52 @@ dist/plumos-libretro-cores/plumos/lib/
 dist/plumos-libretro-cores/docs/manifest.txt
 ```
 
-実機確認:
+Device check:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-libretro-cores /mnt/SDCARD
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-libretro-cores.sh --duration 6
 ```
 
-2026-06-07 に `fceumm` + NES と `gambatte` + GB は `result=libretro_core_smoke_ok` で、
-ユーザー目視でも両方のゲーム画面表示を確認済みです。現在の minimal config は
-audio disabled のため、音声は full runtime build で検証します。
+On 2026-06-07, `fceumm` + NES and `gambatte` + GB returned
+`result=libretro_core_smoke_ok`, and both game screens were visually confirmed
+on the A30. The current minimal config disables audio, so sound is validated in
+the full runtime build.
 
-## shell
+## Shell
 
 ```sh
 ./scripts/docker-build.sh shell
 ```
 
-repository root が container 内の `/workspace` として mount されます。
+The repository root is mounted at `/workspace` inside the container.
 
-## A30 へ転送
+## Deploy To A30
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/docker-smoke /mnt/SDCARD/plumos/smoke
 ```
 
-実行例:
+Run example:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh /mnt/SDCARD/plumos/smoke/plumos-smoke-armhf
 ```
 
-## 現時点の制約
+## Current Limits
 
-- この Dockerfile は最初の build/deploy loop を作るための土台です。
-- ライブラリ、RetroArch、standalone emulator は build 時点の upstream latest stable を確認し、
-  選んだ version/tag/commit/build option を manifest に残します。libretro core は Onion
-  採用 core の実績 commit/build recipe を優先し、Onion に無い plumOS 独自 core は
-  upstream latest/HEAD 候補として扱います。
-- RetroArch minimal display probe は A30 実画面表示確認用です。libretro core を含む
-  最終 runtime build には、A30 向け sysroot と library 方針を追加していきます。
-- 動的 link する binary は A30 の glibc `2.23` より新しい glibc へ依存しないよう、
-  別途 sysroot または同梱 runtime を使う必要があります。
-- BusyBox は便利な第一段階ですが、GNU/Linux らしい `ps` や `top` の互換性には限界が
-  あります。Debian に近い操作感は `procps-ng`, `coreutils`, `util-linux` などを
-  plumOS 側へ追加して実現します。
+- This Dockerfile is the starting point for the build/deploy loop.
+- For libraries, RetroArch, and standalone emulators, check the upstream latest
+  stable release at build time and record the selected version/tag/commit/build
+  options in manifests. For libretro cores, prefer Onion-proven commits/build
+  recipes when Onion carries that core; treat plumOS-only cores absent from
+  Onion as upstream latest/HEAD candidates.
+- The RetroArch minimal display probe is for A30 real-screen validation. The
+  final RetroArch/libretro core runtime still needs the A30 sysroot and library
+  policy.
+- Dynamically linked binaries must avoid depending on a glibc newer than the
+  A30 stock glibc `2.23`, either through a dedicated sysroot or a bundled
+  runtime.
+- BusyBox is a useful first stage, but it still has limits for GNU/Linux-like
+  `ps` and `top` compatibility. A more Debian-like workflow should add
+  `procps-ng`, `coreutils`, `util-linux`, and similar tools under plumOS.

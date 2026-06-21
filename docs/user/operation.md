@@ -1,84 +1,80 @@
-# 基本操作
+# Basic Operation
 
-plumOS frontend の基本操作です。ゲーム中の操作は emulator/runtime によって一部異なります。
+This document describes the plumOS frontend controls. In-game controls can vary
+by runtime and emulator.
 
-## 共通ボタン
+## Common Buttons
 
-| ボタン | 動作 |
+| Button | Action |
 | --- | --- |
-| D-pad 上下 | 項目移動 |
-| D-pad 左右 | ページ移動、または設定値の変更 |
-| A | 決定、実行 |
-| B | 戻る、キャンセル |
-| START | START menu を開く |
-| POWER 短押し | Power menu を開く |
-| Function | 主に emulator menu 用 |
+| D-pad Up/Down | Move one item |
+| D-pad Left/Right | Page, or change a setting value |
+| A | Confirm / run |
+| B | Back / cancel |
+| START | Open the START menu |
+| Short POWER press | Open the Power menu |
+| Function | Usually reserved for emulator menus |
 
-TOP/ROM list は、上下で 1 項目移動、右で 1 ページ送り、左で 1 ページ戻しです。
+TOP and ROM lists move one item with Up/Down and one page with Left/Right.
 
-## TOP 画面
+## TOP Screen
 
-TOP 画面には有効な system が表示されます。ROM がある system を選ぶと ROM list へ入ります。
+The TOP screen shows enabled systems. Choose a system to open its ROM list.
+Favorites and Recent are shown alongside the system list.
 
-Favorites と Recent は TOP の system list と同じ並びに表示されます。
+## ROM List
 
-## ROM list
+- A: launch the selected ROM
+- B: return to TOP
+- START: open the START menu
+- Left/Right: page
 
-ROM list では、選択した system の ROM を起動できます。
-
-- A: 選択 ROM を起動
-- B: TOP へ戻る
-- START: START menu
-- 左右: ページ移動
-
-ROM list から TOP に戻り、再度同じ system に入ると、最後に選択していた ROM 位置へ戻ります。
-Gallery mode でも同じ挙動です。
+When you leave a ROM list and return later, plumOS restores the last cursor
+position for that system. Gallery mode follows the same rule.
 
 ## Core Settings
 
-system または ROM ごとに使用する runtime/core を選べます。
+Runtime/core choices can be configured per system or per ROM.
 
-表示名の接頭辞は以下です。
-
-| 接頭辞 | 意味 |
+| Prefix | Meaning |
 | --- | --- |
 | RA | RetroArch |
 | PICO | PicoArch |
 | SA | Standalone |
 | PYXEL | Pyxel |
 
-ROM ごとの core 設定を `Default` に戻すと、system 側の core 設定を継承します。
+Resetting a ROM-level core setting to `Default` makes it inherit the system
+setting again.
 
-## START menu
+## START Menu
 
-START menu の主な項目です。
-
-| 項目 | 内容 |
+| Item | Purpose |
 | --- | --- |
-| UI Settings | UI mode、表示、TOP 更新など |
-| System Settings | 音量、明るさ、言語、情報、factory reset など |
-| Network Settings | Wi-Fi 状態、NW Service |
-| Performance Settings | emulator 起動時の CPU 周波数/コア数 |
-| Apps | ファイルマネージャー、音楽プレイヤー、単体起動アプリ |
-| HELP | ヘルプ |
-| Shutdown | shutdown |
+| UI Settings | UI mode, display behavior, TOP refresh |
+| System Settings | Volume, brightness, language, device info, factory reset |
+| Network Settings | Wi-Fi status and network services |
+| Performance Settings | CPU frequency/core policy for emulator launches |
+| Apps | File manager, music player, standalone app entries |
+| HELP | Help |
+| Shutdown | Shutdown path |
 
 ## UI Settings
 
-`Refresh TOP` は TOP 画面の system/ROM 状態を再読み込みします。実行中は短い更新画面を表示します。
-START menu を閉じるだけでは TOP の自動更新は行いません。
+`Refresh TOP` rescans and reloads TOP-screen system/ROM state. A short refresh
+screen is displayed even when the operation is fast. Closing the START menu does
+not automatically refresh TOP.
 
-`起動時に前回ROMを開く` は以下の選択肢を持ちます。
+`Open previous ROM at boot` has three choices:
 
-| 値 | 動作 |
+| Value | Behavior |
 | --- | --- |
-| Off | 起動時に ROM を開かない |
-| On | 前回 ROM を直接開く |
-| Recent | Recent 画面を開く |
+| Off | Do not open a ROM at boot |
+| On | Open the previous ROM directly |
+| Recent | Open the Recent screen |
 
 ## System Settings
 
-主な項目です。
+Main items:
 
 - Volume
 - Brightness
@@ -88,49 +84,54 @@ START menu を閉じるだけでは TOP の自動更新は行いません。
 - INFORMATION
 - Factory Reset
 
-Factory Reset は RetroArch、PicoArch、standalone emulator の設定を factory default へ戻すための機能です。
+Factory Reset restores RetroArch, PicoArch, and standalone emulator settings to
+the packaged factory defaults.
 
-## Power menu
+## Power Menu
 
-POWER 短押し、または shutdown 導線から Power menu を表示します。
+Open the Power menu with a short POWER press.
 
-| 項目 | 内容 |
+| Item | Action |
 | --- | --- |
-| Sleep | sleep |
-| Shutdown | shutdown |
-| Cancel | 元の画面へ戻る |
+| Sleep | Enter sleep |
+| Shutdown | Shut down |
+| Cancel | Return to the previous screen |
 
-ゲーム中でも POWER 短押しで Power menu を表示します。plumOS はゲーム内セーブや state save を
-自動では行いません。sleep/shutdown 前のデータ保全はユーザーが行ってください。
+plumOS does not automatically save in-game progress or emulator states before
+sleep/shutdown. Save your game or state manually before using these actions.
 
 ## Network Settings
 
-`NW Service` から以下を ON/OFF できます。
+`NW Service` toggles:
 
-| サービス | 用途 |
+| Service | Purpose |
 | --- | --- |
-| SSH | remote shell / SFTP の入口 |
-| FTP | 高速なファイル転送 |
-| SFTP | SSH 経由のファイル転送 |
-| Samba | PC のネットワーク共有からアクセス |
+| SSH | Remote shell and SFTP entry |
+| FTP | Fast file transfer |
+| SFTP | SSH-based file transfer |
+| Samba | Network share access from Windows/macOS |
 
-共有 root は `/mnt/SDCARD/` です。
+All services share `/mnt/SDCARD/`.
 
 ## Apps
 
-Apps から起動できる主なアプリです。
+Typical app entries:
 
-- ファイルマネージャー
-- 音楽プレイヤー
-- RetroArch 単体起動
-- PPSSPP 単体起動
+- File Manager
+- Music Player
+- RetroArch standalone launch
+- PPSSPP standalone launch
 
-## ゲーム中の menu
+## Emulator Menus
 
-Runtime によって menu の出し方が異なります。
+- RetroArch: the Function button is reserved for opening the menu. SELECT-based
+  hotkeys are handled by RetroArch configuration.
+- PicoArch: the Function button opens the PicoArch menu. Use the D-pad in the
+  PicoArch menu.
+- Standalone emulators: menu behavior depends on the emulator.
 
-- RetroArch: Function button を menu 表示用に使う方針です。SELECT + button の hotkey は RetroArch 設定側で扱います。
-- PicoArch: Function button で PicoArch menu を開きます。PicoArch menu では D-pad を使います。
-- Standalone: emulator ごとに menu 操作が異なります。
+The Power menu is opened by short POWER press regardless of runtime.
 
-Power menu は runtime に関係なく POWER 短押しで表示する方針です。
+## Japanese Counterpart
+
+- [Japanese operation guide](operation.ja.md)

@@ -1,49 +1,52 @@
-# A30 input policy
+# A30 Input Policy
 
-この文書は、stock `keymon` と plumOS の直接 input event 読み取りを比較した初期結果です。
+This document records the first comparison between stock `keymon` and direct
+input-event reading from plumOS.
 
-結論として、現段階では stock `keymon` をすぐ停止せずに残します。ただし、
-`/dev/input/event3` の直接読み取りは非排他で成立するため、plumOS frontend は直接
-event を読む実装で進められます。
+Conclusion: keep stock `keymon` for now. Direct reading from `/dev/input/event3`
+works non-exclusively, so the plumOS frontend can continue using direct event
+reading.
 
-## 診断 binary
+## Diagnostic Binary
 
-`plumos-input-compare` は `plumos-runtime-probe` package に含まれます。
+`plumos-input-compare` is included in the `plumos-runtime-probe` package.
 
-build:
+Build:
 
 ```sh
 ./scripts/docker-build.sh runtime-probe
 ```
 
-deploy:
+Deploy:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/deploy-a30.sh dist/plumos-runtime-probe /mnt/SDCARD
 ```
 
-run:
+Run:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 100'
 ```
 
-実機ボタン mapping を取る場合は、長めに実行して A30 本体のボタンを押します。
+To capture the physical button mapping, run it for longer and press buttons on
+the A30.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --timeout-ms 10000'
 ```
 
-複数の input device を同時に確認したい場合は `--all-events` を使います。
+Use `--all-events` when every discovered input event device should be polled at
+the same time.
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
   '/mnt/SDCARD/plumos/bin/plumos-input-compare --all-events --timeout-ms 30000'
 ```
 
-## 2026-06-06 実機結果
+## Device Result On 2026-06-06
 
 ```text
 plumOS input compare
@@ -65,27 +68,27 @@ comparison keymon_holds_selected=yes mainui_holds_selected=yes direct_open=yes
 decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 ```
 
-観測:
+Observations:
 
-- `gpio-keys-polled` は `/dev/input/event3`
-- stock `keymon` は `event0`, `event1`, `event2`, `event3` を開いている
-- stock `MainUI` も `event0`, `event1`, `event3` を開いている
-- その状態でも plumOS は `/dev/input/event3` を直接 open/poll できる
-- 今回の 100ms 実行では物理ボタンを押していないため `events=0`
-- `pid` は観測時の値であり、起動ごとに変わる
+- `gpio-keys-polled` is `/dev/input/event3`.
+- Stock `keymon` opens `event0`, `event1`, `event2`, and `event3`.
+- Stock `MainUI` also opens `event0`, `event1`, and `event3`.
+- Even in that state, plumOS can open and poll `/dev/input/event3` directly.
+- The 100ms run had no physical button press, so it recorded `events=0`.
+- `pid` values are observational and change across boots.
 
-## 物理ボタン mapping
+## Physical Button Mapping
 
-2026-06-06 に stock `keymon` と stock `MainUI` を動かしたまま
-`plumos-input-compare --all-events` で確認しました。すべて
-`/dev/input/event3` の `gpio-keys-polled` から観測されています。
+Captured on 2026-06-06 with stock `keymon` and stock `MainUI` still running,
+using `plumos-input-compare --all-events`. All listed buttons were observed on
+`/dev/input/event3`, `gpio-keys-polled`.
 
-| 物理ボタン | code | key name | probe action | frontend action |
+| Physical button | code | key name | probe action | frontend action |
 | --- | ---: | --- | --- | --- |
-| 上 | 103 | `KEY_UP` | `up` | cursor up |
-| 下 | 108 | `KEY_DOWN` | `down` | cursor down |
-| 左 | 105 | `KEY_LEFT` | `left` | cursor left/back |
-| 右 | 106 | `KEY_RIGHT` | `right` | cursor right/open |
+| Up | 103 | `KEY_UP` | `up` | cursor up |
+| Down | 108 | `KEY_DOWN` | `down` | cursor down |
+| Left | 105 | `KEY_LEFT` | `left` | cursor left/back |
+| Right | 106 | `KEY_RIGHT` | `right` | cursor right/open |
 | A | 57 | `KEY_SPACE` | `a` | A/open |
 | B | 29 | `KEY_LEFTCTRL` | `b` | B/back |
 | X | 42 | `KEY_LEFTSHIFT` | `x` | Gallery list |
@@ -94,55 +97,60 @@ decision=keep_keymon_for_now; direct_input_is_viable_nonexclusive
 | R | 14 | `KEY_BACKSPACE` | `r` | reserved |
 | L2 | 18 | `KEY_E` | `l2` | reserved |
 | R2 | 20 | `KEY_T` | `r2` | reserved |
-| 音量 - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
-| 音量 + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
-| 電源 | 116 | `KEY_POWER` | `power` | Power menu trigger |
-| Function | 1 | `KEY_ESC` | `function` | emulator 側 menu 用に予約 |
+| Volume - | 114 | `KEY_VOLUMEDOWN` | `volume_down` | system volume down |
+| Volume + | 115 | `KEY_VOLUMEUP` | `volume_up` | system volume up |
+| Power | 116 | `KEY_POWER` | `power` | Power menu trigger |
+| Function | 1 | `KEY_ESC` | `function` | reserved for emulator-side menus |
 | START | 28 | `KEY_ENTER` | `start` | START menu |
 | SELECT | 97 | `KEY_RIGHTCTRL` | `select` | core menu |
-| 左スティック軸 | - | - | - | kernel input には未露出 |
-| 左スティック押し込み | - | - | - | kernel input/serial frame では未観測 |
+| Left stick axes | - | - | - | not exposed through kernel input yet |
+| Left stick click | - | - | - | not observed via kernel input/serial frame |
 
-注意:
+Notes:
 
-- START menu は物理 START (`KEY_ENTER`) で開きます。
-- Function (`KEY_ESC`) は START や電源 menu の代替としては扱わず、emulator 側 menu と
-  競合しないように予約します。
-- 電源ボタン短押しは `/dev/input/event0` (`axp22-supplyer`) の `KEY_POWER` として
-  読めます。plumOS の電源操作 menu は Function ではなく電源ボタンを使います。
-- FE は通常ボタン用の `/dev/input/event3` に加えて、電源ボタン用の `/dev/input/event0`
-  も監視します。ゲーム中は `plumos-safe-hotkeyd` が電源ボタンと音量キーを監視し、
-  電源ボタンでは `plumos-power-menu-overlay` を起動します。
-- 音量ボタンは plumOS の `volume 0..20` を1段階ずつ更新し、ALSA `Soft Volume Master`
-  へ即時反映します。ゲーム中も `plumos-safe-hotkeyd` が同じ処理を担当します。
-- X/Y/L/R/L2/R2 は probe では識別しますが、現時点の controller UI では通常操作に
-  割り当てません。
-- 電源ボタン長押しや stock 側の power policy は別途確認対象ですが、plumOS 常用 FE
-  では短押しによる stock sleep/shutdown 介入は観測していません。
+- The START menu opens from physical START (`KEY_ENTER`).
+- Function (`KEY_ESC`) is not treated as an alternate START or power-menu button.
+  Keep it reserved so it does not conflict with emulator-side menus.
+- A short power-button press is readable as `KEY_POWER` through
+  `/dev/input/event0` (`axp22-supplyer`). plumOS uses the power button rather
+  than Function for power-menu actions.
+- The FE watches `/dev/input/event3` for normal buttons and `/dev/input/event0`
+  for the power button. During gameplay, `plumos-safe-hotkeyd` watches both the
+  power button and volume keys, and launches `plumos-power-menu-overlay` for the
+  power button.
+- The volume buttons update plumOS `volume 0..20` one step at a time and apply
+  it immediately to ALSA `Soft Volume Master`. During gameplay,
+  `plumos-safe-hotkeyd` handles the same volume path.
+- X/Y/L/R/L2/R2 are identified by the probe but are not assigned to normal
+  controller UI actions yet.
+- Long-press power behavior and stock-side power policy remain separate checks,
+  but under the regular plumOS frontend a short press has not triggered stock
+  sleep/shutdown behavior.
 
-## 左アナログスティック
+## Left Analog Stick
 
-2026-06-06 に追加確認しました。結論として、左スティックは通常の
-`/dev/input/event*` には analog axis として出ていません。
+Additional checks on 2026-06-06 show that the left stick is not exposed as a
+normal analog axis under `/dev/input/event*`.
 
-確認内容:
+What was checked:
 
-- `plumos-input-compare --all-events` に `EV_ABS` 表示を追加した
-- `/proc/bus/input/devices` では stick 用の `ABS_X`/`ABS_Y` device は見つからない
-- 左スティック操作中も `EV_ABS` は観測できなかった
-- stock `MainUI.stock` は `/dev/mem` を mmap しており、binary 文字列に
-  `JoypadCalibration`, `JoypadTest`, `ADC INFO`, `/config/joypad.config` がある
-- stock `keymon` にも `/dev/mem`, `ABS_X`, `ABS_Y`, `BTN_THUMBL` などの文字列がある
-- MainUI の Settings から calibration を実行すると `/config/joypad.config` が更新された
-- spruceOS の A30 実装では、`joystickinput` が `/dev/ttyS2` から raw data を読み、
-  `/config/joypad.config` を適用して `/dev/input/event4` に analog event、
-  `/dev/input/event3` に keyboard/D-pad event を送る構成になっている
-- stock A30 の初期 `/dev` には `/dev/ttyS2` node が存在しないが、`/proc/tty/drivers`
-  では `ttyS` minor 0-4 が利用可能として表示される
-- stock A30 実機では `/dev/ttyS0` から `ff b1 b2 b3 b4 fe` 形式の6バイト frame を
-  9600/8N1 で観測できた
+- Added `EV_ABS` output to `plumos-input-compare --all-events`.
+- `/proc/bus/input/devices` does not show a stick device with `ABS_X`/`ABS_Y`.
+- Moving the left stick did not produce observed `EV_ABS` events.
+- Stock `MainUI.stock` mmaps `/dev/mem` and contains strings for
+  `JoypadCalibration`, `JoypadTest`, `ADC INFO`, and `/config/joypad.config`.
+- Stock `keymon` also contains strings for `/dev/mem`, `ABS_X`, `ABS_Y`, and
+  `BTN_THUMBL`.
+- Running calibration from MainUI Settings updates `/config/joypad.config`.
+- In the spruceOS A30 implementation, `joystickinput` reads raw data from
+  `/dev/ttyS2`, applies `/config/joypad.config`, sends analog events to
+  `/dev/input/event4`, and sends keyboard/D-pad events to `/dev/input/event3`.
+- The stock A30 initially has no `/dev/ttyS2` node, but `/proc/tty/drivers`
+  reports `ttyS` minors 0-4 as available.
+- On the observed stock A30, `/dev/ttyS0` produced 9600/8N1 6-byte frames in the
+  form `ff b1 b2 b3 b4 fe`.
 
-`/config/joypad.config` の観測値:
+Observed `/config/joypad.config` values:
 
 ```text
 before:
@@ -162,7 +170,7 @@ x_zero=126
 y_zero=130
 ```
 
-`plumos-serial-joy-probe --port /dev/ttyS0 --stats-only` の観測値:
+Observed `plumos-serial-joy-probe --port /dev/ttyS0 --stats-only` values:
 
 ```text
 center, 1s:
@@ -180,7 +188,7 @@ axisYR min=14 max=245 avg=121.45
 axisXR min=15 max=232 avg=121.65
 ```
 
-左スティック押し込みの確認:
+Left-stick click check:
 
 ```text
 plumos-input-compare --all-events, 8s/12s while pressing:
@@ -194,106 +202,118 @@ axisYR min=124 max=124 avg=124.00
 axisXR min=127 max=127 avg=127.00
 ```
 
-押し込み設定保存の確認:
+Click setting storage check:
 
-- stockOS の `/config/joypad.config` は `x_min`, `x_max`, `y_min`, `y_max`,
-  `x_zero`, `y_zero` の6項目のみ
-- stockOS の `/config/system.json` は通常ボタン向けの `keymap` を持つが、
-  左スティック押し込み用の項目は見当たらない
-- stock `MainUI` の文字列には `JoypadCalibration`, `JoypadTest`,
-  `/config/joypad.config`, `x_min`/`x_max`/`y_min`/`y_max`/`x_zero`/`y_zero`
-  があるが、押し込みを保存する項目は見当たらない
-- stock `keymon` の文字列には `BTN_THUMBL`/`BTN_THUMBR` があるが、Linux input の
-  汎用 key name table 由来の可能性が高く、実機 event や保存項目の証拠としては弱い
-- spruceOS の `run_analog_stick_calibration` も X/Y 軸の min/max/center だけを
-  `joypad.config` へ書き、押し込みは sample/save していない
+- StockOS `/config/joypad.config` only contains six fields: `x_min`, `x_max`,
+  `y_min`, `y_max`, `x_zero`, and `y_zero`.
+- StockOS `/config/system.json` has a normal-button `keymap`, but no observed
+  left-stick-click entry.
+- Stock `MainUI` strings include `JoypadCalibration`, `JoypadTest`,
+  `/config/joypad.config`, and the six X/Y calibration keys, but no observed
+  field for saving a stick click.
+- Stock `keymon` strings include `BTN_THUMBL`/`BTN_THUMBR`, but this is likely
+  from a generic Linux input key-name table and is weak evidence for actual
+  hardware events or saved settings.
+- spruceOS `run_analog_stick_calibration` also writes only X/Y min/max/center
+  values to `joypad.config`; it does not sample or save a click.
 
-現時点の推定:
+Current inference:
 
-- 左スティック軸は kernel input event ではなく、serial raw data を userland daemon が
-  virtual input に変換する構成の可能性が高い
-- A30 実機では spruceOS の `/dev/ttyS2` ではなく `/dev/ttyS0` が raw data 経路の
-  本命。`axisYR`/`axisXR` が `/config/joypad.config` の min/max に近く、実際の
-  左スティック X/Y に対応している可能性が高い
-- `/dev/mem` は stock `MainUI` の calibration/test 画面または別ハード制御で使われている
-  可能性があるため、stick の本命経路としては一段下げる
-- calibration は raw 値の min/max/center を `/config/joypad.config` に保存する
-- plumOS では stock/spruce の binary を流用せず、`/dev/ttyS0` の raw data を読む
-  `plumos-joystickd` を後続で設計する
-- 左スティック押し込みは通常の kernel input event と `/dev/ttyS0` の6バイト serial frame
-  には出ていない。stockOS/spruceOS の設定保存にも押し込み項目が見当たらないため、
-  初期 plumOS では未接続/未対応として扱う
+- The left stick axes are probably not kernel input events. A userland daemon
+  likely converts serial raw data into virtual input events.
+- On the observed A30, `/dev/ttyS0` is the primary raw-data candidate rather
+  than spruceOS's `/dev/ttyS2`. `axisYR`/`axisXR` closely match
+  `/config/joypad.config` min/max values and are likely the actual left-stick
+  X/Y axes.
+- `/dev/mem` may still be used by stock `MainUI` for calibration/test screens or
+  other hardware control, but it is no longer the primary suspected stick path.
+- Calibration saves raw min/max/center values to `/config/joypad.config`.
+- Because plumOS should not reuse stock/spruce binaries directly, a later step
+  should design `plumos-joystickd` around the `/dev/ttyS0` raw-data path.
+- The left-stick click does not appear in normal kernel input events or in the
+  `/dev/ttyS0` 6-byte serial frame. It also does not appear in observed
+  stockOS/spruceOS settings, so initial plumOS treats it as
+  unconnected/unsupported.
 
-## PPSSPP の analog input 経路
+## PPSSPP Analog Input Path
 
-stock PPSSPP を MainUI から起動し、左スティックが PPSSPP 内で動作している状態で確認しました。
+This was checked while stock PPSSPP was launched from MainUI and the left stick
+was working inside PPSSPP.
 
-再現用 script:
+Repeatable script:
 
 ```sh
 A30_TARGET=root@192.168.10.165 ./scripts/probe-a30-ppsspp-input.sh
 ```
 
-確認結果:
+Results:
 
-- PPSSPP の `launch.sh` は `./miyoo282_xpad_inputd&` を起動してから
-  `./PPSSPPSDL "$*"` を実行する
-- `miyoo282_xpad_inputd` は `/dev/uinput` と `/dev/ttyS0` を開く
-- `miyoo282_xpad_inputd` の binary 文字列には `/config/joypad.config`,
-  `/dev/ttyS0`, `MIYOO Pad1`, `/dev/uinput` がある
-- PPSSPP 起動中は `MIYOO Pad1` という virtual input device が追加される
-- `MIYOO Pad1` は `045e:028e`, `js0`/`event4`, 8 axes / 11 buttons の
-  Xbox 360 互換風 composite device として見える
-- `PPSSPPSDL` は `/dev/input/event4` を開き、`libSDL2-2.0.so.0` と
-  `SDL_GameController*` / `SDL_Joystick*` API を使う
-- 左スティック押し込みは PPSSPP の controller 設定でも反応しなかった
+- PPSSPP `launch.sh` starts `./miyoo282_xpad_inputd&` before running
+  `./PPSSPPSDL "$*"`.
+- `miyoo282_xpad_inputd` opens `/dev/uinput` and `/dev/ttyS0`.
+- Strings in `miyoo282_xpad_inputd` include `/config/joypad.config`,
+  `/dev/ttyS0`, `MIYOO Pad1`, and `/dev/uinput`.
+- While PPSSPP is running, a virtual input device named `MIYOO Pad1` appears.
+- `MIYOO Pad1` looks like an Xbox 360-style composite device:
+  `045e:028e`, `js0`/`event4`, 8 axes / 11 buttons.
+- `PPSSPPSDL` opens `/dev/input/event4` and uses `libSDL2-2.0.so.0` plus
+  `SDL_GameController*` / `SDL_Joystick*` APIs.
+- The left-stick click did not react in PPSSPP controller settings.
 
-判断:
+Judgment:
 
-- standalone emulator 向けの analog 経路は axes-only よりも buttons+axes の
-  composite virtual pad が有利
-- stock `miyoo282_xpad_inputd` は流用せず、plumOS では同じ原理を
-  `plumos-joystickd` の mode として実装する
-- RetroArch も stock SDL1 経路に合わせるより、plumOS build の SDL2/evdev と
-  composite virtual pad で検証する
-- 左スティック押し込みは、PPSSPP でも反応しないため引き続き未対応扱いにする
+- For standalone emulators, a buttons+axes composite virtual pad is more
+  promising than an axes-only device.
+- Do not reuse stock `miyoo282_xpad_inputd`; implement the same principle as a
+  `plumos-joystickd` mode.
+- For RetroArch, prefer testing a plumOS SDL2/evdev build with a composite
+  virtual pad over matching the stock SDL1 path.
+- Keep treating the left-stick click as unsupported because PPSSPP does not see
+  it either.
 
-## 方針
+## Policy
 
-- 初期 frontend では stock `keymon` を残す
-- plumOS frontend の操作入力は `/dev/input/event3` の直接読み取りで実装する
-- stock MainUI と共存している間は `EVIOCGRAB` のような排他取得は使わない
-- 電源ボタン短押しを含む button code/action mapping は実機で確定済み
-- 電源操作 menu の trigger は電源ボタンに寄せ、Function は emulator 側 menu と
-  競合しないようにする
-- plumOS frontend を常用起動に切り替える段階で、`keymon` を残すか停止するか再判断する
-- 左スティック押し込みは初期 mapping に含めない。新しい証拠が出た場合だけ再調査する
-- emulator 向け analog stick は `plumos-joystickd` の composite virtual pad mode を
-  優先して検証する
-- stock PPSSPP を `miyoo282_xpad_inputd` なしで直接起動し、`plumOS A30 Gamepad` が
-  SDL2 GameController mapping 成功で pad 1 に割り当てられることを確認済み
-- stock RetroArch/SDL1 では axes-only と composite gamepad のどちらも Linux joystick
-  API からは見えるが、RetroArch log では autoconfig/接続を確認できない。RetroArch は
-  plumOS build の SDL2/evdev + composite virtual pad を優先する
-- `plumos-joystickd --device-mode xbox` の button forwarding では Function も
-  `BTN_MODE` として転送できるため、emulator 側 menu 入力候補にできる
-- RetroArch では `SELECT` を hotkey modifier として残し、state save / fast-forward
-  などの hotkey combo に使う。menu だけは `input_menu_toggle_btn` を割り当てず、
-  emulator 実行中の `plumos-safe-hotkeyd` が物理 Function (`KEY_ESC`) 単押しを
-  RetroArch netcmd `MENU_TOGGLE` に変換する。
-- plumOS 同梱 upstream SDL3 3.4.10 + sdl2-compat 2.32.68 の probe でも、
-  `plumos-joystickd --device-mode xbox` の composite virtual pad が SDL2
-  GameController として自動認識されることを確認済み
-- `scripts/probe-a30-joystickd-residency.sh` で、stockless plumOS 状態のまま
-  `plumos-joystickd --device-mode xbox` を常駐させ、FE は `/dev/input/event3` を
-  非排他で直接読み、SDL2 probe と PPSSPP direct launch は `plumOS A30 Gamepad`
-  (`event4`) を GameController として認識することを確認済み
-- 上記常駐 probe の終了後、`plumos-joystickd` process、`plumOS A30 Gamepad` device、
-  `/dev/uinput`/`event4`/`ttyS0` fd は残らなかった
-- PPSSPP direct launch は plumOS gamepad の `event4` に加え、`/dev/input/event3` と
-  `/dev/ttyS0` も開く。物理操作時の二重入力や serial read 競合がないかは追加確認する
+- Keep stock `keymon` for the initial frontend work.
+- Implement plumOS frontend controls by reading `/dev/input/event3` directly.
+- Do not use exclusive mechanisms such as `EVIOCGRAB` while coexisting with
+  stock MainUI.
+- Button code/action mapping is confirmed, including short power-button presses.
+- Use the power button as the power-menu trigger so Function can remain available
+  to emulator-side menus.
+- Revisit whether to keep or stop `keymon` when plumOS becomes the regular
+  boot frontend.
+- Do not include the left-stick click in the initial mapping. Revisit only if
+  new evidence appears.
+- Prioritize a `plumos-joystickd` composite virtual pad mode for emulator-facing
+  analog-stick support.
+- Stock PPSSPP was launched directly without `miyoo282_xpad_inputd`, and
+  `plumOS A30 Gamepad` was assigned to pad 1 after a successful SDL2
+  GameController mapping.
+- Under stock RetroArch/SDL1, both the axes-only and composite gamepad devices
+  are visible through the Linux joystick API, but RetroArch logs do not confirm
+  autoconfig/connection. Prefer SDL2/evdev plus the composite virtual pad in the
+  plumOS RetroArch build.
+- `plumos-joystickd --device-mode xbox` forwards Function as `BTN_MODE`, so it
+  can be used as a candidate safe-menu input while an emulator is running.
+- In RetroArch, keep `SELECT` as the hotkey modifier for state-save,
+  fast-forward, and similar combos. Do not bind `input_menu_toggle_btn`; while an
+  emulator is running, `plumos-safe-hotkeyd` converts a single physical Function
+  (`KEY_ESC`) press into the RetroArch `MENU_TOGGLE` netcmd.
+- The plumOS-bundled upstream SDL3 3.4.10 + sdl2-compat 2.32.68 probe also
+  confirms that `plumos-joystickd --device-mode xbox` is auto-detected as an
+  SDL2 GameController.
+- `scripts/probe-a30-joystickd-residency.sh` confirms that in the stockless
+  plumOS state, `plumos-joystickd --device-mode xbox` can stay resident while
+  the FE reads `/dev/input/event3` directly and the SDL2 probe plus PPSSPP
+  direct launch recognize `plumOS A30 Gamepad` (`event4`) as a GameController.
+- After that residency probe exits, no stale `plumos-joystickd` process,
+  `plumOS A30 Gamepad` device, or `/dev/uinput`/`event4`/`ttyS0` fd remains.
+- PPSSPP direct launch also opens `/dev/input/event3` and `/dev/ttyS0` in
+  addition to the plumOS gamepad `event4`; physical duplicate-input or serial
+  read contention still needs a targeted check.
 
-現時点の推奨は「plumOS 常用時は stock `keymon` を止め、frontend は
-`/dev/input/event3` を直接読み、emulator 向けには `plumos-joystickd --device-mode xbox`
-常駐を第一候補にする」です。PPSSPP は `event3`/`ttyS0` の追加 open を確認してから
-default launch profile 化します。
+Current recommendation: stop stock `keymon` during regular plumOS operation,
+let the frontend read `/dev/input/event3` directly, and treat resident
+`plumos-joystickd --device-mode xbox` as the leading emulator input path.
+Default PPSSPP launch profiles should wait until the extra `event3`/`ttyS0`
+opens are understood.

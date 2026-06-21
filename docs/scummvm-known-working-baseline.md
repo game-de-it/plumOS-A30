@@ -1,9 +1,12 @@
-# ScummVM 現時点動作バックアップ基準
+# ScummVM Current Working Baseline
 
-この文書は、2026-06-11 時点で正しく動作している ScummVM standalone 環境を、
-今後の復旧基準として固定するための記録です。
+This document fixes the ScummVM standalone environment that was working on
+2026-06-11. Use it as the recovery baseline for future ScummVM display, input,
+theme, audio, save, or exit regressions.
 
-## バックアップ
+Japanese counterpart: [scummvm-known-working-baseline.ja.md](scummvm-known-working-baseline.ja.md)
+
+## Backup
 
 - Backup ID: `scummvm-known-working-20260611-071133`
 - A30 backup: `/mnt/SDCARD/plumos/backups/scummvm-known-working-20260611-071133`
@@ -18,37 +21,35 @@ ROM/game data directories are not part of this backup. The snapshot covers the
 plumOS ScummVM runtime, launcher inputs, and ScummVM-owned state needed to
 reproduce the current working state.
 
-## 状態の位置付け
+## Status
 
-このバックアップは、ScummVM standalone の現時点動作基準です。A30 向けの画面回転、
-VirtualMouse warp 修正、`scummmodern-a30-md` theme、音声、入力、終了動線が
-first-pass 済みの状態として扱います。
+This is the current ScummVM standalone working baseline. Treat it as the
+first-pass validated state for A30 display rotation, VirtualMouse warp fixes,
+`scummmodern-a30-md` theme, audio, input, and exit flow.
 
-一方で、ScummVM の全ゲーム/全 engine を検証済みという意味ではありません。今後
-ScummVM に表示、マウス、音、theme、保存、終了動線の問題が出た場合は、この
-バックアップを「戻れる状態」として比較してください。
+It does not mean every ScummVM game or engine has been validated.
 
-## バックアップ範囲
+## Backup Scope
 
 - `/mnt/SDCARD/plumos/emulators/scummvm/`
-  - ScummVM binary、A30 patch 済み binary backup、theme、engine data。
+  - ScummVM binary, A30-patched binary backup, theme, and engine data.
 - `/mnt/SDCARD/plumos/state/standalone/scummvm/`
-  - ScummVM config、log、save data、過去調整時の config backup。
+  - ScummVM config, logs, save data, and historical config backups.
 - `/mnt/SDCARD/plumos/bin/plumos-standalone-launch`
-  - ScummVM 起動時の SDL、CPU、target 解決、config 注入、theme path を決める launcher。
+  - Launcher that resolves SDL, CPU, target, config injection, and theme path.
 - `/mnt/SDCARD/plumos/bin/plumos-joystickd`
-  - ScummVM standalone launch 時の A30 virtual gamepad path。
+  - A30 virtual gamepad path used by standalone ScummVM.
 - `/mnt/SDCARD/plumos/config/frontend/systems.json`
-  - FE から選択される ScummVM launch profile の元データ。
+  - Source data for FE-selected ScummVM launch profiles.
 - `/mnt/SDCARD/plumos/state/frontend/core-overrides.json`
-  - system/ROM 別 override 状態。
+  - System/ROM override state.
 
-`/mnt/SDCARD/plumos/config/standalone/scummvm.env` と
-`/mnt/SDCARD/plumos/config/standalone/standalone.env` は、この時点では存在しません。
-ScummVM の現在の起動条件は `plumos-standalone-launch` の ScummVM branch 既定値と、
-`state/standalone/scummvm` の config で決まります。
+At this snapshot time, `/mnt/SDCARD/plumos/config/standalone/scummvm.env` and
+`/mnt/SDCARD/plumos/config/standalone/standalone.env` did not exist. Current
+ScummVM launch behavior was determined by the ScummVM branch defaults in
+`plumos-standalone-launch` plus `state/standalone/scummvm` config.
 
-## 主要 hash
+## Key Hashes
 
 - `emulators/scummvm/bin/scummvm`:
   `cdf718559c8b5aad8fd158219b34780b7ce06939d0519a6732f6f4c4a4be8cd1`
@@ -67,9 +68,9 @@ ScummVM の現在の起動条件は `plumos-standalone-launch` の ScummVM branc
 - `emulators/scummvm/share/scummvm/scummmodern-a30-md.zip`:
   `83a7fddf26b2bbdf0c7b83ce4d1b896f6a6e2a5ceb28b7887718dabb69cb4bd0`
 
-## Captured config highlights
+## Captured Config Highlights
 
-`state/standalone/scummvm/config/scummvm.ini` の主要値:
+Important `state/standalone/scummvm/config/scummvm.ini` values:
 
 - `rotation_mode=270`
 - `gui_theme=scummmodern-a30-md`
@@ -80,13 +81,13 @@ ScummVM の現在の起動条件は `plumos-standalone-launch` の ScummVM branc
 - `filtering=false`
 - `vsync=true`
 
-## 復旧ルール
+## Recovery Rule
 
-ScummVM の不具合を調査する場合、`emulators/scummvm/` だけでなく、
-`state/standalone/scummvm/`、`plumos-standalone-launch`、`plumos-joystickd`、
-`systems.json`、`core-overrides.json` を同じ組として比較します。ScummVM の動作は
-binary/theme だけでなく、launcher の target 解決、A30 向け SDL/CPU 既定値、
-ScummVM config、FE launch profile の組み合わせで決まります。
+When investigating ScummVM issues, compare `emulators/scummvm/` together with
+`state/standalone/scummvm/`, `plumos-standalone-launch`, `plumos-joystickd`,
+`systems.json`, and `core-overrides.json`. ScummVM behavior depends on the
+binary/theme, launcher target resolution, A30 SDL/CPU defaults, ScummVM config,
+and FE launch profile together.
 
-このバックアップは現時点の復旧基準であり、将来 ScummVM の対応 game/engine、save、
-state、per-game profile の検証が進んだ場合は、別の baseline を作る可能性があります。
+This backup is the current recovery point. A newer baseline may be created after
+more ScummVM game/engine, save, state, and per-game profile validation.

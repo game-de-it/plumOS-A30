@@ -1,40 +1,46 @@
-# plumOS ユーザー向けガイド
+# plumOS User Guide
 
-このガイドは、plumOS を Miyoo A30 で使う人向けの入口です。ビルドや実装の詳細ではなく、
-SD カードへ導入して、ROM を置き、起動し、設定を変更するために必要な情報をまとめます。
+This guide is for people using plumOS on a Miyoo A30. It focuses on installing
+the SD-card package, placing ROMs and BIOS files, launching games, and changing
+settings.
 
-## 最初に読むもの
+## Start Here
 
-1. [インストール](install.md)
-2. [基本操作](operation.md)
-3. [SD カード構成](storage.md)
-4. [対応システム/エミュレータ一覧](emulators.md)
+1. [Installation](install.md)
+2. [Basic Operation](operation.md)
+3. [SD Card Layout](storage.md)
+4. [Supported Systems and Emulator Profiles](emulators.md)
 
-## plumOS の基本方針
+## Core Ideas
 
-- A30 本体の rootfs/NAND は原則変更しません。
-- 配布物は SD カード root に展開して使います。
-- ROM、BIOS、save/state、スクリーンショット、動画は配布物に含みません。
-- plumOS の設定、ログ、runtime は主に `plumos/` 以下へ置きます。
-- StockOS の SD card runtime も fallback と互換性のため配布物に含みます。
+- plumOS normally does not modify the A30 rootfs/NAND.
+- The release archive is extracted to the root of the SD card.
+- ROMs, BIOS files, save/state data, screenshots, and videos are not included.
+- plumOS-owned configuration, logs, and runtime files live mainly under
+  `plumos/`.
+- StockOS SD-card runtime files are included for fallback and compatibility.
 
-## 主な機能
+## Main Features
 
-- 独自 frontend
-- Text / Graphic UI mode
+- plumOS frontend
+- Text and Graphic UI modes
 - RetroArch
 - PicoArch
-- standalone emulator
-- Pyxel
-- ファイルマネージャー
-- 音楽プレイヤー
-- ROM サムネイルスクレイピング
-- FTP / SFTP / Samba
+- Standalone emulators
+- Pyxel runtime
+- File manager
+- Music player
+- ROM thumbnail scraping
+- FTP, SFTP, and Samba services
 - USB Disk Mode
 - SSH
-- emulator 設定の factory reset
+- Emulator configuration factory reset
 
-## 注意
+## Important Note
 
-plumOS は ROM や BIOS を提供しません。各システムで必要な BIOS や game data は、ユーザー自身が
-合法的に用意してください。
+plumOS does not provide ROMs or BIOS files. Prepare any required game data and
+BIOS files yourself from legal sources.
+
+## Japanese Counterpart
+
+- [Japanese user guide](README.ja.md)
