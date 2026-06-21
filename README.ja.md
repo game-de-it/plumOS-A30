@@ -25,7 +25,8 @@ standalone emulator、frontend を再ビルドできます。
   - A30 実機への deploy と検証
   - 既存の詳細設計文書への入口
 - [全ドキュメント索引](docs/README.ja.md)
-- [Codex/agent 作業ルール](AGENTS.md)
+- [英語 README](README.md)
+- [英語ドキュメント索引](docs/README.md)
 - [TODO](TODO.ja.md)
 
 GitHub で既定表示される英語版を `.md` に置き、日本語版は同じ path の `.ja.md` に置きます。

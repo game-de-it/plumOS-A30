@@ -1,6 +1,6 @@
 # TODO
 
-このファイルは現在の作業対象だけを置く。作業履歴、検証ログ、判断理由は `AGENTS.md` の方針に従い、`docs/`、commit log、`artifacts/` に残す。`HANDOFF.md` には追記しない。
+このファイルは現在の作業対象だけを置く。作業履歴、検証ログ、判断理由は `docs/`、commit log、`artifacts/` に残す。`HANDOFF.md` には追記しない。
 
 ## Phase 0 - Repository and Remote Access
 

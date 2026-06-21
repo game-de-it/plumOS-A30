@@ -17,7 +17,8 @@ counterparts use the same path with a `.ja.md` suffix.
 - [User guide](docs/user/README.md)
 - [Developer guide](docs/developer/README.md)
 - [Documentation index](docs/README.md)
-- [Codex/agent rules](AGENTS.md)
+- [Japanese README](README.ja.md)
+- [Japanese documentation index](docs/README.ja.md)
 - [TODO](TODO.md)
 
 ## End-user package
