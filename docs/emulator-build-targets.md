@@ -242,12 +242,13 @@ MSX PICO の `bluemsx` / `fmsx` はどちらも起動OKです。
 `No romset found` になることを確認しました。A30 patch で VFS path 正規化、任意の
 `PLUMOS_PICOARCH_VFS_TRACE=1` trace、FBNeo 向け seek return 互換を追加し、
 `fbneo`、`mame2003_plus`、`fbalpha2012`、`mame2000` の arcade ROM 初期化まで確認済みです。
-`scummvm` libretro は analog cursor を gamepad axis から読むため、A30 の PicoArch launcher では
-この core だけ既定で joystickd の X/Y source を `axisYR`/`axisXR` に差し替えます。2026-06-17 の
-実機確認で ScummVM PICO の analog cursor 補正は OK です。2026-06-18 には同じ 90 度回転症状が
-`hatari`、`prboom`、`dosbox_pure` でも残っていたため、rotated-axis core group として
-`axisYR`/`axisXR` を既定にしました。各 core は
-`PLUMOS_PICOARCH_HATARI_JOYSTICKD_X_SOURCE` などの per-core env で個別上書きできます。
+PicoArch は A30 向け presenter で画面を回転して表示するため、analog stick も PicoArch launcher
+側で全 core 既定として `axisYR`/`axisXR` へ補正します。初期実装では `scummvm`、`hatari`、
+`prboom`、`dosbox_pure` だけを rotated-axis group として扱っていましたが、`fceumm` でも
+analog stick の向きが崩れることが確認されたため、PicoArch 全体の既定値に変更しました。
+物理 D-pad は hat input として別経路で扱われるため、menu 操作は D-pad を使います。
+PicoArch menu 中は analog axis を menu direction として扱わないよう
+`PLUMOS_PICOARCH_MENU_ANALOG=0` を既定にしています。
 なお RA/PICO どちらでも `mame2000` の Irem M92 系 driver には core 側で
 `GAME_NO_SOUND` 指定の title があり、その場合の無音は plumOS audio 経路の不具合ではありません。
 同日の PS1 追加検証では、PICO `pcsx_rearmed` が BIOS 検出後に `cdrom read failed for lba 4` で

@@ -233,24 +233,18 @@ Environment:
   PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY
                                 1 skips SDL keyboard input when a joystick is present. Default: 1.
   PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE axisYL, axisXL, axisYR, or axisXR.
+                                Default: axisYR for A30 PicoArch.
   PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE axisYL, axisXL, axisYR, or axisXR.
+                                Default: axisXR for A30 PicoArch.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_X 1 inverts virtual gamepad X axis.
   PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y 1 inverts virtual gamepad Y axis.
+  PLUMOS_PICOARCH_MENU_ANALOG   1 allows analog stick directions in the PicoArch menu.
+                                Default: 0, so use the D-pad in menus.
   PLUMOS_PICOARCH_SYSTEM       plumOS system id, used for system-specific core defaults.
   PLUMOS_PICOARCH_ROTATED_JOYSTICKD_X_SOURCE
-                                Default X source for rotated-axis cores. Default: axisYR.
+                                Legacy/default X source override. Default: axisYR.
   PLUMOS_PICOARCH_ROTATED_JOYSTICKD_Y_SOURCE
-                                Default Y source for rotated-axis cores. Default: axisXR.
-  PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE
-                                ScummVM-only X source override. Default: axisYR.
-  PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE
-                                ScummVM-only Y source override. Default: axisXR.
-  PLUMOS_PICOARCH_HATARI_JOYSTICKD_X_SOURCE, PLUMOS_PICOARCH_PRBOOM_JOYSTICKD_X_SOURCE,
-  PLUMOS_PICOARCH_DOSBOX_PURE_JOYSTICKD_X_SOURCE
-                                Per-core X source override for rotated-axis cores.
-  PLUMOS_PICOARCH_HATARI_JOYSTICKD_Y_SOURCE, PLUMOS_PICOARCH_PRBOOM_JOYSTICKD_Y_SOURCE,
-  PLUMOS_PICOARCH_DOSBOX_PURE_JOYSTICKD_Y_SOURCE
-                                Per-core Y source override for rotated-axis cores.
+                                Legacy/default Y source override. Default: axisXR.
   PLUMOS_PICOARCH_MENU_REPEAT_MS Menu repeat interval in ms. Default: 260.
   PLUMOS_PICOARCH_MENU_REPEAT_INITIAL_MS Initial repeat delay in ms. Default: 650.
   PLUMOS_PICOARCH_LOG            0 disables per-launch logs. Default: 1.
@@ -494,43 +488,13 @@ apply_cpu_policy() {
   esac
 }
 
-apply_rotated_joystickd_sources() {
-  core_prefix=$1
-  default_x=${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_X_SOURCE:-axisYR}
-  default_y=${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_Y_SOURCE:-axisXR}
-  eval core_x="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_X_SOURCE:-}"
-  eval core_y="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_Y_SOURCE:-}"
-  eval core_invert_x="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_INVERT_X:-}"
-  eval core_invert_y="\${PLUMOS_PICOARCH_${core_prefix}_JOYSTICKD_INVERT_Y:-}"
-
-  PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${core_x:-${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-${default_x}}}
-  PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${core_y:-${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-${default_y}}}
-  PLUMOS_PICOARCH_JOYSTICKD_INVERT_X=${core_invert_x:-${PLUMOS_PICOARCH_JOYSTICKD_INVERT_X:-0}}
-  PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y=${core_invert_y:-${PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y:-0}}
-}
-
 start_joystickd() {
   [ "${PLUMOS_PICOARCH_JOYSTICKD:-1}" != 0 ] || return 0
   [ -x "${PLUMOS_ROOT}/bin/plumos-joystickd" ] || return 0
   stop_resident_joystickd
 
-  joystickd_core_name=$(basename "${core_path}")
-  joystickd_core_name=${joystickd_core_name%_libretro.so}
-  joystickd_core_name=${joystickd_core_name%.so}
-  case "${joystickd_core_name}" in
-    scummvm)
-      apply_rotated_joystickd_sources SCUMMVM
-      ;;
-    hatari)
-      apply_rotated_joystickd_sources HATARI
-      ;;
-    prboom)
-      apply_rotated_joystickd_sources PRBOOM
-      ;;
-    dosbox_pure)
-      apply_rotated_joystickd_sources DOSBOX_PURE
-      ;;
-  esac
+  PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=${PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE:-${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_X_SOURCE:-axisYR}}
+  PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-${PLUMOS_PICOARCH_ROTATED_JOYSTICKD_Y_SOURCE:-axisXR}}
 
   joystickd_mode=${PLUMOS_PICOARCH_JOYSTICKD_MODE:-xbox}
   case "${joystickd_mode}" in
@@ -628,6 +592,7 @@ export SDL_NOMOUSE=${SDL_NOMOUSE:-1}
 export SDL_AUDIODRIVER=${PLUMOS_PICOARCH_SDL_AUDIODRIVER:-${SDL_AUDIODRIVER:-alsa}}
 export AUDIODEV=${AUDIODEV:-default}
 export PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY=${PLUMOS_PICOARCH_SDL_JOYSTICK_ONLY:-1}
+export PLUMOS_PICOARCH_MENU_ANALOG=${PLUMOS_PICOARCH_MENU_ANALOG:-0}
 export PLUMOS_PICOARCH_A30_MALI=${PLUMOS_PICOARCH_A30_MALI:-1}
 export PLUMOS_PICOARCH_A30_ROTATION=${PLUMOS_PICOARCH_A30_ROTATION:-ccw}
 export PLUMOS_PICOARCH_A30_VSYNC=${PLUMOS_PICOARCH_A30_VSYNC:-1}
@@ -927,6 +892,7 @@ fi
   printf 'joystickd_y_source=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE:-}"
   printf 'joystickd_invert_x=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_X:-0}"
   printf 'joystickd_invert_y=%s\n' "${PLUMOS_PICOARCH_JOYSTICKD_INVERT_Y:-0}"
+  printf 'menu_analog=%s\n' "${PLUMOS_PICOARCH_MENU_ANALOG:-0}"
   printf 'a30_mali=%s\n' "${PLUMOS_PICOARCH_A30_MALI}"
   printf 'a30_rotation=%s\n' "${PLUMOS_PICOARCH_A30_ROTATION}"
   printf 'a30_vsync=%s\n' "${PLUMOS_PICOARCH_A30_VSYNC}"
@@ -974,11 +940,14 @@ write_default_config() {
 # Set to 0 only when debugging the virtual gamepad axes without forwarded buttons.
 # PLUMOS_PICOARCH_JOYSTICKD_BUTTONS=1
 #
-# ScummVM libretro reads the analog cursor through the gamepad axes. On A30 the
-# PicoArch launcher swaps X/Y for that core by default; override these only if a
-# future joystickd mapping changes.
-# PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_X_SOURCE=axisYR
-# PLUMOS_PICOARCH_SCUMMVM_JOYSTICKD_Y_SOURCE=axisXR
+# A30 PicoArch presents the display rotated, so the analog stick is rotated at
+# the launcher level for every core by default. Override only for input testing.
+# PLUMOS_PICOARCH_JOYSTICKD_X_SOURCE=axisYR
+# PLUMOS_PICOARCH_JOYSTICKD_Y_SOURCE=axisXR
+#
+# Keep analog stick directions out of the PicoArch menu. The D-pad still works.
+# Set to 1 only if a future PicoArch input path can distinguish menu/game axes.
+# PLUMOS_PICOARCH_MENU_ANALOG=0
 EOF
 }
 

@@ -85,6 +85,25 @@ index bab649a..734be2d 100644
  	for (i = 0; i < joycount; i++) {
  		joy = SDL_JoystickOpen(i);
  		if (joy == NULL)
+@@ -279,7 +304,8 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
+ 	int *kc_out, int *down_out, int *emu_out)
+ {
+-	int kc = -1, down = 0, emu = 0, ret = 0;
++	int kc = -1, down = 0, emu = 0, ret = 0;
++	int suppress_menu_axis = 0;
+ 
+ 	/* TODO: remaining axis */
+ 	switch (event->type) {
+ 	case SDL_JOYAXISMOTION:
+@@ -290,6 +316,8 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
+ 			return -2;
+ 		if (event->jaxis.axis > 1)
+ 			break;
++		suppress_menu_axis = kc_out != NULL &&
++			!env_enabled("PLUMOS_PICOARCH_MENU_ANALOG", 0);
+ 		if (-16384 <= event->jaxis.value && event->jaxis.value <= 16384) {
+ 			kc = state->axis_keydown[event->jaxis.axis];
+ 			state->axis_keydown[event->jaxis.axis] = 0;
 @@ -321,6 +322,43 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
  		}
  		break;
@@ -129,6 +148,18 @@ index bab649a..734be2d 100644
  	case SDL_JOYBUTTONDOWN:
  	case SDL_JOYBUTTONUP:
  		if (event->jbutton.which != state->joy_id)
+@@ -340,6 +408,11 @@ static int handle_joy_event(struct in_sdl_state *state, SDL_Event *event,
+ 		emu |= get_keystate(state->emu_keys, kc);
+ 		update_keystate(state->keystate, kc, down);
+ 	}
++	if (suppress_menu_axis && ret) {
++		if (emu_out != 0)
++			*emu_out = emu;
++		return 0;
++	}
+ 	if (kc_out != NULL)
+ 		*kc_out = kc;
+ 	if (down_out != NULL)
 diff --git a/libpicofe/input.c b/libpicofe/input.c
 index aa1f155..6268cc6 100644
 --- a/libpicofe/input.c
