@@ -46,6 +46,10 @@ one obvious file first; compare these pieces together:
 The captured `ppsspp.env` has the following important behavior:
 
 - Use stock SDL path: `PLUMOS_STANDALONE_USE_STOCK_SDL=1`
+- The stock SDL library search path must include both
+  `/mnt/SDCARD/miyoo/lib` and `/usr/miyoo/lib`. Fresh SD-root packages do not
+  necessarily contain `/mnt/SDCARD/miyoo/lib`, but the A30 rootfs provides the
+  stock SDL2 `mali` backend under `/usr/miyoo/lib`.
 - CPU policy: `fixed`, `1344000`, `4` cores
 - Display: `PLUMOS_A30_DISPLAY_ROTATION=ccw`
 - Logical UI size: `PLUMOS_A30_DISPLAY_LOGICAL=854x480`
@@ -100,3 +104,19 @@ The launcher must continue to treat PPSSPP config and controls as user-managed
 state. Normal launch and deploy flows must not auto-reset or auto-repair
 `ppsspp.ini` or `controls.ini`. Explicit repair modes are allowed only when the
 user asks for them.
+
+## Fresh SD-root rule
+
+Fresh SD-root packages must include a sanitized PPSSPP factory state under
+`plumos/state/standalone/ppsspp/`, containing only:
+
+- `config/plumos-a30-ppsspp-layout.ini`
+- `config/ppsspp/PSP/SYSTEM/ppsspp.ini`
+- `config/ppsspp/PSP/SYSTEM/controls.ini`
+- `.config/ppsspp/PSP/SYSTEM/ppsspp.ini`
+- `.config/ppsspp/PSP/SYSTEM/controls.ini`
+
+Do not include PPSSPP `SAVEDATA`, shader cache, temporary `.before-*` files, or
+top-level `/mnt/SDCARD/.config/ppsspp` in release packages. The factory state is
+the seed for a clean SD card; existing user-managed PPSSPP state should still be
+preserved by normal runtime deploy/install flows.

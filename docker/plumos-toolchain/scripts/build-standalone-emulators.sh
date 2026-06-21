@@ -1102,7 +1102,7 @@ load_standalone_env
 
 EMU_ROOT=${PLUMOS_ROOT}/emulators
 PLUMOS_LIB=${PLUMOS_ROOT}/lib
-STOCK_LIB=${PLUMOS_STOCK_LIB:-/mnt/SDCARD/miyoo/lib}
+STOCK_LIB=${PLUMOS_STOCK_LIB:-/mnt/SDCARD/miyoo/lib:/usr/miyoo/lib}
 LOADER=${PLUMOS_LIB}/ld-linux-armhf.so.3
 
 if [ ! -x "${LOADER}" ]; then
@@ -2209,7 +2209,7 @@ write_standalone_config_defaults() {
 # PPSSPP launcher overrides for Miyoo A30.
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
-PLUMOS_STANDALONE_USE_STOCK_SDL=0
+PLUMOS_STANDALONE_USE_STOCK_SDL=1
 
 PLUMOS_A30_PSP_CPU_POLICY=fixed
 PLUMOS_A30_PSP_CPU_FREQ=1344000

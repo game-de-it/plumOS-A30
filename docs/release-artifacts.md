@@ -16,6 +16,11 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 
 含むもの:
 
+- stock SD payload
+  - `miyoo/app/MainUI.stock`
+  - `miyoo/app/keymon`, `miyoo/app/sdlloading`
+  - `miyoo/lib/` stock SDL/runtime library
+  - stock payload に含まれる非ユーザーデータ runtime
 - `miyoo/app/MainUI` plumOS boot wrapper
 - frontend
 - launcher
@@ -26,6 +31,7 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - Pyxel runtime
 - SDL/Mali runtime
 - joystick/network/userland helper
+- fresh SD card 用の `plumos/state/standalone/ppsspp` factory state
 - Dropbear SSH kit
 - empty `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/` placeholder
   - `Images/` は plumOS の通常サムネイル置き場
@@ -37,10 +43,10 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - ROM
 - BIOS
 - user save/state
+- top-level `.config/` user/runtime state
 - network secret
 - build cache
 - 開発用 source tree
-- stock `MainUI.stock`
 
 SSH は公開鍵認証のみを使う。配布用 archive を作る前に `dist/plumos-a30-ssh-kit` の
 `plumos/ssh/etc/authorized_keys` に接続元 PC の公開鍵が入っていることを確認する。
@@ -121,21 +127,24 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 2. runtime package の入力 artifact を build する。SSH 接続確認用には
    `A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh` で
    `dist/plumos-a30-ssh-kit` を作る。
-3. `./scripts/build-runtime-package.py` を実行する。
-4. `./scripts/build-sdroot-package.py` を実行する。
-5. `./scripts/build-dev-package.py` を実行する。
-6. `./scripts/build-release-bundle.py --version <version>` を実行する。
-7. `SHA256SUMS` を検証する。
-8. fresh SD card 相当の環境で SD root package の boot を検証する。
-9. 必要に応じて既存 SD card 向け runtime install/rollback を検証する。
-10. GitHub Release へ release bundle 内の asset を upload する。
+3. 正常動作していた stock SD card から ROM/BIOS/save/media/user-data を除いた stock payload を
+   `artifacts/stock-sdl-probe/extracted/mnt/SDCARD`、または
+   `./scripts/build-sdroot-package.py --stock-sdcard-dir <path>` で指定する path へ用意する。
+4. `./scripts/build-runtime-package.py` を実行する。
+5. `./scripts/build-sdroot-package.py` を実行する。
+6. `./scripts/build-dev-package.py` を実行する。
+7. `./scripts/build-release-bundle.py --version <version>` を実行する。
+8. `SHA256SUMS` を検証する。
+9. fresh SD card 相当の環境で SD root package の boot を検証する。
+10. 必要に応じて既存 SD card 向け runtime install/rollback を検証する。
+11. GitHub Release へ release bundle 内の asset を upload する。
 
 ## 完了条件
 
 正式 release は以下を満たす必要がある。
 
 - runtime package が `docs/emulator-runtime-manifest.tsv` の runtime/core/binary 検証を通過している。
-- SD root package が `miyoo/app/MainUI` と `plumos/` runtime を含み、ROM/BIOS/user data を含まない。
+- SD root package が stock SD payload、`miyoo/app/MainUI`、`plumos/` runtime を含み、ROM/BIOS/user data を含まない。
 - developer package の manifest が `git_dirty=no` である。
 - release bundle の manifest が `git_dirty=no` である。
 - `SHA256SUMS` が全 asset で検証できる。

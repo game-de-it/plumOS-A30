@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_STOCK_SDCARD_DIR = ROOT / "artifacts/stock-sdl-probe/extracted/mnt/SDCARD"
 
 EMPTY_USER_DIRS = [
     "Bios",
@@ -51,6 +52,34 @@ EXCLUDED_TOP_LEVELS = {
     "roms",
 }
 
+STOCK_PAYLOAD_EXCLUDED_TOP_LEVELS = EXCLUDED_TOP_LEVELS | {
+    ".config",
+    ".Spotlight-V100",
+    ".TemporaryItems",
+    ".Trashes",
+    ".fseventsd",
+    "System Volume Information",
+    "plumos",
+}
+
+STOCK_PAYLOAD_REQUIRED = [
+    "miyoo/app/MainUI.stock",
+    "miyoo/app/keymon",
+    "miyoo/app/sdlloading",
+    "miyoo/lib/libSDL-1.2.so.0",
+    "miyoo/lib/libSDL2-2.0.so.0",
+    "miyoo/lib/libshmvar.so",
+    "miyoo/lib/libtmenu.so",
+]
+
+PPSSPP_FACTORY_STATE_PATHS = [
+    "plumos/state/standalone/ppsspp/config/plumos-a30-ppsspp-layout.ini",
+    "plumos/state/standalone/ppsspp/config/ppsspp/PSP/SYSTEM/ppsspp.ini",
+    "plumos/state/standalone/ppsspp/config/ppsspp/PSP/SYSTEM/controls.ini",
+    "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/ppsspp.ini",
+    "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/controls.ini",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -68,10 +97,24 @@ def parse_args() -> argparse.Namespace:
         default=ROOT / "dist/plumos-sdroot-package",
     )
     parser.add_argument(
+        "--stock-sdcard-dir",
+        type=Path,
+        default=DEFAULT_STOCK_SDCARD_DIR,
+        help=(
+            "Stock SD-card payload directory copied before the plumOS overlay. "
+            "ROM/BIOS/save/media/user-data top-level directories are excluded."
+        ),
+    )
+    parser.add_argument(
         "--archive",
         type=Path,
         default=None,
         help="Archive path. Defaults to <output-dir>.tar.gz.",
+    )
+    parser.add_argument(
+        "--no-stock-payload",
+        action="store_true",
+        help="Developer-only escape hatch; official SD-root packages include stock payload files.",
     )
     parser.add_argument("--no-archive", action="store_true")
     return parser.parse_args()
@@ -127,6 +170,50 @@ def copy_tree(src: Path, dst: Path) -> tuple[int, int]:
     return files, bytes_total
 
 
+def should_skip_stock_payload(rel: Path) -> bool:
+    if not rel.parts:
+        return True
+    if rel.parts[0] in STOCK_PAYLOAD_EXCLUDED_TOP_LEVELS:
+        return True
+    for part in rel.parts:
+        if part in {".DS_Store", "Thumbs.db"}:
+            return True
+        if part.startswith("._"):
+            return True
+    return False
+
+
+def copy_stock_payload(src: Path, dst: Path) -> tuple[int, int]:
+    if not src.exists():
+        raise SystemExit(
+            f"missing stock SD-card payload: {src}\n"
+            "Provide --stock-sdcard-dir pointing at a stock /mnt/SDCARD snapshot, "
+            "or use --no-stock-payload only for local developer experiments."
+        )
+
+    files = 0
+    bytes_total = 0
+    for item in iter_files(src):
+        rel = item.relative_to(src)
+        if should_skip_stock_payload(rel):
+            continue
+        out = dst / rel
+        copy_file(item, out)
+        files += 1
+        if item.is_file():
+            bytes_total += item.stat().st_size
+    return files, bytes_total
+
+
+def preserve_stock_mainui(output_dir: Path) -> tuple[int, int]:
+    mainui = output_dir / "miyoo/app/MainUI"
+    stock_mainui = output_dir / "miyoo/app/MainUI.stock"
+    if mainui.exists() and not stock_mainui.exists():
+        copy_file(mainui, stock_mainui)
+        return 1, stock_mainui.stat().st_size
+    return 0, 0
+
+
 def ensure_empty_dirs(output_dir: Path) -> None:
     for rel in EMPTY_USER_DIRS:
         (output_dir / rel).mkdir(parents=True, exist_ok=True)
@@ -134,7 +221,7 @@ def ensure_empty_dirs(output_dir: Path) -> None:
         readme.write_text(USER_DIR_READMES[rel], encoding="utf-8")
 
 
-def verify_payload(output_dir: Path) -> list[str]:
+def verify_payload(output_dir: Path, require_stock_payload: bool) -> list[str]:
     required = [
         "miyoo/app/MainUI",
         "plumos/bootstrap/MainUI.wrapper",
@@ -147,7 +234,10 @@ def verify_payload(output_dir: Path) -> list[str]:
         "plumos/ssh/bin/dropbearkey",
         "plumos/ssh/bin/scp",
         "plumos/ssh/etc/authorized_keys",
+        *PPSSPP_FACTORY_STATE_PATHS,
     ]
+    if require_stock_payload:
+        required.extend(STOCK_PAYLOAD_REQUIRED)
     errors: list[str] = []
     for rel in required:
         if not (output_dir / rel).exists():
@@ -169,19 +259,33 @@ This archive is intended to be extracted to the root of a freshly formatted A30 
 
 Expected top-level entries:
 
-- `miyoo/app/MainUI`: plumOS boot wrapper used by the stock boot flow.
+- `miyoo/`: stock SD-card runtime files plus the plumOS boot wrapper at
+  `miyoo/app/MainUI`.
 - `plumos/`: plumOS runtime.
+- Optional stock top-level runtimes such as `RetroArch/` or `Emu/`, when present
+  in the stock SD-card payload input.
 - `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/`: empty placeholders for user-managed files.
 
 ROMs, BIOS files, save data, states, screenshots, videos, and network secrets are not included.
 
-Rollback note: this fresh-SD package does not include stock `MainUI.stock`. If you install over an existing stock SD card, back up `miyoo/app/MainUI` first.
+Rollback note: the stock `miyoo/app/MainUI` is preserved as
+`miyoo/app/MainUI.stock` when it is available in the stock payload. plumOS
+overlays `miyoo/app/MainUI` with its boot wrapper.
 """,
         encoding="utf-8",
     )
 
 
-def write_manifest(path: Path, runtime_dir: Path, copied_files: int, copied_bytes: int, archive_name: str) -> None:
+def write_manifest(
+    path: Path,
+    runtime_dir: Path,
+    stock_sdcard_dir: Path | None,
+    stock_files: int,
+    stock_bytes: int,
+    copied_files: int,
+    copied_bytes: int,
+    archive_name: str,
+) -> None:
     build_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
         "plumOS A30 SD root package",
@@ -191,12 +295,19 @@ def write_manifest(path: Path, runtime_dir: Path, copied_files: int, copied_byte
         f"git_dirty={'yes' if git_value(['status', '--short'], '') else 'no'}",
         f"archive={archive_name}",
         f"runtime_dir={runtime_dir}",
+        f"stock_sdcard_dir={stock_sdcard_dir if stock_sdcard_dir is not None else 'disabled'}",
         "payload_root=sdcard-root",
+        f"stock_files={stock_files}",
+        f"stock_bytes={stock_bytes}",
         f"copied_files={copied_files}",
         f"copied_bytes={copied_bytes}",
         "",
         "[top-level]",
+        "Emu/ (from stock payload when present)",
+        "RetroArch/ (from stock payload when present)",
         "miyoo/app/MainUI",
+        "miyoo/app/MainUI.stock",
+        "miyoo/lib/",
         "plumos/",
         *EMPTY_USER_DIRS,
     ]
@@ -241,14 +352,33 @@ def main() -> int:
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True)
 
+    stock_files = 0
+    stock_bytes = 0
+    stock_sdcard_dir: Path | None = None
+    if not args.no_stock_payload:
+        stock_sdcard_dir = args.stock_sdcard_dir
+        stock_files, stock_bytes = copy_stock_payload(stock_sdcard_dir, output_dir)
+        extra_files, extra_bytes = preserve_stock_mainui(output_dir)
+        stock_files += extra_files
+        stock_bytes += extra_bytes
+
     files, bytes_total = copy_tree(runtime_plumos, output_dir / "plumos")
     copy_file(wrapper, output_dir / "miyoo/app/MainUI")
     (output_dir / "miyoo/app/MainUI").chmod(0o755)
     ensure_empty_dirs(output_dir)
     write_readme(output_dir / "README.txt")
-    write_manifest(output_dir / "manifest.txt", runtime_dir, files + 1, bytes_total + wrapper.stat().st_size, archive.name)
+    write_manifest(
+        output_dir / "manifest.txt",
+        runtime_dir,
+        stock_sdcard_dir,
+        stock_files,
+        stock_bytes,
+        stock_files + files + 1,
+        stock_bytes + bytes_total + wrapper.stat().st_size,
+        archive.name,
+    )
 
-    errors = verify_payload(output_dir)
+    errors = verify_payload(output_dir, require_stock_payload=not args.no_stock_payload)
     if errors:
         for error in errors:
             print(f"error: {error}", file=os.sys.stderr)

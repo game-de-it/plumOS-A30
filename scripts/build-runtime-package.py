@@ -56,6 +56,14 @@ BASE_RUNTIME_PATHS = [
     "plumos/ssh/etc/authorized_keys",
 ]
 
+PPSSPP_FACTORY_STATE_PATHS = [
+    "plumos/state/standalone/ppsspp/config/plumos-a30-ppsspp-layout.ini",
+    "plumos/state/standalone/ppsspp/config/ppsspp/PSP/SYSTEM/ppsspp.ini",
+    "plumos/state/standalone/ppsspp/config/ppsspp/PSP/SYSTEM/controls.ini",
+    "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/ppsspp.ini",
+    "plumos/state/standalone/ppsspp/.config/ppsspp/PSP/SYSTEM/controls.ini",
+]
+
 
 @dataclass(frozen=True)
 class Component:
@@ -201,6 +209,9 @@ def verify_runtime_payload(package_dir: Path, manifest_path: Path) -> list[str]:
     for rel in BASE_RUNTIME_PATHS:
         if not (package_dir / rel).exists():
             errors.append(f"missing base runtime path: {rel}")
+    for rel in PPSSPP_FACTORY_STATE_PATHS:
+        if not (package_dir / rel).exists():
+            errors.append(f"missing PPSSPP factory state path: {rel}")
 
     for runtime in sorted({row["runtime"] for row in rows}):
         for rel in REQUIRED_RUNTIME_PATHS.get(runtime, []):
