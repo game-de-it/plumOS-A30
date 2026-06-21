@@ -42,7 +42,8 @@
 #define MUSIC_OUTPUT_RATE 44100
 #define MUSIC_OUTPUT_CHANNELS 2
 #define MUSIC_AUDIO_CHUNK_FRAMES 768
-#define MUSIC_LIST_ROWS 10
+#define MUSIC_LIST_ROWS 7
+#define MUSIC_BOTTOM_PANEL_HEIGHT 154.0f
 
 struct music_track {
   char path[PATH_MAX];
@@ -754,29 +755,34 @@ static void render_player(struct plumos_mali_renderer *renderer, struct player_s
     }
   }
 
-  plumos_mali_rect(renderer, 0.0f, (float)renderer->height - 126.0f,
-                   (float)renderer->width, 126.0f, 0.045f, 0.050f, 0.062f, 1.0f);
-  draw_text_ft(renderer, current_name, 16.0f, (float)renderer->height - 112.0f, 2,
-               (float)renderer->width - 16.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-  draw_progress(renderer, 16.0f, (float)renderer->height - 76.0f,
-                (float)renderer->width - 32.0f, 10.0f, pos, len);
   {
-    char t1[24];
-    char t2[24];
-    format_time(t1, sizeof(t1), pos);
-    format_time(t2, sizeof(t2), len);
-    snprintf(time_text, sizeof(time_text), "%s / %s   EQ:%s   VOL:%d%%", t1, t2,
-             k_eq_presets[eq_index].name, volume_percent);
-  }
-  draw_text_ft(renderer, time_text, 16.0f, (float)renderer->height - 58.0f, 2,
+    float panel_y = (float)renderer->height - MUSIC_BOTTOM_PANEL_HEIGHT;
+    plumos_mali_rect(renderer, 0.0f, panel_y, (float)renderer->width,
+                     MUSIC_BOTTOM_PANEL_HEIGHT, 0.045f, 0.050f, 0.062f, 1.0f);
+    draw_text_ft(renderer, current_name, 16.0f, panel_y + 14.0f, 2,
+               (float)renderer->width - 16.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+    draw_progress(renderer, 16.0f, panel_y + 52.0f,
+                (float)renderer->width - 32.0f, 10.0f, pos, len);
+    {
+      char t1[24];
+      char t2[24];
+      format_time(t1, sizeof(t1), pos);
+      format_time(t2, sizeof(t2), len);
+      snprintf(time_text, sizeof(time_text), "%s / %s   EQ:%s   VOL:%d%%", t1, t2,
+               k_eq_presets[eq_index].name, volume_percent);
+    }
+    draw_text_ft(renderer, time_text, 16.0f, panel_y + 70.0f, 2,
                (float)renderer->width - 16.0f, 0.78f, 0.83f, 0.90f, 1.0f);
-  draw_text_ft(renderer, status[0] ? status : audio_status, 16.0f,
-               (float)renderer->height - 34.0f, 2, (float)renderer->width - 16.0f,
+    draw_text_ft(renderer, status[0] ? status : audio_status, 16.0f,
+               panel_y + 94.0f, 2, (float)renderer->width - 16.0f,
                0.95f, 0.65f, 0.28f, 1.0f);
-  draw_text_ft(renderer,
-               "A Play/Pause  B Exit  Left/Right 5s  X/Y Track  Select EQ  L/R Vol",
-               16.0f, (float)renderer->height - 17.0f, 1,
-               (float)renderer->width - 16.0f, 0.62f, 0.68f, 0.75f, 1.0f);
+    draw_text_ft(renderer, "A Play/Pause   B Exit   Left/Right 5s", 16.0f,
+                 panel_y + 110.0f, 2, (float)renderer->width - 16.0f, 0.62f,
+                 0.68f, 0.75f, 1.0f);
+    draw_text_ft(renderer, "X/Y Track   SELECT EQ   L/R Volume", 16.0f,
+                 panel_y + 130.0f, 2, (float)renderer->width - 16.0f, 0.62f,
+                 0.68f, 0.75f, 1.0f);
+  }
 
   renderer->gl.Finish();
   renderer->egl.SwapBuffers(renderer->display, renderer->surface);
