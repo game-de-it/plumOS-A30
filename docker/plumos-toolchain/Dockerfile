@@ -63,6 +63,8 @@ RUN dpkg --add-architecture armhf \
     libsdl1.2-dev:armhf \
     libsdl2-dev:armhf \
     libsdl2-gfx-dev:armhf \
+    libsdl2-image-dev:armhf \
+    libsdl2-ttf-dev:armhf \
     libspeexdsp-dev:armhf \
     libtool \
     libvorbis-dev:armhf \

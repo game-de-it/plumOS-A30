@@ -31,6 +31,7 @@ menu.status.apps_load_failed=无法载入应用菜单
 menu.status.back_to_start=已返回 START
 
 app.scraping.name=媒体抓取
+app.file_manager.name=文件管理器
 app.thumbnail-plan.name=缩略图计划
 app.thumbnail-fetch.name=获取缩略图
 app.thumbnail-results.name=缩略图结果

@@ -31,6 +31,7 @@ menu.status.apps_load_failed=Apps-Menü konnte nicht geladen werden
 menu.status.back_to_start=zurück zu START
 
 app.scraping.name=Scraping
+app.file_manager.name=Dateimanager
 app.thumbnail-plan.name=Thumbnail-Plan
 app.thumbnail-fetch.name=Thumbnails laden
 app.thumbnail-results.name=Thumbnail-Ergebnisse

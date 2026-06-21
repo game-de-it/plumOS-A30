@@ -31,6 +31,7 @@ menu.status.apps_load_failed=アプリメニューを読み込めません
 menu.status.back_to_start=START に戻りました
 
 app.scraping.name=スクレイピング
+app.file_manager.name=ファイルマネージャー
 app.thumbnail-plan.name=サムネイル計画
 app.thumbnail-fetch.name=サムネイル取得
 app.thumbnail-results.name=サムネイル結果

@@ -21,6 +21,7 @@ Commands:
                  Build FTP/SFTP/Samba service package into dist/plumos-network-services.
   python-runtime Build Python 3 runtime with pip support into dist/plumos-python-runtime.
   pyxel-a30      Build Pyxel A30 launcher and optional patched fallback into dist/plumos-pyxel-a30.
+  nextcommander  Build NextCommander file manager into dist/plumos-nextcommander.
   picoarch       Build picoarch frontend into dist/plumos-picoarch.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
   mali-egl-probe Build the A30 fbdev + Mali EGL probe into dist/plumos-mali-egl-probe.
@@ -87,6 +88,7 @@ Environment:
   PYTHON_SHA256            Python source SHA-256 for python-runtime.
   PYXEL_VERSION            Pyxel version for pyxel-a30. Default: 2.9.6.
   PYXEL_REF                Pyxel git ref for pyxel-a30. Default: v\$PYXEL_VERSION.
+  NEXTCOMMANDER_REF        NextCommander git ref. Default: pinned tested commit.
   PICOARCH_REF             picoarch git ref. Default: pinned tested commit.
   OPENBOR_REF              OpenBOR git ref for standalone OpenBOR. Default: v6391.
 EOF
@@ -150,6 +152,7 @@ docker_run_base=(
   -e PYTHON_SHA256="${PYTHON_SHA256:-}"
   -e PYXEL_VERSION="${PYXEL_VERSION:-2.9.6}"
   -e PYXEL_REF="${PYXEL_REF:-}"
+  -e NEXTCOMMANDER_REF="${NEXTCOMMANDER_REF:-}"
   -e PICOARCH_REF="${PICOARCH_REF:-}"
   -e OPENBOR_REF="${OPENBOR_REF:-}"
   -e RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly-2026-06-12}"
@@ -190,6 +193,10 @@ case "$cmd" in
   pyxel-a30|pyxel)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-pyxel-a30.sh
+    ;;
+  nextcommander|file-manager|filemanager)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-nextcommander.sh
     ;;
   picoarch)
     ensure_image

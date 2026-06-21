@@ -10,6 +10,14 @@
       "menu": "apps"
     },
     {
+      "id": "file_manager",
+      "display_name": "File Manager",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-nextcommander-launch",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
       "id": "thumbnail-plan",
       "display_name": "Thumbnail Plan",
       "kind": "tool",

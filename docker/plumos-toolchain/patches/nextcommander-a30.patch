@@ -1,0 +1,205 @@
+diff --git a/Makefile b/Makefile
+index d16a23d..7ff9710 100644
+--- a/Makefile
++++ b/Makefile
+@@ -81,6 +81,40 @@ CXXFLAGS += -DAUTOSCALE_DPI=1
+ CXXFLAGS += -DPPU_X=3
+ CXXFLAGS += -DPPU_Y=3
+ CXXFLAGS += -DSCREEN_BPP=32
++
++# Miyoo A30 / plumOS
++else ifneq (,$(findstring a30,$(PLATFORM)))
++SDCARD_ROOT := /mnt/SDCARD
++NEXTUI_SYSTEM_PATH := $(SDCARD_ROOT)/plumos/apps/nextcommander
++
++CXXFLAGS += -O2 -pipe -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fomit-frame-pointer
++CXXFLAGS += -DPATH_DEFAULT=\"$(SDCARD_ROOT)\"
++CXXFLAGS += -DPATH_DEFAULT_RIGHT=\"$(SDCARD_ROOT)/plumos\"
++CXXFLAGS += -DFILE_SYSTEM=\"$(SDCARD_ROOT)\"
++
++# Buttons from plumOS joystickd --device-mode xbox:
++# A/B/X/Y = 0/1/2/3, L/R = 4/5, SELECT/START/FUNCTION = 8/9/10.
++CXXFLAGS += -DCMDR_KEY_UP=SDLK_UP
++CXXFLAGS += -DCMDR_KEY_RIGHT=SDLK_RIGHT
++CXXFLAGS += -DCMDR_KEY_DOWN=SDLK_DOWN
++CXXFLAGS += -DCMDR_KEY_LEFT=SDLK_LEFT
++CXXFLAGS += -DCMDR_KEY_OPEN=0
++CXXFLAGS += -DCMDR_KEY_PARENT=1
++CXXFLAGS += -DCMDR_KEY_OPERATION=2
++CXXFLAGS += -DCMDR_KEY_SYSTEM=3
++CXXFLAGS += -DCMDR_KEY_PAGEUP=4
++CXXFLAGS += -DCMDR_KEY_PAGEDOWN=5
++CXXFLAGS += -DCMDR_KEY_SELECT=8
++CXXFLAGS += -DCMDR_KEY_TRANSFER=9
++CXXFLAGS += -DCMDR_KEY_MENU=10
++CXXFLAGS += -DIGNORE_KEYDOWN=1
++
++CXXFLAGS += -DAUTOSCALE=0
++CXXFLAGS += -DAUTOSCALE_DPI=0
++CXXFLAGS += -DPPU_X=2
++CXXFLAGS += -DPPU_Y=2
++CXXFLAGS += -DSCREEN_BPP=32
++CXXFLAGS += -DA30_ROTATE_SURFACE=1
+ endif
+ 
+ SDL := SDL2
+@@ -127,7 +161,7 @@ all: $(EXECUTABLE)
+ $(EXECUTABLE): $(addprefix $(OUTDIR)/,$(OBJS))
+ 	$(SUM) "  LINK    $@"
+ 	$(SUM) "  LINK    $(LINKFLAGS)"
+-	$(CMD)$(CXX) $(LINKFLAGS) -o $@ $^
++	$(CMD)$(CXX) -o $@ $^ $(LINKFLAGS)
+ 
+ $(OUTDIR)/%.o: src/%.cpp
+ 	@mkdir -p $(@D)
+diff --git a/src/screen.cpp b/src/screen.cpp
+index 43d31fa..268d4f0 100644
+--- a/src/screen.cpp
++++ b/src/screen.cpp
+@@ -32,6 +32,52 @@ SDL_Surface *SetVideoMode(int width, int height, int bpp, std::uint32_t flags)
+ 
+ }
+ 
++#if defined(USE_SDL2) && defined(A30_ROTATE_SURFACE)
++void A30RotateWindowSurface(SDL_Window *window, SDL_Surface *src)
++{
++    SDL_Surface *dst = SDL_GetWindowSurface(window);
++    if (dst == nullptr || src == nullptr) {
++        return;
++    }
++    if (src->format->BytesPerPixel != 4 || dst->format->BytesPerPixel != 4) {
++        SDL_Log("A30RotateWindowSurface requires 32bpp surfaces: src=%d dst=%d",
++            src->format->BytesPerPixel * 8, dst->format->BytesPerPixel * 8);
++        return;
++    }
++
++    SDL_FillRect(dst, nullptr, 0);
++
++    const bool lock_src = SDL_MUSTLOCK(src);
++    const bool lock_dst = SDL_MUSTLOCK(dst);
++    if (lock_src && SDL_LockSurface(src) != 0) {
++        SDL_Log("SDL_LockSurface(src) failed: %s", SDL_GetError());
++        return;
++    }
++    if (lock_dst && SDL_LockSurface(dst) != 0) {
++        if (lock_src) SDL_UnlockSurface(src);
++        SDL_Log("SDL_LockSurface(dst) failed: %s", SDL_GetError());
++        return;
++    }
++
++    for (int y = 0; y < src->h; ++y) {
++        const auto *src_row = reinterpret_cast<const std::uint32_t *>(
++            static_cast<const std::uint8_t *>(src->pixels) + y * src->pitch);
++        for (int x = 0; x < src->w; ++x) {
++            const int dx = y;
++            const int dy = dst->h - 1 - x;
++            if (dx < 0 || dx >= dst->w || dy < 0 || dy >= dst->h) continue;
++            auto *dst_row = reinterpret_cast<std::uint32_t *>(
++                static_cast<std::uint8_t *>(dst->pixels) + dy * dst->pitch);
++            dst_row[dx] = src_row[x];
++        }
++    }
++
++    if (lock_dst) SDL_UnlockSurface(dst);
++    if (lock_src) SDL_UnlockSurface(src);
++    SDL_UpdateWindowSurface(window);
++}
++#endif
++
+ int Screen::init()
+ {
+     const auto &cfg = config();
+@@ -75,17 +121,40 @@ int Screen::init()
+ #endif
+ 
+ #ifdef USE_SDL2
++#ifdef A30_ROTATE_SURFACE
++    int window_w = screen.actual_h;
++    int window_h = screen.actual_w;
++    int window_flags = 0;
++#else
+     int window_flags = SDL_WINDOW_RESIZABLE;
+     if (cfg.disp_autoscale) window_flags |= SDL_WINDOW_MAXIMIZED;
+ 
+     int window_w = screen.actual_w;
+     int window_h = screen.actual_h;
++#endif
+     window = SDL_CreateWindow("Commander", SDL_WINDOWPOS_UNDEFINED,
+-        SDL_WINDOWPOS_UNDEFINED, window_h, window_h, window_flags);
++        SDL_WINDOWPOS_UNDEFINED, window_w, window_h, window_flags);
+     if (window == nullptr) {
+         SDL_Log("Failed to create window: %s", SDL_GetError());
+         return 1;
+     }
++#ifdef A30_ROTATE_SURFACE
++    SDL_Surface *window_surface = SDL_GetWindowSurface(window);
++    if (window_surface == nullptr) {
++        SDL_Log("SDL_GetWindowSurface failed: %s", SDL_GetError());
++        return 1;
++    }
++    screen.surface = SDL_CreateRGBSurface(0, screen.actual_w, screen.actual_h,
++        window_surface->format->BitsPerPixel,
++        window_surface->format->Rmask,
++        window_surface->format->Gmask,
++        window_surface->format->Bmask,
++        window_surface->format->Amask);
++    if (screen.surface == nullptr) {
++        SDL_Log("SDL_CreateRGBSurface failed: %s", SDL_GetError());
++        return 1;
++    }
++#else
+     if (cfg.disp_autoscale && cfg.disp_autoscale_dpi) {
+         const int disp_index = SDL_GetWindowDisplayIndex(window);
+         if (disp_index != -1) {
+@@ -108,6 +177,7 @@ int Screen::init()
+     SDL_GetWindowSize(window, &window_w, &window_h);
+     setPhysicalResolution(window_w, window_h);
+     screen.surface = SDL_GetWindowSurface(window);
++#endif
+ #else
+     surface = SetVideoMode(screen.actual_w, screen.actual_h, SCREEN_BPP,
+         SDL_SWSURFACE | SDL_RESIZABLE);
+@@ -122,8 +192,13 @@ int Screen::init()
+ int Screen::onResize(int w, int h)
+ {
+ #ifdef USE_SDL2
++#ifdef A30_ROTATE_SURFACE
++    (void)w;
++    (void)h;
++#else
+     this->surface = SDL_GetWindowSurface(this->window);
+     setPhysicalResolution(surface->w, surface->h);
++#endif
+ #else
+ #ifndef MIYOOMINI
+     this->surface = SDL_GetVideoSurface();
+diff --git a/src/screen.h b/src/screen.h
+index 5249165..0771981 100644
+--- a/src/screen.h
++++ b/src/screen.h
+@@ -8,6 +8,10 @@
+ #include "gfx.h"
+ #endif
+ 
++#if defined(USE_SDL2) && defined(A30_ROTATE_SURFACE)
++void A30RotateWindowSurface(SDL_Window *window, SDL_Surface *src);
++#endif
++
+ struct Screen
+ {
+     // Logical width and height.
+@@ -34,10 +38,14 @@ struct Screen
+ 
+     void flip() {
+ #ifdef USE_SDL2
++#ifdef A30_ROTATE_SURFACE
++        A30RotateWindowSurface(window, surface);
++#else
+ 		if (SDL_UpdateWindowSurface(window) <= -1) {
+ 			SDL_Log("%s", SDL_GetError());
+ 		}
+ 		surface = SDL_GetWindowSurface(window);
++#endif
+ #else
+ #ifdef MIYOOMINI
+ 	GFX_Flip(surface);

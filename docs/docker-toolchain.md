@@ -267,6 +267,26 @@ dist/plumos-picoarch/plumos/emulators/picoarch/lib/
 dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
 ```
 
+NextCommander file manager を build します。Apps メニューの「ファイルマネージャー」は
+この package の launcher を起動します。実機では plumOS 側 SDL2/a30mali runtime を使い、
+SDL2_image/SDL2_ttf など NextCommander 固有の依存 library だけを app 側へ同梱します。
+upstream repository に LICENSE file が無いため、公開配布前に再配布条件を確認します。
+
+```sh
+./scripts/docker-build.sh nextcommander
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-nextcommander/plumos/bin/plumos-nextcommander-launch
+dist/plumos-nextcommander/plumos/apps/nextcommander/bin/NextCommander
+dist/plumos-nextcommander/plumos/apps/nextcommander/config/a30.cfg
+dist/plumos-nextcommander/plumos/apps/nextcommander/lib/
+dist/plumos-nextcommander/plumos/apps/nextcommander/res/
+dist/plumos-nextcommander/plumos/share/doc/nextcommander/manifest.txt
+```
+
 standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
 DOSBox Staging、PCSX-ReARMed、Red Viper を A30 armv7 hard-float 向けに build し、選んだ
 tag/commit、NEEDED、build log を manifest に残します。`PLUMOS_STANDALONE_FILTER=ppsspp`
