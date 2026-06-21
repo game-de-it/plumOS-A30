@@ -20,6 +20,7 @@ A30 実機 deploy loop を中心にまとめます。
 
 - [開発者向けガイド](developer/README.ja.md)
 - [Docker ビルドガイド](developer/build.ja.md)
+- [機能逆引き](developer/feature-index.ja.md)
 
 ## 詳細設計/調査メモ
 
@@ -27,6 +28,7 @@ A30 実機 deploy loop を中心にまとめます。
 要約し、細かい根拠や再現手順はこちらに残します。
 
 - [plumOS 設計方針](plumos-design-policy.ja.md)
+- [機能逆引き](developer/feature-index.ja.md)
 - [設定ファイル配置方針](plumos-config-layout.ja.md)
 - [A30 UI design](a30-ui-design.ja.md)
 - [A30 設定 UI 方針](a30-settings-policy.ja.md)

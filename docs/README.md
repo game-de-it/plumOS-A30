@@ -21,6 +21,7 @@ plumOS.
 
 - [Developer Guide](developer/README.md)
 - [Docker Build Guide](developer/build.md)
+- [Feature Reverse Lookup](developer/feature-index.md)
 
 ## Detailed Design and Investigation Notes
 
@@ -29,6 +30,7 @@ technical decisions. User-facing documentation links to these only when the
 extra detail is useful.
 
 - [plumOS Design Policy](plumos-design-policy.md)
+- [Feature Reverse Lookup](developer/feature-index.md)
 - [Config Layout Policy](plumos-config-layout.md)
 - [A30 UI Design](a30-ui-design.md)
 - [A30 Settings Policy](a30-settings-policy.md)

@@ -16,6 +16,7 @@ counterparts use the same path with a `.ja.md` suffix.
 
 - [User guide](docs/user/README.md)
 - [Developer guide](docs/developer/README.md)
+- [Developer feature reverse lookup](docs/developer/feature-index.md)
 - [Documentation index](docs/README.md)
 - [Japanese README](README.ja.md)
 - [Japanese documentation index](docs/README.ja.md)

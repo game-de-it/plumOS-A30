@@ -6,11 +6,12 @@ release plumOS.
 ## Start Here
 
 1. [Docker Build Guide](build.md)
-2. [plumOS Design Policy](../plumos-design-policy.md)
-3. [Config Layout Policy](../plumos-config-layout.md)
-4. [Runtime Package](../runtime-package.md)
-5. [SD Root Package](../sdroot-package.md)
-6. [Release Artifacts](../release-artifacts.md)
+2. [Feature Reverse Lookup](feature-index.md)
+3. [plumOS Design Policy](../plumos-design-policy.md)
+4. [Config Layout Policy](../plumos-config-layout.md)
+5. [Runtime Package](../runtime-package.md)
+6. [SD Root Package](../sdroot-package.md)
+7. [Release Artifacts](../release-artifacts.md)
 
 ## Technical Layout
 
@@ -64,6 +65,7 @@ SD-card runtime.
 ## Detailed References
 
 - [A30 System Notes](../a30-system-notes.md)
+- [Feature Reverse Lookup](feature-index.md)
 - [A30 Input Policy](../a30-input-policy.md)
 - [A30 joystickd](../a30-joystickd.md)
 - [A30 Stock SDL Video](../a30-stock-sdl-video.md)

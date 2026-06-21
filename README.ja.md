@@ -21,9 +21,11 @@ standalone emulator、frontend を再ビルドできます。
 - [開発者向けガイド](docs/developer/README.ja.md)
   - 技術構成
   - Docker build の始め方
+  - plumOS 機能逆引き
   - runtime package / SD root package / release asset の作り方
   - A30 実機への deploy と検証
   - 既存の詳細設計文書への入口
+- [機能逆引き](docs/developer/feature-index.ja.md)
 - [全ドキュメント索引](docs/README.ja.md)
 - [英語 README](README.md)
 - [英語ドキュメント索引](docs/README.md)
