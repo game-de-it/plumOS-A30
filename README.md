@@ -1,5 +1,9 @@
 # plumOS A30
 
+<p align="center">
+  <img src="docs/assets/screenshots/plumos-a30-hero.png" alt="plumOS running on a Miyoo A30" width="720">
+</p>
+
 plumOS is an SD-card based custom environment for the Miyoo A30. It avoids
 modifying the device rootfs/NAND whenever possible and keeps the plumOS
 frontend, launchers, emulator runtime, configuration, logs, and helper tools

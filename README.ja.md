@@ -1,5 +1,9 @@
 # plumOS A30
 
+<p align="center">
+  <img src="docs/assets/screenshots/plumos-a30-hero.png" alt="Miyoo A30 で動作する plumOS" width="720">
+</p>
+
 plumOS は Miyoo A30 向けの SD カード配布型カスタム環境です。A30 本体の rootfs/NAND を
 原則書き換えず、SD カード上の `plumos/` に frontend、launcher、emulator runtime、
 設定、ログ、補助ツールを集約します。
