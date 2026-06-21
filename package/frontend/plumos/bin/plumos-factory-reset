@@ -1,0 +1,131 @@
+#!/bin/sh
+# Restore emulator configuration files from plumOS factory defaults.
+
+set -u
+
+PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
+FACTORY_ROOT="${PLUMOS_FACTORY_DEFAULTS_ROOT:-${PLUMOS_ROOT}/factory-defaults}"
+BACKUP_ROOT="${PLUMOS_FACTORY_RESET_BACKUP_ROOT:-${PLUMOS_ROOT}/backups/factory-reset}"
+DRY_RUN=0
+TARGET=""
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") TARGET [--dry-run]
+
+Targets:
+  ra, retroarch       Restore RetroArch defaults.
+  pico, picoarch      Restore PicoArch defaults.
+  sa, standalone      Restore standalone emulator defaults.
+  all, emulators      Restore RA, PicoArch, and standalone defaults.
+
+Environment:
+  PLUMOS_ROOT                  Default: ${PLUMOS_ROOT}
+  PLUMOS_FACTORY_DEFAULTS_ROOT Default: ${FACTORY_ROOT}
+EOF
+}
+
+target_list() {
+  case "$1" in
+    ra|retroarch) printf '%s\n' ra ;;
+    pico|picoarch) printf '%s\n' pico ;;
+    sa|standalone) printf '%s\n' sa ;;
+    all|emulators) printf '%s\n' ra pico sa ;;
+    *) return 1 ;;
+  esac
+}
+
+timestamp() {
+  date '+%Y%m%d-%H%M%S' 2>/dev/null || date 2>/dev/null || echo unknown-time
+}
+
+restore_target() {
+  target="$1"
+  src_root="${FACTORY_ROOT}/${target}"
+  backup_dir="$2/${target}"
+
+  if [ ! -d "$src_root" ]; then
+    echo "factory defaults missing: ${src_root}" >&2
+    return 1
+  fi
+
+  find "$src_root" -type f | while IFS= read -r src; do
+    rel="${src#$src_root/}"
+    dst="${PLUMOS_ROOT}/${rel}"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      echo "would restore ${target}: ${rel}"
+      continue
+    fi
+
+    if [ -e "$dst" ] || [ -L "$dst" ]; then
+      backup_path="${backup_dir}/${rel}"
+      backup_parent="$(dirname "$backup_path")"
+      mkdir -p "$backup_parent" || exit 1
+      cp -Pp "$dst" "$backup_path" || exit 1
+    fi
+
+    dst_parent="$(dirname "$dst")"
+    mkdir -p "$dst_parent" || exit 1
+    cp -Pp "$src" "$dst" || exit 1
+    echo "restored ${target}: ${rel}"
+  done
+}
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 2
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    *)
+      if [ -n "$TARGET" ]; then
+        echo "only one target can be specified" >&2
+        usage >&2
+        exit 2
+      fi
+      TARGET="$arg"
+      ;;
+  esac
+done
+
+if [ -z "$TARGET" ]; then
+  echo "missing target" >&2
+  usage >&2
+  exit 2
+fi
+
+if ! targets="$(target_list "$TARGET")"; then
+  echo "unknown target: ${TARGET}" >&2
+  usage >&2
+  exit 2
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  backup_base="${BACKUP_ROOT}/dry-run"
+else
+  backup_base="${BACKUP_ROOT}/$(timestamp)"
+  mkdir -p "$backup_base" || exit 1
+fi
+
+status=0
+for target in $targets; do
+  if ! restore_target "$target" "$backup_base"; then
+    status=1
+  fi
+done
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  sync 2>/dev/null || true
+  echo "backup: ${backup_base}"
+fi
+
+exit "$status"

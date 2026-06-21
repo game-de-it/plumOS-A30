@@ -479,6 +479,7 @@ enum settings_category {
   SETTINGS_CATEGORY_SYSTEM_TIME,
   SETTINGS_CATEGORY_SYSTEM_TIME_MANUAL,
   SETTINGS_CATEGORY_SYSTEM_INFORMATION,
+  SETTINGS_CATEGORY_SYSTEM_FACTORY_RESET,
   SETTINGS_CATEGORY_NETWORK,
   SETTINGS_CATEGORY_NETWORK_SERVICE,
   SETTINGS_CATEGORY_NETWORK_INFORMATION,
@@ -586,6 +587,8 @@ struct ui_state {
   int scraping_replace_existing;
   struct setting_entry setting_entries[UI_MAX_SETTINGS];
   size_t setting_count;
+  char factory_reset_pending_target[16];
+  long long factory_reset_pending_until_ms;
   struct wifi_network_entry wifi_networks[UI_MAX_WIFI_NETWORKS];
   size_t wifi_count;
   size_t wifi_cursor;
@@ -4189,6 +4192,11 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
       strcmp(id, "system_manual_time") == 0 ||
       strcmp(id, "system_manual_time_apply") == 0 ||
       strcmp(id, "system_information") == 0 ||
+      strcmp(id, "system_factory_reset") == 0 ||
+      strcmp(id, "system_factory_reset_all") == 0 ||
+      strcmp(id, "system_factory_reset_ra") == 0 ||
+      strcmp(id, "system_factory_reset_pico") == 0 ||
+      strcmp(id, "system_factory_reset_sa") == 0 ||
       strcmp(id, "performance_clear_cpu_override") == 0 ||
       strcmp(id, "performance_core_details") == 0) {
     return SETTING_CONTROL_ACTION;
@@ -4292,6 +4300,9 @@ static const char *settings_category_title(const struct ui_state *ui,
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     return tr(ui, "settings.category.system_information",
               "System Settings - INFORMATION");
+  case SETTINGS_CATEGORY_SYSTEM_FACTORY_RESET:
+    return tr(ui, "settings.category.system_factory_reset",
+              "System Settings - Factory Reset");
   case SETTINGS_CATEGORY_SYSTEM:
     return tr(ui, "settings.category.system", "System Settings");
   case SETTINGS_CATEGORY_NETWORK:
@@ -4495,7 +4506,16 @@ static void add_system_settings_entries(struct ui_state *ui) {
                     setting_choice_display_value("system_timezone", device->timezone));
   add_setting_entry(ui, "system_language", "Language",
                     setting_choice_display_value("system_language", device->language));
+  add_setting_entry(ui, "system_factory_reset", "Factory Reset", "");
   add_setting_entry(ui, "system_information", "INFORMATION", "");
+}
+
+static void add_system_factory_reset_entries(struct ui_state *ui) {
+  add_setting_entry(ui, "system_factory_reset_all", "All Emulator Settings",
+                    "RA + PICO + SA");
+  add_setting_entry(ui, "system_factory_reset_ra", "RetroArch Settings", "");
+  add_setting_entry(ui, "system_factory_reset_pico", "PicoArch Settings", "");
+  add_setting_entry(ui, "system_factory_reset_sa", "Standalone Settings", "");
 }
 
 static void add_system_brightness_test_entries(struct ui_state *ui) {
@@ -4934,6 +4954,9 @@ static int load_settings_entries(struct ui_state *ui) {
   case SETTINGS_CATEGORY_SYSTEM_INFORMATION:
     load_device_settings(ui);
     add_system_information_entries(ui);
+    break;
+  case SETTINGS_CATEGORY_SYSTEM_FACTORY_RESET:
+    add_system_factory_reset_entries(ui);
     break;
   case SETTINGS_CATEGORY_SYSTEM:
     load_device_settings(ui);
@@ -8330,6 +8353,8 @@ static void open_settings_screen(struct ui_state *ui, enum settings_category cat
 
   ui->settings_category = category;
   ui->screen = SCREEN_SETTINGS;
+  ui->factory_reset_pending_target[0] = '\0';
+  ui->factory_reset_pending_until_ms = 0;
   title = settings_category_title(ui, ui->settings_category);
   if (!load_settings_entries(ui)) {
     snprintf(ui->status, sizeof(ui->status), "cannot load %s", title);
@@ -10847,6 +10872,127 @@ static int is_system_information_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "system_information") == 0;
 }
 
+static int is_system_factory_reset_entry(const struct setting_entry *entry) {
+  return entry && strcmp(entry->id, "system_factory_reset") == 0;
+}
+
+static const char *factory_reset_target_for_entry(const struct setting_entry *entry) {
+  if (!entry) {
+    return NULL;
+  }
+  if (strcmp(entry->id, "system_factory_reset_all") == 0) {
+    return "all";
+  }
+  if (strcmp(entry->id, "system_factory_reset_ra") == 0) {
+    return "ra";
+  }
+  if (strcmp(entry->id, "system_factory_reset_pico") == 0) {
+    return "pico";
+  }
+  if (strcmp(entry->id, "system_factory_reset_sa") == 0) {
+    return "sa";
+  }
+  return NULL;
+}
+
+static void clear_factory_reset_pending(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  ui->factory_reset_pending_target[0] = '\0';
+  ui->factory_reset_pending_until_ms = 0;
+}
+
+static int run_factory_reset_action(struct ui_state *ui, const char *target,
+                                    const char *label) {
+  char script[PATH_MAX];
+  char log_dir[PATH_MAX];
+  char log_path[PATH_MAX];
+  char cmd[UI_COMMAND_MAX];
+  size_t pos = 0;
+  int rc;
+
+  if (!ui || !target || !target[0]) {
+    return 0;
+  }
+  if (!join_path(script, sizeof(script), ui->plumos_root,
+                 "bin/plumos-factory-reset")) {
+    set_status(ui, "Factory Reset path too long");
+    return 0;
+  }
+  if (!file_exists(script)) {
+    set_status(ui, "Factory Reset helper missing");
+    return 0;
+  }
+  if (!join_path(log_dir, sizeof(log_dir), ui->plumos_root, "logs") ||
+      !join_path(log_path, sizeof(log_path), log_dir,
+                 "plumos-factory-reset.log")) {
+    set_status(ui, "Factory Reset log path too long");
+    return 0;
+  }
+
+  snprintf(ui->status, sizeof(ui->status), "resetting %.96s", label);
+  render_ui(ui);
+
+  cmd[0] = '\0';
+  if (!append_string(cmd, sizeof(cmd), &pos, "mkdir -p ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_dir) ||
+      !append_string(cmd, sizeof(cmd), &pos,
+                     " && cd / && export PLUMOS_SDCARD_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+      !append_string(cmd, sizeof(cmd), &pos, "; exec ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+      !append_string(cmd, sizeof(cmd), &pos, " ") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, target) ||
+      !append_string(cmd, sizeof(cmd), &pos, " >>") ||
+      !append_shell_quoted(cmd, sizeof(cmd), &pos, log_path) ||
+      !append_string(cmd, sizeof(cmd), &pos, " 2>&1")) {
+    set_status(ui, "Factory Reset command too long");
+    return 0;
+  }
+
+  rc = system(cmd);
+  if (system_command_succeeded(rc)) {
+    snprintf(ui->status, sizeof(ui->status), "Factory Reset restored %.80s",
+             label);
+    return 1;
+  }
+  if (rc == -1) {
+    set_status(ui, "Factory Reset system call failed");
+    return 0;
+  }
+  set_status(ui, "Factory Reset failed; see log");
+  return 0;
+}
+
+static int confirm_or_run_factory_reset(struct ui_state *ui,
+                                        const struct setting_entry *entry) {
+  const char *target;
+  long long now;
+
+  if (!ui || !entry) {
+    return 0;
+  }
+  target = factory_reset_target_for_entry(entry);
+  if (!target) {
+    return 0;
+  }
+  now = current_time_ms();
+  if (strcmp(ui->factory_reset_pending_target, target) == 0 &&
+      ui->factory_reset_pending_until_ms >= now) {
+    clear_factory_reset_pending(ui);
+    return run_factory_reset_action(ui, target, entry->display_name);
+  }
+  copy_string(ui->factory_reset_pending_target,
+              sizeof(ui->factory_reset_pending_target), target);
+  ui->factory_reset_pending_until_ms = now + 5000;
+  snprintf(ui->status, sizeof(ui->status), "Press A again to reset %.96s",
+           entry->display_name);
+  return 1;
+}
+
 static int is_help_setting_entry(const struct setting_entry *entry) {
   return entry && strcmp(entry->id, "help") == 0;
 }
@@ -11577,6 +11723,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_UP) {
       if (ui->settings_cursor > 0) {
         ui->settings_cursor--;
+        clear_factory_reset_pending(ui);
         ui->settings_blink_direction = 0;
         ui->settings_blink_until_ms = 0;
       }
@@ -11585,16 +11732,19 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     if (action == ACTION_DOWN) {
       if (ui->settings_cursor + 1 < ui->setting_count) {
         ui->settings_cursor++;
+        clear_factory_reset_pending(ui);
         ui->settings_blink_direction = 0;
         ui->settings_blink_until_ms = 0;
       }
       return;
     }
     if (action == ACTION_LEFT || action == ACTION_RIGHT) {
+      clear_factory_reset_pending(ui);
       handle_setting_control(ui, action);
       return;
     }
     if (action == ACTION_B) {
+      clear_factory_reset_pending(ui);
       if (ui->settings_category == SETTINGS_CATEGORY_UI_THEME) {
         open_settings_screen(ui, SETTINGS_CATEGORY_UI);
         select_setting_entry_by_id(ui, "ui_theme_settings");
@@ -11622,6 +11772,12 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_INFORMATION) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
         select_setting_entry_by_id(ui, "system_information");
+        set_status(ui, "back to System Settings");
+        return;
+      }
+      if (ui->settings_category == SETTINGS_CATEGORY_SYSTEM_FACTORY_RESET) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM);
+        select_setting_entry_by_id(ui, "system_factory_reset");
         set_status(ui, "back to System Settings");
         return;
       }
@@ -11702,6 +11858,13 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       }
       if (is_system_information_entry(entry)) {
         open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_INFORMATION);
+        return;
+      }
+      if (is_system_factory_reset_entry(entry)) {
+        open_settings_screen(ui, SETTINGS_CATEGORY_SYSTEM_FACTORY_RESET);
+        return;
+      }
+      if (confirm_or_run_factory_reset(ui, entry)) {
         return;
       }
       if (strcmp(entry->id, "performance_clear_cpu_override") == 0) {

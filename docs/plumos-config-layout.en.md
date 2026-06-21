@@ -39,6 +39,13 @@ plumOS configuration.
   - Frontend UI string dictionaries. The `language` setting selects one of
     these `key=value` files for item labels and help text. Missing keys fall
     back to English strings compiled into the FE.
+- `/mnt/SDCARD/plumos/factory-defaults/{ra,pico,sa}/`
+  - Files saved as factory defaults for RA, PicoArch, and standalone emulator
+    settings.
+  - Paths are preserved relative to `/mnt/SDCARD/plumos/`. Example:
+    `factory-defaults/ra/retroarch/home/.config/retroarch/retroarch.cfg`.
+  - `plumos-factory-reset` only restores files present here. ROMs, BIOS files,
+    save data, shader caches, and similar user data are out of scope.
 
 ## Future Candidates
 
@@ -102,6 +109,17 @@ and runtime `/etc/TZ` when saved, at FE startup, and from the MainUI wrapper.
 plumOS still does not write stockOS `/config/system.json`. Manual time entry is
 interpreted as local time in the selected timezone, converted to UTC epoch, and
 then applied to the OS clock.
+
+### Factory Reset
+
+System Settings `Factory Reset` calls `plumos-factory-reset` and restores only
+emulator settings saved under `factory-defaults/{ra,pico,sa}/`. Each reset
+action requires pressing A twice to avoid accidental resets.
+
+Before restore, existing files are copied to
+`/mnt/SDCARD/plumos/backups/factory-reset/<timestamp>/<target>/`. Restore is a
+file-level overwrite within the selected target; save data, BIOS files, ROMs,
+thumbnails, and logs are not deleted.
 
 ## Performance Settings
 
