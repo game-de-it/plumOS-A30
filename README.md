@@ -1,8 +1,25 @@
 # plumOS A30
 
 <p align="center">
-  <img src="docs/assets/screenshots/plumos-a30-hero.png" alt="plumOS running on a Miyoo A30" width="720">
+  <img src="docs/assets/screenshots/plumos-a30-hero01.png" alt="plumOS splash screen" width="720">
 </p>
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <img src="docs/assets/screenshots/plumos-a30-hero02.jpg" alt="plumOS graphic system grid on a Miyoo A30" width="100%"><br>
+      <sub>Graphic system grid</sub>
+    </td>
+    <td width="33%" align="center">
+      <img src="docs/assets/screenshots/plumos-a30-hero03.jpg" alt="plumOS gallery ROM list on a Miyoo A30" width="100%"><br>
+      <sub>Gallery ROM list</sub>
+    </td>
+    <td width="33%" align="center">
+      <img src="docs/assets/screenshots/plumos-a30-hero04.jpg" alt="plumOS text mode system list on a Miyoo A30" width="100%"><br>
+      <sub>Text system list</sub>
+    </td>
+  </tr>
+</table>
 
 plumOS is an SD-card based custom environment for the Miyoo A30. It avoids
 modifying the device rootfs/NAND whenever possible and keeps the plumOS

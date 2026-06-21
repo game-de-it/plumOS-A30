@@ -1,13 +1,17 @@
 # README Screenshots
 
-Place the README hero screenshot here:
+The root README files use these screenshots near the top of the page:
 
 ```text
-docs/assets/screenshots/plumos-a30-hero.png
+docs/assets/screenshots/plumos-a30-hero01.png
+docs/assets/screenshots/plumos-a30-hero02.jpg
+docs/assets/screenshots/plumos-a30-hero03.jpg
+docs/assets/screenshots/plumos-a30-hero04.jpg
 ```
 
-Both `README.md` and `README.ja.md` reference that file near the top of the
-page. Use a landscape image that still reads well at about 720 px wide on
-GitHub.
+`plumos-a30-hero01.png` is the large splash image. The other three images are
+shown as a compact gallery for the graphic system grid, gallery ROM list, and
+text system list.
 
-日本語 README も同じ画像を参照します。スクリーンショットは上記のファイル名で配置してください。
+`README.md` and `README.ja.md` should stay in sync when this screenshot block is
+changed.
