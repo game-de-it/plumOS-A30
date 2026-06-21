@@ -11,7 +11,7 @@ separates user-managed directories from runtime directories.
 | `Bios/` | BIOS and system files |
 | `Images/` | Normal plumOS thumbnail directory |
 | `Imgs/` | Legacy StockOS-compatible artwork directory |
-| `Saves/` | Save/state compatibility directory |
+| `Saves/` | Compatibility/manual save directory, not the single default for all runtimes |
 | `plumos/` | plumOS runtime, configuration, logs |
 | `miyoo/` | StockOS SD payload and plumOS boot wrapper |
 | `Emu/` | StockOS emulator payload |
@@ -66,6 +66,14 @@ Bios/pcenginecd/
 Some cores look at `Bios/<ROM directory name>/`; others look at `Bios/` itself.
 Required BIOS names and placement depend on the emulator/core.
 
+## Save Data
+
+Save data is runtime-specific. RetroArch, PicoArch, standalone emulators, and
+Pyxel do not all use the same save path.
+
+Use [Save Data and States](save-data.md) for the detailed backup paths and the
+current default behavior for RA, PICO, SA, and Pyxel.
+
 ## `plumos/`
 
 Most users do not need to edit these files directly, but they are important for
@@ -99,8 +107,11 @@ Back up these paths before recreating an SD card:
 - `Saves/`
 - `plumos/config/`
 - `plumos/state/`
-- `plumos/retroarch/saves/`
-- `plumos/retroarch/states/`
+- `plumos/retroarch/home/.config/retroarch/`
+
+`Saves/` is only needed if you manually placed data there or imported data from
+another frontend. RetroArch content-dir saves and some emulator/project saves
+can be written near the ROM, so keep `Roms/` in your backup.
 
 ## Japanese Counterpart
 
