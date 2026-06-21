@@ -38,7 +38,7 @@ Includes:
 - empty `Roms/`, `Bios/`, `Images/`, `Imgs/`, and `Saves/` placeholders
   - `Images/` is the normal plumOS thumbnail location
   - `Imgs/` remains for StockOS artwork compatibility and older data
-- SD-root manifest and checksums
+- SD-root manifest
 - `LICENSE`
 - `THIRD_PARTY_NOTICES.md`
 - `THIRD_PARTY_NOTICES.ja.md`

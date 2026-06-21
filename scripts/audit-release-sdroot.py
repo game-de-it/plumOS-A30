@@ -96,7 +96,6 @@ REQUIRED_NOTICE_PATHS = [
 REQUIRED_PACKAGE_PATHS = [
     "README.txt",
     "manifest.txt",
-    "sha256sum.txt",
 ]
 
 

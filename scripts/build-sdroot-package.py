@@ -331,18 +331,6 @@ def write_manifest(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def write_sha256(package_dir: Path) -> None:
-    lines: list[str] = []
-    for item in iter_files(package_dir):
-        if item.name == "sha256sum.txt":
-            continue
-        if item.is_symlink():
-            continue
-        rel = item.relative_to(package_dir)
-        lines.append(f"{sha256_file(item)}  {rel}")
-    (package_dir / "sha256sum.txt").write_text("\n".join(sorted(lines)) + "\n", encoding="utf-8")
-
-
 def create_archive(package_dir: Path, archive: Path) -> None:
     archive.parent.mkdir(parents=True, exist_ok=True)
     if archive.exists():
@@ -402,7 +390,6 @@ def main() -> int:
             print(f"error: {error}", file=os.sys.stderr)
         raise SystemExit(1)
 
-    write_sha256(output_dir)
     if not args.no_archive:
         create_archive(output_dir, archive)
 

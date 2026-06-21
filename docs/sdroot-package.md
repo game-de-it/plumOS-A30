@@ -52,6 +52,8 @@ shasum -a 256 dist/plumos-sdroot-package.7z
 ```
 
 The `.7z` format is chosen so users only need one extraction step.
+Use the GitHub Release `SHA256SUMS` file, or the printed archive SHA-256, for
+integrity checks. The SD-root package does not need a per-file checksum list.
 
 After extraction, the destination root directly contains entries such as:
 
@@ -74,7 +76,6 @@ Roms/
 Saves/
 README.txt
 manifest.txt
-sha256sum.txt
 ```
 
 Run the release preflight before archiving any SD-root staging directory:
@@ -114,7 +115,6 @@ release-policy decisions.
   - `Imgs/` remains for StockOS artwork compatibility and older data
 - `README.txt`
 - `manifest.txt`
-- `sha256sum.txt`
 
 ## Excluded
 
