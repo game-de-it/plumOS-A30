@@ -67,6 +67,8 @@ cmd_is_display_target() {
     *'/mnt/SDCARD/plumos/bin/plumos-picoarch-launch'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-nextcommander-launch'*|\
     *'/mnt/SDCARD/plumos/apps/nextcommander/bin/NextCommander'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-music-player-launch'*|\
+    *'/mnt/SDCARD/plumos/apps/music-player/bin/plumos-music-player.bin'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-gmu-launch'*|\
     *'/mnt/SDCARD/plumos/apps/gmu/bin/gmu.bin'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-joystickd'*|\

@@ -22,6 +22,7 @@ Commands:
   python-runtime Build Python 3 runtime with pip support into dist/plumos-python-runtime.
   pyxel-a30      Build Pyxel A30 launcher and optional patched fallback into dist/plumos-pyxel-a30.
   nextcommander  Build NextCommander file manager into dist/plumos-nextcommander.
+  music-player   Build the plumOS native music player into dist/plumos-music-player.
   gmu            Build GMU music player into dist/plumos-gmu.
   picoarch       Build picoarch frontend into dist/plumos-picoarch.
   runtime-probe  Build the A30 runtime probe into dist/plumos-runtime-probe.
@@ -91,6 +92,7 @@ Environment:
   PYXEL_REF                Pyxel git ref for pyxel-a30. Default: v\$PYXEL_VERSION.
   NEXTCOMMANDER_REF        NextCommander git ref. Default: pinned tested commit.
   GMU_REF                  GMU git ref. Default: pinned tested commit.
+  MINIAUDIO_REF            miniaudio git ref for music-player. Default: pinned tested commit.
   PICOARCH_REF             picoarch git ref. Default: pinned tested commit.
   OPENBOR_REF              OpenBOR git ref for standalone OpenBOR. Default: v6391.
 EOF
@@ -156,6 +158,7 @@ docker_run_base=(
   -e PYXEL_REF="${PYXEL_REF:-}"
   -e NEXTCOMMANDER_REF="${NEXTCOMMANDER_REF:-}"
   -e GMU_REF="${GMU_REF:-}"
+  -e MINIAUDIO_REF="${MINIAUDIO_REF:-}"
   -e PICOARCH_REF="${PICOARCH_REF:-}"
   -e OPENBOR_REF="${OPENBOR_REF:-}"
   -e RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly-2026-06-12}"
@@ -201,7 +204,11 @@ case "$cmd" in
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-nextcommander.sh
     ;;
-  gmu|music-player|musicplayer)
+  music-player|musicplayer)
+    ensure_image
+    docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-music-player.sh
+    ;;
+  gmu)
     ensure_image
     docker run "${docker_run_base[@]}" /workspace/docker/plumos-toolchain/scripts/build-gmu.sh
     ;;

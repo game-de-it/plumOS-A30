@@ -18,10 +18,10 @@
       "menu": "apps"
     },
     {
-      "id": "gmu_player",
-      "display_name": "GMU Player",
+      "id": "music_player",
+      "display_name": "Music Player",
       "kind": "tool",
-      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-gmu-launch",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-music-player-launch",
       "visible": true,
       "menu": "apps"
     },

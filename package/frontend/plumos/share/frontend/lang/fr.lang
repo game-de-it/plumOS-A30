@@ -32,7 +32,7 @@ menu.status.back_to_start=retour à START
 
 app.scraping.name=Scraping
 app.file_manager.name=Gestionnaire de fichiers
-app.gmu_player.name=Lecteur GMU
+app.music_player.name=Lecteur audio
 app.thumbnail-plan.name=Plan des miniatures
 app.thumbnail-fetch.name=Télécharger les miniatures
 app.thumbnail-results.name=Résultats des miniatures

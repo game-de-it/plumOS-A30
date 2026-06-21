@@ -32,7 +32,7 @@ menu.status.back_to_start=START に戻りました
 
 app.scraping.name=スクレイピング
 app.file_manager.name=ファイルマネージャー
-app.gmu_player.name=GMUプレイヤー
+app.music_player.name=音楽プレイヤー
 app.thumbnail-plan.name=サムネイル計画
 app.thumbnail-fetch.name=サムネイル取得
 app.thumbnail-results.name=サムネイル結果

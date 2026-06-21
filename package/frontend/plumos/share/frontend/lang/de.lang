@@ -32,7 +32,7 @@ menu.status.back_to_start=zurück zu START
 
 app.scraping.name=Scraping
 app.file_manager.name=Dateimanager
-app.gmu_player.name=GMU-Player
+app.music_player.name=Musikplayer
 app.thumbnail-plan.name=Thumbnail-Plan
 app.thumbnail-fetch.name=Thumbnails laden
 app.thumbnail-results.name=Thumbnail-Ergebnisse
