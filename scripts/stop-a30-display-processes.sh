@@ -67,6 +67,8 @@ cmd_is_display_target() {
     *'/mnt/SDCARD/plumos/bin/plumos-picoarch-launch'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-nextcommander-launch'*|\
     *'/mnt/SDCARD/plumos/apps/nextcommander/bin/NextCommander'*|\
+    *'/mnt/SDCARD/plumos/bin/plumos-gmu-launch'*|\
+    *'/mnt/SDCARD/plumos/apps/gmu/bin/gmu.bin'*|\
     *'/mnt/SDCARD/plumos/bin/plumos-joystickd'*|\
     *PPSSPPSDL*|*pcsx_rearmed*|*scummvm*|*dosbox*|*easyrpg-player*|*red-viper-a30*)
       return 0

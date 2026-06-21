@@ -276,6 +276,39 @@ dist/plumos-picoarch/plumos/emulators/picoarch/lib/
 dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
 ```
 
+Build the GMU music player. The frontend Apps entry named `GMU Player` launches
+this package. The A30 build uses GMU's upstream SDL1 frontend and defaults to
+the larger `default-modern-large` theme. The bundled first-pass decoders are
+`mpg123` and `flac`, covering MP3 and FLAC playback.
+
+The upstream SDL1/fbcon video path leaves the A30 LCD black, so the plumOS patch
+draws GMU into an SDL dummy surface and copies the 320x240 UI directly into the
+480x640 framebuffer through an A30 presenter with rotation. Set
+`PLUMOS_GMU_A30_EGL=1` to try the experimental EGL path; normal release builds
+default to the fbdev direct path.
+
+GMU's SDL frontend draws text with a bitmap font renderer, so full CJK filename
+display should not be expected without further changes. Proper Japanese
+filename rendering would require a text renderer patch such as SDL_ttf support,
+or a plumOS-native music player UI.
+
+```sh
+./scripts/docker-build.sh gmu
+```
+
+Outputs:
+
+```text
+dist/plumos-gmu/plumos/bin/plumos-gmu-launch
+dist/plumos-gmu/plumos/apps/gmu/bin/gmu.bin
+dist/plumos-gmu/plumos/apps/gmu/config/gmu.a30.conf
+dist/plumos-gmu/plumos/apps/gmu/decoders/
+dist/plumos-gmu/plumos/apps/gmu/frontends/
+dist/plumos-gmu/plumos/apps/gmu/lib/
+dist/plumos-gmu/plumos/apps/gmu/themes/
+dist/plumos-gmu/plumos/share/doc/gmu/manifest.txt
+```
+
 Build the standalone emulator package. The current target builds PPSSPP,
 ScummVM, EasyRPG Player, DOSBox Staging, PCSX-ReARMed, and Red Viper for the A30 armv7
 hard-float environment and records selected tags/commits, NEEDED entries, and

@@ -287,6 +287,37 @@ dist/plumos-nextcommander/plumos/apps/nextcommander/res/
 dist/plumos-nextcommander/plumos/share/doc/nextcommander/manifest.txt
 ```
 
+GMU music player を build します。Apps メニューの「GMUプレイヤー」はこの package の
+launcher を起動します。GMU は upstream の SDL1 frontend を使い、A30 では大きい文字の
+`default-modern-large` theme を既定にします。標準同梱 decoder は `mpg123` と `flac` で、
+MP3 と FLAC の first-pass 再生を対象にします。
+
+GMU の upstream SDL1/fbcon 表示は A30 の実LCDで黒画面になるため、plumOS patch は
+SDL の dummy surface に描かれた 320x240 UI を A30 presenter で 480x640 framebuffer へ
+直接回転コピーする。`PLUMOS_GMU_A30_EGL=1` を指定すると実験用の EGL path に切り替えられるが、
+通常配布では fbdev direct path を既定とする。
+
+GMU の SDL frontend は bitmap font renderer で文字を描くため、CJK ファイル名の完全表示は
+そのままでは期待しない。日本語ファイル名を完全対応するには、SDL_ttf 等を使う text renderer
+patch か、plumOS 独自の music player UI を別途用意する必要がある。
+
+```sh
+./scripts/docker-build.sh gmu
+```
+
+生成物は以下に出ます。
+
+```text
+dist/plumos-gmu/plumos/bin/plumos-gmu-launch
+dist/plumos-gmu/plumos/apps/gmu/bin/gmu.bin
+dist/plumos-gmu/plumos/apps/gmu/config/gmu.a30.conf
+dist/plumos-gmu/plumos/apps/gmu/decoders/
+dist/plumos-gmu/plumos/apps/gmu/frontends/
+dist/plumos-gmu/plumos/apps/gmu/lib/
+dist/plumos-gmu/plumos/apps/gmu/themes/
+dist/plumos-gmu/plumos/share/doc/gmu/manifest.txt
+```
+
 standalone emulator package を build します。現在は PPSSPP、ScummVM、EasyRPG Player、
 DOSBox Staging、PCSX-ReARMed、Red Viper を A30 armv7 hard-float 向けに build し、選んだ
 tag/commit、NEEDED、build log を manifest に残します。`PLUMOS_STANDALONE_FILTER=ppsspp`

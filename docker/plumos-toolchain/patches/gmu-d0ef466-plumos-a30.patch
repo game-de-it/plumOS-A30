@@ -1,0 +1,915 @@
+diff --git a/Makefile b/Makefile
+index 3a73468..cb6ea7f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -62,6 +62,6 @@ endif
+ 
+ # Frontend configs
+-PLUGIN_FE_sdl_OBJECTFILES=sdl.o kam.o skin.o textrenderer.o question.o filebrowser.o plbrowser.o about.o setup.o textbrowser.o coverimg.o coverviewer.o plmanager.o playerdisplay.o gmuwidget.o png.o jpeg.o bmp.o inputconfig.o help.o
++PLUGIN_FE_sdl_OBJECTFILES=sdl.o kam.o skin.o textrenderer.o question.o filebrowser.o plbrowser.o about.o setup.o textbrowser.o coverimg.o coverviewer.o plmanager.o playerdisplay.o gmuwidget.o png.o jpeg.o bmp.o inputconfig.o help.o a30_present.o
+ PLUGIN_FE_gmuhttp_OBJECTFILES=gmuhttp.o sha1.o base64.o httpd.o queue.o json.o websocket.o net.o
+ PLUGIN_FE_log_OBJECTFILES=log.o
+ 
+diff --git a/src/frontends/sdl/a30_present.c b/src/frontends/sdl/a30_present.c
+new file mode 100644
+index 0000000..fdf94c4
+--- /dev/null
++++ b/src/frontends/sdl/a30_present.c
+@@ -0,0 +1,761 @@
++#include "a30_present.h"
++
++#include <dlfcn.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fb.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++typedef int EGLint;
++typedef unsigned int EGLBoolean;
++typedef unsigned int EGLenum;
++typedef void *EGLDisplay;
++typedef void *EGLConfig;
++typedef void *EGLSurface;
++typedef void *EGLContext;
++typedef void *EGLNativeDisplayType;
++typedef void *EGLNativeWindowType;
++
++typedef unsigned int GLenum;
++typedef unsigned int GLbitfield;
++typedef unsigned int GLuint;
++typedef int GLint;
++typedef int GLsizei;
++typedef float GLfloat;
++typedef char GLchar;
++typedef unsigned char GLboolean;
++
++#define EGL_FALSE 0
++#define EGL_TRUE 1
++#define EGL_NONE 0x3038
++#define EGL_NO_DISPLAY ((EGLDisplay)0)
++#define EGL_NO_SURFACE ((EGLSurface)0)
++#define EGL_NO_CONTEXT ((EGLContext)0)
++#define EGL_DEFAULT_DISPLAY ((EGLNativeDisplayType)0)
++#define EGL_OPENGL_ES_API 0x30a0
++#define EGL_WINDOW_BIT 0x0004
++#define EGL_SURFACE_TYPE 0x3033
++#define EGL_RENDERABLE_TYPE 0x3040
++#define EGL_OPENGL_ES2_BIT 0x0004
++#define EGL_RED_SIZE 0x3024
++#define EGL_GREEN_SIZE 0x3023
++#define EGL_BLUE_SIZE 0x3022
++#define EGL_ALPHA_SIZE 0x3021
++#define EGL_DEPTH_SIZE 0x3025
++#define EGL_WIDTH 0x3057
++#define EGL_HEIGHT 0x3056
++#define EGL_CONTEXT_CLIENT_VERSION 0x3098
++
++#define GL_FALSE 0
++#define GL_COLOR_BUFFER_BIT 0x00004000
++#define GL_TRIANGLE_STRIP 0x0005
++#define GL_FLOAT 0x1406
++#define GL_TEXTURE_2D 0x0de1
++#define GL_TEXTURE0 0x84c0
++#define GL_RGB 0x1907
++#define GL_RGBA 0x1908
++#define GL_UNSIGNED_BYTE 0x1401
++#define GL_UNSIGNED_SHORT_5_6_5 0x8363
++#define GL_NEAREST 0x2600
++#define GL_LINEAR 0x2601
++#define GL_CLAMP_TO_EDGE 0x812f
++#define GL_TEXTURE_MIN_FILTER 0x2801
++#define GL_TEXTURE_MAG_FILTER 0x2800
++#define GL_TEXTURE_WRAP_S 0x2802
++#define GL_TEXTURE_WRAP_T 0x2803
++#define GL_UNPACK_ALIGNMENT 0x0cf5
++#define GL_VERTEX_SHADER 0x8b31
++#define GL_FRAGMENT_SHADER 0x8b30
++#define GL_COMPILE_STATUS 0x8b81
++#define GL_LINK_STATUS 0x8b82
++
++enum a30_rotation {
++	A30_ROT_NONE,
++	A30_ROT_CW,
++	A30_ROT_CCW,
++	A30_ROT_180
++};
++
++struct egl_api {
++	void *handle;
++	EGLDisplay (*GetDisplay)(EGLNativeDisplayType display_id);
++	EGLBoolean (*Initialize)(EGLDisplay dpy, EGLint *major, EGLint *minor);
++	EGLBoolean (*ChooseConfig)(EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs,
++				   EGLint config_size, EGLint *num_config);
++	EGLBoolean (*BindAPI)(EGLenum api);
++	EGLSurface (*CreateWindowSurface)(EGLDisplay dpy, EGLConfig config,
++					  EGLNativeWindowType win, const EGLint *attrib_list);
++	EGLContext (*CreateContext)(EGLDisplay dpy, EGLConfig config, EGLContext share_context,
++				    const EGLint *attrib_list);
++	EGLBoolean (*MakeCurrent)(EGLDisplay dpy, EGLSurface draw, EGLSurface read,
++				  EGLContext ctx);
++	EGLBoolean (*SwapBuffers)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*SwapInterval)(EGLDisplay dpy, EGLint interval);
++	EGLBoolean (*QuerySurface)(EGLDisplay dpy, EGLSurface surface, EGLint attribute,
++				   EGLint *value);
++	EGLint (*GetError)(void);
++	EGLBoolean (*DestroyContext)(EGLDisplay dpy, EGLContext ctx);
++	EGLBoolean (*DestroySurface)(EGLDisplay dpy, EGLSurface surface);
++	EGLBoolean (*Terminate)(EGLDisplay dpy);
++};
++
++struct gl_api {
++	void *handle;
++	void (*ActiveTexture)(GLenum texture);
++	void (*AttachShader)(GLuint program, GLuint shader);
++	void (*BindAttribLocation)(GLuint program, GLuint index, const GLchar *name);
++	void (*BindTexture)(GLenum target, GLuint texture);
++	void (*Clear)(GLbitfield mask);
++	void (*ClearColor)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
++	void (*CompileShader)(GLuint shader);
++	GLuint (*CreateProgram)(void);
++	GLuint (*CreateShader)(GLenum type);
++	void (*DeleteProgram)(GLuint program);
++	void (*DeleteShader)(GLuint shader);
++	void (*DeleteTextures)(GLsizei n, const GLuint *textures);
++	void (*DisableVertexAttribArray)(GLuint index);
++	void (*DrawArrays)(GLenum mode, GLint first, GLsizei count);
++	void (*EnableVertexAttribArray)(GLuint index);
++	void (*GenTextures)(GLsizei n, GLuint *textures);
++	void (*GetProgramiv)(GLuint program, GLenum pname, GLint *params);
++	void (*GetShaderiv)(GLuint shader, GLenum pname, GLint *params);
++	GLint (*GetUniformLocation)(GLuint program, const GLchar *name);
++	void (*LinkProgram)(GLuint program);
++	void (*PixelStorei)(GLenum pname, GLint param);
++	void (*ShaderSource)(GLuint shader, GLsizei count, const GLchar *const *string,
++			     const GLint *length);
++	void (*TexImage2D)(GLenum target, GLint level, GLint internalformat, GLsizei width,
++			   GLsizei height, GLint border, GLenum format, GLenum type,
++			   const void *pixels);
++	void (*TexParameteri)(GLenum target, GLenum pname, GLint param);
++	void (*TexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset,
++			      GLsizei width, GLsizei height, GLenum format, GLenum type,
++			      const void *pixels);
++	void (*Uniform1i)(GLint location, GLint v0);
++	void (*UseProgram)(GLuint program);
++	void (*VertexAttribPointer)(GLuint index, GLint size, GLenum type, GLboolean normalized,
++				    GLsizei stride, const void *pointer);
++	void (*Viewport)(GLint x, GLint y, GLsizei width, GLsizei height);
++};
++
++struct a30_presenter {
++	int initialized;
++	int fb_fd;
++	unsigned char *fb_mem;
++	size_t fb_size;
++	int fb_line;
++	int fb_bpp;
++	int fb_xoffset;
++	int fb_yoffset;
++	struct fb_bitfield fb_red;
++	struct fb_bitfield fb_green;
++	struct fb_bitfield fb_blue;
++	struct fb_bitfield fb_transp;
++	int physical_w;
++	int physical_h;
++	int texture_w;
++	int texture_h;
++	int filter_linear;
++	enum a30_rotation rotation;
++	struct egl_api egl;
++	struct gl_api gl;
++	EGLDisplay display;
++	EGLConfig config;
++	EGLSurface surface;
++	EGLContext context;
++	int use_egl;
++	GLuint program;
++	GLuint texture;
++	GLint sampler_location;
++	uint8_t *rgba_pixels;
++	size_t rgba_size;
++	unsigned long present_counter;
++};
++
++static struct a30_presenter g_a30;
++
++static int env_enabled(const char *name, int fallback)
++{
++	const char *value = getenv(name);
++	if (!value || !value[0]) return fallback;
++	if (!strcasecmp(value, "0") || !strcasecmp(value, "no") ||
++	    !strcasecmp(value, "false") || !strcasecmp(value, "off")) return 0;
++	return 1;
++}
++
++int a30_present_enabled(void)
++{
++	const char *value = getenv("PLUMOS_GMU_A30_PRESENT");
++	if (value && value[0]) return env_enabled("PLUMOS_GMU_A30_PRESENT", 0);
++	return env_enabled("PLUMOS_GMU_A30_MALI", 0);
++}
++
++static enum a30_rotation parse_rotation(const char *value)
++{
++	if (!value || !value[0]) return A30_ROT_CCW;
++	if (!strcasecmp(value, "none") || !strcmp(value, "0")) return A30_ROT_NONE;
++	if (!strcasecmp(value, "cw") || !strcmp(value, "90")) return A30_ROT_CW;
++	if (!strcasecmp(value, "ccw") || !strcmp(value, "270")) return A30_ROT_CCW;
++	if (!strcasecmp(value, "180")) return A30_ROT_180;
++	return A30_ROT_CCW;
++}
++
++static int load_symbol(void *handle, const char *name, void *fn_out)
++{
++	void *symbol;
++
++	dlerror();
++	symbol = dlsym(handle, name);
++	if (!symbol) {
++		const char *error = dlerror();
++		fprintf(stderr, "gmu-a30: missing symbol %s: %s\n", name, error ? error : "-");
++		return 0;
++	}
++	memcpy(fn_out, &symbol, sizeof(symbol));
++	return 1;
++}
++
++#define LOAD_EGL(field, symbol) \
++	do { if (!load_symbol(g_a30.egl.handle, symbol, &g_a30.egl.field)) return 0; } while (0)
++#define LOAD_GL(field, symbol) \
++	do { if (!load_symbol(g_a30.gl.handle, symbol, &g_a30.gl.field)) return 0; } while (0)
++
++static int load_egl_gl(void)
++{
++	const char *egl_path = getenv("PLUMOS_GMU_A30_EGL_LIB");
++	const char *gles_path = getenv("PLUMOS_GMU_A30_GLES_LIB");
++
++	if (!egl_path || !egl_path[0]) egl_path = "/usr/lib/libEGL.so";
++	if (!gles_path || !gles_path[0]) gles_path = "/usr/lib/libGLESv2.so";
++
++	g_a30.egl.handle = dlopen(egl_path, RTLD_NOW | RTLD_GLOBAL);
++	if (!g_a30.egl.handle) {
++		fprintf(stderr, "gmu-a30: dlopen %s failed: %s\n", egl_path, dlerror());
++		return 0;
++	}
++	g_a30.gl.handle = dlopen(gles_path, RTLD_NOW | RTLD_GLOBAL);
++	if (!g_a30.gl.handle) {
++		fprintf(stderr, "gmu-a30: dlopen %s failed: %s\n", gles_path, dlerror());
++		return 0;
++	}
++
++	LOAD_EGL(GetDisplay, "eglGetDisplay");
++	LOAD_EGL(Initialize, "eglInitialize");
++	LOAD_EGL(ChooseConfig, "eglChooseConfig");
++	LOAD_EGL(BindAPI, "eglBindAPI");
++	LOAD_EGL(CreateWindowSurface, "eglCreateWindowSurface");
++	LOAD_EGL(CreateContext, "eglCreateContext");
++	LOAD_EGL(MakeCurrent, "eglMakeCurrent");
++	LOAD_EGL(SwapBuffers, "eglSwapBuffers");
++	LOAD_EGL(SwapInterval, "eglSwapInterval");
++	LOAD_EGL(QuerySurface, "eglQuerySurface");
++	LOAD_EGL(GetError, "eglGetError");
++	LOAD_EGL(DestroyContext, "eglDestroyContext");
++	LOAD_EGL(DestroySurface, "eglDestroySurface");
++	LOAD_EGL(Terminate, "eglTerminate");
++
++	LOAD_GL(ActiveTexture, "glActiveTexture");
++	LOAD_GL(AttachShader, "glAttachShader");
++	LOAD_GL(BindAttribLocation, "glBindAttribLocation");
++	LOAD_GL(BindTexture, "glBindTexture");
++	LOAD_GL(Clear, "glClear");
++	LOAD_GL(ClearColor, "glClearColor");
++	LOAD_GL(CompileShader, "glCompileShader");
++	LOAD_GL(CreateProgram, "glCreateProgram");
++	LOAD_GL(CreateShader, "glCreateShader");
++	LOAD_GL(DeleteProgram, "glDeleteProgram");
++	LOAD_GL(DeleteShader, "glDeleteShader");
++	LOAD_GL(DeleteTextures, "glDeleteTextures");
++	LOAD_GL(DisableVertexAttribArray, "glDisableVertexAttribArray");
++	LOAD_GL(DrawArrays, "glDrawArrays");
++	LOAD_GL(EnableVertexAttribArray, "glEnableVertexAttribArray");
++	LOAD_GL(GenTextures, "glGenTextures");
++	LOAD_GL(GetProgramiv, "glGetProgramiv");
++	LOAD_GL(GetShaderiv, "glGetShaderiv");
++	LOAD_GL(GetUniformLocation, "glGetUniformLocation");
++	LOAD_GL(LinkProgram, "glLinkProgram");
++	LOAD_GL(PixelStorei, "glPixelStorei");
++	LOAD_GL(ShaderSource, "glShaderSource");
++	LOAD_GL(TexImage2D, "glTexImage2D");
++	LOAD_GL(TexParameteri, "glTexParameteri");
++	LOAD_GL(TexSubImage2D, "glTexSubImage2D");
++	LOAD_GL(Uniform1i, "glUniform1i");
++	LOAD_GL(UseProgram, "glUseProgram");
++	LOAD_GL(VertexAttribPointer, "glVertexAttribPointer");
++	LOAD_GL(Viewport, "glViewport");
++	return 1;
++}
++
++static int open_fb(int *w, int *h)
++{
++	const char *fb_path = getenv("PLUMOS_GMU_A30_FB");
++	struct fb_var_screeninfo var;
++	struct fb_fix_screeninfo fix;
++
++	if (!fb_path || !fb_path[0]) fb_path = "/dev/fb0";
++	g_a30.fb_fd = open(fb_path, O_RDWR | O_CLOEXEC);
++	if (g_a30.fb_fd < 0) {
++		fprintf(stderr, "gmu-a30: open %s failed: %s\n", fb_path, strerror(errno));
++		return 0;
++	}
++	if (ioctl(g_a30.fb_fd, FBIOGET_VSCREENINFO, &var) != 0) {
++		fprintf(stderr, "gmu-a30: FBIOGET_VSCREENINFO failed: %s\n", strerror(errno));
++		close(g_a30.fb_fd);
++		g_a30.fb_fd = -1;
++		return 0;
++	}
++	if (ioctl(g_a30.fb_fd, FBIOGET_FSCREENINFO, &fix) != 0) {
++		fprintf(stderr, "gmu-a30: FBIOGET_FSCREENINFO failed: %s\n", strerror(errno));
++		close(g_a30.fb_fd);
++		g_a30.fb_fd = -1;
++		return 0;
++	}
++	*w = (int)var.xres;
++	*h = (int)var.yres;
++	g_a30.fb_line = (int)fix.line_length;
++	g_a30.fb_bpp = (int)var.bits_per_pixel;
++	g_a30.fb_xoffset = (int)var.xoffset;
++	g_a30.fb_yoffset = (int)var.yoffset;
++	g_a30.fb_red = var.red;
++	g_a30.fb_green = var.green;
++	g_a30.fb_blue = var.blue;
++	g_a30.fb_transp = var.transp;
++	g_a30.fb_size = fix.smem_len ? (size_t)fix.smem_len :
++	                 (size_t)fix.line_length * (size_t)var.yres_virtual;
++	g_a30.fb_mem = (unsigned char *)mmap(NULL, g_a30.fb_size, PROT_READ | PROT_WRITE,
++	                                    MAP_SHARED, g_a30.fb_fd, 0);
++	if (g_a30.fb_mem == MAP_FAILED) {
++		fprintf(stderr, "gmu-a30: mmap framebuffer failed: %s\n", strerror(errno));
++		g_a30.fb_mem = NULL;
++		close(g_a30.fb_fd);
++		g_a30.fb_fd = -1;
++		return 0;
++	}
++	return *w > 0 && *h > 0;
++}
++
++static int choose_config(void)
++{
++	const EGLint attribs[] = {
++		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
++		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
++		EGL_RED_SIZE, 8,
++		EGL_GREEN_SIZE, 8,
++		EGL_BLUE_SIZE, 8,
++		EGL_ALPHA_SIZE, 8,
++		EGL_DEPTH_SIZE, 0,
++		EGL_NONE
++	};
++	EGLint count = 0;
++
++	if (g_a30.egl.ChooseConfig(g_a30.display, attribs, &g_a30.config, 1, &count) == EGL_TRUE &&
++	    count > 0) return 1;
++	fprintf(stderr, "gmu-a30: eglChooseConfig failed error=0x%04x count=%d\n",
++	        g_a30.egl.GetError(), count);
++	return 0;
++}
++
++static GLuint compile_shader(GLenum type, const char *source)
++{
++	GLuint shader = g_a30.gl.CreateShader(type);
++	GLint ok = 0;
++
++	g_a30.gl.ShaderSource(shader, 1, &source, NULL);
++	g_a30.gl.CompileShader(shader);
++	g_a30.gl.GetShaderiv(shader, GL_COMPILE_STATUS, &ok);
++	if (!ok) {
++		fprintf(stderr, "gmu-a30: shader compile failed\n");
++		g_a30.gl.DeleteShader(shader);
++		return 0;
++	}
++	return shader;
++}
++
++static int create_program(void)
++{
++	static const char *vs =
++		"attribute vec2 a_position;\n"
++		"attribute vec2 a_texcoord;\n"
++		"varying vec2 v_texcoord;\n"
++		"void main() {\n"
++		"  gl_Position = vec4(a_position, 0.0, 1.0);\n"
++		"  v_texcoord = a_texcoord;\n"
++		"}\n";
++	static const char *fs =
++		"precision mediump float;\n"
++		"varying vec2 v_texcoord;\n"
++		"uniform sampler2D u_tex;\n"
++		"void main() {\n"
++		"  gl_FragColor = texture2D(u_tex, v_texcoord);\n"
++		"}\n";
++	GLuint vshader = 0;
++	GLuint fshader = 0;
++	GLint ok = 0;
++
++	vshader = compile_shader(GL_VERTEX_SHADER, vs);
++	fshader = compile_shader(GL_FRAGMENT_SHADER, fs);
++	if (!vshader || !fshader) goto fail;
++
++	g_a30.program = g_a30.gl.CreateProgram();
++	g_a30.gl.AttachShader(g_a30.program, vshader);
++	g_a30.gl.AttachShader(g_a30.program, fshader);
++	g_a30.gl.BindAttribLocation(g_a30.program, 0, "a_position");
++	g_a30.gl.BindAttribLocation(g_a30.program, 1, "a_texcoord");
++	g_a30.gl.LinkProgram(g_a30.program);
++	g_a30.gl.GetProgramiv(g_a30.program, GL_LINK_STATUS, &ok);
++	if (!ok) {
++		fprintf(stderr, "gmu-a30: program link failed\n");
++		goto fail;
++	}
++	g_a30.sampler_location = g_a30.gl.GetUniformLocation(g_a30.program, "u_tex");
++	g_a30.gl.DeleteShader(vshader);
++	g_a30.gl.DeleteShader(fshader);
++	return 1;
++
++fail:
++	if (vshader) g_a30.gl.DeleteShader(vshader);
++	if (fshader) g_a30.gl.DeleteShader(fshader);
++	if (g_a30.program) {
++		g_a30.gl.DeleteProgram(g_a30.program);
++		g_a30.program = 0;
++	}
++	return 0;
++}
++
++int a30_present_init(int logical_w, int logical_h)
++{
++	EGLint major = 0;
++	EGLint minor = 0;
++	EGLint width = 0;
++	EGLint height = 0;
++	EGLint context_attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
++
++	(void)logical_w;
++	(void)logical_h;
++	if (!a30_present_enabled()) return 0;
++	a30_present_finish();
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.fb_fd = -1;
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++	g_a30.rotation = parse_rotation(getenv("PLUMOS_GMU_A30_ROTATION"));
++	g_a30.filter_linear = env_enabled("PLUMOS_GMU_A30_LINEAR", 0);
++	g_a30.use_egl = env_enabled("PLUMOS_GMU_A30_EGL", 0);
++
++	if (!open_fb(&g_a30.physical_w, &g_a30.physical_h)) goto fail;
++	if (!g_a30.use_egl) {
++		g_a30.initialized = 1;
++		fprintf(stderr, "gmu-a30: fb presenter physical=%dx%d rotation=%d bpp=%d\n",
++		        g_a30.physical_w, g_a30.physical_h, g_a30.rotation, g_a30.fb_bpp);
++		return 1;
++	}
++	if (!load_egl_gl()) goto fail;
++
++	g_a30.display = g_a30.egl.GetDisplay(EGL_DEFAULT_DISPLAY);
++	if (g_a30.display == EGL_NO_DISPLAY) goto fail;
++	if (g_a30.egl.Initialize(g_a30.display, &major, &minor) != EGL_TRUE) goto fail;
++	if (g_a30.egl.BindAPI(EGL_OPENGL_ES_API) != EGL_TRUE) goto fail;
++	if (!choose_config()) goto fail;
++
++	g_a30.surface = g_a30.egl.CreateWindowSurface(g_a30.display, g_a30.config, NULL, NULL);
++	if (g_a30.surface == EGL_NO_SURFACE) {
++		fprintf(stderr, "gmu-a30: eglCreateWindowSurface failed error=0x%04x\n",
++		        g_a30.egl.GetError());
++		goto fail;
++	}
++	if (g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_WIDTH, &width) == EGL_TRUE &&
++	    g_a30.egl.QuerySurface(g_a30.display, g_a30.surface, EGL_HEIGHT, &height) == EGL_TRUE &&
++	    width > 0 && height > 0) {
++		g_a30.physical_w = width;
++		g_a30.physical_h = height;
++	}
++
++	g_a30.context = g_a30.egl.CreateContext(g_a30.display, g_a30.config, EGL_NO_CONTEXT,
++	                                        context_attribs);
++	if (g_a30.context == EGL_NO_CONTEXT) goto fail;
++	if (g_a30.egl.MakeCurrent(g_a30.display, g_a30.surface, g_a30.surface,
++	                          g_a30.context) != EGL_TRUE) goto fail;
++	g_a30.egl.SwapInterval(g_a30.display, env_enabled("PLUMOS_GMU_A30_VSYNC", 1) ? 1 : 0);
++	if (!create_program()) goto fail;
++
++	g_a30.gl.GenTextures(1, &g_a30.texture);
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
++	                       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
++	                       g_a30.filter_linear ? GL_LINEAR : GL_NEAREST);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++	g_a30.gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++	g_a30.gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
++	g_a30.initialized = 1;
++	fprintf(stderr, "gmu-a30: presenter physical=%dx%d rotation=%d\n",
++	        g_a30.physical_w, g_a30.physical_h, g_a30.rotation);
++	return 1;
++
++fail:
++	fprintf(stderr, "gmu-a30: presenter init failed\n");
++	a30_present_finish();
++	return 0;
++}
++
++static Uint32 get_surface_pixel(SDL_Surface *surface, const Uint8 *pixel)
++{
++	switch (surface->format->BytesPerPixel) {
++	case 1:
++		return *pixel;
++	case 2:
++		return *(const Uint16 *)pixel;
++	case 3:
++#if SDL_BYTEORDER == SDL_BIG_ENDIAN
++		return ((Uint32)pixel[0] << 16) | ((Uint32)pixel[1] << 8) | pixel[2];
++#else
++		return pixel[0] | ((Uint32)pixel[1] << 8) | ((Uint32)pixel[2] << 16);
++#endif
++	case 4:
++		return *(const Uint32 *)pixel;
++	default:
++		return 0;
++	}
++}
++
++static const uint8_t *prepare_surface(SDL_Surface *surface)
++{
++	size_t needed = (size_t)surface->w * (size_t)surface->h * 4;
++	int x;
++	int y;
++
++	if (g_a30.rgba_size < needed) {
++		uint8_t *new_pixels = (uint8_t *)realloc(g_a30.rgba_pixels, needed);
++		if (!new_pixels) return NULL;
++		g_a30.rgba_pixels = new_pixels;
++		g_a30.rgba_size = needed;
++	}
++	if (SDL_MUSTLOCK(surface) && SDL_LockSurface(surface) != 0) return NULL;
++	for (y = 0; y < surface->h; y++) {
++		const Uint8 *row = (const Uint8 *)surface->pixels + (size_t)y * surface->pitch;
++		uint8_t *out = g_a30.rgba_pixels + (size_t)y * (size_t)surface->w * 4;
++		for (x = 0; x < surface->w; x++) {
++			Uint8 r;
++			Uint8 g;
++			Uint8 b;
++			Uint32 pixel = get_surface_pixel(surface, row + x * surface->format->BytesPerPixel);
++			SDL_GetRGB(pixel, surface->format, &r, &g, &b);
++			out[x * 4 + 0] = r;
++			out[x * 4 + 1] = g;
++			out[x * 4 + 2] = b;
++			out[x * 4 + 3] = 255;
++		}
++	}
++	if (SDL_MUSTLOCK(surface)) SDL_UnlockSurface(surface);
++	return g_a30.rgba_pixels;
++}
++
++static uint32_t pack_fb_pixel(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
++{
++	uint32_t pixel = 0;
++	if (g_a30.fb_red.length)
++		pixel |= ((uint32_t)(r >> (8 - g_a30.fb_red.length))) << g_a30.fb_red.offset;
++	if (g_a30.fb_green.length)
++		pixel |= ((uint32_t)(g >> (8 - g_a30.fb_green.length))) << g_a30.fb_green.offset;
++	if (g_a30.fb_blue.length)
++		pixel |= ((uint32_t)(b >> (8 - g_a30.fb_blue.length))) << g_a30.fb_blue.offset;
++	if (g_a30.fb_transp.length)
++		pixel |= ((uint32_t)(a >> (8 - g_a30.fb_transp.length))) << g_a30.fb_transp.offset;
++	return pixel;
++}
++
++static void source_for_dest(int dx, int dy, int src_w, int src_h, int *sx, int *sy)
++{
++	switch (g_a30.rotation) {
++	case A30_ROT_CW:
++		*sx = ((g_a30.physical_h - 1 - dy) * src_w) / g_a30.physical_h;
++		*sy = (dx * src_h) / g_a30.physical_w;
++		break;
++	case A30_ROT_180:
++		*sx = ((g_a30.physical_w - 1 - dx) * src_w) / g_a30.physical_w;
++		*sy = ((g_a30.physical_h - 1 - dy) * src_h) / g_a30.physical_h;
++		break;
++	case A30_ROT_NONE:
++		*sx = (dx * src_w) / g_a30.physical_w;
++		*sy = (dy * src_h) / g_a30.physical_h;
++		break;
++	case A30_ROT_CCW:
++	default:
++		*sx = (dy * src_w) / g_a30.physical_h;
++		*sy = ((g_a30.physical_w - 1 - dx) * src_h) / g_a30.physical_w;
++		break;
++	}
++	if (*sx < 0) *sx = 0;
++	if (*sy < 0) *sy = 0;
++	if (*sx >= src_w) *sx = src_w - 1;
++	if (*sy >= src_h) *sy = src_h - 1;
++}
++
++static void present_fb_pixels(const uint8_t *pixels, int src_w, int src_h)
++{
++	int y;
++
++	if (!g_a30.fb_mem || !pixels || g_a30.fb_bpp != 32) return;
++	for (y = 0; y < g_a30.physical_h; y++) {
++		int x;
++		unsigned char *row = g_a30.fb_mem +
++			(size_t)(g_a30.fb_yoffset + y) * (size_t)g_a30.fb_line +
++			(size_t)g_a30.fb_xoffset * 4;
++		for (x = 0; x < g_a30.physical_w; x++) {
++			int sx;
++			int sy;
++			const uint8_t *src;
++			source_for_dest(x, y, src_w, src_h, &sx, &sy);
++			src = pixels + ((size_t)sy * (size_t)src_w + (size_t)sx) * 4;
++			((uint32_t *)row)[x] = pack_fb_pixel(src[0], src[1], src[2], src[3]);
++		}
++	}
++}
++
++static void ensure_texture_size(int width, int height)
++{
++	g_a30.gl.ActiveTexture(GL_TEXTURE0);
++	g_a30.gl.BindTexture(GL_TEXTURE_2D, g_a30.texture);
++	if (g_a30.texture_w == width && g_a30.texture_h == height) return;
++	g_a30.gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
++	                    GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++	g_a30.texture_w = width;
++	g_a30.texture_h = height;
++}
++
++static void fill_vertices(GLfloat out[16])
++{
++	static const GLfloat none_uv[8] = {
++		0.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 0.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat cw_uv[8] = {
++		0.0f, 1.0f,
++		1.0f, 1.0f,
++		0.0f, 0.0f,
++		1.0f, 0.0f
++	};
++	static const GLfloat ccw_uv[8] = {
++		0.0f, 0.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		1.0f, 1.0f
++	};
++	static const GLfloat rot180_uv[8] = {
++		1.0f, 1.0f,
++		1.0f, 0.0f,
++		0.0f, 1.0f,
++		0.0f, 0.0f
++	};
++	const GLfloat *uv = ccw_uv;
++	int i;
++
++	switch (g_a30.rotation) {
++	case A30_ROT_NONE:
++		uv = none_uv;
++		break;
++	case A30_ROT_CW:
++		uv = cw_uv;
++		break;
++	case A30_ROT_180:
++		uv = rot180_uv;
++		break;
++	case A30_ROT_CCW:
++	default:
++		uv = ccw_uv;
++		break;
++	}
++	for (i = 0; i < 4; i++) {
++		out[i * 4 + 0] = (i < 2) ? -1.0f : 1.0f;
++		out[i * 4 + 1] = (i & 1) ? 1.0f : -1.0f;
++		out[i * 4 + 2] = uv[i * 2 + 0];
++		out[i * 4 + 3] = uv[i * 2 + 1];
++	}
++}
++
++void a30_present_surface(SDL_Surface *surface)
++{
++	GLfloat vertices[16];
++	const uint8_t *pixels;
++	int verbose;
++
++	if (!g_a30.initialized || !surface || surface->w <= 0 || surface->h <= 0) return;
++	pixels = prepare_surface(surface);
++	if (!pixels) return;
++	verbose = env_enabled("PLUMOS_GMU_A30_VERBOSE", 0);
++	if (verbose && g_a30.present_counter < 8) {
++		fprintf(stderr, "gmu-a30: present #%lu surface=%dx%d bpp=%d first=%02x%02x%02x%02x\n",
++		        g_a30.present_counter + 1, surface->w, surface->h,
++		        surface->format ? surface->format->BitsPerPixel : 0,
++		        pixels[0], pixels[1], pixels[2], pixels[3]);
++	}
++	g_a30.present_counter++;
++	if (!g_a30.use_egl) {
++		present_fb_pixels(pixels, surface->w, surface->h);
++		return;
++	}
++	ensure_texture_size(surface->w, surface->h);
++	g_a30.gl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, surface->w, surface->h,
++	                       GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++	fill_vertices(vertices);
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	g_a30.gl.UseProgram(g_a30.program);
++	g_a30.gl.Uniform1i(g_a30.sampler_location, 0);
++	g_a30.gl.EnableVertexAttribArray(0);
++	g_a30.gl.EnableVertexAttribArray(1);
++	g_a30.gl.VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), vertices);
++	g_a30.gl.VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), vertices + 2);
++	g_a30.gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
++	g_a30.gl.DisableVertexAttribArray(1);
++	g_a30.gl.DisableVertexAttribArray(0);
++	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
++}
++
++void a30_present_clear(void)
++{
++	if (!g_a30.initialized) return;
++	g_a30.gl.Viewport(0, 0, g_a30.physical_w, g_a30.physical_h);
++	g_a30.gl.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++	g_a30.gl.Clear(GL_COLOR_BUFFER_BIT);
++	g_a30.egl.SwapBuffers(g_a30.display, g_a30.surface);
++}
++
++void a30_present_finish(void)
++{
++	if (g_a30.display != EGL_NO_DISPLAY) {
++		if (g_a30.context != EGL_NO_CONTEXT) {
++			g_a30.egl.MakeCurrent(g_a30.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
++			                      EGL_NO_CONTEXT);
++		}
++		if (g_a30.texture) g_a30.gl.DeleteTextures(1, &g_a30.texture);
++		if (g_a30.program) g_a30.gl.DeleteProgram(g_a30.program);
++		if (g_a30.context != EGL_NO_CONTEXT)
++			g_a30.egl.DestroyContext(g_a30.display, g_a30.context);
++		if (g_a30.surface != EGL_NO_SURFACE)
++			g_a30.egl.DestroySurface(g_a30.display, g_a30.surface);
++		g_a30.egl.Terminate(g_a30.display);
++	}
++	if (g_a30.rgba_pixels) free(g_a30.rgba_pixels);
++	if (g_a30.fb_mem) munmap(g_a30.fb_mem, g_a30.fb_size);
++	if (g_a30.fb_fd >= 0) close(g_a30.fb_fd);
++	if (g_a30.gl.handle) dlclose(g_a30.gl.handle);
++	if (g_a30.egl.handle) dlclose(g_a30.egl.handle);
++	memset(&g_a30, 0, sizeof(g_a30));
++	g_a30.fb_fd = -1;
++	g_a30.display = EGL_NO_DISPLAY;
++	g_a30.surface = EGL_NO_SURFACE;
++	g_a30.context = EGL_NO_CONTEXT;
++}
+diff --git a/src/frontends/sdl/a30_present.h b/src/frontends/sdl/a30_present.h
+new file mode 100644
+index 0000000..6423566
+--- /dev/null
++++ b/src/frontends/sdl/a30_present.h
+@@ -0,0 +1,12 @@
++#ifndef GMU_A30_PRESENT_H
++#define GMU_A30_PRESENT_H
++
++#include "SDL.h"
++
++int a30_present_enabled(void);
++int a30_present_init(int logical_w, int logical_h);
++void a30_present_surface(SDL_Surface *surface);
++void a30_present_clear(void);
++void a30_present_finish(void);
++
++#endif
+diff --git a/src/frontends/sdl/sdl.c b/src/frontends/sdl/sdl.c
+index 92d3ba5..6747ada 100644
+--- a/src/frontends/sdl/sdl.c
++++ b/src/frontends/sdl/sdl.c
+@@ -39,6 +39,7 @@
+ #include "inputconfig.h"
+ #include "help.h"
+ #include "gmuerror.h"
++#include "a30_present.h"
+ 
+ #define FPS          10
+ #define FRAME_SKIP    1
+@@ -124,6 +125,6 @@ static SDL_Surface *init_sdl(int with_joystick, int width, int height, int fulls
+ 
+ 	if (!SDL_WasInit(SDL_INIT_VIDEO)) {
+-		if (SDL_InitSubSystem(SDL_INIT_VIDEO | (with_joystick ? SDL_INIT_JOYSTICK : 0)) < 0) {
++		if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_TIMER | (with_joystick ? SDL_INIT_JOYSTICK : 0)) < 0) {
+ 			wdprintf(V_ERROR, "sdl_frontend", "ERROR: Could not initialize SDL: %s\n", SDL_GetError());
+ 		} else {
+ 			wdprintf(V_DEBUG, "sdl_frontend", "SDL Video subsystem initialized.\n");
+@@ -152,6 +153,10 @@ static SDL_Surface *init_sdl(int with_joystick, int width, int height, int fulls
+ 		width  = width  <= 0 ? 320 : width;
+ 		height = height <= 0 ? 240 : height;
+ 
++		if (a30_present_enabled()) {
++			fullscreen = 0;
++		}
++
+ 		if (fullscreen) {
+ 			fullscreen = SDL_FULLSCREEN;
+ 			width = screen_max_width;
+@@ -173,6 +178,10 @@ static SDL_Surface *init_sdl(int with_joystick, int width, int height, int fulls
+ 		SDL_ShowCursor(0);
+ #endif
++		if (a30_present_enabled() && !a30_present_init(display->w, display->h)) {
++			wdprintf(V_WARNING, "sdl_frontend", "A30 Mali presenter initialization failed.\n");
++		}
++
+ 		if (with_joystick) {
+ 			wdprintf(V_DEBUG, "sdl_frontend", "Opening joystick device.\n");
+ 			SDL_JoystickOpen(0);
+ 		}
+@@ -696,6 +707,7 @@ static void run_player(char *skin_name, char *decoders_str)
+ 
+ 		backlight_poweroff_timer = seconds_until_backlight_poweroff * FPS;
+ 		tid = SDL_AddTimer(1000 / FPS, timer_callback, NULL);
++		timer_callback(1000 / FPS, NULL);
+ 
+ 		if (gmu_core_playlist_get_length() > 0) {
+ 			if (view != HELP) view = PLAYLIST;
+@@ -722,6 +731,8 @@ static void run_player(char *skin_name, char *decoders_str)
+ 					wdprintf(V_FATAL, "sdl_frontend", "Unable to set new video mode.\n");
+ 					exit(-2); /* should not happen */
+ 				}
++				if (a30_present_enabled())
++					a30_present_init(display->w, display->h);
+ 				update = UPDATE_ALL;
+ 				break;
+ 			}
+@@ -777,12 +789,14 @@ static void run_player(char *skin_name, char *decoders_str)
+ 				break;
+ 			case SDL_ACTIVEEVENT: {
+ 				/* Stop screen update when Gmu is invisible/minimized/whatever */
+ 				if (SDL_GetAppState() & SDL_APPACTIVE) {
+ 					display_inactive = 0;
+ 				} else {
+ 					display_inactive = 1;
+ 					backlight_poweroff_timer = seconds_until_backlight_poweroff * FPS;
+ 				}
++				if (a30_present_enabled())
++					display_inactive = 0;
+ 				break;
+ 			}
+ 			default:
+@@ -871,6 +882,7 @@ static void run_player(char *skin_name, char *decoders_str)
+ 						/* Clear the whole screen: */
+ 						SDL_FillRect(display, NULL, 0);
+ 						SDL_UpdateRect(display, 0, 0, 0, 0);
++						a30_present_surface(display);
+ 					} else {
+ 						/* Restore background: */
+ 						skin_update_bg(&skin, display, buffer);
+@@ -987,6 +999,8 @@ static void run_player(char *skin_name, char *decoders_str)
+ 							wdprintf(V_FATAL, "sdl_frontend", "Unable to set new video mode.\n");
+ 							exit(-2); /* should not happen */
+ 						}
++						if (a30_present_enabled())
++							a30_present_init(display->w, display->h);
+ 						update = UPDATE_ALL;
+ 						break;
+ 					}
+@@ -1122,7 +1136,8 @@ static void run_player(char *skin_name, char *decoders_str)
+ 					/* Clear the whole screen: */
+ 					SDL_FillRect(display, NULL, 0);
+ 					SDL_UpdateRect(display, 0, 0, 0, 0);
++					a30_present_surface(display);
+ 					update_display = 0;
+ 					backlight_poweroff_timer = TIMER_ELAPSED;
+ 				}
+ 			}
+@@ -1225,6 +1242,8 @@ static void run_player(char *skin_name, char *decoders_str)
+ 			if (update & UPDATE_HEADER)
+ 				skin_update_header(&skin, display, buffer);
+ 
++			a30_present_surface(display);
++
+ 			update = UPDATE_NONE;
+ 		}
+ 	}
+@@ -1380,6 +1399,7 @@ static void shut_down(void)
+ 		wdprintf(V_ERROR, "sdl_frontend", "ERROR stopping thread.\n");
+ 	wdprintf(V_DEBUG, "sdl_frontend", "Closing SDL video subsystem...\n");
+-	SDL_QuitSubSystem(SDL_INIT_VIDEO);
++	SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_TIMER);
++	a30_present_finish();
+ 	if (gmu_icon) SDL_FreeSurface(gmu_icon);
+ 	wdprintf(V_INFO, "sdl_frontend", "All done.\n");
+ }

@@ -18,6 +18,14 @@
       "menu": "apps"
     },
     {
+      "id": "gmu_player",
+      "display_name": "GMU Player",
+      "kind": "tool",
+      "launch_profile": "shell:/mnt/SDCARD/plumos/bin/plumos-gmu-launch",
+      "visible": true,
+      "menu": "apps"
+    },
+    {
       "id": "thumbnail-plan",
       "display_name": "Thumbnail Plan",
       "kind": "tool",

@@ -32,6 +32,7 @@ menu.status.back_to_start=voltou para START
 
 app.scraping.name=Scraping
 app.file_manager.name=Gerenciador de arquivos
+app.gmu_player.name=Reprodutor GMU
 app.thumbnail-plan.name=Plano de miniaturas
 app.thumbnail-fetch.name=Baixar miniaturas
 app.thumbnail-results.name=Resultados de miniaturas

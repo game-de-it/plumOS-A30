@@ -32,6 +32,7 @@ menu.status.back_to_start=back to START
 
 app.scraping.name=Scraping
 app.file_manager.name=File Manager
+app.gmu_player.name=GMU Player
 app.thumbnail-plan.name=Thumbnail Plan
 app.thumbnail-fetch.name=Fetch Thumbnails
 app.thumbnail-results.name=Thumbnail Results

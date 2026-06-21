@@ -140,6 +140,7 @@ def components(standalone_dir: Path) -> list[Component]:
         Component("python-runtime", dist / "plumos-python-runtime"),
         Component("pyxel-a30", dist / "plumos-pyxel-a30"),
         Component("nextcommander", dist / "plumos-nextcommander"),
+        Component("gmu", dist / "plumos-gmu"),
         Component("libretro-cores", dist / "plumos-libretro-cores-onion-lock-all"),
         Component("libretro-cores-mgba-fix", dist / "plumos-libretro-cores-mgba-fix", required=False),
         Component("picoarch", dist / "plumos-picoarch"),
