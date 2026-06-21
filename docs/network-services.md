@@ -18,7 +18,8 @@
 
 - 実装: Dropbear SSH
 - Port: `2222`
-- 認証: `/mnt/SDCARD/plumos/ssh/etc/authorized_keys`
+- 認証: パスワード `plumos` が既定。hash は `/mnt/SDCARD/plumos/ssh/etc/password.hash`
+  に置く。`/mnt/SDCARD/plumos/ssh/etc/authorized_keys` による鍵認証も任意で使える
 
 plumOS の remote shell 入口です。`ssh_enabled` が未設定の場合は従来互換のため有効扱いにします。
 NW Service で OFF にした場合は `ssh_enabled=0` を保存し、boot wrapper や USB Disk Mode 復帰時にも

@@ -53,7 +53,15 @@ BASE_RUNTIME_PATHS = [
     "plumos/ssh/bin/dropbear",
     "plumos/ssh/bin/dropbearkey",
     "plumos/ssh/bin/scp",
-    "plumos/ssh/etc/authorized_keys",
+    "plumos/ssh/etc/password.hash",
+]
+
+GENERATED_RUNTIME_PATHS = [
+    "plumos/logs",
+]
+
+GENERATED_RUNTIME_GLOBS = [
+    "plumos/share/doc/**/build.log",
 ]
 
 PPSSPP_FACTORY_STATE_PATHS = [
@@ -234,6 +242,22 @@ def verify_runtime_payload(package_dir: Path, manifest_path: Path) -> list[str]:
         if rel and not (package_dir / rel).exists():
             errors.append(f"missing {runtime} {row['launch_profile']}: {rel}")
     return errors
+
+
+def remove_generated_payload(package_dir: Path) -> None:
+    for rel in GENERATED_RUNTIME_PATHS:
+        path = package_dir / rel
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        elif path.exists() or path.is_symlink():
+            path.unlink()
+
+    for pattern in GENERATED_RUNTIME_GLOBS:
+        for path in package_dir.glob(pattern):
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            elif path.exists() or path.is_symlink():
+                path.unlink()
 
 
 def write_install_script(path: Path) -> None:
@@ -421,6 +445,8 @@ def main() -> int:
                 "status": status,
             }
         )
+
+    remove_generated_payload(output_dir)
 
     package_errors = verify_runtime_payload(output_dir, args.runtime_manifest)
     if package_errors:

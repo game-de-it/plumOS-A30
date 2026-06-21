@@ -10,9 +10,11 @@
 defa924475abf6bc1e74abc00173e46bfdc804bd47caafa14f5a4ef0cc76da34
 ```
 
-これは開発用 access kit です。A30 の stock rootfs は read-only で、SD カードは
-FAT/exFAT 系のため Unix permission を表現できません。そのため、この Dropbear build
-では `authorized_keys` の owner/mode check を緩めています。
+これは plumOS の SSH access kit です。A30 の stock rootfs は read-only なので、
+パスワードは rootfs の `/etc/shadow` ではなく SD card 上の
+`/mnt/SDCARD/plumos/ssh/etc/password.hash` で管理します。
+公開鍵認証も補助的に使えます。SD カードは FAT/exFAT 系のため Unix permission を表現できないので、
+この Dropbear build では `authorized_keys` の owner/mode check を緩めています。
 
 ## ビルド
 
@@ -29,9 +31,9 @@ PLUMOS_DOCKER_STRIP=1 ./scripts/build-ssh-kit.sh
 
 ## SD カード準備
 
-1. `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys` を編集する
-2. 作業用 PC の SSH 公開鍵を 1 行で入れる
-3. `dist/plumos-a30-ssh-kit/` の中身を SD カード直下へコピーする
+1. `dist/plumos-a30-ssh-kit/` の中身を SD カード直下へコピーする
+2. 必要に応じて `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys` へ
+   作業用 PC の SSH 公開鍵を 1 行で入れる
 
 コピー後の SD カードには以下が入ります。
 
@@ -40,7 +42,8 @@ PLUMOS_DOCKER_STRIP=1 ./scripts/build-ssh-kit.sh
 /mnt/SDCARD/plumos/ssh/bin/dropbear
 /mnt/SDCARD/plumos/ssh/bin/dropbearkey
 /mnt/SDCARD/plumos/ssh/bin/scp
-/mnt/SDCARD/plumos/ssh/etc/authorized_keys
+/mnt/SDCARD/plumos/ssh/etc/password.hash
+/mnt/SDCARD/plumos/ssh/etc/authorized_keys.example
 /mnt/SDCARD/Roms/PORTS/Start SSH.sh
 /mnt/SDCARD/Roms/PORTS/Stop SSH.sh
 ```
@@ -60,14 +63,20 @@ UI や router で IP address が分からない場合は、SD カードを抜い
 確認します。このファイルには利用可能な network command の出力と `/proc/net` の
 情報が入ります。
 
-log に public key が見つからないと出た場合は、SD カード上の
-`plumos/ssh/etc/authorized_keys` を実際の作業用 PC の公開鍵で置き換えてください。
+`password.hash` が無い場合、`start-ssh.sh` は初期パスワード `plumos` の hash を再生成します。
+公開鍵を使う場合は、SD カード上の `plumos/ssh/etc/authorized_keys` に作業用 PC の公開鍵を置きます。
 comment 行の example key は無視されます。
 
 ## 接続
 
 ```sh
 ssh -p 2222 root@A30_IP_ADDRESS
+```
+
+初期パスワード:
+
+```text
+plumos
 ```
 
 default 以外の key を使う場合:

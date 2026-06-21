@@ -236,6 +236,16 @@ def bios_warnings(root: Path) -> list[Finding]:
 
 def ssh_warnings(root: Path) -> list[Finding]:
     findings: list[Finding] = []
+    password_hash = root / "plumos/ssh/etc/password.hash"
+    if not password_hash.exists():
+        findings.append(
+            Finding(
+                "blocker",
+                "ssh_policy",
+                Path("plumos/ssh/etc/password.hash"),
+                "missing SSH password hash file",
+            )
+        )
     authorized_keys = root / "plumos/ssh/etc/authorized_keys"
     if authorized_keys.exists():
         text = authorized_keys.read_text(encoding="utf-8", errors="replace")

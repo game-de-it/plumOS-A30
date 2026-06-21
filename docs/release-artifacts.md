@@ -48,8 +48,9 @@ end-user release は、A30 の SD カード root へそのまま展開する SD 
 - build cache
 - 開発用 source tree
 
-SSH は公開鍵認証のみを使う。配布用 archive を作る前に `dist/plumos-a30-ssh-kit` の
-`plumos/ssh/etc/authorized_keys` に接続元 PC の公開鍵が入っていることを確認する。
+SSH は初期パスワード `plumos` でログインできる。hash は
+`plumos/ssh/etc/password.hash` に置く。`plumos/ssh/etc/authorized_keys` は任意の補助認証として扱い、
+公開配布 archive には個人の公開鍵を入れない。
 
 既存 SD card へ安全に上書き更新する用途では、内部成果物として `dist/plumos-runtime-package.tar.gz`
 も生成できる。これは `install-plumos-runtime.sh` で既存設定や save/state を保持する更新用 package であり、
@@ -124,9 +125,9 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 ## 生成順
 
 1. clean working tree にする。
-2. runtime package の入力 artifact を build する。SSH 接続確認用には
+2. runtime package の入力 artifact を build する。SSH 接続確認用に公開鍵も入れたい場合だけ
    `A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh` で
-   `dist/plumos-a30-ssh-kit` を作る。
+   `dist/plumos-a30-ssh-kit` を作る。通常の公開配布では公開鍵を入れず、パスワードログインを初期入口にする。
 3. 正常動作していた stock SD card から ROM/BIOS/save/media/user-data を除いた stock payload を
    `artifacts/stock-sdl-probe/extracted/mnt/SDCARD`、または
    `./scripts/build-sdroot-package.py --stock-sdcard-dir <path>` で指定する path へ用意する。

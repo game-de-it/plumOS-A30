@@ -60,7 +60,7 @@ prepare_source() {
   tar -C "$SRC_DIR" --strip-components=1 -xf "$TARBALL"
 
   cat > "${SRC_DIR}/localoptions.h" <<'EOF'
-#define DROPBEAR_SVR_PASSWORD_AUTH 0
+#define DROPBEAR_SVR_PASSWORD_AUTH 1
 #define DROPBEAR_SVR_PAM_AUTH 0
 #define DROPBEAR_SVR_PUBKEY_AUTH 1
 #define DROPBEAR_SFTPSERVER 1
@@ -78,9 +78,11 @@ prepare_source() {
 #define PLUMOS_SSH_ASHRC "/mnt/SDCARD/plumos/ssh/etc/ashrc"
 EOF
 
+  patch -d "$SRC_DIR" -p1 < "${ROOT_DIR}/package/ssh-kit/dropbear-plumos-password-hash.patch"
+
   # The A30 SD card is usually FAT/exFAT, and the stock rootfs may be
-  # read-only. For this development-only kit, allow authorized_keys to live on
-  # the SD card instead of enforcing OpenSSH-style ownership/mode checks.
+  # read-only. Public keys are optional in plumOS, but when present they live
+  # on the SD card, so avoid enforcing OpenSSH-style ownership/mode checks.
   perl -0pi -e 's/static int checkpubkeyperms\(\) \{\n\tchar \*path = authorized_keys_filepath\(\), \*sep = NULL;\n\tint ret = DROPBEAR_SUCCESS;\n\n\tTRACE\(\("enter checkpubkeyperms"\)\)\n\n\t\/\* Walk back up path checking permissions, stopping at either homedir,\n\t \* or root if the path is outside of the homedir\. \*\/\n\twhile \(\(sep = strrchr\(path, '"'"'\/'"'"'\)\) != NULL\) \{\n\t\tif \(sep == path\) \{\t\/\* root directory \*\/\n\t\t\tsep\+\+;\n\t\t\}\n\t\t\*sep = '"'"'\\0'"'"';\n\t\tif \(checkfileperm\(path\) != DROPBEAR_SUCCESS\) \{\n\t\t\tTRACE\(\("checkpubkeyperms: bad perm on %s", path\)\)\n\t\t\tret = DROPBEAR_FAILURE;\n\t\t\}\n\t\tif \(strcmp\(path, ses\.authstate\.pw_dir\) == 0 \|\| strcmp\(path, "\/"\) == 0\) \{\n\t\t\tbreak;\n\t\t\}\n\t\}\n\n\t\/\* all looks ok, return success \*\/\n\tm_free\(path\);\n\n\tTRACE\(\("leave checkpubkeyperms"\)\)\n\treturn ret;\n\}/static int checkpubkeyperms() {\n\treturn DROPBEAR_SUCCESS;\n}/s' "${SRC_DIR}/src/svr-authpubkey.c"
   grep -A2 'static int checkpubkeyperms' "${SRC_DIR}/src/svr-authpubkey.c" | grep -q 'return DROPBEAR_SUCCESS' \
     || die "failed to relax Dropbear authorized_keys permission checks"
@@ -155,6 +157,7 @@ assemble_package() {
   rm -rf "$PKG_DIR"
   mkdir -p "$PKG_DIR"
   cp -R "${ROOT_DIR}/package/ssh-kit/." "$PKG_DIR/"
+  rm -f "${PKG_DIR}/dropbear-plumos-password-hash.patch"
   mkdir -p \
     "${PKG_DIR}/plumos/ssh/bin" \
     "${PKG_DIR}/plumos/ssh/etc" \
@@ -168,10 +171,11 @@ assemble_package() {
   install -m 0755 "${SRC_DIR}/dropbearkey" "${PKG_DIR}/plumos/ssh/bin/dropbearkey"
   install -m 0755 "${SRC_DIR}/scp" "${PKG_DIR}/plumos/ssh/bin/scp"
 
+  install -m 0600 "${ROOT_DIR}/package/ssh-kit/plumos/ssh/etc/password.hash" \
+    "${PKG_DIR}/plumos/ssh/etc/password.hash"
+
   if [ -n "${A30_AUTHORIZED_KEYS:-}" ]; then
     install -m 0644 "$A30_AUTHORIZED_KEYS" "${PKG_DIR}/plumos/ssh/etc/authorized_keys"
-  elif [ ! -f "${PKG_DIR}/plumos/ssh/etc/authorized_keys" ]; then
-    cp "${PKG_DIR}/plumos/ssh/etc/authorized_keys.example" "${PKG_DIR}/plumos/ssh/etc/authorized_keys"
   fi
 
   chmod 0755 \

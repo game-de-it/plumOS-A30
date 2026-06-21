@@ -19,7 +19,9 @@ This document defines the initial file-transfer network services provided by plu
 
 - Implementation: Dropbear SSH
 - Port: `2222`
-- Authentication: `/mnt/SDCARD/plumos/ssh/etc/authorized_keys`
+- Authentication: default password `plumos`; the hash lives at
+  `/mnt/SDCARD/plumos/ssh/etc/password.hash`. Optional key authentication uses
+  `/mnt/SDCARD/plumos/ssh/etc/authorized_keys`
 
 SSH is the plumOS remote shell entry point. If `ssh_enabled` is not set, it defaults to enabled
 for compatibility with the existing development path. Turning SSH OFF in NW Service writes

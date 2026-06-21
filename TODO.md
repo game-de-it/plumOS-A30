@@ -138,7 +138,7 @@
 - [x] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
 - [x] emulator 実行中の電源ボタン UX を overlay Power menu にする。
 - [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
-- [ ] SSH を開発用 package のままにするか、plumOS service にするか決める。
+- [x] SSH を開発用 package のままにするか、plumOS service にするか決める。
 
 ## Phase 9 - Packaging and Release
 

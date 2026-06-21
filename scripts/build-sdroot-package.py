@@ -233,7 +233,7 @@ def verify_payload(output_dir: Path, require_stock_payload: bool) -> list[str]:
         "plumos/ssh/bin/dropbear",
         "plumos/ssh/bin/dropbearkey",
         "plumos/ssh/bin/scp",
-        "plumos/ssh/etc/authorized_keys",
+        "plumos/ssh/etc/password.hash",
         *PPSSPP_FACTORY_STATE_PATHS,
     ]
     if require_stock_payload:
@@ -267,6 +267,8 @@ Expected top-level entries:
 - `Roms/`, `Bios/`, `Images/`, `Imgs/`, `Saves/`: empty placeholders for user-managed files.
 
 ROMs, BIOS files, save data, states, screenshots, videos, and network secrets are not included.
+The default SSH password is `plumos`. Optional public keys may be placed in
+`plumos/ssh/etc/authorized_keys`.
 
 Rollback note: the stock `miyoo/app/MainUI` is preserved as
 `miyoo/app/MainUI.stock` when it is available in the stock payload. plumOS

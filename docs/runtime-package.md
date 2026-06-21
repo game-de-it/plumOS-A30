@@ -42,10 +42,12 @@ TARGET_DIR=/workspace/dist/plumos-standalone-emulators-adopted \
 ./scripts/docker-build.sh standalone-emulators
 ```
 
-SSH は `scripts/build-ssh-kit.sh` で作る。公開鍵認証のみを使うため、接続確認用の package では `A30_AUTHORIZED_KEYS=/path/to/id_ed25519.pub` を指定して build する。
+SSH は `scripts/build-ssh-kit.sh` で作る。初期入口はパスワード `plumos` で、hash は SD card 上の
+`plumos/ssh/etc/password.hash` に置く。接続確認用に公開鍵も入れたい場合だけ
+`A30_AUTHORIZED_KEYS=/path/to/id_ed25519.pub` を指定して build する。
 
 ```sh
-A30_AUTHORIZED_KEYS="$HOME/.ssh/id_ed25519.pub" ./scripts/build-ssh-kit.sh
+./scripts/build-ssh-kit.sh
 ```
 
 ## 生成

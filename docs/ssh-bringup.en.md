@@ -10,9 +10,13 @@ The current build uses Dropbear `2026.91`, published by the upstream project on
 defa924475abf6bc1e74abc00173e46bfdc804bd47caafa14f5a4ef0cc76da34
 ```
 
-This is a development access kit. The Dropbear build relaxes
-`authorized_keys` ownership/mode checks so the key file can live on the A30 SD
-card even when the stock rootfs is read-only and the SD card is FAT/exFAT.
+This is the plumOS SSH access kit. The A30 stock rootfs is read-only, so the SSH
+password is managed from the SD card at
+`/mnt/SDCARD/plumos/ssh/etc/password.hash` instead of stock `/etc/shadow`.
+Public key authentication is still supported as a secondary path. The Dropbear
+build relaxes `authorized_keys` ownership/mode checks so the key file can live
+on the A30 SD card even when the stock rootfs is read-only and the SD card is
+FAT/exFAT.
 
 ## Build
 
@@ -29,9 +33,9 @@ PLUMOS_DOCKER_STRIP=1 ./scripts/build-ssh-kit.sh
 
 ## Prepare SD Card
 
-1. Edit `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys`.
-2. Put one SSH public key on a single line.
-3. Copy all contents of `dist/plumos-a30-ssh-kit/` to the SD card root.
+1. Copy all contents of `dist/plumos-a30-ssh-kit/` to the SD card root.
+2. Optionally put one SSH public key on a single line in
+   `dist/plumos-a30-ssh-kit/plumos/ssh/etc/authorized_keys`.
 
 The copied SD card should contain:
 
@@ -40,7 +44,8 @@ The copied SD card should contain:
 /mnt/SDCARD/plumos/ssh/bin/dropbear
 /mnt/SDCARD/plumos/ssh/bin/dropbearkey
 /mnt/SDCARD/plumos/ssh/bin/scp
-/mnt/SDCARD/plumos/ssh/etc/authorized_keys
+/mnt/SDCARD/plumos/ssh/etc/password.hash
+/mnt/SDCARD/plumos/ssh/etc/authorized_keys.example
 /mnt/SDCARD/Roms/PORTS/Start SSH.sh
 /mnt/SDCARD/Roms/PORTS/Stop SSH.sh
 ```
@@ -60,14 +65,21 @@ If the IP address is not visible in the UI/router, remove the SD card and check
 `network.txt`; it dumps any available network commands and useful `/proc/net`
 files.
 
-If the log says no public key was found, replace
-`plumos/ssh/etc/authorized_keys` on the SD card with a real workstation public
-key. Commented example lines are ignored.
+If `password.hash` is missing, `start-ssh.sh` recreates the hash for the default
+password `plumos`. To use public key authentication, place a real workstation
+public key in `plumos/ssh/etc/authorized_keys` on the SD card. Commented example
+lines are ignored.
 
 ## Connect
 
 ```sh
 ssh -p 2222 root@A30_IP_ADDRESS
+```
+
+Default password:
+
+```text
+plumos
 ```
 
 If you use a non-default key:
