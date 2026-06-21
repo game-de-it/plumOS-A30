@@ -19,9 +19,9 @@ The end-user SD-root release is an overlay for the Miyoo A30 StockOS SD-card
 boot flow. It may include StockOS SD-side runtime files so that fallback,
 bootstrapping, and compatibility continue to work on a fresh SD card.
 
-StockOS-origin files are not covered by the plumOS MIT License. Before a public
-binary SD-root release, confirm the redistribution policy for the StockOS SD
-payload that is included in that archive.
+StockOS-origin files are not covered by the plumOS MIT License. Users who need
+the original Miyoo A30 firmware should refer to the Miyoo firmware page:
+<https://lomiyoo.com/ja/pages/firmware>.
 
 The developer release should accompany binary releases. It contains the plumOS
 source snapshot, build scripts, recipes, and patches needed to rebuild the
@@ -47,7 +47,7 @@ component in the binary package.
 
 | Component | Upstream / origin | License notes | plumOS use |
 | --- | --- | --- | --- |
-| StockOS SD payload | Miyoo A30 StockOS SD-card files | Vendor/original StockOS terms; not covered by the plumOS MIT License. Redistribution policy must be confirmed before public SD-root releases. | Boot flow, fallback `MainUI.stock`, stock runtime libraries, and compatibility files such as `miyoo/`, `Emu/`, `RApp/`, `App/`, `RetroArch/`, and `Themes/`. |
+| StockOS SD payload | Miyoo A30 StockOS SD-card files. Firmware page: <https://lomiyoo.com/ja/pages/firmware> | Vendor/original StockOS terms apply; not covered by the plumOS MIT License. | Boot flow, fallback `MainUI.stock`, stock runtime libraries, and compatibility files such as `miyoo/`, `Emu/`, `RApp/`, `App/`, `RetroArch/`, and `Themes/`. |
 | RetroArch | <https://github.com/libretro/RetroArch> | GPLv3 license text is copied as `RetroArch-COPYING` by the build. | Main RetroArch frontend runtime. |
 | libretro cores | Individual repositories listed in `docs/emulator-runtime-manifest.tsv` and `docker/plumos-toolchain/libretro-core-recipes.tsv` | Each core keeps its upstream license. The core build copies available upstream `LICENSE`/`COPYING` files into the build docs. | Emulator cores used by RetroArch and PicoArch. |
 | PicoArch | <https://github.com/shauninman/picoarch> | PicoArch license text is copied to `plumos/share/doc/picoarch/LICENSE`; PicoArch also carries libpicofe and individual core licenses. | Lightweight libretro frontend. |
@@ -67,7 +67,7 @@ component in the binary package.
 | dosfstools / fsck.fat | <https://github.com/dosfstools/dosfstools> | Upstream dosfstools license applies. | FAT filesystem checking before USB Disk Mode workflows. |
 | FFmpeg / libav libraries | <https://ffmpeg.org/> | FFmpeg/libav license terms depend on build configuration and linked libraries. | Music player fallback decoders and attached-picture parsing. |
 | miniaudio | <https://github.com/mackron/miniaudio> | Upstream miniaudio license applies. | Music player MP3/FLAC/WAV decoding path. |
-| NextCommander | <https://github.com/LoveRetro/NextCommander> | No upstream `LICENSE` file was present in the inspected repository. Confirm redistribution terms or replace this component before public release. | File manager app. |
+| NextCommander | <https://github.com/LoveRetro/NextCommander> | Upstream/source reference for the file manager app. No separate upstream `LICENSE` file was present in the inspected repository. | File manager app. |
 | Noto Sans JP | <https://fonts.google.com/noto/specimen/Noto+Sans+JP> | SIL Open Font License text is bundled as `NotoSansJP-OFL.txt`. | Japanese/CJK UI font coverage. |
 | WenQuanYi Micro Hei | <https://wenq.org/> | Apache-2.0 text is bundled as `WQYMicroHei-Apache-2.0.txt`. | CJK fallback font coverage. |
 | libretro database / thumbnails | <https://github.com/libretro/libretro-database>, <https://github.com/libretro-thumbnails> | `libretro-database` declares CC-BY-SA-4.0. See `docs/third-party-data.md`. | Thumbnail scraper matching sources. |
@@ -85,6 +85,7 @@ Before publishing a binary SD-root release:
   the binaries in the release
 - exclude ROMs, BIOS files, saves, states, screenshots, videos, network
   secrets, and personal SSH keys
-- confirm the StockOS SD payload redistribution policy
-- confirm or replace components whose upstream redistribution terms are unclear,
-  currently including NextCommander
+- keep the Miyoo firmware page link for StockOS SD payload reference:
+  <https://lomiyoo.com/ja/pages/firmware>
+- keep the NextCommander upstream/source reference:
+  <https://github.com/LoveRetro/NextCommander>

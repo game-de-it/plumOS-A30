@@ -169,8 +169,8 @@ A formal release must satisfy:
   `plumos/` runtime, and excludes ROM/BIOS/user data
 - SD-root package includes `LICENSE`, `THIRD_PARTY_NOTICES.md`, and
   `THIRD_PARTY_NOTICES.ja.md`
-- public release policy has confirmed the StockOS SD payload and unclear
-  upstream redistribution terms listed in `THIRD_PARTY_NOTICES.md`
+- `THIRD_PARTY_NOTICES.md` includes the Miyoo firmware page for StockOS SD
+  payload reference and the NextCommander upstream/source link
 - developer package manifest records `git_dirty=no`
 - release bundle manifest records `git_dirty=no`
 - `SHA256SUMS` verifies all assets

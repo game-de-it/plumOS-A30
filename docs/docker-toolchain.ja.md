@@ -270,7 +270,7 @@ dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
 NextCommander file manager を build します。Apps メニューの「ファイルマネージャー」は
 この package の launcher を起動します。実機では plumOS 側 SDL2/a30mali runtime を使い、
 SDL2_image/SDL2_ttf など NextCommander 固有の依存 library だけを app 側へ同梱します。
-upstream repository に LICENSE file が無いため、公開配布前に再配布条件を確認します。
+upstream/source の参照先は <https://github.com/LoveRetro/NextCommander> です。
 
 ```sh
 ./scripts/docker-build.sh nextcommander

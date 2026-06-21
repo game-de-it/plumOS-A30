@@ -232,7 +232,7 @@ EOF
     printf 'patch=nextcommander-a30.patch\n'
     printf 'binary=plumos/apps/nextcommander/bin/NextCommander\n'
     printf 'launcher=plumos/bin/plumos-nextcommander-launch\n'
-    printf 'note=No LICENSE file was present in the inspected upstream repository; confirm redistribution terms before public release.\n'
+    printf 'note=Upstream/source reference: https://github.com/LoveRetro/NextCommander. No separate LICENSE file was present in the inspected upstream repository.\n'
     printf '\n[needed]\n'
     "${READELF}" -d "${bin_dir}/NextCommander" 2>/dev/null |
       awk -F"[][]" '/NEEDED/ {print $2}' || true

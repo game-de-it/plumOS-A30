@@ -149,7 +149,7 @@
 - [ ] plumOS 導入メリットを end-user 向けにまとめる。
 - [ ] StockOS から plumOS へ移行する際の制約/トレードオフを整理する。
 - [x] license notice と upstream attribution を整理する。
-- [ ] public binary release 前に StockOS SD payload の再配布方針を確認する。
-- [ ] public binary release 前に NextCommander の再配布条件を確認するか、ファイルマネージャーを差し替える。
+- [x] StockOS SD payload の参照先として Miyoo firmware page を記載する。
+- [x] LoveRetro/NextCommander の upstream source 参照先を記載する。
 - [x] GitHub Release 用 package/artifact workflow を作る。
 - [ ] fresh SD card 相当の環境で install/rollback を検証する。

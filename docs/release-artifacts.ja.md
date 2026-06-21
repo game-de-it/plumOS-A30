@@ -160,8 +160,8 @@ release body は `RELEASE_NOTES.md` の内容を元にする。
 - SD root package が stock SD payload、`miyoo/app/MainUI`、`plumos/` runtime を含み、ROM/BIOS/user data を含まない。
 - SD root package が `LICENSE`、`THIRD_PARTY_NOTICES.md`、
   `THIRD_PARTY_NOTICES.ja.md` を含む。
-- `THIRD_PARTY_NOTICES.md` に書かれた StockOS SD payload と再配布条件が不明な upstream の
-  公開方針を確認済みである。
+- `THIRD_PARTY_NOTICES.md` が StockOS SD payload の参照先として Miyoo firmware page を含み、
+  NextCommander の upstream/source link も含む。
 - developer package の manifest が `git_dirty=no` である。
 - release bundle の manifest が `git_dirty=no` である。
 - `SHA256SUMS` が全 asset で検証できる。

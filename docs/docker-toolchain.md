@@ -276,6 +276,27 @@ dist/plumos-picoarch/plumos/emulators/picoarch/lib/
 dist/plumos-picoarch/plumos/share/doc/picoarch/manifest.txt
 ```
 
+Build the NextCommander file manager. The Apps entry named `File Manager`
+launches this package. The A30 build uses the plumOS SDL2/a30mali runtime and
+bundles NextCommander-specific dependency libraries such as SDL2_image and
+SDL2_ttf with the app. The upstream/source reference is
+<https://github.com/LoveRetro/NextCommander>.
+
+```sh
+./scripts/docker-build.sh nextcommander
+```
+
+Outputs:
+
+```text
+dist/plumos-nextcommander/plumos/bin/plumos-nextcommander-launch
+dist/plumos-nextcommander/plumos/apps/nextcommander/bin/NextCommander
+dist/plumos-nextcommander/plumos/apps/nextcommander/config/a30.cfg
+dist/plumos-nextcommander/plumos/apps/nextcommander/lib/
+dist/plumos-nextcommander/plumos/apps/nextcommander/res/
+dist/plumos-nextcommander/plumos/share/doc/nextcommander/manifest.txt
+```
+
 Build the GMU music player. The frontend Apps entry named `GMU Player` launches
 this package. The A30 build uses GMU's upstream SDL1 frontend and defaults to
 the larger `default-modern-large` theme. The bundled first-pass decoders are

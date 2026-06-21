@@ -153,7 +153,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Summarize plumOS benefits for end users.
 - [ ] Document the constraints and tradeoffs when migrating from StockOS to plumOS.
 - [x] Organize license notices and upstream attribution.
-- [ ] Confirm StockOS SD payload redistribution policy before a public binary release.
-- [ ] Confirm NextCommander redistribution terms or replace the file manager before a public binary release.
+- [x] Document the Miyoo firmware page for StockOS SD payload reference.
+- [x] Document the LoveRetro/NextCommander upstream source reference.
 - [x] Create a GitHub Release package/artifact workflow.
 - [ ] Validate install and rollback on a fresh-SD-card-equivalent environment.
