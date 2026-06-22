@@ -44,7 +44,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Create helpers for running commands and collecting logs on the device.
 - [x] Create a `/dev/fb0` capture helper.
 - [x] Standardize display/emulator process shutdown in `scripts/stop-a30-display-processes.sh`.
-- [ ] Combine build, deploy, run, and log collection into one command.
+- [x] Combine build, deploy, run, and log collection into one command.
 - [x] Document an SD-card-only rollback procedure.
 
 ## Phase 4 - Boot Bootstrap

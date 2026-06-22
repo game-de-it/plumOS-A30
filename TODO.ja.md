@@ -40,7 +40,7 @@
 - [x] 実機 command 実行と log 回収 helper を作る。
 - [x] `/dev/fb0` capture helper を作る。
 - [x] display/emulator process 停止手順を `scripts/stop-a30-display-processes.sh` に固定する。
-- [ ] build -> deploy -> run -> collect logs を 1 command にまとめる。
+- [x] build -> deploy -> run -> collect logs を 1 command にまとめる。
 - [x] SD カードだけで復旧できる rollback 手順を文書化する。
 
 ## Phase 4 - Boot Bootstrap
