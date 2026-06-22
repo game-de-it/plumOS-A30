@@ -14,7 +14,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Document the boot flow, mounts, Wi-Fi, stock frontend, and RetroArch layout.
 - [x] Use English `.md` documents as the default documentation and Japanese
       `.ja.md` files as counterparts.
-- [ ] Decide the GitHub remote and release policy before public publishing.
+- [x] Decide the GitHub remote and release policy before public publishing.
 
 ## Phase 1 - Docker Toolchain and Build Environment
 

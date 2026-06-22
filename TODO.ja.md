@@ -9,7 +9,7 @@
 - [x] A30 へ SSH 接続して情報収集できるようにする。
 - [x] 起動フロー、mount、Wi-Fi、stock frontend、RetroArch 構成を文書化する。
 - [x] 英語 `.md` を既定ドキュメント、日本語 `.ja.md` を対応版とする構成にする。
-- [ ] GitHub 公開前に remote と release 方針を確定する。
+- [x] GitHub 公開前に remote と release 方針を確定する。
 
 ## Phase 1 - Docker Toolchain and Build Environment
 
