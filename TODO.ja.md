@@ -94,7 +94,7 @@
 - [ ] Scraper の retry UI を追加する。
 - [ ] CRC miss 時の filename 候補 rescue option を FE に追加する。
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
-- [ ] brightness hotkey を System Settings と連動する。
+- [x] brightness hotkey を System Settings と連動する。
 - [x] Settings 以外の UI 文言にも language localization を広げる。
 - [x] Theme selection の候補名/path/適用範囲を決める。
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
@@ -120,7 +120,7 @@
 - [ ] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
       `libretro-core-recipes.tsv` に追加する。
 - [x] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
-- [ ] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
+- [x] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用 Red Viper standalone は調査用に残し、通常配布と FE profile から外す。
 - [x] PPSSPP config/controls を含む RA/PICO/SA emulator 設定の backup、restore、factory reset 機能を実装する。
 - [ ] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。

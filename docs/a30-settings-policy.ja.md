@@ -28,7 +28,7 @@
 A30 runtime backend へ即時反映します。
 
 - `Volume`: `volume`。左右または物理音量ボタンで `0..20` を変更し、ALSA `Soft Volume Master` へ反映する
-- `Brightness`: `brightness`。左右で `1..20` を変更し、下記の表で `/sys/devices/virtual/disp/disp/attr/lcdbl` の RAW 値へ反映する。将来は brightness hotkey と連動する
+- `Brightness`: `brightness`。左右で `1..20` を変更し、下記の表で `/sys/devices/virtual/disp/disp/attr/lcdbl` の RAW 値へ反映する。A30 の plumOS input policy では専用 brightness hotkey を持たないため、物理 hotkey ではなく System Settings から変更する
 - `Lumination`: `lumination`。左右で `0..10` を変更し、display `enhance` へ反映する
 - `Display Color`: A でサブ項目を開き、`Contrast`, `Hue`, `Saturation` をそれぞれ `0..20` で変更する
 - `Time Settings`: A で時刻設定サブ項目を開く。`Timezone` は左右で変更し、plumOS config 保存後に `TZ` 環境と runtime `/etc/TZ` へ反映する。`Manual Time` は専用画面で Year/Month/Day/Hour/Minute を変更し、A で OS 時刻へ適用する

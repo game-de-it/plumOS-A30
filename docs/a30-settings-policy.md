@@ -32,8 +32,9 @@ are applied immediately to the A30 runtime backend.
 - `Volume`: `volume`; Left/Right or the physical volume buttons change
   `0..20` and apply it to ALSA `Soft Volume Master`
 - `Brightness`: `brightness`; Left/Right changes `1..20` and applies the mapped
-  RAW value to `/sys/devices/virtual/disp/disp/attr/lcdbl`. Later this should
-  track a brightness hotkey
+  RAW value to `/sys/devices/virtual/disp/disp/attr/lcdbl`. A30 has no dedicated
+  brightness hotkey in the plumOS input policy, so brightness remains a System
+  Settings control instead of a physical hotkey.
 - `Lumination`: `lumination`; Left/Right changes `0..10`
 - `Display Color`: A opens a subpage where `Contrast`, `Hue`, and `Saturation`
   each change in the `0..20` range

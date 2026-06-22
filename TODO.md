@@ -99,7 +99,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Add scraper retry UI.
 - [ ] Add FE rescue option for filename candidates after CRC miss.
 - [ ] Remove horizontal compression from the current TTY prompt rendering.
-- [ ] Link brightness hotkey behavior to System Settings.
+- [x] Link brightness hotkey behavior to System Settings.
 - [x] Expand language localization beyond Settings UI strings.
 - [x] Decide Theme selection names, paths, and scope.
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
@@ -124,7 +124,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Triage problematic emulator/core profiles by symptom, then either fix them or exclude them from normal candidates.
 - [ ] Research source provenance for Onion-prebuilt-only cores and add A30-buildable ones to `libretro-core-recipes.tsv`.
 - [x] Revalidate standalone launcher cleanup on normal exit, TERM, KILL, and SSH disconnect.
-- [ ] Verify normal user-initiated exits for PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch from the FE A-button path.
+- [x] Verify normal user-initiated exits for PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch from the FE A-button path.
 - [x] Keep Red Viper standalone for investigation only and remove it from normal distribution and FE profiles.
 - [x] Implement backup, restore, and factory reset for RA/PICO/SA emulator settings, including PPSSPP config/controls.
 - [ ] Document why the stock PPSSPP landscape menu works compared with official PPSSPP.
