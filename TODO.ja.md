@@ -87,7 +87,7 @@
 - [x] Network Settings -> NW Service の FTP/SFTP/Samba checkbox と永続 ON/OFF を実装し、実機 smoke を行う。
 - [x] Performance Settings を既存 CPU profile/core override 機能へ接続する。
 - [x] A30 UI design rules を `docs/a30-ui-design.md` にまとめる。
-- [ ] Graphic UI mode / gallery mode を実装する。
+- [x] Graphic UI mode / gallery mode を実装する。
 - [x] artwork scraper と thumbnail cache pipeline を設計する。
 - [x] ROM thumbnail scraping を実装する。
 - [x] Scraper の FE 操作を system 選択/progress 付き UI にする。
@@ -95,7 +95,7 @@
 - [ ] CRC miss 時の filename 候補 rescue option を FE に追加する。
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
 - [ ] brightness hotkey を System Settings と連動する。
-- [ ] Settings 以外の UI 文言にも language localization を広げる。
+- [x] Settings 以外の UI 文言にも language localization を広げる。
 - [x] Theme selection の候補名/path/適用範囲を決める。
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
 - [x] Connect Wi-Fi の SSID 検索、password 入力、DHCP、gateway ping、IP 表示を実機で確認する。
@@ -119,7 +119,7 @@
 - [x] 問題が残る emulator/core を症状別に切り分け、修正または通常候補からの除外判断を行う。
 - [ ] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
       `libretro-core-recipes.tsv` に追加する。
-- [ ] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
+- [x] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
 - [ ] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用 Red Viper standalone は調査用に残し、通常配布と FE profile から外す。
 - [x] PPSSPP config/controls を含む RA/PICO/SA emulator 設定の backup、restore、factory reset 機能を実装する。
@@ -134,7 +134,7 @@
 - [x] 電源ボタン Power menu、sleep、poweroff を実装/確認する。
 - [x] CPU governor/frequency/core policy を計測し、FE default を 648MHz / 2 cores にする。
 - [x] Wi-Fi power sequence、DHCP、Dropbear 復旧を複数回確認する。
-- [ ] 左スティック上下左右を個別 capture し、X/Y と符号を確定する。
+- [x] 左スティック上下左右を個別 capture し、X/Y と符号を確定する。
 - [x] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
 - [x] emulator 実行中の電源ボタン UX を overlay Power menu にする。
 - [x] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。

@@ -92,7 +92,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Implement FTP/SFTP/Samba checkboxes and persistent ON/OFF in Network Settings, then smoke-test them on device.
 - [x] Connect Performance Settings to the existing CPU profile/core override features.
 - [x] Record A30 UI design rules in `docs/a30-ui-design.md`.
-- [ ] Implement Graphic UI mode / gallery mode.
+- [x] Implement Graphic UI mode / gallery mode.
 - [x] Design the artwork scraper and thumbnail cache pipeline.
 - [x] Implement ROM thumbnail scraping.
 - [x] Add FE scraper operation with system selection and progress UI.
@@ -100,7 +100,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Add FE rescue option for filename candidates after CRC miss.
 - [ ] Remove horizontal compression from the current TTY prompt rendering.
 - [ ] Link brightness hotkey behavior to System Settings.
-- [ ] Expand language localization beyond Settings UI strings.
+- [x] Expand language localization beyond Settings UI strings.
 - [x] Decide Theme selection names, paths, and scope.
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
 - [x] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
@@ -123,7 +123,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Deploy and validate built Class A/B cores per system.
 - [x] Triage problematic emulator/core profiles by symptom, then either fix them or exclude them from normal candidates.
 - [ ] Research source provenance for Onion-prebuilt-only cores and add A30-buildable ones to `libretro-core-recipes.tsv`.
-- [ ] Revalidate standalone launcher cleanup on normal exit, TERM, KILL, and SSH disconnect.
+- [x] Revalidate standalone launcher cleanup on normal exit, TERM, KILL, and SSH disconnect.
 - [ ] Verify normal user-initiated exits for PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch from the FE A-button path.
 - [x] Keep Red Viper standalone for investigation only and remove it from normal distribution and FE profiles.
 - [x] Implement backup, restore, and factory reset for RA/PICO/SA emulator settings, including PPSSPP config/controls.
@@ -138,7 +138,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Implement and confirm the power-button Power menu, sleep, and poweroff.
 - [x] Measure CPU governor/frequency/core policy and set the FE default to 648MHz / 2 cores.
 - [x] Confirm Wi-Fi power sequencing, DHCP, and Dropbear recovery several times.
-- [ ] Capture left-stick up/down/left/right individually and finalize X/Y axes and signs.
+- [x] Capture left-stick up/down/left/right individually and finalize X/Y axes and signs.
 - [x] Separate the power-button short-press event code from stock sleep/shutdown intervention.
 - [x] Make the emulator-runtime power-button UX use the overlay Power menu.
 - [x] Decide whether to keep using stock Wi-Fi userland or move it into plumOS.
