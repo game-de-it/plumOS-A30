@@ -1,7 +1,126 @@
+# Local agent/project rules
+AGENTS.md
+HANDOFF.local.md
+
+# Build and generated release outputs
 build/
 dist/
 artifacts/
-.DS_Store
+out/
+tmp/
+temp/
 *.log
+*.7z
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.txz
+*.xz
+*.zst
+
+# Local OS/editor/cache files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Language/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.venv/
+venv/
+node_modules/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Accidental SD-card root copies. Keep these anchored so package/ssh-kit/Roms
+# and source package/frontend/plumos are not hidden.
+/111.txt
+/App/
+/RApp/
+/Emu/
+/RetroArch/
+/Roms/
+/Bios/
+/Images/
+/Imgs/
+/Saves/
+/Screenshots/
+/Video/
+/Themes/
+/System Volume Information/
+/autorun.ico
+/autorun.inf
+/cachefile
+/miyoo/
+/plumos/
+
+# User-owned ROM/media/save/state files if they are accidentally copied outside
+# the ignored SD-card root directories.
+*.a26
+*.a52
+*.a78
+*.adf
+*.adz
+*.atr
+*.bin
+*.chd
+*.cso
+*.cue
+*.d64
+*.gb
+*.gba
+*.gbc
+*.hdf
+*.img
+*.iso
+*.m3u
+*.nes
+*.pbp
+*.rom
+*.sfc
+*.smc
+*.st
+*.vb
+*.vpk
+*.wad
+*.sav
+*.srm
+*.state
+*.rtc
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.opus
+*.wav
+
+# Local secrets and device-generated credentials. Tracked example/default files
+# must use explicit non-secret names such as authorized_keys.example.
+.env
+.env.*
+!.env.example
+id_rsa*
+id_ed25519*
+*.pem
+*.p12
+*.pfx
+known_hosts
+authorized_keys
+wpa_supplicant.conf
+plumos/ssh/etc/authorized_keys
+plumos/ssh/etc/dropbear_*_host_key
+plumos/config/network/wpa_supplicant.conf
+
+# One-off local investigation checkouts
 ppsspp-l2-menu-noescape/
-AGENTS.md
