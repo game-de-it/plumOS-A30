@@ -93,6 +93,33 @@ The active and legacy files are intentionally recorded as they existed on the
 A30. Do not normalize them during recovery unless the user explicitly asks for
 that specific operation.
 
+## 横メニューが成立する理由
+
+stock/plumOS の PPSSPP 横メニューは、PPSSPP 側の単独設定だけで成立しているわけでは
+ありません。A30 固有の platform contract として、以下の要素が揃っている必要があります。
+
+- `PLUMOS_STANDALONE_USE_STOCK_SDL=1` により、PPSSPP は StockOS SDL2 経路を使う。
+  この経路では `/usr/miyoo/lib` の A30 `mali` backend が使われ、`PPSSPPSDL` が
+  SDL window を作成してから GLES renderer を使う前提と噛み合う。
+- launcher が A30 向けの論理横画面を export する:
+  `PLUMOS_A30_DISPLAY_ROTATION=ccw`,
+  `PLUMOS_A30_DISPLAY_LOGICAL=854x480`,
+  `PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1`。物理 framebuffer は A30 の縦向き panel の
+  ままですが、PPSSPP の UI/layout 側には PSP 的な横画面 geometry を見せる。
+- PPSSPP の user config 側で `DisplayAspectRatio = 0.562500`,
+  `InternalScreenRotation = 1`, `RotateControlsWithScreen = False`,
+  `UIScaleFactor = -2` を使い、この論理横画面 contract を完成させる。
+- 入力も同じ contract の一部。StockOS は `miyoo282_xpad_inputd` を起動し、
+  plumOS は同じ考え方を `plumos-joystickd --device-mode xbox` で再現する。これにより
+  PPSSPP は A30 の raw serial input ではなく、通常の SDL2 GameController 風の
+  virtual pad を読む。
+
+official/vanilla PPSSPP をこれらの launcher 変数と config default なしで起動すると、
+SDL display を A30 の縦向き画面として解釈しやすく、menu layout/aspect が崩れたり、
+controls が合わない状態になりやすい。動作する横メニューは、StockOS SDL2/Mali runtime
+選択、launcher の display 変数、PPSSPP config、virtual gamepad setup の組み合わせとして
+扱う。
+
 ## Recovery rule
 
 This backup is the first recovery anchor for future PPSSPP issues. Display,

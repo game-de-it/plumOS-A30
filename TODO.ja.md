@@ -117,14 +117,14 @@
 - [x] FE-owned launcher の CPU restore、joystickd 停止、fb restore、FE 復帰を実装する。
 - [x] build 済み Class A/B core を system ごとに deploy/validate する。
 - [x] 問題が残る emulator/core を症状別に切り分け、修正または通常候補からの除外判断を行う。
-- [ ] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
+- [x] Onion prebuilt-only core の source provenance を調査し、A30 で build 可能なものを
       `libretro-core-recipes.tsv` に追加する。
 - [x] standalone launcher の通常終了/TERM/KILL/SSH 切断時 cleanup を再検証する。
 - [x] FE A ボタン経路で PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch の通常終了をユーザー操作で確認する。
 - [x] Virtual Boy 用 Red Viper standalone は調査用に残し、通常配布と FE profile から外す。
 - [x] PPSSPP config/controls を含む RA/PICO/SA emulator 設定の backup、restore、factory reset 機能を実装する。
-- [ ] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。
-- [ ] `--config` と override config で system/core ごとの差分を管理する。
+- [x] stock PPSSPP 横メニュー成立要因を公式 PPSSPP との差分として整理する。
+- [x] `--config` と override config で system/core ごとの差分を管理する。
 
 ## Phase 8 - A30 Input, Power, and System Policy
 

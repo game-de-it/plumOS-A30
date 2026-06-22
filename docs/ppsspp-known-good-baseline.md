@@ -94,6 +94,34 @@ Legacy `.config` mirror:
 The active and legacy files are recorded exactly as they existed on the A30. Do
 not normalize them during recovery unless the user explicitly asks for that.
 
+## Why the Landscape Menu Works
+
+The working stock/plumOS PPSSPP landscape menu is not caused by a single PPSSPP
+setting. It depends on the A30-specific platform contract below:
+
+- `PLUMOS_STANDALONE_USE_STOCK_SDL=1` keeps PPSSPP on the StockOS SDL2 path. That
+  path exposes the A30 `mali` backend from `/usr/miyoo/lib` and matches how
+  `PPSSPPSDL` expects to create its SDL window before using its GLES renderer.
+- The launcher exports an A30 logical landscape contract:
+  `PLUMOS_A30_DISPLAY_ROTATION=ccw`,
+  `PLUMOS_A30_DISPLAY_LOGICAL=854x480`, and
+  `PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1`. The physical framebuffer is still the
+  A30 portrait panel, but PPSSPP's UI/layout code sees the intended PSP-style
+  landscape geometry.
+- The PPSSPP user config then completes that contract with
+  `DisplayAspectRatio = 0.562500`, `InternalScreenRotation = 1`,
+  `RotateControlsWithScreen = False`, and `UIScaleFactor = -2`.
+- Input is also part of the same contract. StockOS starts
+  `miyoo282_xpad_inputd`; plumOS mirrors the same principle with
+  `plumos-joystickd --device-mode xbox`, so PPSSPP reads a normal SDL2
+  GameController-style virtual pad instead of raw A30 serial input.
+
+An official/vanilla PPSSPP build launched without these launcher variables and
+config defaults usually sees the A30 as a portrait SDL display, chooses the wrong
+menu layout/aspect, and may inherit mismatched controls. Treat the working
+landscape menu as a combination of StockOS SDL2/Mali runtime selection, launcher
+display variables, PPSSPP config, and virtual gamepad setup.
+
 ## Recovery Rule
 
 This backup is the first recovery anchor for future PPSSPP issues. Display,

@@ -122,13 +122,13 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Implement CPU restore, joystickd shutdown, framebuffer restore, and FE return in the FE-owned launcher.
 - [x] Deploy and validate built Class A/B cores per system.
 - [x] Triage problematic emulator/core profiles by symptom, then either fix them or exclude them from normal candidates.
-- [ ] Research source provenance for Onion-prebuilt-only cores and add A30-buildable ones to `libretro-core-recipes.tsv`.
+- [x] Research source provenance for Onion-prebuilt-only cores and add A30-buildable ones to `libretro-core-recipes.tsv`.
 - [x] Revalidate standalone launcher cleanup on normal exit, TERM, KILL, and SSH disconnect.
 - [x] Verify normal user-initiated exits for PPSSPP/PCSX/ScummVM/EasyRPG/RetroArch from the FE A-button path.
 - [x] Keep Red Viper standalone for investigation only and remove it from normal distribution and FE profiles.
 - [x] Implement backup, restore, and factory reset for RA/PICO/SA emulator settings, including PPSSPP config/controls.
-- [ ] Document why the stock PPSSPP landscape menu works compared with official PPSSPP.
-- [ ] Manage per-system/core differences with `--config` and override config.
+- [x] Document why the stock PPSSPP landscape menu works compared with official PPSSPP.
+- [x] Manage per-system/core differences with `--config` and override config.
 
 ## Phase 8 - A30 Input, Power, and System Policy
 
