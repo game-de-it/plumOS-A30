@@ -97,7 +97,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Implement ROM thumbnail scraping.
 - [x] Add FE scraper operation with system selection and progress UI.
 - [ ] Add scraper retry UI.
-- [ ] Add FE rescue option for filename candidates after CRC miss.
+- [x] Add FE rescue option for filename candidates after CRC miss.
 - [ ] Remove horizontal compression from the current TTY prompt rendering.
 - [x] Link brightness hotkey behavior to System Settings.
 - [x] Expand language localization beyond Settings UI strings.

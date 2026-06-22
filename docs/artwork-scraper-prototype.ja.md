@@ -10,7 +10,9 @@
   option に限定し、自動保存しない。
 - 取得した画像とユーザーが手で置く画像の保存先は 1 つにする。
 - FE では `Apps -> Scraping` から system 選択、実行中 progress、結果確認を行う。
-- retry UI と filename fallback 候補確認は別タスクとして扱う。
+- retry UI は別タスクとして扱う。filename fallback 候補確認は通常 FE には入れない。
+  CRC miss は rescue overlay で一致するか、ユーザーが手動で thumbnail を置く場合を除き
+  `no_match` のままとする。
 
 ## 正式保存先
 
@@ -163,7 +165,7 @@ CRC miss の扱い:
 - libretro base DB に無い CRC でも、build/prefetch 済みの rescue overlay にある場合は
   その overlay の `crc -> thumbnail href` で取得する。
 - 日本語 file stem は filename candidate 探索をしない。
-- filename 由来の候補探索は、ユーザーが明示的に選ぶ確認用 option に限定する。
+- filename 由来の候補探索は、試作/CLI の明示的な確認用 option に限定し、通常 FE には出さない。
 - 候補探索で見つかった画像は自動保存せず、ユーザーが選択したものだけ保存する。
 
 ## 並列度
@@ -435,7 +437,7 @@ FE からの実行では Results の先頭に `image`, `kind`, `existing` を出
 6. base DAT に CRC が無い場合、rescue overlay の `crc -> thumbnail href` を試す。
 7. download に成功したら保存する。失敗したら `download_failed` または `invalid_png` にする。
 8. CRC が base DAT と rescue overlay のどちらにも無い場合、通常動作では `no_match` にする。
-9. 明示 option が指定された場合だけ、ROM file stem 由来の `name-exact` や
+9. 明示的な診断 option が指定された場合だけ、ROM file stem 由来の `name-exact` や
    `candidate-report` を試す。
 10. `--loose-index` が指定された場合だけ、大きい thumbnail directory index を取得し、
    bracket/region/revision を落とした normalized name で `crc-loose` / `name-loose` を試す。

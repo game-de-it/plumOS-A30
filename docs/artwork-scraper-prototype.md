@@ -13,7 +13,9 @@ matching and storage rules before any FE integration. The prototype script is
 - Keep scraped thumbnails and user-provided thumbnails in one location.
 - Use `Apps -> Scraping` for system selection, in-progress status, and latest
   result review.
-- Keep retry UI and filename fallback candidate review as separate tasks.
+- Keep retry UI as a separate task. Filename fallback candidate review is not
+  planned for the normal FE; CRC misses remain `no_match` unless a rescue
+  overlay matches or the user places a thumbnail manually.
 
 ## Canonical Storage
 
@@ -181,8 +183,8 @@ CRC miss handling:
   build/prefetch-generated rescue overlay, the scraper uses that overlay's
   `crc -> thumbnail href` mapping.
 - Japanese file stems are not searched as filename candidates.
-- Filename-derived candidate search is limited to an explicit user-selected
-  advisory option.
+- Filename-derived candidate search is limited to an explicit prototype or CLI
+  advisory option and is not exposed in the normal FE.
 - Candidate matches are never auto-saved; only the user-selected candidate is
   saved.
 
@@ -494,8 +496,8 @@ options. Changing the image kind does not change the existing-image mode.
    `invalid_png` when it fails.
 8. When neither the base DAT nor the rescue overlay matches, default behavior
    returns `no_match`.
-9. Only when an explicit option is passed, try ROM-file-stem `name-exact` or
-   `candidate-report` lookup.
+9. Only when an explicit diagnostic option is passed, try ROM-file-stem
+   `name-exact` or `candidate-report` lookup.
 10. Only when `--loose-index` is passed, fetch the large thumbnail directory
    index and try normalized matching as `crc-loose` or `name-loose`.
 11. If all matching fails, return `no_match`. Negative cache is updated only in
