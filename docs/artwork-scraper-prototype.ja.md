@@ -10,9 +10,10 @@
   option に限定し、自動保存しない。
 - 取得した画像とユーザーが手で置く画像の保存先は 1 つにする。
 - FE では `Apps -> Scraping` から system 選択、実行中 progress、結果確認を行う。
-- retry UI は別タスクとして扱う。filename fallback 候補確認は通常 FE には入れない。
-  CRC miss は rescue overlay で一致するか、ユーザーが手動で thumbnail を置く場合を除き
-  `no_match` のままとする。
+- 初回 public release の通常 FE には retry UI を追加しない。ユーザーはあとで scraping を
+  再実行でき、保守用には CLI 診断経路を残してよい。filename fallback 候補確認も通常 FE
+  には入れない。CRC miss は rescue overlay で一致するか、ユーザーが手動で thumbnail を置く
+  場合を除き `no_match` のままとする。
 
 ## 正式保存先
 
@@ -47,14 +48,13 @@ Roms/GB/Dracula Densetsu.gb
 画像が存在しない ROM だけ CRC queue に入れます。FE 組み込み時は
 `/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` のような state に、ROM の
 `system_id`, relative path, size, mtime, ctime, kind, CRC, status, checked_at を残します。
-同じ size/mtime/ctime で過去に `no_match` だった ROM は、DAT cache が更新された場合または
-ユーザーが `Retry missing thumbnails` を選んだ場合だけ再 CRC します。`download_failed` は
-network 一時失敗の可能性があるため、短い backoff または手動 retry で再試行します。
+`download_failed` は network 一時失敗の可能性があるため、あとで scraping を再実行すれば
+再試行できますが、通常 FE には専用の retry 画面を出しません。
 試作 script の negative cache も、CRC ではなく `system_id`, kind, relative path, size, mtime, ctime
 を key にして、変化していない未マッチ ROM では CRC 前に `negative_cached` を返します。
 同名・同サイズで ROM を再配置しても、通常は mtime または ctime が変わるため CRC 対象になります。
-timestamp を完全に保持する特殊なコピー経路に備え、FE には negative cache を無視する
-`Retry missing thumbnails` を用意します。
+timestamp を完全に保持する特殊なコピー経路では、試作/CLI 診断で negative cache を無視する
+経路を使えます。
 
 ## FE 組み込み方針
 

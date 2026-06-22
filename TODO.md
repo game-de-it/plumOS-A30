@@ -96,9 +96,9 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Design the artwork scraper and thumbnail cache pipeline.
 - [x] Implement ROM thumbnail scraping.
 - [x] Add FE scraper operation with system selection and progress UI.
-- [ ] Add scraper retry UI.
+- [x] Add scraper retry UI.
 - [x] Add FE rescue option for filename candidates after CRC miss.
-- [ ] Remove horizontal compression from the current TTY prompt rendering.
+- [x] Remove horizontal compression from the current TTY prompt rendering.
 - [x] Link brightness hotkey behavior to System Settings.
 - [x] Expand language localization beyond Settings UI strings.
 - [x] Decide Theme selection names, paths, and scope.

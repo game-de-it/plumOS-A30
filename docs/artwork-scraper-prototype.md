@@ -13,9 +13,11 @@ matching and storage rules before any FE integration. The prototype script is
 - Keep scraped thumbnails and user-provided thumbnails in one location.
 - Use `Apps -> Scraping` for system selection, in-progress status, and latest
   result review.
-- Keep retry UI as a separate task. Filename fallback candidate review is not
-  planned for the normal FE; CRC misses remain `no_match` unless a rescue
-  overlay matches or the user places a thumbnail manually.
+- Do not add a normal FE retry UI for the first public release. Users can rerun
+  scraping later, and CLI diagnostics can remain available for maintenance.
+  Filename fallback candidate review is not planned for the normal FE; CRC
+  misses remain `no_match` unless a rescue overlay matches or the user places a
+  thumbnail manually.
 
 ## Canonical Storage
 
@@ -56,18 +58,15 @@ user's choice and take priority.
 Only ROMs without an existing image enter the CRC queue. During FE integration,
 store scraper state under a path such as
 `/mnt/SDCARD/plumos/state/frontend/artwork-scraper-state.json` with `system_id`,
-relative path, size, mtime, ctime, kind, CRC, status, and `checked_at`. A ROM
-that was previously `no_match` with the same size/mtime/ctime should be
-re-CRC'd only after the DAT cache changes or when the user chooses
-`Retry missing thumbnails`.
-`download_failed` can be retried after a short backoff or by manual retry
-because it may be a temporary network failure.
+relative path, size, mtime, ctime, kind, CRC, status, and `checked_at`.
+Transient `download_failed` cases can be retried by rerunning scraping later,
+but the normal FE does not expose a dedicated retry screen.
 The prototype script's negative cache is keyed by `system_id`, kind, relative
 path, size, mtime, and ctime instead of CRC, so unchanged unmatched ROMs can
 return `negative_cached` before CRC work. Replacing a ROM with the same name and
 size normally changes mtime or ctime, so it becomes eligible for CRC again.
-`Retry missing thumbnails` ignores the negative cache for unusual copy paths
-that preserve timestamps completely.
+Prototype/CLI diagnostics may still ignore the negative cache for unusual copy
+paths that preserve timestamps completely.
 
 ## FE Integration Policy
 
