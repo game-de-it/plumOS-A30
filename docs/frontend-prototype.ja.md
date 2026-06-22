@@ -579,15 +579,13 @@ summary metadata gamelists=0 launchers=22
 - 現在の SD カードでは、多くの configured ROM directory は存在しますが、ROM file は
   ほぼ空です。
 - `Imgs` 側には stock artwork が入っています。plumOS の通常 thumbnail 置き場は
-  `/mnt/SDCARD/Images/<system_id>` に集約し、`Imgs` は必要になった場合の importer 入力として
-  扱います。
+  `/mnt/SDCARD/Images/<ROM directory alias>` です。初回 public release では StockOS artwork
+  importer は実装対象外です。
 - `RApp/mednafen_wswan/config.json` の `imgpath` は `../..Imgs/WSC` になっており、
-  `../../Imgs/WSC` の typo と思われます。stock 互換では、このような設定ミスも
-  検出・補正対象にします。
+  `../../Imgs/WSC` の typo と思われます。これは過去の scanner 調査記録として残しますが、
+  plumOS では StockOS metadata の癖を再現・補正する方針にはしません。
 
-## 次に足すもの
+## scope 判断
 
-- ROM file と artwork file の名前対応 rule
-- `gamelist` XML の parse
-- `recentlist.json` の parse/update
-- plumOS 同梱 SDL2 を使った render test と最小 UI
+- 具体的な release 要件が出ない限り、StockOS の `gamelist`, `extlist`, `launchlist`,
+  `recentlist.json`, shell launch 互換は追加しません。

@@ -622,15 +622,14 @@ Observations:
 - On the current SD card, many configured ROM directories exist, but ROM files
   are almost empty.
 - `Imgs` contains stock artwork. The normal plumOS thumbnail location is
-  `/mnt/SDCARD/Images/<ROM directory alias>`; `Imgs` is treated as an importer
-  input if migration is needed.
+  `/mnt/SDCARD/Images/<ROM directory alias>`. No StockOS artwork importer is
+  planned for the first public release.
 - `RApp/mednafen_wswan/config.json` has `imgpath` set to `../..Imgs/WSC`, which
-  appears to be a typo for `../../Imgs/WSC`. Stock compatibility should detect
-  and optionally correct cases like this.
+  appears to be a typo for `../../Imgs/WSC`. This remains historical scanner
+  evidence only; plumOS no longer plans to emulate or correct StockOS metadata
+  quirks.
 
-## Next Additions
+## Scope Decision
 
-- Match ROM filenames to artwork filenames.
-- Parse `gamelist` XML.
-- Parse/update `recentlist.json`.
-- Build a render test and minimal UI with plumOS-bundled SDL2.
+- Do not add StockOS `gamelist`, `extlist`, `launchlist`, `recentlist.json`, or
+  shell-launch compatibility unless a concrete release requirement appears.

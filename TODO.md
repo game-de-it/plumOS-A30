@@ -67,13 +67,13 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Confirm the name matching rules between ROM files and artwork files.
 - [x] Detect `extlist`, `launchlist`, and `recentlist` with the compatibility scanner.
 - [x] Create a decision-record template for reusing stock behavior.
-- [ ] Read the stock data schema for `gamelist` XML.
-- [ ] Recognize existing ROMs, artwork, saves, and states without moving them.
-- [ ] Implement `extlist` filtering in the frontend ROM list.
-- [ ] Support alternate launchers/cores from `launchlist` in UI and launch profiles.
-- [ ] Parse and update `Roms/recentlist.json` compatibility data.
-- [ ] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, and ROM path `$1`.
-- [ ] Move shell launch script behavior into plumOS launch profiles.
+- [x] Read the stock data schema for `gamelist` XML.
+- [x] Recognize existing ROMs, artwork, saves, and states without moving them.
+- [x] Implement `extlist` filtering in the frontend ROM list.
+- [x] Support alternate launchers/cores from `launchlist` in UI and launch profiles.
+- [x] Parse and update `Roms/recentlist.json` compatibility data.
+- [x] Reproduce launch compatibility for `EMU_DIR`, `LD_LIBRARY_PATH`, and ROM path `$1`.
+- [x] Move shell launch script behavior into plumOS launch profiles.
 
 ## Phase 6 - Frontend Implementation
 

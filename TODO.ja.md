@@ -62,13 +62,13 @@
 - [x] ROM file と artwork file の名前対応 rule を確認する。
 - [x] compatibility scanner で `extlist`, `launchlist`, `recentlist` の存在を検出する。
 - [x] stock 仕様流用時の decision record template を作る。
-- [ ] `gamelist` XML の stock data schema を読む。
-- [ ] 既存 ROM、artwork、save、state を移動せず認識できるようにする。
-- [ ] frontend ROM list で `extlist` filter を実装する。
-- [ ] `launchlist` の代替 launcher/core を UI と launch profile で扱えるようにする。
-- [ ] `Roms/recentlist.json` 互換の recent list を parse/update できるようにする。
-- [ ] `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path `$1` の launch 互換を再現する。
-- [ ] shell launch script 依存を plumOS launch profile へ移す。
+- [x] `gamelist` XML の stock data schema を読む。
+- [x] 既存 ROM、artwork、save、state を移動せず認識できるようにする。
+- [x] frontend ROM list で `extlist` filter を実装する。
+- [x] `launchlist` の代替 launcher/core を UI と launch profile で扱えるようにする。
+- [x] `Roms/recentlist.json` 互換の recent list を parse/update できるようにする。
+- [x] `EMU_DIR`, `LD_LIBRARY_PATH`, ROM path `$1` の launch 互換を再現する。
+- [x] shell launch script 依存を plumOS launch profile へ移す。
 
 ## Phase 6 - Frontend Implementation
 
