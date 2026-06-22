@@ -37,6 +37,31 @@ upstream source commit は `docs/onion-libretro-source-lock.tsv` を正本にし
 | `missing_from_plumos` | 14 | Onion prebuilt にあるが plumOS recipe には未登録。 |
 | `plumos_only_latest` | 1 | QuickNES。Onion prebuilt には無いが plumOS では残す。 |
 
+## Onion prebuilt-only core の整理
+
+`missing_from_plumos` の 14 件は、現時点では通常 FE 候補ではありません。多くは
+確認済みの plumOS route で代替できるもの、plumOS がまだ system として公開していない
+game/application core、または KM/custom prebuilt 派生で、source provenance と recipe 化の
+判断を別途必要とするものです。以下に、`libretro-core-recipes.tsv` へ取り込まなかった
+現時点の理由を残します。
+
+| core | Onion 側の役割 | plumOS の現時点判断 |
+| --- | --- | --- |
+| `a5200` | Atari800 2.0.2 ベースの Atari 5200 専用 core。 | Atari 5200 / Atari 8-bit は既に `atari800` で FE 公開済みで、RA/PICO とも system-specific core option を使うため未取り込み。ただし 5200 専用の単純な route として、後日評価する価値はある。 |
+| `arduous` | Arduboy core。source hint: `https://github.com/libretro/arduous.git`, CMake。 | plumOS に Arduboy system が未定義のため未取り込み。Arduboy の system 定義、ROM directory、合法 test content を選ぶ場合に追加検討する。 |
+| `dosbox_pure_0.9.7` | DOSBox-Pure 0.9.7 の旧 prebuilt。 | plumOS は既に通常 `dosbox_pure` を build し DOS route として公開済み。明確な regression が無い限り、旧版固定 route は持たない。 |
+| `fbalpha2012_cps3` | RAM 制約機器向けの CPS-3 専用 FB Alpha 2012 variant。source hint: `https://github.com/libretro/fbalpha2012_cps3.git`, `svn-current/trunk`, `makefile.libretro`。 | CPS3 は確認済みの `fbneo` と通常 `fbalpha2012` route で対応済み。Onion の `.info` でも RAM 節約用の特殊 variant で、通常は FBNeo 推奨と説明されているため未取り込み。 |
+| `gong` | ROM extension を持たない self-contained Pong clone core。source hint: `https://github.com/libretro/gong.git`。 | plumOS FE は ROM directory 起点の launcher なので、通常の emulator route としては扱いにくい。採用するなら ROM system ではなく Apps/game entry として再検討する。 |
+| `km_duckswanstation_xtreme_amped` | KMFDManic Duck/SwanStation 系 PSX variant。hardware renderer 要求あり。 | PlayStation は `pcsx_rearmed` の RA/PICO/standalone route が確認済み。この variant は近代的な GL/Vulkan/D3D 系 hardware rendering 前提で、A30 向けとして優先しない。 |
+| `km_mame2003_xtreme` | KMFDManic MAME 2003 Xtreme arcade variant。 | Arcade は既に `fbneo`, `fbalpha2012`, `mame2000`, `mame2003_plus` などの実用 route を持つ。KM source provenance と ROM-set 方針は別途 arcade 方針として判断する。 |
+| `km_puae_xtreme_amped` | KMFDManic P-UAE Xtreme Amped Amiga variant。 | Amiga は確認済みの `puae` RA/PICO route で公開済み。custom performance variant として、source provenance と A30 比較が必要になるため未取り込み。 |
+| `km_superbroswar` | Super Bros War game-engine core。 | plumOS に Super Bros War の system/asset 方針がないため未取り込み。専用 game-engine entry が必要になった時に検討する。 |
+| `mba_mini` | Arcade/FBA/MAME hybrid mini core。 | 既存の Arcade/CPS/Neo Geo route と用途が重複し、独自 ROM-set 前提もある。source provenance と実用的な ROM-set 価値を別途判断する必要がある。 |
+| `puae2021` | `libretro-uae` 2.6.1 付近の旧 PUAE 2021 branch。source hint: `https://github.com/libretro/libretro-uae.git`, checkout `2.6.1`。 | plumOS は通常 `puae` を build し、Amiga route として確認済み。現行 `puae` に regression が出た場合の fallback 候補として扱う。 |
+| `puzzlescript` | PuzzleScript engine。source hint: `https://github.com/nwhitehead/pzretro.git`。 | plumOS に PuzzleScript system が未定義のため未取り込み。system 定義、`.pz` ROM directory 方針、合法 test content が揃った場合に追加する。 |
+| `sameduck` | Mega Duck / Cougar Boy core。source hint: `https://github.com/libretro/sameduck.git`, branch `SameDuck-libretro`, subdir `libretro`。 | Mega Duck system が未定義で、検証 content も未選定のため未取り込み。 |
+| `uae4arm` | 古い軽量 Amiga core。source hint: `https://github.com/libretro/uae4arm-libretro.git`。 | Amiga は `puae` が確認済み route。Onion の `.info` でも、P-UAE が使えない/重すぎる弱い環境向け fallback と位置づけられているため通常採用しない。 |
+
 ## 再生成
 
 ```sh

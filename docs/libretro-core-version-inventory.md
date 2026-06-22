@@ -38,6 +38,31 @@ from Onion's proven build window are recorded in
 | `missing_from_plumos` | 14 | Exists in Onion prebuilt cores but not in plumOS recipes. |
 | `plumos_only_latest` | 1 | QuickNES. Not an Onion prebuilt core, but retained by plumOS. |
 
+## Onion Prebuilt-Only Core Triage
+
+The 14 `missing_from_plumos` rows are not current normal FE candidates. Most are
+either covered by a confirmed plumOS route, are game/application cores for
+systems that plumOS does not expose yet, or are KM/custom prebuilt variants whose
+source provenance still needs a dedicated recipe decision. This table records the
+current reason they were not imported into `libretro-core-recipes.tsv`.
+
+| core | Onion role | current plumOS decision |
+| --- | --- | --- |
+| `a5200` | Atari 5200-specific core based on Atari800 2.0.2. | Not imported yet because Atari 5200 and Atari 8-bit are already exposed through `atari800`, with system-specific core options in RA and PICO. `a5200` may still be worth evaluating later as a simpler 5200-only route. |
+| `arduous` | Arduboy core. Source hint: `https://github.com/libretro/arduous.git`, CMake. | Not imported because Arduboy is not currently a plumOS FE system. Add only if an Arduboy system definition, ROM directory, and legal test content are selected. |
+| `dosbox_pure_0.9.7` | Legacy DOSBox-Pure 0.9.7 prebuilt. | Not imported because plumOS already builds and exposes `dosbox_pure` for DOS. Keep only one DOSBox-Pure route unless a regression requires pinning this exact legacy version. |
+| `fbalpha2012_cps3` | CPS-3-only FB Alpha 2012 variant for RAM-limited devices. Source hint: `https://github.com/libretro/fbalpha2012_cps3.git`, `svn-current/trunk`, `makefile.libretro`. | Not imported because CPS3 is already covered by confirmed `fbneo` and full `fbalpha2012` routes. Onion's `.info` also describes this variant as a RAM-saving special case and recommends FBNeo for most users. |
+| `gong` | Self-contained Pong clone core, no ROM extension. Source hint: `https://github.com/libretro/gong.git`. | Not imported because plumOS FE is ROM-directory driven and this is a built-in game rather than an emulator route. It can be reconsidered as an Apps/game entry, not as a normal ROM system. |
+| `km_duckswanstation_xtreme_amped` | KMFDManic Duck/SwanStation PSX variant with hardware-renderer requirements. | Not imported because PlayStation already has confirmed `pcsx_rearmed` RA/PICO/standalone routes. This variant requires modern GL/Vulkan/D3D-style hardware rendering that is not a good A30 target. |
+| `km_mame2003_xtreme` | KMFDManic MAME 2003 Xtreme arcade variant. | Not imported because arcade already has confirmed `fbneo`, `fbalpha2012`, `mame2000`, and `mame2003_plus` routes where practical. KM source provenance and ROM-set policy would need a separate arcade decision. |
+| `km_puae_xtreme_amped` | KMFDManic P-UAE Xtreme Amped Amiga variant. | Not imported because Amiga is already exposed through confirmed `puae` RA/PICO routes. Treat this as a custom performance variant requiring separate provenance and A30 comparison before adoption. |
+| `km_superbroswar` | Super Bros War game-engine core. | Not imported because plumOS has no Super Bros War system/asset policy. It should be considered only if a dedicated game-engine entry is wanted. |
+| `mba_mini` | Arcade/FBA/MAME hybrid mini core. | Not imported because it overlaps with the existing arcade/CPS/Neo Geo routes and uses its own ROM-set assumptions. Source provenance and practical ROM-set value need a separate arcade decision. |
+| `puae2021` | Older PUAE 2021 branch pinned around `libretro-uae` 2.6.1. Source hint: `https://github.com/libretro/libretro-uae.git`, checkout `2.6.1`. | Not imported because plumOS already builds and exposes `puae`, and Amiga has been confirmed through that route. Keep this as a fallback candidate only if current `puae` regresses. |
+| `puzzlescript` | PuzzleScript engine. Source hint: `https://github.com/nwhitehead/pzretro.git`. | Not imported because PuzzleScript is not currently a plumOS FE system. Add only with a system definition, `.pz` ROM directory policy, and legal test content. |
+| `sameduck` | Mega Duck / Cougar Boy core. Source hint: `https://github.com/libretro/sameduck.git`, branch `SameDuck-libretro`, subdir `libretro`. | Not imported because Mega Duck is not currently a plumOS FE system and no verification content has been selected. |
+| `uae4arm` | Older lightweight Amiga core. Source hint: `https://github.com/libretro/uae4arm-libretro.git`. | Not imported because `puae` is already the confirmed Amiga route. Onion's `.info` positions UAE4ARM as a fallback for very weak devices when P-UAE is unavailable or too slow. |
+
 ## Regenerate
 
 ```sh
