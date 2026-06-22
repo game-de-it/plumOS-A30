@@ -41,7 +41,7 @@
 - [x] `/dev/fb0` capture helper を作る。
 - [x] display/emulator process 停止手順を `scripts/stop-a30-display-processes.sh` に固定する。
 - [ ] build -> deploy -> run -> collect logs を 1 command にまとめる。
-- [ ] SD カードだけで復旧できる rollback 手順を文書化する。
+- [x] SD カードだけで復旧できる rollback 手順を文書化する。
 
 ## Phase 4 - Boot Bootstrap
 
@@ -145,11 +145,11 @@
 - [x] SD カードへ展開する runtime package を作る。
 - [x] 開発者向け Docker/toolchain package を作る。
 - [x] end-user release と developer release の分け方を決める。
-- [ ] StockOS と plumOS の差分を整理する。
-- [ ] plumOS 導入メリットを end-user 向けにまとめる。
-- [ ] StockOS から plumOS へ移行する際の制約/トレードオフを整理する。
+- [x] StockOS と plumOS の差分を整理する。
+- [x] plumOS 導入メリットを end-user 向けにまとめる。
+- [x] StockOS から plumOS へ移行する際の制約/トレードオフを整理する。
 - [x] license notice と upstream attribution を整理する。
 - [x] StockOS SD payload の参照先として Miyoo firmware page を記載する。
 - [x] LoveRetro/NextCommander の upstream source 参照先を記載する。
 - [x] GitHub Release 用 package/artifact workflow を作る。
-- [ ] fresh SD card 相当の環境で install/rollback を検証する。
+- [x] fresh SD card 相当の環境で install/rollback を検証する。

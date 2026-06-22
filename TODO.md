@@ -46,7 +46,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Create a `/dev/fb0` capture helper.
 - [x] Standardize display/emulator process shutdown in `scripts/stop-a30-display-processes.sh`.
 - [ ] Combine build, deploy, run, and log collection into one command.
-- [ ] Document an SD-card-only rollback procedure.
+- [x] Document an SD-card-only rollback procedure.
 
 ## Phase 4 - Boot Bootstrap
 
@@ -149,11 +149,11 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Create the runtime package to extract onto an SD card.
 - [x] Create the developer Docker/toolchain package.
 - [x] Decide how to separate end-user and developer releases.
-- [ ] Summarize the differences between StockOS and plumOS.
-- [ ] Summarize plumOS benefits for end users.
-- [ ] Document the constraints and tradeoffs when migrating from StockOS to plumOS.
+- [x] Summarize the differences between StockOS and plumOS.
+- [x] Summarize plumOS benefits for end users.
+- [x] Document the constraints and tradeoffs when migrating from StockOS to plumOS.
 - [x] Organize license notices and upstream attribution.
 - [x] Document the Miyoo firmware page for StockOS SD payload reference.
 - [x] Document the LoveRetro/NextCommander upstream source reference.
 - [x] Create a GitHub Release package/artifact workflow.
-- [ ] Validate install and rollback on a fresh-SD-card-equivalent environment.
+- [x] Validate install and rollback on a fresh-SD-card-equivalent environment.
