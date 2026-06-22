@@ -23,7 +23,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Collect Docker build outputs under `dist/` or a staging directory.
 - [x] Keep build caches and large generated outputs out of git.
 - [x] Record upstream versions and build options for the SDL2 runtime and minimal RetroArch.
-- [ ] Make the A30 sysroot reproducible from the Docker build.
+- [x] Make the A30 sysroot reproducible from the Docker build.
 - [x] Record selected versions, tags, commits, and build options for emulator/core/helper libraries.
 
 ## Phase 2 - plumOS Runtime Layout
@@ -36,7 +36,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Smoke-test `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, and `strace` on device.
 - [x] Validate the dynamic linker and shared library bundling policy with the SDL2 probe.
 - [x] Run a smoke test that uses only the plumOS runtime path.
-- [ ] Add `procps-ng`, `coreutils`, `util-linux`, or similar packages if needed.
+- [x] Add `procps-ng`, `coreutils`, `util-linux`, or similar packages if needed.
 
 ## Phase 3 - Device Deployment Loop
 
@@ -58,7 +58,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [x] Stop StockOS `MtpDaemon` / `adbd` / `sysntpd` at boot, then start plumOS-managed NTP after DHCP.
 - [x] Expose network recovery from the START menu and Network Settings.
 - [x] Confirm Wi-Fi, DHCP, SSH, and FE recovery after A30 power cycling.
-- [ ] Decide whether safe OS reboot is possible, since stock MainUI has no reboot item.
+- [x] Decide whether safe OS reboot is possible, since stock MainUI has no reboot item.
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -101,7 +101,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Remove horizontal compression from the current TTY prompt rendering.
 - [ ] Link brightness hotkey behavior to System Settings.
 - [ ] Expand language localization beyond Settings UI strings.
-- [ ] Decide Theme selection names, paths, and scope.
+- [x] Decide Theme selection names, paths, and scope.
 - [x] Design a safe Wi-Fi editor flow with backup and rollback.
 - [x] Verify Connect Wi-Fi SSID scan, password entry, DHCP, gateway ping, and IP display on the device.
 - [x] Measure simultaneous multi-file transfers and throughput for FTP/SFTP/Samba, then update the README recommendation.
@@ -141,7 +141,7 @@ Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 - [ ] Capture left-stick up/down/left/right individually and finalize X/Y axes and signs.
 - [x] Separate the power-button short-press event code from stock sleep/shutdown intervention.
 - [x] Make the emulator-runtime power-button UX use the overlay Power menu.
-- [ ] Decide whether to keep using stock Wi-Fi userland or move it into plumOS.
+- [x] Decide whether to keep using stock Wi-Fi userland or move it into plumOS.
 - [x] Decide whether SSH remains a development package or becomes a plumOS service.
 
 ## Phase 9 - Packaging and Release

@@ -18,7 +18,7 @@
 - [x] Docker build output を `dist/` または staging directory へ集約する。
 - [x] build cache と大きな生成物が git に入らないよう整理する。
 - [x] SDL2 runtime と RetroArch minimal build の upstream version/build option を manifest 化する。
-- [ ] A30 向け sysroot を Docker build で再現可能にする。
+- [x] A30 向け sysroot を Docker build で再現可能にする。
 - [x] emulator/core/helper library の採用 version/tag/commit/build option を manifest 化する。
 
 ## Phase 2 - plumOS Runtime Layout
@@ -31,7 +31,7 @@
 - [x] `ps`, `top`, `df`, `free`, `tar`, `find`, `grep`, `sed`, `awk`, `ip`, `ss`, `lsof`, `strace` の実機 smoke を行う。
 - [x] dynamic linker/shared library 同梱方針を SDL2 probe で検証する。
 - [x] plumOS runtime path だけを使う smoke test を行う。
-- [ ] 必要に応じて `procps-ng`, `coreutils`, `util-linux` などを追加する。
+- [x] 必要に応じて `procps-ng`, `coreutils`, `util-linux` などを追加する。
 
 ## Phase 3 - Device Deployment Loop
 
@@ -53,7 +53,7 @@
 - [x] boot 時に StockOS `MtpDaemon` / `adbd` / `sysntpd` を止め、DHCP 後に plumOS 管理の NTP を起動する。
 - [x] START menu と Network Settings から network recovery を実行できるようにする。
 - [x] A30 の電源再投入後に Wi-Fi/DHCP/SSH/FE が復旧できることを確認する。
-- [ ] stock MainUI に reboot 項目がないため、安全な OS 再起動可否を決める。
+- [x] stock MainUI に reboot 項目がないため、安全な OS 再起動可否を決める。
 
 ## Phase 5 - Frontend Compatibility Layer
 
@@ -96,7 +96,7 @@
 - [ ] 現行 TTY prompt の横圧縮表示を解消する。
 - [ ] brightness hotkey を System Settings と連動する。
 - [ ] Settings 以外の UI 文言にも language localization を広げる。
-- [ ] Theme selection の候補名/path/適用範囲を決める。
+- [x] Theme selection の候補名/path/適用範囲を決める。
 - [x] Wi-Fi editor の backup/rollback 付き安全編集 flow を設計する。
 - [x] Connect Wi-Fi の SSID 検索、password 入力、DHCP、gateway ping、IP 表示を実機で確認する。
 - [x] FTP/SFTP/Samba の複数ファイル同時転送と速度を測定し、README の推奨サービスを更新する。
@@ -137,7 +137,7 @@
 - [ ] 左スティック上下左右を個別 capture し、X/Y と符号を確定する。
 - [x] 電源ボタン短押し event code と stock 側 sleep/shutdown 介入を切り分ける。
 - [x] emulator 実行中の電源ボタン UX を overlay Power menu にする。
-- [ ] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
+- [x] stock Wi-Fi userland を使い続けるか、plumOS 同梱へ移すか判断する。
 - [x] SSH を開発用 package のままにするか、plumOS service にするか決める。
 
 ## Phase 9 - Packaging and Release
