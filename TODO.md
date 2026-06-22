@@ -1,8 +1,7 @@
 # TODO
 
 This file tracks current work items only. Put work history, probe logs, and
-rationale in `docs/`, commit history, or `artifacts/`. Do not append new history
-to `HANDOFF.md`.
+rationale in `docs/`, commit history, or `artifacts/`.
 
 Japanese counterpart: [TODO.ja.md](TODO.ja.md)
 
