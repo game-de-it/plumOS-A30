@@ -734,11 +734,13 @@ build_pcsx_rearmed() {
         ./configure \
           --platform=generic \
           --gpu=neon \
-          --sound-drivers="oss alsa sdl" \
+          --sound-drivers="alsa sdl" \
           --enable-neon \
           --enable-threads \
           --disable-dynamic \
           --dynarec=ari64 &&
+      ! grep -Eq '^SOUND_DRIVERS[[:space:]]*=.*(^|[[:space:]])oss([[:space:]]|$)' config.mak &&
+      grep -Eq '^SOUND_DRIVERS[[:space:]]*=.*(^|[[:space:]])alsa([[:space:]]|$)' config.mak &&
       env \
         CROSS_COMPILE="${CROSS_PREFIX}" \
         CC="${CC}" \

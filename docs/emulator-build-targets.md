@@ -389,7 +389,10 @@ contains `PPSSPP v1.20.4`, `ScummVM v2026.2.0`, `EasyRPG Player 0.8.1.1`,
 `built=5`, `failed=0`, and `skipped=0`. ScummVM uses a classic engine subset,
 DOSBox Staging uses system SpeexDSP plus a fixed page size for cross-build
 stability, and PCSX-ReARMed standalone uses the generic SDL1 frontend with
-ARMv7/NEON rather than upstream's `miyoo` platform. In the 2026-06-08 A30
+ARMv7/NEON rather than upstream's `miyoo` platform. PCSX-ReARMed standalone is
+built without OSS sound output so it selects ALSA `default`; this keeps the PS1
+standalone route under plumOS `Soft Volume Master` and lets the physical volume
+hotkeys work during gameplay. In the 2026-06-08 A30
 hardware pass, PPSSPP, ScummVM, EasyRPG Player, and PCSX-ReARMed completed
 first-pass checks for screen, audio, input, menu/exit flow, and config/save
 paths. DOSBox Staging can display and accept input after A30 patches, but it is
@@ -403,7 +406,7 @@ near its limit and audio is more fragile.
 | PPSSPP v1.20.4 | Standalone default candidate for lightweight PSP | Whole-app rotation, scissor fallback, `854x480` logical UI, L2 menu, A30 gamepad, and fixed 1344 MHz / 4-core CPU profile are confirmed. This is for light titles, not full PSP coverage. |
 | ScummVM v2026.2.0 | Standalone default candidate for ScummVM | `rotation_mode=270`, VirtualMouse warp fix, and A30 theme `scummmodern-a30-md` give working screen, mouse, audio, and exit flow. |
 | EasyRPG Player 0.8.1.1 | Standalone default candidate for EasyRPG | MP3/mpg123, Vorbis/Opus/MOD/LZH/Freetype+Harfbuzz support is enabled and audio/input/exit flow are confirmed. |
-| PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, and game screen are confirmed. |
+| PCSX-ReARMed r26l | Standalone default candidate for PS1 | Native fb32 rotation, 640x480 landscape-virtual menu, Function menu open/return, shadow clear, input, audio, game screen, and ALSA softvol-backed volume hotkeys are confirmed. |
 | DOSBox Staging v0.82.2 | Not a normal target; keep as a probe artifact | SDL2/Mali display and input can work, but it is prone to audio breakup under real-game load. DOS should default to `retroarch:dosbox_pure`. |
 | Red Viper | Experimental Virtual Boy probe | The ARM dynarec works on the A30. The StockOS-derived SDL2 `mali` + GLES2 path can be built as `red-viper-sdlgl-a30`, and orientation/fit plus single-eye rendering are fixed. Bad Apple still drops audio in heavy scenes, and a deeper SDL audio queue did not materially improve it, so Red Viper is removed from normal distribution and the FE profile list. Build it explicitly with `PLUMOS_STANDALONE_FILTER=red_viper` only when probing. |
 
@@ -655,7 +658,9 @@ order after deploying the staged package:
   validation. ScummVM directory ROMs resolve the target id from
   `.plumos-scummvm-target`, `scummvm-target.txt`, `.scummvm`, or sibling
   `.scummvm`/`.svm` sidecars, falling back to `sky` only when no sidecar exists.
-  DOSBox Staging standalone was tested but is not a normal target.
+  PCSX-ReARMed standalone must stay off OSS output because `/dev/dsp` bypasses
+  plumOS ALSA softvol. DOSBox Staging standalone was tested but is not a normal
+  target.
 - DOSBox-Pure libretro can store per-ROM `#EXE` suffixes, ALSA/OSS audio
   driver, audio latency, `dosbox_pure_force60fps`, `dosbox_pure_cycles`, and
   CPU policy/frequency/core-count settings in `core-overrides.json`. On A30,
