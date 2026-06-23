@@ -53,6 +53,9 @@ If the ROM is under `Roms/SFC/`, use `Images/SFC/`.
 
 `Imgs/` remains only for StockOS compatibility and legacy artwork.
 
+For automatic thumbnail downloads and the supported scraper system list, see
+[ROM Thumbnail Scraping](scraping.md).
+
 ## BIOS Directories
 
 BIOS files go under `Bios/`.

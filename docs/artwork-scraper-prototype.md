@@ -75,7 +75,9 @@ system is excluded from scraping, user-provided thumbnails placed under
 `/mnt/SDCARD/Images/<ROM directory alias>/...` are still displayed normally.
 
 The normal scraper targets cartridge-like systems where a simple ROM payload CRC
-can be matched against libretro database metadata.
+can be matched against libretro database metadata. The user-facing supported
+system table lives in [ROM Thumbnail Scraping](user/scraping.md); this list is
+kept as a compact design snapshot.
 
 ```text
 nes
@@ -89,7 +91,6 @@ mastersystem
 gamegear
 sega32x
 pcengine
-n64
 ngp
 ngpc
 wonderswan
@@ -108,7 +109,6 @@ atari5200
 channelf
 colecovision
 intellivision
-jaguar
 sg1000
 ```
 
@@ -350,8 +350,8 @@ path and named-member `unzip -p` returns empty output, the runner falls back to
 plain `unzip -p` only when the ZIP contains exactly one regular ROM payload file.
 ZIPs with sidecars or multiple payloads are left as `skipped_zip` to avoid ambiguous
 CRC input. If a `.gb` payload is mixed into `Roms/gbc`, that ROM is matched against
-the GB DAT/thumbnail source while the saved image still follows the selected system,
-for example `/mnt/SDCARD/Images/gbc/<zip stem>.png`. This is a rescue path for mixed
+the GB DAT/thumbnail source while the saved image still follows the selected ROM
+directory alias, for example `/mnt/SDCARD/Images/gbc/<zip stem>.png`. This is a rescue path for mixed
 ROMs; the normal recommendation is to keep ROMs in the correct system directory.
 When an NES payload starts with the `NES\x1A` iNES signature, the runner strips
 the 16-byte iNES header before computing the CRC32 used for libretro No-Intro
@@ -428,7 +428,8 @@ just started. Detailed logs are still written to
 Source definitions live in
 `package/frontend/plumos/config/frontend/scraper-sources.tsv`. Columns are
 `system_id`, `libretro_playlist`, and `libretro_dat_path`. Only systems with
-`scraper.enabled=true` in `systems.json` are prefetch/fetch targets.
+`scraper.enabled=true` in `systems.json` are prefetch/fetch targets. The current
+public support table is documented in `docs/user/scraping.md`.
 
 ## Preloaded Cache
 
@@ -465,11 +466,11 @@ calculation.
 
 ## Sources
 
-| `system_id` | libretro playlist | DAT source |
-| --- | --- | --- |
-| `nes` | `Nintendo - Nintendo Entertainment System` | `metadat/no-intro/Nintendo - Nintendo Entertainment System.dat` |
-| `fds` | `Nintendo - Family Computer Disk System` | `metadat/no-intro/Nintendo - Family Computer Disk System.dat` |
-| `gb` | `Nintendo - Game Boy` | `metadat/no-intro/Nintendo - Game Boy.dat` |
+The complete source table lives in
+`package/frontend/plumos/config/frontend/scraper-sources.tsv`. It must stay in
+lockstep with `scraper.enabled=true` systems in `systems.json`; the user-facing
+support table is generated from those two files in
+[ROM Thumbnail Scraping](user/scraping.md).
 
 The FE can select `--kind Named_Boxarts` or `--kind Named_Titles`. The runner
 also accepts `--kind Named_Snaps`, but that option is not exposed in the FE.

@@ -13,6 +13,7 @@ These documents are for people installing and using plumOS on a Miyoo A30.
 - [Basic Operation](user/operation.md)
 - [SD Card Layout](user/storage.md)
 - [Save Data and States](user/save-data.md)
+- [ROM Thumbnail Scraping](user/scraping.md)
 - [Supported Systems and Emulator Profiles](user/emulators.md)
 
 ## Developer Documentation

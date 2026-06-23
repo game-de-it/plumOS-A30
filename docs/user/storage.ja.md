@@ -60,6 +60,9 @@ Images/SFC/Akumajou Densetsu.png
 `Imgs/` は StockOS 互換/旧置き場として残しています。新しい plumOS 用サムネイルは
 `Images/` を使ってください。
 
+自動 thumbnail 取得と scraping 対応システム一覧は
+[ROM サムネイルスクレイピング](scraping.ja.md) を参照してください。
+
 ## BIOS directory
 
 BIOS は `Bios/` 以下に置きます。

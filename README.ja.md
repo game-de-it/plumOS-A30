@@ -38,7 +38,8 @@ standalone emulator、frontend を再ビルドできます。
   - 基本操作
   - SD カードのディレクトリ構成
   - 対応システム/エミュレータ一覧
-  - ネットワークサービス、USB Disk Mode、スクレイピング
+  - ROM サムネイルスクレイピング
+  - ネットワークサービス、USB Disk Mode
 - [開発者向けガイド](docs/developer/README.ja.md)
   - 技術構成
   - Docker build の始め方

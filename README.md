@@ -36,6 +36,7 @@ counterparts use the same path with a `.ja.md` suffix.
 ## Documentation
 
 - [User guide](docs/user/README.md)
+  - [ROM thumbnail scraping](docs/user/scraping.md)
 - [Developer guide](docs/developer/README.md)
 - [Developer feature reverse lookup](docs/developer/feature-index.md)
 - [Documentation index](docs/README.md)

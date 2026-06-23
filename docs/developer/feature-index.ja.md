@@ -41,7 +41,7 @@ frontend を変更した場合は、`frontend` を rebuild/deploy し、
 
 | 機能 / 作業 | Runtime path | Source / config | Build / deploy | Reference docs |
 | --- | --- | --- | --- | --- |
-| thumbnail scraping command | `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper` | `package/frontend/plumos/bin/plumos-thumbnail-scraper` | `frontend`, `scripts/benchmark-a30-thumbnail-scraper.sh` | [artwork scraper prototype](../artwork-scraper-prototype.ja.md), [thumbnail scraping results](../thumbnail-scraping-results.ja.md) |
+| thumbnail scraping command | `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper` | `package/frontend/plumos/bin/plumos-thumbnail-scraper` | `frontend`, `scripts/benchmark-a30-thumbnail-scraper.sh` | [ユーザー向け scraping guide](../user/scraping.ja.md), [artwork scraper prototype](../artwork-scraper-prototype.ja.md), [thumbnail scraping results](../thumbnail-scraping-results.ja.md) |
 | scraper source DB と system enable | `/mnt/SDCARD/plumos/config/frontend/scraper-*.tsv`, `systems.json` | `package/frontend/plumos/config/frontend/scraper-sources.tsv`, `scraper-rescue-seeds.tsv`, `systems.json` | `scripts/prefetch-thumbnail-scraper-cache.sh`, `scripts/build-thumbnail-rescue-overlays.py` | [third-party data](../third-party-data.ja.md) |
 | Images 出力 directory 方針 | `/mnt/SDCARD/Images/<rom_dir>/` | `plumos-thumbnail-scraper`, `systems.json` の ROM scan config | `frontend` | [ユーザー向け storage](../user/storage.ja.md), [thumbnail scraping results](../thumbnail-scraping-results.ja.md) |
 

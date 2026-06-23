@@ -41,7 +41,7 @@ When a change affects frontend behavior, rebuild `frontend`, deploy it, then use
 
 | Feature / task | Runtime path | Source / config | Build / deploy | Reference docs |
 | --- | --- | --- | --- | --- |
-| Thumbnail scraping command | `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper` | `package/frontend/plumos/bin/plumos-thumbnail-scraper` | `frontend`, `scripts/benchmark-a30-thumbnail-scraper.sh` | [Artwork Scraper Prototype](../artwork-scraper-prototype.md), [Thumbnail Scraping Results](../thumbnail-scraping-results.md) |
+| Thumbnail scraping command | `/mnt/SDCARD/plumos/bin/plumos-thumbnail-scraper` | `package/frontend/plumos/bin/plumos-thumbnail-scraper` | `frontend`, `scripts/benchmark-a30-thumbnail-scraper.sh` | [User Scraping Guide](../user/scraping.md), [Artwork Scraper Prototype](../artwork-scraper-prototype.md), [Thumbnail Scraping Results](../thumbnail-scraping-results.md) |
 | Scraper source DB and system enablement | `/mnt/SDCARD/plumos/config/frontend/scraper-*.tsv`, `systems.json` | `package/frontend/plumos/config/frontend/scraper-sources.tsv`, `scraper-rescue-seeds.tsv`, `systems.json` | `scripts/prefetch-thumbnail-scraper-cache.sh`, `scripts/build-thumbnail-rescue-overlays.py` | [Third-Party Data](../third-party-data.md) |
 | Images output directory policy | `/mnt/SDCARD/Images/<rom_dir>/` | `plumos-thumbnail-scraper`, ROM scan config in `systems.json` | `frontend` | [User Storage](../user/storage.md), [Thumbnail Scraping Results](../thumbnail-scraping-results.md) |
 

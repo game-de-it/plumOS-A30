@@ -10,7 +10,8 @@ settings.
 2. [Basic Operation](operation.md)
 3. [SD Card Layout](storage.md)
 4. [Save Data and States](save-data.md)
-5. [Supported Systems and Emulator Profiles](emulators.md)
+5. [ROM Thumbnail Scraping](scraping.md)
+6. [Supported Systems and Emulator Profiles](emulators.md)
 
 ## Core Ideas
 
