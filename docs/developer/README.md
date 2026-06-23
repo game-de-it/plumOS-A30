@@ -7,12 +7,13 @@ release plumOS.
 
 1. [Docker Build Guide](build.md)
 2. [Feature Reverse Lookup](feature-index.md)
-3. [plumOS Design Policy](../plumos-design-policy.md)
-4. [Config Layout Policy](../plumos-config-layout.md)
-5. [Runtime Package](../runtime-package.md)
-6. [SD Root Package](../sdroot-package.md)
-7. [Release Artifacts](../release-artifacts.md)
-8. [Third-Party Notices](../../THIRD_PARTY_NOTICES.md)
+3. [Miyoo Mini Flip Porting Notes](porting-miyoo-mini-flip.md)
+4. [plumOS Design Policy](../plumos-design-policy.md)
+5. [Config Layout Policy](../plumos-config-layout.md)
+6. [Runtime Package](../runtime-package.md)
+7. [SD Root Package](../sdroot-package.md)
+8. [Release Artifacts](../release-artifacts.md)
+9. [Third-Party Notices](../../THIRD_PARTY_NOTICES.md)
 
 ## Technical Layout
 
@@ -73,6 +74,7 @@ SD-card runtime.
 - [A30 Input Policy](../a30-input-policy.md)
 - [A30 joystickd](../a30-joystickd.md)
 - [A30 Stock SDL Video](../a30-stock-sdl-video.md)
+- [Miyoo Mini Flip Porting Notes](porting-miyoo-mini-flip.md)
 - [MainUI Bootstrap](../mainui-bootstrap.md)
 - [Frontend Prototype](../frontend-prototype.md)
 - [Frontend Data Model](../frontend-data-model.md)

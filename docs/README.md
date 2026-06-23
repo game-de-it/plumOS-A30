@@ -24,6 +24,7 @@ plumOS.
 - [Developer Guide](developer/README.md)
 - [Docker Build Guide](developer/build.md)
 - [Feature Reverse Lookup](developer/feature-index.md)
+- [Miyoo Mini Flip Porting Notes](developer/porting-miyoo-mini-flip.md)
 
 ## Detailed Design and Investigation Notes
 
@@ -38,6 +39,7 @@ extra detail is useful.
 - [A30 Settings Policy](a30-settings-policy.md)
 - [A30 Input Policy](a30-input-policy.md)
 - [A30 joystickd](a30-joystickd.md)
+- [Miyoo Mini Flip Porting Notes](developer/porting-miyoo-mini-flip.md)
 - [MainUI Bootstrap](mainui-bootstrap.md)
 - [Frontend Data Model](frontend-data-model.md)
 - [Frontend Theme Model](frontend-theme-model.md)

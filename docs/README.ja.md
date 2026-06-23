@@ -23,6 +23,7 @@ A30 実機 deploy loop を中心にまとめます。
 - [開発者向けガイド](developer/README.ja.md)
 - [Docker ビルドガイド](developer/build.ja.md)
 - [機能逆引き](developer/feature-index.ja.md)
+- [Miyoo Mini Flip 移植メモ](developer/porting-miyoo-mini-flip.ja.md)
 
 ## 詳細設計/調査メモ
 
@@ -36,6 +37,7 @@ A30 実機 deploy loop を中心にまとめます。
 - [A30 設定 UI 方針](a30-settings-policy.ja.md)
 - [A30 input policy](a30-input-policy.ja.md)
 - [A30 joystickd](a30-joystickd.ja.md)
+- [Miyoo Mini Flip 移植メモ](developer/porting-miyoo-mini-flip.ja.md)
 - [MainUI bootstrap](mainui-bootstrap.ja.md)
 - [frontend data model](frontend-data-model.ja.md)
 - [frontend theme model](frontend-theme-model.ja.md)
