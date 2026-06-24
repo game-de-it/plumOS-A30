@@ -1,0 +1,25 @@
+diff --git a/frontend/main.c b/frontend/main.c
+--- a/frontend/main.c
++++ b/frontend/main.c
+@@ -84,19 +84,22 @@ static void set_default_paths(void)
+ {
+ #ifndef NO_FRONTEND
+ 	const char *home = get_home_dir();
++	const char *plumos_bios_dir = getenv("PLUMOS_A30_PSX_BIOS_DIR");
+ 	struct stat st;
+ 	MAKE_PATH(Config.PatchesDir, PATCHES_DIR, NULL);
+ 	MAKE_PATH(Config.Mcd1, MEMCARD_DIR, "card1.mcd");
+ 	MAKE_PATH(Config.Mcd2, MEMCARD_DIR, "card2.mcd");
+ 	MAKE_PATH(Config.BiosDir, BIOS_DIR, NULL);
+ 
+ 	emu_make_data_path(Config.PluginsDir, "plugins", sizeof(Config.PluginsDir));
+ 
+ 	// prefer bios in working dir for compatibility
+ 	if (!strcmp(home, ".") && !stat("bios", &st))
+ 		strcpy(Config.BiosDir, "bios");
++	if (plumos_bios_dir != NULL && plumos_bios_dir[0] != '\0')
++		snprintf(Config.BiosDir, sizeof(Config.BiosDir), "%s", plumos_bios_dir);
+ 
+ 	SysPrintf("dirs: profile=%s" PCSX_DOT_DIR ", bios=%s, plugins=%s\n",
+ 		home, Config.BiosDir, Config.PluginsDir);
+ #endif

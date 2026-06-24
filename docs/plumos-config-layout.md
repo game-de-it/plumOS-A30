@@ -65,6 +65,9 @@ plumOS configuration.
     directory can be set with `PLUMOS_PICOARCH_BIOS_DIR=/path`, but a
     per core/ROM directory PicoArch `picoarch.cfg` entry `bios_dir = /path`
     takes precedence.
+  - PCSX-ReARMed standalone reads `PLUMOS_A30_PSX_BIOS_DIR`, which defaults to
+    `/mnt/SDCARD/Bios`, because upstream standalone PCSX normally scans
+    `$HOME/.pcsx/bios`.
   - This directory is protected by `deploy-a30.sh`, so standalone package
     redeploys keep local tuning.
   - PPSSPP `ppsspp.ini` / `controls.ini` are user-managed PPSSPP settings and

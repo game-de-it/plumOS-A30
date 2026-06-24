@@ -672,6 +672,8 @@ build_pcsx_rearmed() {
   append_manifest "  patch=pcsx_rearmed-r26l-a30-menu-return-shadow-clear.patch"
   patch -d "${src}" -p1 < "${PATCH_DIR}/pcsx_rearmed-r26l-a30-menu-landscape-virtual.patch" || return 1
   append_manifest "  patch=pcsx_rearmed-r26l-a30-menu-landscape-virtual.patch"
+  patch -d "${src}" -p1 < "${PATCH_DIR}/pcsx_rearmed-r26l-a30-bios-dir-env.patch" || return 1
+  append_manifest "  patch=pcsx_rearmed-r26l-a30-bios-dir-env.patch"
   patch -d "${src}" -p1 < "${PATCH_DIR}/pcsx_rearmed-r26l-a30-menu-scale-env.patch" || return 1
   append_manifest "  patch=pcsx_rearmed-r26l-a30-menu-scale-env.patch"
   grep -q 'set_bpp = 32' "${src}/frontend/plat_sdl.c" || {
@@ -1025,6 +1027,7 @@ Environment:
   PLUMOS_A30_PSP_FORCE_CONTROLS=1     Replace PPSSPP controls.ini when controls repair is enabled.
   PLUMOS_A30_PSP_ESCAPE_EXIT=1        Make PPSSPP exit when a Pause-mapped key is pressed.
   PLUMOS_A30_PSP_RESET_INSTANCE_COUNTER=0 Do not clear stale PPSSPP audio-silencing state.
+  PLUMOS_A30_PSX_BIOS_DIR             PCSX-ReARMed BIOS directory. Default: /mnt/SDCARD/Bios.
   PLUMOS_A30_SCUMMVM_DEFAULT_CONFIG=0 Do not inject ScummVM A30 defaults when --config is absent.
   PLUMOS_A30_SCUMMVM_ROTATION         ScummVM rotation_mode default. Default: 270.
   PLUMOS_A30_SCUMMVM_GUI_THEME        ScummVM GUI theme default. Default: scummmodern-a30-md.
@@ -2171,6 +2174,7 @@ case "${id}" in
     export PLUMOS_A30_PCSX_MENU_ZOOM=${PLUMOS_A30_PCSX_MENU_ZOOM:-1}
     export PLUMOS_A30_PCSX_MENU_EDGE_MASK=${PLUMOS_A30_PCSX_MENU_EDGE_MASK:-0}
     export PLUMOS_A30_PCSX_MENU_LANDSCAPE=${PLUMOS_A30_PCSX_MENU_LANDSCAPE:-1}
+    export PLUMOS_A30_PSX_BIOS_DIR=${PLUMOS_A30_PSX_BIOS_DIR:-/mnt/SDCARD/Bios}
     export PLUMOS_STANDALONE_JOYSTICKD_DEVICE_MODE=${PLUMOS_A30_PSX_JOYSTICKD_DEVICE_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_DEVICE_MODE:-keyboard}}
     export PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE=${PLUMOS_A30_PSX_JOYSTICKD_KEYBOARD_PROFILE:-${PLUMOS_STANDALONE_JOYSTICKD_KEYBOARD_PROFILE:-passthrough}}
     export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=${PLUMOS_A30_PSX_JOYSTICKD_TRIGGER_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}}
@@ -2246,6 +2250,7 @@ EOF
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
 PLUMOS_A30_PSX_JOYSTICKD_DEVICE_MODE=keyboard
+PLUMOS_A30_PSX_BIOS_DIR=/mnt/SDCARD/Bios
 # L2-as-menu is paused; use the emulator-side Function menu binding.
 # Set this to pcsx-menu-l2 to re-enable the L2 menu shortcut.
 PLUMOS_A30_PSX_JOYSTICKD_KEYBOARD_PROFILE=passthrough
