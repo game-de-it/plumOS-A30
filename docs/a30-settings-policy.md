@@ -74,11 +74,12 @@ The first Network Settings layer owns only actionable items:
 
 - `Wi-Fi`: checkbox backed by `/mnt/SDCARD/plumos/config/system/settings.json`
   `wifi_enabled`. OFF saves `wifi_enabled=false`, runs
-  `plumos-network-control --wifi off`, and does not edit saved credentials.
-  The boot wrapper and `plumos-network-rescue` both respect this flag and skip
-  wpa_supplicant/DHCP startup while it is false. ON saves `wifi_enabled=true`
-  but does not call Network Recovery; use `Connect Wi-Fi` to start a runtime
-  connection. A successful `Connect Wi-Fi` flow also saves `wifi_enabled=true`.
+  `plumos-network-control --wifi off`, stops the runtime/radio power path, and
+  does not edit saved credentials. The boot wrapper and `plumos-network-rescue`
+  both respect this flag and skip wpa_supplicant/DHCP startup while it is false.
+  ON saves `wifi_enabled=true` and runs `plumos-network-control --wifi on` to
+  reconnect with the saved credentials. Use `Connect Wi-Fi` when the SSID/PSK
+  must change. A successful `Connect Wi-Fi` flow also saves `wifi_enabled=true`.
 - `Connect Wi-Fi`: A opens the connection flow: SSID scan, password entry,
   DHCP, one default-gateway ping when available, then an IP-address result
   screen. The PSK is passed to the backend through a temporary file and is not

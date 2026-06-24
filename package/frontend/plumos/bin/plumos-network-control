@@ -8,6 +8,12 @@ WPA_STATUS="${PLUMOS_A30_WPA_STATUS:-/tmp/wpa_status.txt}"
 WPA_CONFIG="${PLUMOS_A30_WPA_CONFIG:-/config/wpa_supplicant.conf}"
 WIFI_IFACE="${PLUMOS_WIFI_INTERFACE:-wlan0}"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
+WIFI_POWER_CONF_REG="${PLUMOS_WIFI_POWER_CONF_REG:-0x01C2084C}"
+WIFI_POWER_DATA_REG="${PLUMOS_WIFI_POWER_DATA_REG:-0x01C20858}"
+WIFI_POWER_FUNC_MASK="${PLUMOS_WIFI_POWER_FUNC_MASK:-0x0fffffff}"
+WIFI_POWER_FUNC_VALUE="${PLUMOS_WIFI_POWER_FUNC_VALUE:-0x10000000}"
+WIFI_POWER_DATA_BIT="${PLUMOS_WIFI_POWER_DATA_BIT:-0x00008000}"
+WIFI_POWER_DATA_CLEAR_MASK="${PLUMOS_WIFI_POWER_DATA_CLEAR_MASK:-0xffff7fff}"
 
 ACTION=status
 CONNECT_FILE=
@@ -18,7 +24,7 @@ Usage: plumos-network-control [options]
 
 Options:
   --wifi on       Start Wi-Fi runtime from the saved config and request DHCP.
-  --wifi off      Stop wlan0 runtime without editing saved credentials.
+  --wifi off      Stop wlan0 runtime and radio power without editing credentials.
   --wifi status   Print redacted runtime status. Default.
   --scan          Print visible SSIDs as tab-separated network rows.
   --connect-file FILE
@@ -94,6 +100,70 @@ stop_processes() {
   killall wpa_supplicant 2>/dev/null || true
 }
 
+devmem_command() {
+  if command -v devmem >/dev/null 2>&1; then
+    command -v devmem
+    return 0
+  fi
+  if [ -x "$PLUMOS_ROOT/bin/devmem" ]; then
+    printf '%s\n' "$PLUMOS_ROOT/bin/devmem"
+    return 0
+  fi
+  return 1
+}
+
+wifi_power_set() {
+  state="$1"
+  devmem_bin="$(devmem_command || true)"
+  if [ -z "$devmem_bin" ]; then
+    log "wifi_power_${state} skipped no_devmem"
+    return 0
+  fi
+
+  conf="$("$devmem_bin" "$WIFI_POWER_CONF_REG" 32 2>>"$LOG_FILE" || true)"
+  if [ -z "$conf" ]; then
+    log "wifi_power_${state} skipped no_conf"
+    return 0
+  fi
+  conf_new="$(printf '0x%08X\n' "$(( (conf & WIFI_POWER_FUNC_MASK) | WIFI_POWER_FUNC_VALUE ))")"
+  "$devmem_bin" "$WIFI_POWER_CONF_REG" 32 "$conf_new" >>"$LOG_FILE" 2>&1 || {
+    log "wifi_power_${state} conf_write_failed value=${conf_new}"
+    return 0
+  }
+
+  data="$("$devmem_bin" "$WIFI_POWER_DATA_REG" 32 2>>"$LOG_FILE" || true)"
+  if [ -z "$data" ]; then
+    log "wifi_power_${state} skipped no_data"
+    return 0
+  fi
+  data_old="$(printf '0x%08X\n' "$(( data ))")"
+  case "$state" in
+    on)
+      data_new="$(printf '0x%08X\n' "$(( data | WIFI_POWER_DATA_BIT ))")"
+      ;;
+    off)
+      data_new="$(printf '0x%08X\n' "$(( data & WIFI_POWER_DATA_CLEAR_MASK ))")"
+      ;;
+    *)
+      log "wifi_power invalid_state=${state}"
+      return 0
+      ;;
+  esac
+  if [ "$data_new" = "$data_old" ]; then
+    log "wifi_power_${state} unchanged data=${data_old}"
+    return 0
+  fi
+  if "$devmem_bin" "$WIFI_POWER_DATA_REG" 32 "$data_new" >>"$LOG_FILE" 2>&1; then
+    log "wifi_power_${state} data=${data_old}->${data_new}"
+    case "$state" in
+      on) sleep 2 ;;
+      off) sleep 1 ;;
+    esac
+  else
+    log "wifi_power_${state} data_write_failed value=${data_new}"
+  fi
+}
+
 start_ssh_if_available() {
   if [ -x "$SSH_START" ]; then
     "$SSH_START" >> "$LOG_FILE" 2>&1 || true
@@ -134,6 +204,7 @@ wifi_off() {
   else
     log "ifconfig ${WIFI_IFACE} down rc=$?"
   fi
+  wifi_power_set off
   write_runtime_status_off
   log "wifi_off end ip=$(get_wlan_ip || true)"
 }
@@ -146,6 +217,7 @@ wifi_on() {
     return 1
   fi
 
+  wifi_power_set on
   ensure_existing_config_best_effort
   ip="$(wait_for_ip_seconds 10 || true)"
   if [ -z "$ip" ]; then
@@ -179,6 +251,7 @@ print_status() {
 
 scan_networks() {
   log "scan begin iface=${WIFI_IFACE}"
+  wifi_power_set on
   ifconfig "$WIFI_IFACE" up >/dev/null 2>&1 || true
   if command -v wpa_cli >/dev/null 2>&1; then
     wpa_cli -i "$WIFI_IFACE" scan >/dev/null 2>&1 || true
@@ -362,6 +435,7 @@ restore_wpa_config() {
 restart_existing_config_best_effort() {
   stop_processes
   ifconfig "$WIFI_IFACE" 0.0.0.0 >/dev/null 2>&1 || true
+  wifi_power_set on
   ifconfig "$WIFI_IFACE" up >/dev/null 2>&1 || true
   if [ -x /etc/init.d/wpa_supplicant ]; then
     /etc/init.d/wpa_supplicant start >> "$LOG_FILE" 2>&1 || true
@@ -397,6 +471,7 @@ connect_wifi_from_file() {
 
   stop_processes
   ifconfig "$WIFI_IFACE" 0.0.0.0 >> "$LOG_FILE" 2>&1 || true
+  wifi_power_set on
   ifconfig "$WIFI_IFACE" up >> "$LOG_FILE" 2>&1 || true
   if ! wpa_supplicant -B -D nl80211 -i "$WIFI_IFACE" -c "$candidate" >> "$LOG_FILE" 2>&1; then
     log "connect fail stage=wpa_supplicant_start"

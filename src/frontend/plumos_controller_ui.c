@@ -7418,7 +7418,7 @@ static void setting_help_lines(const struct ui_state *ui,
   } else if (strncmp(id, "network_", 8) == 0) {
     if (strcmp(id, "network_wifi_enabled") == 0) {
       copy_string(line1, line1_size, "Turn the Wi-Fi runtime on or off.");
-      copy_string(line2, line2_size, "Use Connect Wi-Fi to start a new connection.");
+      copy_string(line2, line2_size, "ON reconnects; Connect Wi-Fi changes credentials.");
     } else if (strcmp(id, "network_ssh_enabled") == 0) {
       copy_string(line1, line1_size, "SSH remote shell service.");
       copy_string(line2, line2_size, "Port 2222; SFTP depends on this service.");
@@ -8934,21 +8934,16 @@ static int run_usb_disk_mode(struct ui_state *ui) {
 static int run_network_wifi_control(struct ui_state *ui, int enable) {
   char script[PATH_MAX];
   char cmd[UI_COMMAND_MAX];
+  char line[512];
+  char ip[64];
+  char stage[64];
+  FILE *pipe;
   size_t pos = 0;
   int rc;
+  int connected = 0;
 
   if (!ui) {
     return 0;
-  }
-  if (enable) {
-    if (!save_system_config_bool(ui, "wifi_enabled", 1)) {
-      set_status(ui, "Wi-Fi setting write failed");
-      return 0;
-    }
-    ui->device.wifi_enabled = 1;
-    update_settings_entries_after_save(ui);
-    set_status(ui, "Wi-Fi enabled; use Connect Wi-Fi now");
-    return 1;
   }
   if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
     set_status(ui, "network control path too long");
@@ -8957,6 +8952,66 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
   if (!file_exists(script)) {
     set_status(ui, "network control script missing");
     return 0;
+  }
+
+  if (enable) {
+    if (!save_system_config_bool(ui, "wifi_enabled", 1)) {
+      set_status(ui, "Wi-Fi setting write failed");
+      return 0;
+    }
+    ui->device.wifi_enabled = 1;
+    update_settings_entries_after_save(ui);
+    set_status(ui, "Starting Wi-Fi");
+    render_ui(ui);
+
+    cmd[0] = '\0';
+    if (!append_string(cmd, sizeof(cmd), &pos, "PLUMOS_SDCARD_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->sdcard_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " PLUMOS_ROOT=") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, ui->plumos_root) ||
+        !append_string(cmd, sizeof(cmd), &pos, " ") ||
+        !append_shell_quoted(cmd, sizeof(cmd), &pos, script) ||
+        !append_string(cmd, sizeof(cmd), &pos, " --wifi on 2>/dev/null")) {
+      set_status(ui, "network control command too long");
+      return 0;
+    }
+
+    ip[0] = '\0';
+    stage[0] = '\0';
+    pipe = popen(cmd, "r");
+    if (!pipe) {
+      set_status(ui, "Wi-Fi start failed");
+      return 1;
+    }
+    while (fgets(line, sizeof(line), pipe)) {
+      trim_line_end(line);
+      if (strcmp(line, "result=connected") == 0) {
+        connected = 1;
+      } else if (strncmp(line, "ip=", 3) == 0) {
+        copy_truncated_string(ip, sizeof(ip), line + 3);
+      } else if (strncmp(line, "stage=", 6) == 0) {
+        copy_truncated_string(stage, sizeof(stage), line + 6);
+      }
+    }
+    rc = pclose(pipe);
+    settle_input_after_child(ui);
+    load_device_runtime_status(ui);
+    if (connected && rc != -1 && WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+      ui->device.wifi_enabled = 1;
+      ui->device.wifi_runtime_enabled = 1;
+      update_settings_entries_after_save(ui);
+      snprintf(ui->status, sizeof(ui->status), "Wi-Fi connected IP=%s",
+               ip[0] ? ip : "-");
+      return 1;
+    }
+    ui->device.wifi_enabled = 1;
+    update_settings_entries_after_save(ui);
+    if (stage[0]) {
+      snprintf(ui->status, sizeof(ui->status), "Wi-Fi on; failed at %s", stage);
+    } else {
+      set_status(ui, "Wi-Fi on; no IP yet");
+    }
+    return 1;
   }
 
   cmd[0] = '\0';

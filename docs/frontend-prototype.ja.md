@@ -440,7 +440,8 @@ A30_TARGET=root@192.168.10.165 ./scripts/run-a30.sh \
 - UI Settings: checkbox は A/左右で保存し、選択系は左右で保存する。TOP/ROM の
   表示項目、並び順、ROM scan policy、「起動時に前回ROMを開く」は保存後の実挙動へ反映する
 - Network Settings: 第一階層は `Wi-Fi`、`Connect Wi-Fi`、`NW Service`、`INFORMATION`。
-  `Wi-Fi` の OFF は runtime を停止し、接続開始は `Connect Wi-Fi` で行う。`NW Service` は SSH/FTP/SFTP/Samba/USB Disk Mode を扱う。
+  `Wi-Fi` の OFF は runtime/radio power 経路を停止し、ON は保存済み認証情報で再接続する。
+  `Connect Wi-Fi` は SSID/PSK 変更に使う。`NW Service` は SSH/FTP/SFTP/Samba/USB Disk Mode を扱う。
   Connection/IP/Signal などの情報系は `INFORMATION` サブ項目へ置き、SSID/PSK は表示しない
 - SSH stdin fallback: `w/s/a/d`, `e` または space, `b`, `m`, `c`, `p`, `q`
 

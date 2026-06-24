@@ -89,11 +89,17 @@ remain untouched.
   preserves an existing `wlan0` IP/runtime without stopping Wi-Fi; it only starts
   `wpa_supplicant` from the saved `/config/wpa_supplicant.conf` and requests DHCP
   through `udhcpc` when no IP is present, then starts the SSH helper.
+- On June 24, 2026, the Network Settings Wi-Fi checkbox was changed so ON runs
+  `plumos-network-control --wifi on` immediately instead of only persisting the
+  boot policy. The helper also mirrors the stock PC15 `devmem` power sequence:
+  ON configures PC15 output and sets the data bit before bringing `wlan0` up;
+  OFF stops DHCP/wpa_supplicant, brings `wlan0` down, then clears the same data
+  bit so the radio power path can drop.
 
 Implication: a replacement frontend can manage Wi-Fi by editing
 `/config/wpa_supplicant.conf` and restarting/controlling the existing service,
-but should preserve the stock power-up sequence and run DHCP retries from the
-plumOS FE startup path.
+but should preserve the stock power-up/down sequence and run DHCP retries from
+the plumOS FE startup path.
 
 ## Current Frontend
 

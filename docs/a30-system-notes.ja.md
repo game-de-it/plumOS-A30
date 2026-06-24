@@ -103,11 +103,16 @@ wpa_supplicant -B -D nl80211 -iwlan0 -c /config/wpa_supplicant.conf
   2026-06-13 以降、この処理は既存の `wlan0` IP がある場合は接続を落とさず維持し、
   IP が無い場合だけ保存済み `/config/wpa_supplicant.conf` から `wpa_supplicant`/DHCP
   を起動し、SSH helper を起動する。
+- 2026-06-24 に、Network Settings の Wi-Fi checkbox は ON 時に保存値だけでなく
+  `plumos-network-control --wifi on` を即時実行する形へ変更した。同 helper は stock の
+  PC15 `devmem` 電源シーケンスも反映する。ON は PC15 を output に設定して data bit を
+  set してから `wlan0` を上げ、OFF は DHCP/wpa_supplicant 停止、`wlan0 down` の後に
+  同じ data bit を clear し、radio power 経路を落とせるようにする。
 
 実装上の意味:
 
-- Wi-Fi の kernel module や電源投入手順は stock 環境に依存している可能性があります。
-- まずは既存の電源投入手順を再現し、plumOS FE 起動時に DHCP retry を行います。そのうえで
+- Wi-Fi の kernel module や電源投入/停止手順は stock 環境に依存している可能性があります。
+- まずは既存の電源投入/停止手順を再現し、plumOS FE 起動時に DHCP retry を行います。そのうえで
   `wpa_supplicant`/DHCP client を plumOS 側へ同梱できるか検証します。
 - `/config/wpa_supplicant.conf` は実機固有の機微情報を含むため、git には入れません。
 
