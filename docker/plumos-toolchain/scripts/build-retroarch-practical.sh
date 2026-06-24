@@ -1235,6 +1235,7 @@ cat > "$APPEND" <<APPEND
 config_save_on_exit = "false"
 state_slot = "$SAFE_STATE_SLOT"
 vrr_runloop_enable = "$VRR_RUNLOOP"
+system_directory = "$BIOS_ROOT"
 APPEND
 if [ -n "$QUIT_PRESS_TWICE" ]; then
   cat >> "$APPEND" <<APPEND
