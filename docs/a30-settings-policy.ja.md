@@ -59,10 +59,10 @@ Network Settings の第一階層では次の操作項目だけを扱います。
 - `Wi-Fi`: checkbox。`/mnt/SDCARD/plumos/config/system/settings.json` の
   `wifi_enabled` を原本とする。OFF は `wifi_enabled=false` を保存し、
   `plumos-network-control --wifi off` を呼び、保存済み認証情報は編集しない。
-  起動時の `plumos-network-rescue` はこの値を尊重し、false の間は
+  boot wrapper と `plumos-network-rescue` はどちらもこの値を尊重し、false の間は
   wpa_supplicant/DHCP 起動をスキップする。ON は `wifi_enabled=true` を保存するが、
-  Network Recovery は呼ばない。接続開始は `Connect Wi-Fi` から行う。
-  `Connect Wi-Fi` が成功した場合も `wifi_enabled=true` を保存する。
+  Network Recovery は呼ばない。接続開始は `Connect Wi-Fi` から行う。`Connect Wi-Fi`
+  が成功した場合も `wifi_enabled=true` を保存する。
 - `Connect Wi-Fi`: A で SSID 検索、パスワード入力、DHCP、default gateway ping、
   IP 表示までの接続フローを開く。PSK は一時 file 経由で backend へ渡し、log へ出さない。
 - `NW Service`: SSH/FTP/SFTP/Samba/USB Disk Mode をまとめた network service サブ項目を開く。

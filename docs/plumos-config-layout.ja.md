@@ -72,7 +72,7 @@ stockOS の `/config/system.json` とは切り離します。
 
 現在のキー:
 
-- `wifi_enabled`: `true` / `false`。起動時 Wi-Fi recovery が
+- `wifi_enabled`: `true` / `false`。boot wrapper と Wi-Fi recovery が
   `wpa_supplicant` と DHCP を開始してよいかを制御する。未設定時は旧リリース互換のため
   `true` として扱う。
 - `volume`: `0..20`

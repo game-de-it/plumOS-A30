@@ -79,6 +79,21 @@ json_string_value() {
   sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$file" | sed -n '1p'
 }
 
+json_bool_false() {
+  key="$1"
+  file="$2"
+  [ -r "$file" ] || return 1
+  value="$(sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\\([^,}[:space:]]*\\).*/\\1/p" "$file" 2>/dev/null | sed -n '1p' | tr -d '"')"
+  case "$value" in
+    false|FALSE|0|off|OFF|no|NO)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 valid_timezone() {
   case "$1" in
     *[!A-Za-z0-9_+/:.,-]*|'') return 1 ;;
@@ -189,9 +204,16 @@ if command -v killall >/dev/null 2>&1; then
 fi
 
 (
+  wifi_policy_disabled=0
   if [ -x "$NETWORK_CONTROL" ]; then
-    log "starting Wi-Fi runtime from saved config: ${NETWORK_CONTROL}"
-    "$NETWORK_CONTROL" --wifi on >> "$LOG_FILE" 2>&1 || true
+    if json_bool_false wifi_enabled "$SYSTEM_SETTINGS"; then
+      wifi_policy_disabled=1
+      log "Wi-Fi policy disabled; stopping runtime: ${NETWORK_CONTROL}"
+      "$NETWORK_CONTROL" --wifi off >> "$LOG_FILE" 2>&1 || true
+    else
+      log "starting Wi-Fi runtime from saved config: ${NETWORK_CONTROL}"
+      "$NETWORK_CONTROL" --wifi on >> "$LOG_FILE" 2>&1 || true
+    fi
   else
     log "network control helper missing: ${NETWORK_CONTROL}"
   fi
@@ -206,7 +228,7 @@ fi
     log "network services helper and SSH fallback missing"
   fi
 
-  if [ -x "$STOCK_SERVICES" ]; then
+  if [ "$wifi_policy_disabled" != "1" ] && [ -x "$STOCK_SERVICES" ]; then
     waited=0
     while [ "$waited" -lt 15 ]; do
       if wlan_has_ip; then
@@ -217,6 +239,8 @@ fi
       sleep 1
       waited=$((waited + 1))
     done
+  elif [ "$wifi_policy_disabled" = "1" ]; then
+    log "Wi-Fi policy disabled; skipping network-ready services"
   fi
 ) &
 

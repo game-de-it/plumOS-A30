@@ -85,9 +85,9 @@ System Settings reads and writes
 
 Current keys:
 
-- `wifi_enabled`: `true` / `false`. Controls whether boot-time Wi-Fi recovery
-  may start `wpa_supplicant` and DHCP. Missing values default to `true` for
-  compatibility with earlier releases.
+- `wifi_enabled`: `true` / `false`. Controls whether the boot wrapper and
+  Wi-Fi recovery may start `wpa_supplicant` and DHCP. Missing values default to
+  `true` for compatibility with earlier releases.
 - `volume`: `0..20`
 - `brightness`: `1..20`
 - `lumination`: `0..10`
