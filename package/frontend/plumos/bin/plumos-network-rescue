@@ -7,6 +7,7 @@ LOG_FILE="${LOG_DIR}/network-rescue.log"
 SSH_START="${PLUMOS_ROOT}/ssh/start-ssh.sh"
 NETWORK_SERVICES="${PLUMOS_ROOT}/bin/plumos-network-services"
 STOCK_SERVICES="${PLUMOS_ROOT}/bin/plumos-stock-services"
+SYSTEM_SETTINGS="${PLUMOS_SYSTEM_SETTINGS_JSON:-${PLUMOS_ROOT}/config/system/settings.json}"
 LOCK_DIR=/tmp/plumos-network-rescue.lock
 DHCP_ATTEMPTS="${PLUMOS_NETWORK_RESCUE_DHCP_ATTEMPTS:-6}"
 DHCP_RETRY_SLEEP="${PLUMOS_NETWORK_RESCUE_DHCP_RETRY_SLEEP:-3}"
@@ -63,6 +64,29 @@ process_running() {
 
 get_wlan_ip() {
   ifconfig wlan0 2>/dev/null | sed -n 's/.*inet addr:\([^ ]*\).*/\1/p' | sed -n '1p'
+}
+
+wifi_policy_enabled() {
+  value=""
+  if [ -r "$SYSTEM_SETTINGS" ]; then
+    value="$(sed -n 's/.*"wifi_enabled"[[:space:]]*:[[:space:]]*\([^,}[:space:]]*\).*/\1/p' "$SYSTEM_SETTINGS" 2>/dev/null | sed -n '1p' | tr -d '"')"
+  fi
+  case "$value" in
+    false|FALSE|0|off|OFF|no|NO)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+stop_wifi_runtime() {
+  log "wifi disabled; stopping runtime"
+  killall udhcpc >> "$LOG_FILE" 2>&1 || true
+  killall wpa_supplicant >> "$LOG_FILE" 2>&1 || true
+  ifconfig wlan0 0.0.0.0 >> "$LOG_FILE" 2>&1 || true
+  ifconfig wlan0 down >> "$LOG_FILE" 2>&1 || true
 }
 
 log_wpa_status() {
@@ -152,6 +176,14 @@ run_dhcp_attempt() {
 
 log "rescue begin dhcp_attempts=${DHCP_ATTEMPTS} retry_sleep=${DHCP_RETRY_SLEEP}s ip_wait=${IP_WAIT_SECONDS}s"
 log_state "begin"
+
+if ! wifi_policy_enabled; then
+  log "wifi policy disabled settings=${SYSTEM_SETTINGS}"
+  stop_wifi_runtime
+  log_state "disabled"
+  log "rescue end disabled"
+  exit 0
+fi
 
 if [ -x /etc/init.d/network ]; then
   log "network start"

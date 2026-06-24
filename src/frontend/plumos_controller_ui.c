@@ -385,6 +385,7 @@ struct theme_state {
 struct device_settings {
   int loaded;
   int wpa_loaded;
+  int wifi_enabled;
   int wifi_runtime_enabled;
   long volume;
   long brightness;
@@ -3154,6 +3155,11 @@ static int save_system_config_number(struct ui_state *ui, const char *key, long 
   return replace_json_key_value_atomic(ui->system_config_path, key, literal);
 }
 
+static int save_system_config_bool(struct ui_state *ui, const char *key, int value) {
+  return replace_json_key_value_atomic(ui->system_config_path, key,
+                                       value ? "true" : "false");
+}
+
 static int save_system_config_string(struct ui_state *ui, const char *key,
                                      const char *value) {
   char literal[512];
@@ -3229,6 +3235,7 @@ static int apply_system_timezone_runtime(struct ui_state *ui, const char *timezo
 static void init_device_settings(struct device_settings *device) {
   memset(device, 0, sizeof(*device));
   device->volume = 14;
+  device->wifi_enabled = 1;
   device->brightness = 10;
   device->lumination = 5;
   device->contrast = 10;
@@ -3318,6 +3325,8 @@ static int load_device_settings(struct ui_state *ui) {
 
   json_end = json + json_size;
   ui->device.loaded = 1;
+  ui->device.wifi_enabled = json_get_bool(json, json_end, "wifi_enabled",
+                                          ui->device.wifi_enabled);
   ui->device.volume = json_get_long(json, json_end, "volume", ui->device.volume);
   {
     long stored_brightness = json_get_long(json, json_end, "brightness",
@@ -4560,7 +4569,7 @@ static void add_network_settings_entries(struct ui_state *ui) {
   const struct device_settings *device = &ui->device;
 
   add_bool_setting_entry(ui, "network_wifi_enabled", "Wi-Fi",
-                         device->wifi_runtime_enabled);
+                         device->wifi_enabled);
   add_setting_entry(ui, "network_connect_wifi", "Connect Wi-Fi",
                     "Scan SSID");
   add_setting_entry(ui, "network_services", "NW Service",
@@ -8932,7 +8941,13 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
     return 0;
   }
   if (enable) {
-    set_status(ui, "Use Connect Wi-Fi; Network Recovery is disabled");
+    if (!save_system_config_bool(ui, "wifi_enabled", 1)) {
+      set_status(ui, "Wi-Fi setting write failed");
+      return 0;
+    }
+    ui->device.wifi_enabled = 1;
+    update_settings_entries_after_save(ui);
+    set_status(ui, "Wi-Fi enabled; use Connect Wi-Fi now");
     return 1;
   }
   if (!join_path(script, sizeof(script), ui->plumos_root, "bin/plumos-network-control")) {
@@ -8962,8 +8977,14 @@ static int run_network_wifi_control(struct ui_state *ui, int enable) {
     return 0;
   }
   if (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) {
+    if (!save_system_config_bool(ui, "wifi_enabled", 0)) {
+      set_status(ui, "Wi-Fi off; setting write failed");
+      return 0;
+    }
+    ui->device.wifi_enabled = 0;
+    ui->device.wifi_runtime_enabled = 0;
     update_settings_entries_after_save(ui);
-    set_status(ui, "Wi-Fi runtime off");
+    set_status(ui, "Wi-Fi off; saved");
     return 1;
   }
   set_status(ui, "network control returned non-zero");
@@ -9278,6 +9299,10 @@ static int run_wifi_connect_selected(struct ui_state *ui) {
   settle_input_after_child(ui);
 
   if (ui->wifi_result_success) {
+    if (save_system_config_bool(ui, "wifi_enabled", 1)) {
+      ui->device.wifi_enabled = 1;
+      ui->device.wifi_runtime_enabled = 1;
+    }
     if (!ui->wifi_result_stage[0]) {
       snprintf(ui->wifi_result_stage, sizeof(ui->wifi_result_stage),
                "Gateway ping: %s",

@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "wifi_enabled": true,
   "volume": 14,
   "brightness": 10,
   "lumination": 5,
