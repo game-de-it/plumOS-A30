@@ -329,6 +329,80 @@ find_one_binary() {
   return 1
 }
 
+normalize_ppsspp_a30_langregion() {
+  local langregion=$1
+  [ -f "${langregion}" ] || return 0
+
+  # PPSSPP's stock language picker uses native-language labels. The A30 SDL
+  # build does not have a full UI font fallback path, so non-Latin labels can
+  # become unreadable. Keep the selectable locale ids, but show ASCII labels.
+  cat >"${langregion}" <<'PPSSPP_LANGREGION_EOF'
+[LangRegionNames]
+ja_JP = "Japanese"
+en_US = "English"
+fi_FI = "Finnish"
+fr_FR = "French"
+es_ES = "Spanish (Spain)"
+es_LA = "Spanish (Latin America)"
+de_DE = "German"
+it_IT = "Italian"
+nl_NL = "Dutch"
+pt_PT = "Portuguese"
+pt_BR = "Portuguese (Brazil)"
+ru_RU = "Russian"
+ko_KR = "Korean"
+ku_SO = "Kurdish Sorani"
+zh_TW = "Chinese (Traditional)"
+zh_CN = "Chinese (Simplified)"
+ar_AE = "Arabic"
+az_AZ = "Azerbaijani"
+ca_ES = "Catalan"
+gl_ES = "Galician"
+gr_EL = "Greek"
+he_IL = "Hebrew"
+hu_HU = "Hungarian"
+id_ID = "Indonesian"
+pl_PL = "Polish"
+ro_RO = "Romanian"
+sv_SE = "Swedish"
+tr_TR = "Turkish"
+uk_UA = "Ukrainian"
+vi_VN = "Vietnamese"
+cz_CZ = "Czech"
+tg_PH = "Tagalog"
+th_TH = "Thai"
+dr_ID = "Duri"
+fa_IR = "Persian"
+ms_MY = "Malay"
+da_DK = "Danish"
+no_NO = "Norwegian"
+bg_BG = "Bulgarian"
+lt-LT = "Lithuanian"
+jv_ID = "Javanese"
+lo_LA = "Lao"
+hr_HR = "Croatian"
+be_BY = "Belarusian"
+
+[SystemLanguage]
+ja_JP = "JAPANESE"
+en_US = "ENGLISH"
+fr_FR = "FRENCH"
+es_ES = "SPANISH"
+gl_ES = "SPANISH"
+es_LA = "SPANISH"
+de_DE = "GERMAN"
+it_IT = "ITALIAN"
+nl_NL = "DUTCH"
+pt_PT = "PORTUGUESE"
+pt_BR = "PORTUGUESE"
+ru_RU = "RUSSIAN"
+ko_KR = "KOREAN"
+th_TH = "THAI"
+zh_TW = "CHINESE_TRADITIONAL"
+zh_CN = "CHINESE_SIMPLIFIED"
+PPSSPP_LANGREGION_EOF
+}
+
 build_ppsspp() {
   local src=$1
   local build_dir="${src}/build-plumos"
@@ -400,6 +474,7 @@ build_ppsspp() {
   mkdir -p "${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}"
   if [ -d "${src}/assets" ]; then
     rsync -a --delete "${src}/assets/" "${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}/assets/"
+    normalize_ppsspp_a30_langregion "${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}/assets/langregion.ini" || return 1
     append_manifest "  data=plumos/emulators/${PPSSPP_STAGE_ID}/assets"
   fi
 }
