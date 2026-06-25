@@ -6,6 +6,7 @@
   "show_empty_systems": false,
   "show_favorites_on_top": true,
   "show_recent_on_top": true,
+  "rom_cursor_wrap": true,
   "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",

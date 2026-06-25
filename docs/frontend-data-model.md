@@ -422,6 +422,7 @@ packages.
   "show_empty_systems": false,
   "show_favorites_on_top": true,
   "show_recent_on_top": true,
+  "rom_cursor_wrap": true,
   "boot_resume_mode": "off",
   "sort_systems": "sort_order",
   "sort_roms": "name",
@@ -437,6 +438,11 @@ packages.
 `ui_mode` is the global default. `top_mode` and `rom_mode` may diverge.
 The default `rom_scan_policy` is `on_enter`; stock-style manual refresh is not
 the default. Use `cached` or `manual_refresh` only when performance requires it.
+
+`rom_cursor_wrap` controls ROM browsing cursor behavior. When true, ROM-list
+Up at the first entry moves to the last entry, Down at the last entry moves to
+the first entry, and Gallery cursor movement wraps across the first/last ROM.
+Left/Right page movement in the text ROM list remains bounded.
 
 `boot_resume_mode`:
 

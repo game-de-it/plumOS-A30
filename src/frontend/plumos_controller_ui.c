@@ -425,6 +425,7 @@ struct frontend_settings {
   int show_empty_systems;
   int show_favorites_on_top;
   int show_recent_on_top;
+  int rom_cursor_wrap;
   char boot_resume_mode[32];
   char ui_mode[32];
   char top_mode[32];
@@ -2689,6 +2690,7 @@ static void init_frontend_settings(struct frontend_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->show_favorites_on_top = 1;
   settings->show_recent_on_top = 1;
+  settings->rom_cursor_wrap = 1;
   settings->rom_scan_slow_threshold_ms = 500;
   settings->rom_scan_test_file_count = 1000;
   copy_string(settings->boot_resume_mode, sizeof(settings->boot_resume_mode), "off");
@@ -2736,6 +2738,8 @@ static int load_settings(const char *path, struct frontend_settings *settings) {
       json_get_bool(json, json + json_size, "show_favorites_on_top", 1);
   settings->show_recent_on_top =
       json_get_bool(json, json + json_size, "show_recent_on_top", 1);
+  settings->rom_cursor_wrap =
+      json_get_bool(json, json + json_size, "rom_cursor_wrap", 1);
   json_get_string(json, json + json_size, "boot_resume_mode", settings->boot_resume_mode,
                   sizeof(settings->boot_resume_mode));
   normalize_boot_resume_mode(settings->boot_resume_mode, sizeof(settings->boot_resume_mode));
@@ -2883,6 +2887,8 @@ static int save_settings(const char *path, const struct frontend_settings *setti
           settings->show_favorites_on_top ? "true" : "false");
   fprintf(f, "  \"show_recent_on_top\": %s,\n",
           settings->show_recent_on_top ? "true" : "false");
+  fprintf(f, "  \"rom_cursor_wrap\": %s,\n",
+          settings->rom_cursor_wrap ? "true" : "false");
   fprintf(f, "  \"boot_resume_mode\": ");
   fprint_json_string(f, settings->boot_resume_mode);
   fprintf(f, ",\n  \"sort_systems\": ");
@@ -4213,6 +4219,7 @@ static enum setting_control_type setting_control_type_for_id(const char *id) {
   if (strcmp(id, "show_empty_systems") == 0 ||
       strcmp(id, "show_favorites_on_top") == 0 ||
       strcmp(id, "show_recent_on_top") == 0 ||
+      strcmp(id, "rom_cursor_wrap") == 0 ||
       strcmp(id, "rom_scan_policy") == 0 ||
       strcmp(id, "network_wifi_enabled") == 0 ||
       strcmp(id, "network_ssh_enabled") == 0 ||
@@ -4256,6 +4263,7 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "show_empty_systems") == 0 ||
                 strcmp(id, "show_favorites_on_top") == 0 ||
                 strcmp(id, "show_recent_on_top") == 0 ||
+                strcmp(id, "rom_cursor_wrap") == 0 ||
                 strcmp(id, "boot_resume_mode") == 0 ||
                 strcmp(id, "graphic_theme_id") == 0 ||
                 strcmp(id, "theme_top_layout") == 0 ||
@@ -4343,6 +4351,8 @@ static void add_ui_settings_entries(struct ui_state *ui,
                          settings->show_favorites_on_top);
   add_bool_setting_entry(ui, "show_recent_on_top", "Recent On TOP",
                          settings->show_recent_on_top);
+  add_bool_setting_entry(ui, "rom_cursor_wrap", "ROM Cursor Wrap",
+                         settings->rom_cursor_wrap);
   add_setting_entry(ui, "boot_resume_mode", "Open Last ROM At Boot",
                     setting_choice_display_value("boot_resume_mode",
                                                  settings->boot_resume_mode));
@@ -7352,6 +7362,9 @@ static void setting_help_lines(const struct ui_state *ui,
   } else if (strcmp(id, "show_recent_on_top") == 0) {
     copy_string(line1, line1_size, "Show Recent on the TOP list.");
     copy_string(line2, line2_size, "Recent behaves like a virtual system.");
+  } else if (strcmp(id, "rom_cursor_wrap") == 0) {
+    copy_string(line1, line1_size, "Wrap ROM cursor navigation at list ends.");
+    copy_string(line2, line2_size, "Affects ROM lists and Gallery navigation.");
   } else if (strcmp(id, "boot_resume_mode") == 0) {
     copy_string(line1, line1_size, "Open the last ROM at startup.");
     copy_string(line2, line2_size, "No save states are created or loaded.");
@@ -10451,6 +10464,8 @@ static int save_setting_bool(struct ui_state *ui, const char *id, int value) {
     settings.show_favorites_on_top = value ? 1 : 0;
   } else if (strcmp(id, "show_recent_on_top") == 0) {
     settings.show_recent_on_top = value ? 1 : 0;
+  } else if (strcmp(id, "rom_cursor_wrap") == 0) {
+    settings.rom_cursor_wrap = value ? 1 : 0;
   } else if (strcmp(id, "rom_scan_policy") == 0) {
     copy_string(settings.rom_scan_policy, sizeof(settings.rom_scan_policy),
                 value ? "on_enter" : "manual");
@@ -11268,8 +11283,8 @@ static int handle_wifi_connect_action(struct ui_state *ui, enum ui_action action
   return 1;
 }
 
-static size_t gallery_cursor_after_delta(const struct ui_state *ui,
-                                         size_t base_cursor, long delta) {
+static size_t rom_cursor_after_delta(const struct ui_state *ui,
+                                     size_t base_cursor, long delta) {
   size_t next_cursor;
 
   if (!ui || ui->rom_count == 0) {
@@ -11277,6 +11292,15 @@ static size_t gallery_cursor_after_delta(const struct ui_state *ui,
   }
   if (base_cursor >= ui->rom_count) {
     base_cursor = ui->rom_count - 1;
+  }
+  if (ui->frontend_settings.rom_cursor_wrap && ui->rom_count > 1) {
+    long long count = (long long)ui->rom_count;
+    long long next = (long long)base_cursor + (long long)delta;
+    next %= count;
+    if (next < 0) {
+      next += count;
+    }
+    return (size_t)next;
   }
   next_cursor = base_cursor;
   if (delta < 0) {
@@ -11301,7 +11325,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
     return;
   }
   if (delta < -1 || delta > 1) {
-    next_cursor = gallery_cursor_after_delta(ui, ui->rom_cursor, delta);
+    next_cursor = rom_cursor_after_delta(ui, ui->rom_cursor, delta);
     if (next_cursor != ui->rom_cursor) {
       ui->gallery_transition_active = 0;
       ui->gallery_pending_active = 0;
@@ -11313,7 +11337,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
   }
   if (ui->gallery_transition_active) {
     base_cursor = ui->gallery_transition_to_cursor;
-    next_cursor = gallery_cursor_after_delta(ui, base_cursor, delta);
+    next_cursor = rom_cursor_after_delta(ui, base_cursor, delta);
     if (next_cursor != base_cursor) {
       ui->gallery_pending_cursor = next_cursor;
       ui->gallery_pending_active = 1;
@@ -11321,7 +11345,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
     return;
   }
   old_cursor = ui->rom_cursor;
-  next_cursor = gallery_cursor_after_delta(ui, old_cursor, delta);
+  next_cursor = rom_cursor_after_delta(ui, old_cursor, delta);
   if (next_cursor != old_cursor) {
     ui_start_gallery_transition(ui, old_cursor, next_cursor);
     ui->rom_cursor = next_cursor;
@@ -11988,9 +12012,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
 
   if (action == ACTION_UP) {
     size_t old_cursor = ui->rom_cursor;
-    if (ui->rom_cursor > 0) {
-      ui->rom_cursor--;
-    }
+    ui->rom_cursor = rom_cursor_after_delta(ui, ui->rom_cursor, -1);
     if (ui->rom_cursor != old_cursor) {
       remember_current_rom_cursor(ui);
       reset_marquee(ui);
@@ -11999,9 +12021,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
   }
   if (action == ACTION_DOWN) {
     size_t old_cursor = ui->rom_cursor;
-    if (ui->rom_cursor + 1 < ui->rom_count) {
-      ui->rom_cursor++;
-    }
+    ui->rom_cursor = rom_cursor_after_delta(ui, ui->rom_cursor, 1);
     if (ui->rom_cursor != old_cursor) {
       remember_current_rom_cursor(ui);
       reset_marquee(ui);

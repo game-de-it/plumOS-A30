@@ -16,6 +16,9 @@ by runtime and emulator.
 | Function | Usually reserved for emulator menus |
 
 TOP and ROM lists move one item with Up/Down and one page with Left/Right.
+When `ROM Cursor Wrap` is enabled in UI Settings, ROM-list Up at the first
+entry moves to the last entry, Down at the last entry moves to the first entry,
+and Graphic Gallery cursor movement wraps the same way.
 
 ## TOP Screen
 
@@ -28,6 +31,9 @@ Favorites and Recent are shown alongside the system list.
 - B: return to TOP
 - START: open the START menu
 - Left/Right: page
+
+`ROM Cursor Wrap` in UI Settings controls whether the cursor wraps at the first
+and last ROM.
 
 When you leave a ROM list and return later, plumOS restores the last cursor
 position for that system. Gallery mode follows the same rule.

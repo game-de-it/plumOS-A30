@@ -15,6 +15,9 @@ plumOS frontend の基本操作です。ゲーム中の操作は emulator/runtim
 | Function | 主に emulator menu 用 |
 
 TOP/ROM list は、上下で 1 項目移動、右で 1 ページ送り、左で 1 ページ戻しです。
+UI Settings の `ROMカーソル折返し` が ON の場合、ROM list の先頭で上を押すと
+末尾へ、末尾で下を押すと先頭へ移動します。Graphic Gallery のカーソル移動も
+同じように折り返します。
 
 ## TOP 画面
 
@@ -30,6 +33,9 @@ ROM list では、選択した system の ROM を起動できます。
 - B: TOP へ戻る
 - START: START menu
 - 左右: ページ移動
+
+UI Settings の `ROMカーソル折返し` で、先頭/末尾のカーソル移動を折り返すかを
+切り替えできます。
 
 ROM list から TOP に戻り、再度同じ system に入ると、最後に選択していた ROM 位置へ戻ります。
 Gallery mode でも同じ挙動です。

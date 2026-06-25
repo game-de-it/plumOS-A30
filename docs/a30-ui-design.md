@@ -149,6 +149,10 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - Main system-list text uses `2x` as the baseline.
 - TOP/ROM list input uses Up/Down for one-item movement, Right for page down,
   and Left for page up.
+- `ROM Cursor Wrap` is a UI Settings checkbox. When enabled, ROM-list Up at
+  the first entry moves to the last entry, and Down at the last entry moves to
+  the first entry. Gallery cursor movement follows the same wrap behavior.
+  Page movement remains bounded.
 - Up/Down one-item movement has software key repeat. Holding the physical key
   should move continuously even when the input device does not emit repeat
   events.
