@@ -60,7 +60,7 @@ The captured `ppsspp.env` has these important properties:
 - pause mapping: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-4`
 - joystickd Function button forwarding: `PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=mode`
 - joystickd trigger mode: `buttons`
-- joystickd shoulder layout: `standard`
+- joystickd shoulder layout: `user`
 - joystickd axis sources: `axisYR` and `axisXR`
 - PPSSPP append profile: disabled
 - escape-to-exit: disabled
@@ -96,6 +96,10 @@ Legacy `.config` mirror:
 The active and legacy config trees are kept in sync for the PPSSPP pause-menu
 binding. Other PPSSPP settings should not be normalized during recovery unless
 the user explicitly asks for that.
+
+Use `user` for the PPSSPP joystickd shoulder layout. On the A30 physical
+buttons, this maps L/R to `BTN_TL` / `BTN_TR` and L2/R2 to `BTN_TL2` /
+`BTN_TR2`; the `standard` layout shifts the physical L/L2 and R/R2 roles.
 
 ## Why the Landscape Menu Works
 

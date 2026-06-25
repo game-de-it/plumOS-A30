@@ -58,7 +58,7 @@ The captured `ppsspp.env` has the following important behavior:
 - Pause mapping exported to launcher: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-4`
 - joystickd Function button forwarding: `PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=mode`
 - joystickd trigger mode: `buttons`
-- joystickd shoulder layout: `standard`
+- joystickd shoulder layout: `user`
 - joystickd axis sources: `axisYR` and `axisXR`
 - PPSSPP append profile: disabled
 - Escape-to-exit: disabled
@@ -94,6 +94,10 @@ Legacy `.config` mirror:
 Active 側と legacy 側の config tree は、PPSSPP pause-menu binding だけ同期します。
 それ以外の PPSSPP 設定は、ユーザーが明示した場合を除いて recovery 時に
 正規化しません。
+
+PPSSPP の joystickd shoulder layout は `user` を使います。A30 の物理ボタンでは、
+これにより L/R が `BTN_TL` / `BTN_TR`、L2/R2 が `BTN_TL2` / `BTN_TR2` になります。
+`standard` layout では物理 L/L2 と R/R2 の役割がずれます。
 
 ## 横メニューが成立する理由
 
