@@ -425,6 +425,8 @@ build_ppsspp() {
       return 1
       ;;
   esac
+  patch -d "${src}" -p1 < "${PATCH_DIR}/ppsspp-1.20.4-a30-ui-font-fallback.patch" || return 1
+  append_manifest "  patch=ppsspp-1.20.4-a30-ui-font-fallback.patch"
 
   run_cmake "${src}" "${build_dir}" \
     -DFORCED_CPU=armv7 \

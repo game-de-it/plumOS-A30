@@ -1,0 +1,53 @@
+diff --git a/Common/Render/Text/draw_text_sdl.cpp b/Common/Render/Text/draw_text_sdl.cpp
+index 4a6769c271..0ea4893211 100644
+--- a/Common/Render/Text/draw_text_sdl.cpp
++++ b/Common/Render/Text/draw_text_sdl.cpp
+@@ -179,7 +179,33 @@ void TextDrawerSDL::PrepareFallbackFonts(std::string_view locale) {
+ 		}
+ 	}
+ #else
+-	// We don't have a fallback font for this platform.
+-	// Unsupported characters will be rendered as squares.
++	const char *fallbackFonts[] = {
++		"/mnt/SDCARD/plumos/fonts/default.otf",
++		"/mnt/SDCARD/plumos/fonts/cjk-fallback.ttc",
++	};
++
++	for (int i = 0; i < ARRAY_SIZE(fallbackFonts); i++) {
++		Path fontPath = Path(fallbackFonts[i]);
++		if (!File::Exists(fontPath)) {
++			continue;
++		}
++
++		TTF_Font *openedFont = TTF_OpenFont(fontPath.ToString().c_str(), 24);
++		if (!openedFont) {
++			continue;
++		}
++		int64_t numFaces = TTF_FontFaces(openedFont);
++		TTF_CloseFont(openedFont);
++		if (numFaces < 1) {
++			numFaces = 1;
++		}
++
++		for (int k = 0; k < numFaces; k++) {
++			fallbackFontPaths_.push_back(std::make_pair(fontPath.ToString(), k));
++		}
++	}
++
++	// Without the A30 fallback paths above, unsupported characters are rendered
++	// as squares on SDL builds that do not use fontconfig.
+ #endif
+ }
+@@ -253,7 +278,11 @@ int TextDrawerSDL::FindFallbackFonts(uint32_t missingGlyph, int ptSize) {
+ 
+ 		TTF_Font *font = TTF_OpenFontIndex(fontPath.c_str(), ptSize, faceIndex);
+ 
+-		if (TTF_GlyphIsProvided32(font, missingGlyph)) {
++		if (!font) {
++			continue;
++		}
++
++		if (TTF_GlyphIsProvided32(font, missingGlyph)) {
+ 			fallbackFonts_.push_back(font);
+ 			return fallbackFonts_.size() - 1;
+ 		} else {

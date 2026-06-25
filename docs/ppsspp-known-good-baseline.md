@@ -130,16 +130,18 @@ display variables, PPSSPP config, and virtual gamepad setup.
 
 PPSSPP's upstream `assets/langregion.ini` displays language names in each
 language's native script, such as Japanese, Chinese, Korean, Arabic, and Cyrillic
-labels. The A30 SDL build currently has a working SDL2_ttf runtime, but does not
-have a full PPSSPP UI font fallback path for those scripts. As a result, the
-System > Language list can become unreadable even though the locale ids and
-translation files are present.
+labels. The A30 SDL build has a working SDL2_ttf runtime, but upstream Linux/SDL
+falls back to squares when fontconfig is unavailable and no fallback font is
+registered.
 
 plumOS normalizes only the language picker labels to ASCII English names when
 staging PPSSPP assets. This preserves the selectable locales and avoids
-overwriting user-managed PPSSPP settings. Full non-Latin PPSSPP UI rendering
-would require a separate PPSSPP text-rendering fix, such as a hardcoded A30 font
-fallback or fontconfig support bundled with the runtime.
+overwriting user-managed PPSSPP settings. In addition, the A30 PPSSPP patch
+registers `/mnt/SDCARD/plumos/fonts/default.otf` and
+`/mnt/SDCARD/plumos/fonts/cjk-fallback.ttc` as SDL2_ttf fallback fonts, so
+Japanese UI strings render instead of becoming square glyphs. This is an
+A30-specific fixed-path fallback; a generic upstream solution would still be
+fontconfig-based or otherwise platform-managed.
 
 ## Recovery Rule
 
