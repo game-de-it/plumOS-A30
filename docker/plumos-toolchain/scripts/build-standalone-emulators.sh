@@ -1122,6 +1122,17 @@ load_standalone_env
 EMU_ROOT=${PLUMOS_ROOT}/emulators
 PLUMOS_LIB=${PLUMOS_ROOT}/lib
 STOCK_LIB=${PLUMOS_STOCK_LIB:-/mnt/SDCARD/miyoo/lib:/usr/miyoo/lib}
+case "${id}" in
+  ppsspp|ppsspp-display-ui|ppsspp-vanilla)
+    ppsspp_local_lib="${EMU_ROOT}/${id}/lib"
+    if [ -d "${ppsspp_local_lib}" ]; then
+      case ":${STOCK_LIB}:" in
+        *":${ppsspp_local_lib}:"*) ;;
+        *) STOCK_LIB="${ppsspp_local_lib}:${STOCK_LIB}" ;;
+      esac
+    fi
+    ;;
+esac
 LOADER=${PLUMOS_LIB}/ld-linux-armhf.so.3
 
 if [ ! -x "${LOADER}" ]; then
