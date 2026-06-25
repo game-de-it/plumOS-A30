@@ -3362,7 +3362,7 @@ static int load_ppsspp_menu_button_setting(struct ui_state *ui, char *out,
   if (!out || out_size == 0) {
     return 0;
   }
-  copy_string(out, out_size, "function");
+  copy_string(out, out_size, "l2");
   if (!standalone_env_path(ui, "ppsspp", path, sizeof(path))) {
     return 0;
   }

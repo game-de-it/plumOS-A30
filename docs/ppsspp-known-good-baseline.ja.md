@@ -54,11 +54,11 @@ The captured `ppsspp.env` has the following important behavior:
 - Display: `PLUMOS_A30_DISPLAY_ROTATION=ccw`
 - Logical UI size: `PLUMOS_A30_DISPLAY_LOGICAL=854x480`
 - Force landscape: `PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1`
-- Menu button: `PLUMOS_A30_PSP_MENU_BUTTON=function`
-- Pause mapping exported to launcher: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-4`
-- joystickd Function button forwarding: `PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=mode`
+- Menu button: `PLUMOS_A30_PSP_MENU_BUTTON=l2`
+- Pause mapping exported to launcher: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-104`
+- joystickd Function button forwarding: `PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=none`
 - joystickd trigger mode: `buttons`
-- joystickd shoulder layout: `user`
+- joystickd shoulder layout: `standard`
 - joystickd axis sources: `axisYR` and `axisXR`
 - PPSSPP append profile: disabled
 - Escape-to-exit: disabled
@@ -77,7 +77,7 @@ Active config:
   - Landscape `InternalScreenRotation = 1`
   - Landscape `RotateControlsWithScreen = False`
 - `config/ppsspp/PSP/SYSTEM/controls.ini`
-  - `Pause = 10-4`
+  - `Pause = 10-104`
 
 Legacy `.config` mirror:
 
@@ -89,15 +89,15 @@ Legacy `.config` mirror:
   - Landscape `InternalScreenRotation = 1`
   - Landscape `RotateControlsWithScreen = True`
 - `.config/ppsspp/PSP/SYSTEM/controls.ini`
-  - `Pause = 10-4`
+  - `Pause = 10-104`
 
 Active 側と legacy 側の config tree は、PPSSPP pause-menu binding だけ同期します。
 それ以外の PPSSPP 設定は、ユーザーが明示した場合を除いて recovery 時に
 正規化しません。
 
-PPSSPP の joystickd shoulder layout は `user` を使います。A30 の物理ボタンでは、
-これにより L/R が `BTN_TL` / `BTN_TR`、L2/R2 が `BTN_TL2` / `BTN_TR2` になります。
-`standard` layout では物理 L/L2 と R/R2 の役割がずれます。
+PPSSPP の joystickd shoulder layout は `standard` を使います。PPSSPP の A30
+GameController mapping と patch は、以前からの L2 menu 経路ではこの layout を
+前提にしています。`user` に切り替えると L/R と L2/R2 の解釈が壊れます。
 
 ## 横メニューが成立する理由
 

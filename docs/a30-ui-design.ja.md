@@ -126,7 +126,7 @@
   押した方向に従う。ページ移動は従来通り端で止める。
 - `PPSSPP メニューボタン` は UI Settings の choice とし、
   `plumos/config/standalone/ppsspp.env` に保存する。変更対象は standalone PPSSPP の
-  pause menu binding だけで、既定値はファンクションボタンとする。
+  pause menu binding だけで、既定値は `L2` とする。
 
 ## Graphic Mode
 

@@ -1114,7 +1114,7 @@ Environment:
   PLUMOS_A30_PSP_UI_SCALE             Legacy append-profile UI scale. Used only when append profile is enabled.
   PLUMOS_A30_PSP_PROFILE              Legacy append profile: standard, none.
   PLUMOS_A30_PSP_LAYOUT               Legacy append layout: a30-landscape, portrait-vertical, none.
-  PLUMOS_A30_PSP_MENU_BUTTON          PPSSPP pause menu button: function, l2, r2, none. Default: function.
+  PLUMOS_A30_PSP_MENU_BUTTON          PPSSPP pause menu button: function, l2, r2, none. Default: l2.
   PLUMOS_A30_PSP_CONTROLS=standard    Repair/create PPSSPP controls.ini. Default: none.
   PLUMOS_A30_PSP_FORCE_CONTROLS=1     Replace PPSSPP controls.ini when controls repair is enabled.
   PLUMOS_A30_PSP_ESCAPE_EXIT=1        Make PPSSPP exit when a Pause-mapped key is pressed.
@@ -1619,7 +1619,7 @@ run_with_fb_restore() {
 ensure_ppsspp_pause_menu_mapping() {
   controls_file=$1
   [ -s "${controls_file}" ] || return 0
-  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-4}
+  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-104}
 
   tmp="${controls_file}.tmp.$$"
   awk -v pause_mapping="${pause_mapping}" '
@@ -1639,7 +1639,7 @@ ensure_ppsspp_pause_menu_mapping() {
 }
 
 configure_ppsspp_menu_button() {
-  ppsspp_menu_button=${PLUMOS_A30_PSP_MENU_BUTTON:-function}
+  ppsspp_menu_button=${PLUMOS_A30_PSP_MENU_BUTTON:-l2}
   case "${ppsspp_menu_button}" in
     home|function|func|guide|mode|back)
       export PLUMOS_A30_PSP_MENU_BUTTON=function
@@ -1662,10 +1662,10 @@ configure_ppsspp_menu_button() {
       export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
     *)
-      echo "warning: invalid PLUMOS_A30_PSP_MENU_BUTTON=${ppsspp_menu_button}; using function" >&2
-      export PLUMOS_A30_PSP_MENU_BUTTON=function
-      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-4
-      export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=mode
+      echo "warning: invalid PLUMOS_A30_PSP_MENU_BUTTON=${ppsspp_menu_button}; using l2" >&2
+      export PLUMOS_A30_PSP_MENU_BUTTON=l2
+      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+      export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
   esac
 }
@@ -1736,7 +1736,7 @@ An.Right = 1-40,10-4000
 Analog limiter = 1-60
 RapidFire = 1-59
 Fast-forward = 1-61
-Pause = 10-4
+Pause = 10-104
 Pause (no menu) = 1-138
 SpeedToggle = 1-68
 Analog speed = 10-4036
@@ -2022,7 +2022,7 @@ case "${id}" in
     export PLUMOS_A30_UI_ROTATION=${PLUMOS_A30_UI_ROTATION:-none}
     export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,back:b8,guide:b10,start:b9,leftstick:b6,rightstick:b7,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
     export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=${PLUMOS_A30_PSP_JOYSTICKD_TRIGGER_MODE:-${PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE:-buttons}}
-    export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=${PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT:-${PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT:-user}}
+    export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=${PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT:-${PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT:-standard}}
     export PLUMOS_STANDALONE_JOYSTICKD_X_SOURCE=${PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE:-${PLUMOS_STANDALONE_JOYSTICKD_X_SOURCE:-axisYR}}
     export PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE=${PLUMOS_A30_PSP_JOYSTICKD_Y_SOURCE:-${PLUMOS_STANDALONE_JOYSTICKD_Y_SOURCE:-axisXR}}
     configure_ppsspp_menu_button
@@ -2378,13 +2378,13 @@ PLUMOS_A30_DISPLAY_OUTPUT=
 PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1
 PLUMOS_A30_UI_ROTATION=none
 
-PLUMOS_A30_PSP_MENU_BUTTON=function
-PLUMOS_A30_PSP_PAUSE_MAPPING=10-4
+PLUMOS_A30_PSP_MENU_BUTTON=l2
+PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
 PLUMOS_A30_PSP_JOYSTICKD_TRIGGER_MODE=buttons
-PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=user
+PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=standard
 PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE=axisYR
 PLUMOS_A30_PSP_JOYSTICKD_Y_SOURCE=axisXR
-PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=mode
+PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=none
 
 PLUMOS_A30_PSP_CONTROLS=none
 PLUMOS_A30_PSP_FORCE_CONTROLS=0

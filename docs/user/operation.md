@@ -135,7 +135,7 @@ Typical app entries:
 - PicoArch: the Function button opens the PicoArch menu. Use the D-pad in the
   PicoArch menu.
 - PPSSPP standalone: `PPSSPP Menu Button` in UI Settings chooses the pause menu
-  button. The default is the Function button.
+  button. The default is `L2`.
 - Standalone emulators: menu behavior depends on the emulator.
 
 The Power menu is opened by short POWER press regardless of runtime.
