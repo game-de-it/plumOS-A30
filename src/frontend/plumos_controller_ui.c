@@ -921,6 +921,11 @@ static int file_exists(const char *path) {
   return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+static int file_is_directory(const char *path) {
+  struct stat st;
+  return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
 static int valid_system_id(const char *s) {
   if (!s || !s[0]) {
     return 0;
@@ -3177,6 +3182,310 @@ static int save_system_config_string(struct ui_state *ui, const char *key,
   return replace_json_key_value_atomic(ui->system_config_path, key, literal);
 }
 
+static int standalone_config_dir_path(const struct ui_state *ui, char *out,
+                                      size_t out_size) {
+  return ui && join_path(out, out_size, ui->plumos_root, "config/standalone");
+}
+
+static int standalone_env_path(const struct ui_state *ui, const char *emulator,
+                               char *out, size_t out_size) {
+  char dir[PATH_MAX];
+  char filename[128];
+
+  if (!emulator || !valid_system_id(emulator) ||
+      !standalone_config_dir_path(ui, dir, sizeof(dir)) ||
+      snprintf(filename, sizeof(filename), "%s.env", emulator) >=
+          (int)sizeof(filename)) {
+    return 0;
+  }
+  return join_path(out, out_size, dir, filename);
+}
+
+static int ensure_standalone_config_dir(const struct ui_state *ui) {
+  char config_dir[PATH_MAX];
+  char standalone_dir[PATH_MAX];
+
+  if (!ui ||
+      !join_path(config_dir, sizeof(config_dir), ui->plumos_root, "config") ||
+      !standalone_config_dir_path(ui, standalone_dir, sizeof(standalone_dir))) {
+    return 0;
+  }
+  mkdir(config_dir, 0755);
+  mkdir(standalone_dir, 0755);
+  return file_is_directory(standalone_dir);
+}
+
+static int env_line_matches_key(const char *line, size_t line_len,
+                                const char *key, const char **value_out,
+                                size_t *value_len_out) {
+  const char *p = line;
+  const char *end = line + line_len;
+  size_t key_len;
+
+  if (!line || !key || !key[0]) {
+    return 0;
+  }
+  while (p < end && (*p == ' ' || *p == '\t')) {
+    p++;
+  }
+  if (p >= end || *p == '#') {
+    return 0;
+  }
+  if ((size_t)(end - p) > 7 && strncmp(p, "export", 6) == 0 &&
+      (p[6] == ' ' || p[6] == '\t')) {
+    p += 7;
+    while (p < end && (*p == ' ' || *p == '\t')) {
+      p++;
+    }
+  }
+  key_len = strlen(key);
+  if ((size_t)(end - p) < key_len || strncmp(p, key, key_len) != 0) {
+    return 0;
+  }
+  p += key_len;
+  while (p < end && (*p == ' ' || *p == '\t')) {
+    p++;
+  }
+  if (p >= end || *p != '=') {
+    return 0;
+  }
+  p++;
+  while (p < end && (*p == ' ' || *p == '\t')) {
+    p++;
+  }
+  while (end > p && (end[-1] == ' ' || end[-1] == '\t' ||
+                     end[-1] == '\r' || end[-1] == '\n')) {
+    end--;
+  }
+  if (end > p + 1 &&
+      ((*p == '"' && end[-1] == '"') || (*p == '\'' && end[-1] == '\''))) {
+    p++;
+    end--;
+  }
+  if (value_out) {
+    *value_out = p;
+  }
+  if (value_len_out) {
+    *value_len_out = (size_t)(end - p);
+  }
+  return 1;
+}
+
+static int env_text_get_value(const char *text, const char *key,
+                              char *out, size_t out_size) {
+  const char *p;
+
+  if (!text || !key || !out || out_size == 0) {
+    return 0;
+  }
+  out[0] = '\0';
+  for (p = text; *p;) {
+    const char *line = p;
+    const char *line_end = strchr(p, '\n');
+    const char *value = NULL;
+    size_t line_len;
+    size_t value_len = 0;
+
+    if (line_end) {
+      line_len = (size_t)(line_end - line + 1);
+      p = line_end + 1;
+    } else {
+      line_len = strlen(line);
+      p = line + line_len;
+    }
+    if (env_line_matches_key(line, line_len, key, &value, &value_len)) {
+      if (value_len >= out_size) {
+        value_len = out_size - 1;
+      }
+      memcpy(out, value, value_len);
+      out[value_len] = '\0';
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static const char *normalize_ppsspp_menu_button(const char *value) {
+  if (!value || !value[0]) {
+    return NULL;
+  }
+  if (strcmp(value, "home") == 0 || strcmp(value, "function") == 0 ||
+      strcmp(value, "func") == 0 || strcmp(value, "guide") == 0 ||
+      strcmp(value, "mode") == 0 || strcmp(value, "back") == 0) {
+    return "function";
+  }
+  if (strcmp(value, "l2") == 0 || strcmp(value, "L2") == 0 ||
+      strcmp(value, "lefttrigger") == 0 || strcmp(value, "left_trigger") == 0 ||
+      strcmp(value, "10-104") == 0) {
+    return "l2";
+  }
+  if (strcmp(value, "r2") == 0 || strcmp(value, "R2") == 0 ||
+      strcmp(value, "righttrigger") == 0 || strcmp(value, "right_trigger") == 0 ||
+      strcmp(value, "10-105") == 0) {
+    return "r2";
+  }
+  if (strcmp(value, "none") == 0 || strcmp(value, "off") == 0 ||
+      strcmp(value, "disabled") == 0 || strcmp(value, "0") == 0 ||
+      strcmp(value, "false") == 0) {
+    return "none";
+  }
+  if (strcmp(value, "10-4") == 0) {
+    return "function";
+  }
+  return NULL;
+}
+
+static const char *ppsspp_menu_button_pause_mapping(const char *raw) {
+  if (strcmp(raw, "function") == 0) {
+    return "10-4";
+  }
+  if (strcmp(raw, "r2") == 0) {
+    return "10-105";
+  }
+  if (strcmp(raw, "none") == 0) {
+    return "";
+  }
+  return "10-104";
+}
+
+static const char *ppsspp_menu_button_function_button(const char *raw) {
+  return strcmp(raw, "function") == 0 ? "mode" : "none";
+}
+
+static int load_ppsspp_menu_button_setting(struct ui_state *ui, char *out,
+                                           size_t out_size) {
+  char path[PATH_MAX];
+  char *text;
+  char value[64];
+  const char *normalized;
+
+  if (!out || out_size == 0) {
+    return 0;
+  }
+  copy_string(out, out_size, "function");
+  if (!standalone_env_path(ui, "ppsspp", path, sizeof(path))) {
+    return 0;
+  }
+  text = read_file(path, NULL);
+  if (!text) {
+    return 1;
+  }
+  if (env_text_get_value(text, "PLUMOS_A30_PSP_MENU_BUTTON",
+                         value, sizeof(value))) {
+    normalized = normalize_ppsspp_menu_button(value);
+    if (normalized) {
+      copy_string(out, out_size, normalized);
+      free(text);
+      return 1;
+    }
+  }
+  if (env_text_get_value(text, "PLUMOS_A30_PSP_PAUSE_MAPPING",
+                         value, sizeof(value))) {
+    normalized = normalize_ppsspp_menu_button(value);
+    if (normalized) {
+      copy_string(out, out_size, normalized);
+    }
+  }
+  free(text);
+  return 1;
+}
+
+static int save_ppsspp_menu_button_env(struct ui_state *ui, const char *raw) {
+  char path[PATH_MAX];
+  char tmp_path[PATH_MAX];
+  char *text = NULL;
+  size_t text_size = 0;
+  const char *pause_mapping;
+  const char *function_button;
+  FILE *f;
+  int fd;
+  int ok = 0;
+  const char *p;
+
+  raw = normalize_ppsspp_menu_button(raw);
+  if (!raw ||
+      !ensure_standalone_config_dir(ui) ||
+      !standalone_env_path(ui, "ppsspp", path, sizeof(path)) ||
+      snprintf(tmp_path, sizeof(tmp_path), "%s.plumos.tmp", path) >=
+          (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  pause_mapping = ppsspp_menu_button_pause_mapping(raw);
+  function_button = ppsspp_menu_button_function_button(raw);
+
+  text = read_file(path, &text_size);
+  if (text) {
+    if (!ensure_system_config_backup(path, text, text_size)) {
+      free(text);
+      return 0;
+    }
+  }
+
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    free(text);
+    return 0;
+  }
+  if (text) {
+    for (p = text; *p;) {
+      const char *line = p;
+      const char *line_end = strchr(p, '\n');
+      size_t line_len;
+      if (line_end) {
+        line_len = (size_t)(line_end - line + 1);
+        p = line_end + 1;
+      } else {
+        line_len = strlen(line);
+        p = line + line_len;
+      }
+      if (env_line_matches_key(line, line_len, "PLUMOS_A30_PSP_MENU_BUTTON",
+                               NULL, NULL) ||
+          env_line_matches_key(line, line_len, "PLUMOS_A30_PSP_PAUSE_MAPPING",
+                               NULL, NULL) ||
+          env_line_matches_key(line, line_len,
+                               "PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON",
+                               NULL, NULL)) {
+        continue;
+      }
+      if (line_len > 0 && fwrite(line, 1, line_len, f) != line_len) {
+        goto done;
+      }
+    }
+    if (text_size > 0 && text[text_size - 1] != '\n') {
+      if (fputc('\n', f) == EOF) {
+        goto done;
+      }
+    }
+  }
+  if (fprintf(f,
+              "PLUMOS_A30_PSP_MENU_BUTTON=%s\n"
+              "PLUMOS_A30_PSP_PAUSE_MAPPING=%s\n"
+              "PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=%s\n",
+              raw, pause_mapping, function_button) < 0) {
+    goto done;
+  }
+  fd = fileno(f);
+  if (fflush(f) != 0 || (fd >= 0 && fsync(fd) != 0) || fclose(f) != 0) {
+    f = NULL;
+    goto done;
+  }
+  f = NULL;
+  if (rename(tmp_path, path) == 0) {
+    sync();
+    ok = 1;
+  }
+
+done:
+  if (f) {
+    fclose(f);
+  }
+  if (!ok) {
+    unlink(tmp_path);
+  }
+  free(text);
+  return ok;
+}
+
 static int ensure_os_timezone_backup(struct ui_state *ui) {
   char backup_dir[PATH_MAX];
   char backup_system_dir[PATH_MAX];
@@ -4005,6 +4314,13 @@ static const struct setting_choice GRAPHIC_TRANSITION_EASING_CHOICES[] = {
     {"linear", "Linear"},
 };
 
+static const struct setting_choice PPSSPP_MENU_BUTTON_CHOICES[] = {
+    {"function", "Function"},
+    {"l2", "L2"},
+    {"r2", "R2"},
+    {"none", "None"},
+};
+
 static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {
     {"en.lang", "English"},
     {"ja.lang", "Japanese"},
@@ -4112,6 +4428,13 @@ static const struct setting_choice *setting_choices(const char *id, size_t *coun
       *count_out = sizeof(SYSTEM_TIMEZONE_CHOICES) / sizeof(SYSTEM_TIMEZONE_CHOICES[0]);
     }
     return SYSTEM_TIMEZONE_CHOICES;
+  }
+  if (strcmp(id, "ppsspp_menu_button") == 0) {
+    if (count_out) {
+      *count_out = sizeof(PPSSPP_MENU_BUTTON_CHOICES) /
+                   sizeof(PPSSPP_MENU_BUTTON_CHOICES[0]);
+    }
+    return PPSSPP_MENU_BUTTON_CHOICES;
   }
   return NULL;
 }
@@ -4265,6 +4588,7 @@ static int setting_is_writable(const char *id) {
                 strcmp(id, "show_favorites_on_top") == 0 ||
                 strcmp(id, "show_recent_on_top") == 0 ||
                 strcmp(id, "rom_cursor_wrap") == 0 ||
+                strcmp(id, "ppsspp_menu_button") == 0 ||
                 strcmp(id, "boot_resume_mode") == 0 ||
                 strcmp(id, "graphic_theme_id") == 0 ||
                 strcmp(id, "theme_top_layout") == 0 ||
@@ -4343,6 +4667,10 @@ static const char *settings_category_title(const struct ui_state *ui,
 
 static void add_ui_settings_entries(struct ui_state *ui,
                                     const struct frontend_settings *settings) {
+  char ppsspp_menu_button[32];
+
+  load_ppsspp_menu_button_setting(ui, ppsspp_menu_button,
+                                  sizeof(ppsspp_menu_button));
   add_setting_entry(ui, "refresh_top", "Refresh TOP", "");
   add_setting_entry(ui, "ui_mode", "UI Mode",
                     setting_choice_display_value("ui_mode", settings->ui_mode));
@@ -4354,6 +4682,9 @@ static void add_ui_settings_entries(struct ui_state *ui,
                          settings->show_recent_on_top);
   add_bool_setting_entry(ui, "rom_cursor_wrap", "ROM Cursor Wrap",
                          settings->rom_cursor_wrap);
+  add_setting_entry(ui, "ppsspp_menu_button", "PPSSPP Menu Button",
+                    setting_choice_display_value("ppsspp_menu_button",
+                                                 ppsspp_menu_button));
   add_setting_entry(ui, "boot_resume_mode", "Open Last ROM At Boot",
                     setting_choice_display_value("boot_resume_mode",
                                                  settings->boot_resume_mode));
@@ -7370,6 +7701,9 @@ static void setting_help_lines(const struct ui_state *ui,
   } else if (strcmp(id, "rom_cursor_wrap") == 0) {
     copy_string(line1, line1_size, "Wrap ROM cursor navigation at list ends.");
     copy_string(line2, line2_size, "Affects ROM lists and Gallery navigation.");
+  } else if (strcmp(id, "ppsspp_menu_button") == 0) {
+    copy_string(line1, line1_size, "Choose the PPSSPP pause menu button.");
+    copy_string(line2, line2_size, "Saved to standalone PPSSPP launcher settings.");
   } else if (strcmp(id, "boot_resume_mode") == 0) {
     copy_string(line1, line1_size, "Open the last ROM at startup.");
     copy_string(line2, line2_size, "No save states are created or loaded.");
@@ -10569,6 +10903,38 @@ static int save_graphic_theme_choice(struct ui_state *ui,
   return 1;
 }
 
+static int save_ppsspp_menu_button_choice(struct ui_state *ui,
+                                          const char *display_value,
+                                          int direction) {
+  const struct setting_choice *choices;
+  size_t count = 0;
+  int index;
+  const char *raw;
+
+  choices = setting_choices("ppsspp_menu_button", &count);
+  if (!choices || count == 0 || direction == 0) {
+    set_status(ui, "setting is not a choice");
+    return 0;
+  }
+  index = choice_index_from_value(choices, count, display_value);
+  index += direction > 0 ? 1 : -1;
+  if (index < 0) {
+    index = (int)count - 1;
+  } else if ((size_t)index >= count) {
+    index = 0;
+  }
+  raw = choices[index].raw;
+  if (!save_ppsspp_menu_button_env(ui, raw)) {
+    set_status(ui, "PPSSPP setting write failed");
+    return 0;
+  }
+  update_settings_entries_after_save(ui);
+  settings_start_arrow_blink(ui, direction);
+  snprintf(ui->status, sizeof(ui->status), "saved PPSSPP Menu Button=%s",
+           choices[index].display);
+  return 1;
+}
+
 static int save_setting_choice(struct ui_state *ui, const char *id,
                                const char *display_value, int direction) {
   struct frontend_settings settings;
@@ -10579,6 +10945,9 @@ static int save_setting_choice(struct ui_state *ui, const char *id,
 
   if (strcmp(id, "graphic_theme_id") == 0) {
     return save_graphic_theme_choice(ui, display_value, direction);
+  }
+  if (strcmp(id, "ppsspp_menu_button") == 0) {
+    return save_ppsspp_menu_button_choice(ui, display_value, direction);
   }
 
   choices = setting_choices(id, &count);

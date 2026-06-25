@@ -124,6 +124,9 @@
   先頭で上を押すと末尾へ、末尾で下を押すと先頭へ移動する。Gallery のカーソル移動も
   同じ折り返しを使う。Gallery のスライド方向は、先頭/末尾をまたぐ場合でも
   押した方向に従う。ページ移動は従来通り端で止める。
+- `PPSSPP メニューボタン` は UI Settings の choice とし、
+  `plumos/config/standalone/ppsspp.env` に保存する。変更対象は standalone PPSSPP の
+  pause menu binding だけで、既定値はファンクションボタンとする。
 
 ## Graphic Mode
 

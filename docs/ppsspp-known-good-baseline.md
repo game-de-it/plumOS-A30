@@ -56,7 +56,9 @@ The captured `ppsspp.env` has these important properties:
 - display rotation: `PLUMOS_A30_DISPLAY_ROTATION=ccw`
 - logical UI size: `PLUMOS_A30_DISPLAY_LOGICAL=854x480`
 - force landscape: `PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1`
-- pause mapping: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-104`
+- menu button: `PLUMOS_A30_PSP_MENU_BUTTON=function`
+- pause mapping: `PLUMOS_A30_PSP_PAUSE_MAPPING=10-4`
+- joystickd Function button forwarding: `PLUMOS_A30_PSP_JOYSTICKD_FUNCTION_BUTTON=mode`
 - joystickd trigger mode: `buttons`
 - joystickd shoulder layout: `standard`
 - joystickd axis sources: `axisYR` and `axisXR`
@@ -77,7 +79,7 @@ Active config:
   - landscape `InternalScreenRotation = 1`
   - landscape `RotateControlsWithScreen = False`
 - `config/ppsspp/PSP/SYSTEM/controls.ini`
-  - `Pause = 10-193`
+  - `Pause = 10-4`
 
 Legacy `.config` mirror:
 
@@ -89,10 +91,11 @@ Legacy `.config` mirror:
   - landscape `InternalScreenRotation = 1`
   - landscape `RotateControlsWithScreen = True`
 - `.config/ppsspp/PSP/SYSTEM/controls.ini`
-  - `Pause = 10-104`
+  - `Pause = 10-4`
 
-The active and legacy files are recorded exactly as they existed on the A30. Do
-not normalize them during recovery unless the user explicitly asks for that.
+The active and legacy config trees are kept in sync for the PPSSPP pause-menu
+binding. Other PPSSPP settings should not be normalized during recovery unless
+the user explicitly asks for that.
 
 ## Why the Landscape Menu Works
 
