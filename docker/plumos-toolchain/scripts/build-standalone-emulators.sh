@@ -1726,7 +1726,7 @@ sync_ppsspp_pause_menu_mapping_files() {
 
   if [ -s "${controls_file}" ]; then
     if [ "${PLUMOS_A30_PSP_MENU_BUTTON:-l2}" = l2 ]; then
-      ensure_ppsspp_l2_menu_control_mappings "${controls_file}" "10-193" "10-192" "10-104"
+      ensure_ppsspp_l2_menu_control_mappings "${controls_file}" "10-104" "10-105" "10-193"
     else
       ensure_ppsspp_pause_menu_mapping "${controls_file}"
     fi

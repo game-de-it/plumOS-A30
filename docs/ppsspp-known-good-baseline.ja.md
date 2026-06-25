@@ -77,9 +77,9 @@ Active config:
   - Landscape `InternalScreenRotation = 1`
   - Landscape `RotateControlsWithScreen = False`
 - `config/ppsspp/PSP/SYSTEM/controls.ini`
-  - `L = 10-193`
-  - `R = 10-192`
-  - `Pause = 10-104`
+  - `L = 10-104`
+  - `R = 10-105`
+  - `Pause = 10-193`
 
 Legacy `.config` mirror:
 
