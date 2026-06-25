@@ -86,6 +86,7 @@ Environment:
   PPSSPP_PATCH_MODE        PPSSPP patch mode: a30, display-ui, or vanilla. Default: a30.
   PPSSPP_STAGE_ID          PPSSPP output emulator id. Default: ppsspp.
   PPSSPP_BINARY_NAME       PPSSPP staged binary name. Default: PPSSPPSDL.
+  PPSSPP_USE_FFMPEG        Enable PPSSPP FFmpeg media engine. Default: ON.
   PYTHON_VERSION           Python source version for python-runtime. Default: 3.14.6.
   PYTHON_SHA256            Python source SHA-256 for python-runtime.
   PYXEL_VERSION            Pyxel version for pyxel-a30. Default: 2.9.6.
@@ -152,6 +153,7 @@ docker_run_base=(
   -e PPSSPP_PATCH_MODE="${PPSSPP_PATCH_MODE:-a30}"
   -e PPSSPP_STAGE_ID="${PPSSPP_STAGE_ID:-ppsspp}"
   -e PPSSPP_BINARY_NAME="${PPSSPP_BINARY_NAME:-PPSSPPSDL}"
+  -e PPSSPP_USE_FFMPEG="${PPSSPP_USE_FFMPEG:-ON}"
   -e PYTHON_VERSION="${PYTHON_VERSION:-3.14.6}"
   -e PYTHON_SHA256="${PYTHON_SHA256:-}"
   -e PYXEL_VERSION="${PYXEL_VERSION:-2.9.6}"
