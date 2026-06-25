@@ -3345,7 +3345,7 @@ static const char *ppsspp_menu_button_pause_mapping(const char *raw) {
   if (strcmp(raw, "none") == 0) {
     return "";
   }
-  return "10-104";
+  return "10-4008";
 }
 
 static const char *ppsspp_menu_button_function_button(const char *raw) {

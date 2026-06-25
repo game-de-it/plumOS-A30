@@ -1619,7 +1619,7 @@ run_with_fb_restore() {
 ensure_ppsspp_pause_menu_mapping() {
   controls_file=$1
   [ -s "${controls_file}" ] || return 0
-  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-104}
+  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-4008}
 
   tmp="${controls_file}.tmp.$$"
   awk -v pause_mapping="${pause_mapping}" '
@@ -1648,7 +1648,7 @@ configure_ppsspp_menu_button() {
       ;;
     l2|L2|lefttrigger|left_trigger)
       export PLUMOS_A30_PSP_MENU_BUTTON=l2
-      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
       export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
     r2|R2|righttrigger|right_trigger)
@@ -1664,7 +1664,7 @@ configure_ppsspp_menu_button() {
     *)
       echo "warning: invalid PLUMOS_A30_PSP_MENU_BUTTON=${ppsspp_menu_button}; using l2" >&2
       export PLUMOS_A30_PSP_MENU_BUTTON=l2
-      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
       export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
   esac
@@ -2379,7 +2379,7 @@ PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1
 PLUMOS_A30_UI_ROTATION=none
 
 PLUMOS_A30_PSP_MENU_BUTTON=l2
-PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
 PLUMOS_A30_PSP_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=standard
 PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE=axisYR
