@@ -134,8 +134,8 @@ Typical app entries:
   hotkeys are handled by RetroArch configuration.
 - PicoArch: the Function button opens the PicoArch menu. Use the D-pad in the
   PicoArch menu.
-- PPSSPP standalone: `PPSSPP Menu Button` in UI Settings chooses the pause menu
-  button. The default is `L2`.
+- PPSSPP standalone: `PPSSPP Menu Button` in UI Settings chooses either
+  `Function` or `L2` for the pause menu. The default is `L2`.
 - Standalone emulators: menu behavior depends on the emulator.
 
 The Power menu is opened by short POWER press regardless of runtime.

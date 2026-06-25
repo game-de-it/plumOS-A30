@@ -156,7 +156,7 @@ The current Linux-console-style TOP/list UI should follow these rules.
   first/last wrap. Page movement remains bounded.
 - `PPSSPP Menu Button` is a UI Settings choice backed by
   `plumos/config/standalone/ppsspp.env`. It changes only the standalone PPSSPP
-  pause-menu binding and defaults to `L2`.
+  pause-menu binding, offers `Function` and `L2`, and defaults to `L2`.
 - Up/Down one-item movement has software key repeat. Holding the physical key
   should move continuously even when the input device does not emit repeat
   events.

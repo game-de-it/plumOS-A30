@@ -3374,6 +3374,9 @@ static int load_ppsspp_menu_button_setting(struct ui_state *ui, char *out,
                          value, sizeof(value))) {
     normalized = normalize_ppsspp_menu_button(value);
     if (normalized) {
+      if (strcmp(normalized, "r2") == 0 || strcmp(normalized, "none") == 0) {
+        normalized = "l2";
+      }
       copy_string(out, out_size, normalized);
       free(text);
       return 1;
@@ -3383,6 +3386,9 @@ static int load_ppsspp_menu_button_setting(struct ui_state *ui, char *out,
                          value, sizeof(value))) {
     normalized = normalize_ppsspp_menu_button(value);
     if (normalized) {
+      if (strcmp(normalized, "r2") == 0 || strcmp(normalized, "none") == 0) {
+        normalized = "l2";
+      }
       copy_string(out, out_size, normalized);
     }
   }
@@ -4317,8 +4323,6 @@ static const struct setting_choice GRAPHIC_TRANSITION_EASING_CHOICES[] = {
 static const struct setting_choice PPSSPP_MENU_BUTTON_CHOICES[] = {
     {"function", "Function"},
     {"l2", "L2"},
-    {"r2", "R2"},
-    {"none", "None"},
 };
 
 static const struct setting_choice SYSTEM_LANGUAGE_CHOICES[] = {

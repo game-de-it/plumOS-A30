@@ -137,7 +137,7 @@ Runtime によって menu の出し方が異なります。
 
 - RetroArch: Function button を menu 表示用に使う方針です。SELECT + button の hotkey は RetroArch 設定側で扱います。
 - PicoArch: Function button で PicoArch menu を開きます。PicoArch menu では D-pad を使います。
-- PPSSPP standalone: UI Settings の `PPSSPP メニューボタン` で pause menu を開くボタンを選びます。既定値は `L2` です。
+- PPSSPP standalone: UI Settings の `PPSSPP メニューボタン` で pause menu を開くボタンを `Function` または `L2` から選びます。既定値は `L2` です。
 - Standalone: emulator ごとに menu 操作が異なります。
 
 Power menu は runtime に関係なく POWER 短押しで表示する方針です。
