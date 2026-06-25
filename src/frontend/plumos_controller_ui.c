@@ -550,6 +550,7 @@ struct ui_state {
   int gallery_transition_direction;
   int gallery_transition_active;
   size_t gallery_pending_cursor;
+  int gallery_pending_direction;
   int gallery_pending_active;
   enum ui_screen gallery_back_screen;
   size_t rom_cursor;
@@ -6662,7 +6663,7 @@ static void ui_move_graphic_top_cursor(struct ui_state *ui, enum ui_action actio
 static void reset_marquee(struct ui_state *ui);
 
 static void ui_start_gallery_transition(struct ui_state *ui, size_t from_cursor,
-                                        size_t to_cursor) {
+                                        size_t to_cursor, int direction) {
   if (!ui || from_cursor == to_cursor || ui->rom_count == 0) {
     return;
   }
@@ -6670,7 +6671,10 @@ static void ui_start_gallery_transition(struct ui_state *ui, size_t from_cursor,
   ui->gallery_transition_to_cursor = to_cursor;
   ui->gallery_transition_start_ms = current_time_ms();
   ui->gallery_transition_duration_ms = UI_GALLERY_TRANSITION_MS;
-  ui->gallery_transition_direction = to_cursor > from_cursor ? 1 : -1;
+  if (direction == 0) {
+    direction = to_cursor > from_cursor ? 1 : -1;
+  }
+  ui->gallery_transition_direction = direction < 0 ? -1 : 1;
   ui->gallery_transition_active = 1;
 }
 
@@ -6690,7 +6694,8 @@ static int ui_start_pending_gallery_transition(struct ui_state *ui) {
   if (to_cursor == from_cursor) {
     return 0;
   }
-  ui_start_gallery_transition(ui, from_cursor, to_cursor);
+  ui_start_gallery_transition(ui, from_cursor, to_cursor,
+                              ui->gallery_pending_direction);
   ui->rom_cursor = to_cursor;
   remember_current_rom_cursor(ui);
   reset_marquee(ui);
@@ -8133,6 +8138,7 @@ static void render_ui(struct ui_state *ui) {
   if (ui->screen != SCREEN_GALLERY) {
     ui->gallery_transition_active = 0;
     ui->gallery_pending_active = 0;
+    ui->gallery_pending_direction = 0;
   }
   if (ui->rescue_network) {
     render_network_rescue(ui);
@@ -8806,6 +8812,7 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
     ui->screen = SCREEN_GALLERY;
     ui->gallery_transition_active = 0;
     ui->gallery_pending_active = 0;
+    ui->gallery_pending_direction = 0;
     set_status(ui, "Gallery ready");
   }
   reset_marquee(ui);
@@ -8820,6 +8827,7 @@ static void open_gallery_screen(struct ui_state *ui) {
   ui->screen = SCREEN_GALLERY;
   ui->gallery_transition_active = 0;
   ui->gallery_pending_active = 0;
+  ui->gallery_pending_direction = 0;
   set_status(ui, "Gallery ready");
   reset_marquee(ui);
 }
@@ -11329,6 +11337,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
     if (next_cursor != ui->rom_cursor) {
       ui->gallery_transition_active = 0;
       ui->gallery_pending_active = 0;
+      ui->gallery_pending_direction = 0;
       ui->rom_cursor = next_cursor;
       remember_current_rom_cursor(ui);
       reset_marquee(ui);
@@ -11340,6 +11349,7 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
     next_cursor = rom_cursor_after_delta(ui, base_cursor, delta);
     if (next_cursor != base_cursor) {
       ui->gallery_pending_cursor = next_cursor;
+      ui->gallery_pending_direction = delta < 0 ? -1 : 1;
       ui->gallery_pending_active = 1;
     }
     return;
@@ -11347,7 +11357,8 @@ static void move_gallery_cursor(struct ui_state *ui, long delta) {
   old_cursor = ui->rom_cursor;
   next_cursor = rom_cursor_after_delta(ui, old_cursor, delta);
   if (next_cursor != old_cursor) {
-    ui_start_gallery_transition(ui, old_cursor, next_cursor);
+    ui_start_gallery_transition(ui, old_cursor, next_cursor,
+                                delta < 0 ? -1 : 1);
     ui->rom_cursor = next_cursor;
     remember_current_rom_cursor(ui);
     reset_marquee(ui);
@@ -11663,6 +11674,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       ui->screen = SCREEN_TOP;
       ui->gallery_transition_active = 0;
       ui->gallery_pending_active = 0;
+      ui->gallery_pending_direction = 0;
       set_status(ui, "back to TOP");
       reset_marquee(ui);
       return;
@@ -11675,6 +11687,7 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
                        : SCREEN_ROMS;
       ui->gallery_transition_active = 0;
       ui->gallery_pending_active = 0;
+      ui->gallery_pending_direction = 0;
       set_status(ui, "back to ROM list");
       reset_marquee(ui);
       return;

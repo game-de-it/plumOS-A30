@@ -152,7 +152,8 @@ The current Linux-console-style TOP/list UI should follow these rules.
 - `ROM Cursor Wrap` is a UI Settings checkbox. When enabled, ROM-list Up at
   the first entry moves to the last entry, and Down at the last entry moves to
   the first entry. Gallery cursor movement follows the same wrap behavior.
-  Page movement remains bounded.
+  Gallery slide direction follows the pressed direction even across the
+  first/last wrap. Page movement remains bounded.
 - Up/Down one-item movement has software key repeat. Holding the physical key
   should move continuously even when the input device does not emit repeat
   events.
