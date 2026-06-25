@@ -102,6 +102,10 @@ setting. It depends on the A30-specific platform contract below:
 - `PLUMOS_STANDALONE_USE_STOCK_SDL=1` keeps PPSSPP on the StockOS SDL2 path. That
   path exposes the A30 `mali` backend from `/usr/miyoo/lib` and matches how
   `PPSSPPSDL` expects to create its SDL window before using its GLES renderer.
+- FFmpeg-enabled PPSSPP builds still keep that stock SDL2 ordering, but prepend
+  `/mnt/SDCARD/plumos/emulators/ppsspp/lib` so a newer PPSSPP-local
+  `libSDL2_ttf` satisfies symbols such as `TTF_GlyphIsProvided32` before the
+  older stock `libSDL2_ttf` is considered.
 - The launcher exports an A30 logical landscape contract:
   `PLUMOS_A30_DISPLAY_ROTATION=ccw`,
   `PLUMOS_A30_DISPLAY_LOGICAL=854x480`, and

@@ -385,6 +385,18 @@ build_ppsspp() {
   bin=$(find_one_binary "${build_dir}" PPSSPPSDL) || return 1
   stage_binary "${PPSSPP_STAGE_ID}" "${bin}" "${PPSSPP_BINARY_NAME}" || return 1
 
+  # PPSSPP still uses the stock SDL2 video path on A30, but newer PPSSPP builds
+  # require SDL2_ttf symbols that the stock SDL2_ttf does not provide. Keep the
+  # stock SDL2 ordering and inject only the newer SDL2_ttf ahead of it.
+  local ppsspp_lib_dir="${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}/lib"
+  local ppsspp_ttf_dep
+  mkdir -p "${ppsspp_lib_dir}"
+  for ppsspp_ttf_dep in "${TARGET_DIR}/plumos/lib"/libSDL2_ttf-2.0.so.0*; do
+    [ -e "${ppsspp_ttf_dep}" ] || continue
+    install -m 0755 "${ppsspp_ttf_dep}" "${ppsspp_lib_dir}/" || return 1
+    append_manifest "  lib=plumos/emulators/${PPSSPP_STAGE_ID}/lib/${ppsspp_ttf_dep##*/}"
+  done
+
   mkdir -p "${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}"
   if [ -d "${src}/assets" ]; then
     rsync -a --delete "${src}/assets/" "${TARGET_DIR}/plumos/emulators/${PPSSPP_STAGE_ID}/assets/"
@@ -2218,6 +2230,7 @@ write_standalone_config_defaults() {
 # This file is user-mutable and is preserved by scripts/deploy-a30.sh.
 
 PLUMOS_STANDALONE_USE_STOCK_SDL=1
+PLUMOS_STOCK_LIB=/mnt/SDCARD/plumos/emulators/ppsspp/lib:/mnt/SDCARD/miyoo/lib:/usr/miyoo/lib
 
 PLUMOS_A30_PSP_CPU_POLICY=fixed
 PLUMOS_A30_PSP_CPU_FREQ=1344000
