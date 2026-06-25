@@ -79,6 +79,8 @@ Active config:
   - landscape `InternalScreenRotation = 1`
   - landscape `RotateControlsWithScreen = False`
 - `config/ppsspp/PSP/SYSTEM/controls.ini`
+  - `L = 10-193`
+  - `R = 10-192`
   - `Pause = 10-104`
 
 Legacy `.config` mirror:
@@ -91,11 +93,14 @@ Legacy `.config` mirror:
   - landscape `InternalScreenRotation = 1`
   - landscape `RotateControlsWithScreen = True`
 - `.config/ppsspp/PSP/SYSTEM/controls.ini`
+  - `L = 1-45,10-193`
+  - `R = 1-51,10-192`
   - `Pause = 10-104`
 
-The active and legacy config trees are kept in sync for the PPSSPP pause-menu
-binding. Other PPSSPP settings should not be normalized during recovery unless
-the user explicitly asks for that.
+When `PLUMOS_A30_PSP_MENU_BUTTON=l2`, the active and legacy config trees are
+kept in sync for the minimal legacy L2 route: `L`, `R`, and `Pause`. Other
+PPSSPP settings should not be normalized during recovery unless the user
+explicitly asks for that.
 
 Use `standard` for the PPSSPP joystickd shoulder layout. PPSSPP's A30
 GameController mapping and patch set expect this layout for the legacy
@@ -159,8 +164,10 @@ before changing code or writing new defaults.
 
 The launcher must continue to treat PPSSPP config and controls as user-managed
 state. Normal launch and deploy flows must not auto-reset or auto-repair
-`ppsspp.ini` or `controls.ini`. Explicit repair modes are allowed only when the
-user asks for them.
+`ppsspp.ini` or `controls.ini`. The only normal-launch exception is the
+`PLUMOS_A30_PSP_MENU_BUTTON=l2` route, which rewrites the three L/R/Pause
+control lines needed to preserve the known-good L2 pause-menu path. Explicit
+repair modes are allowed only when the user asks for them.
 
 ## Fresh SD-Root Rule
 

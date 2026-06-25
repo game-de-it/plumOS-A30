@@ -77,6 +77,8 @@ Active config:
   - Landscape `InternalScreenRotation = 1`
   - Landscape `RotateControlsWithScreen = False`
 - `config/ppsspp/PSP/SYSTEM/controls.ini`
+  - `L = 10-193`
+  - `R = 10-192`
   - `Pause = 10-104`
 
 Legacy `.config` mirror:
@@ -89,11 +91,13 @@ Legacy `.config` mirror:
   - Landscape `InternalScreenRotation = 1`
   - Landscape `RotateControlsWithScreen = True`
 - `.config/ppsspp/PSP/SYSTEM/controls.ini`
+  - `L = 1-45,10-193`
+  - `R = 1-51,10-192`
   - `Pause = 10-104`
 
-Active 側と legacy 側の config tree は、PPSSPP pause-menu binding だけ同期します。
-それ以外の PPSSPP 設定は、ユーザーが明示した場合を除いて recovery 時に
-正規化しません。
+`PLUMOS_A30_PSP_MENU_BUTTON=l2` の場合だけ、active 側と legacy 側の config tree は
+既知良好の L2 menu 経路に必要な最小行として `L`、`R`、`Pause` を同期します。
+それ以外の PPSSPP 設定は、ユーザーが明示した場合を除いて recovery 時に正規化しません。
 
 PPSSPP の joystickd shoulder layout は `standard` を使います。PPSSPP の A30
 GameController mapping と patch は、以前からの L2 menu 経路ではこの layout を
@@ -156,8 +160,10 @@ snapshot before changing code or writing new defaults.
 
 The launcher must continue to treat PPSSPP config and controls as user-managed
 state. Normal launch and deploy flows must not auto-reset or auto-repair
-`ppsspp.ini` or `controls.ini`. Explicit repair modes are allowed only when the
-user asks for them.
+`ppsspp.ini` or `controls.ini`. The only normal-launch exception is
+`PLUMOS_A30_PSP_MENU_BUTTON=l2`, where the launcher rewrites just the L/R/Pause
+control lines needed to preserve the known-good L2 pause-menu path. Explicit
+repair modes are allowed only when the user asks for them.
 
 ## Fresh SD-root rule
 

@@ -1619,7 +1619,7 @@ run_with_fb_restore() {
 ensure_ppsspp_pause_menu_mapping() {
   controls_file=$1
   [ -s "${controls_file}" ] || return 0
-  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-4008}
+  pause_mapping=${PLUMOS_A30_PSP_PAUSE_MAPPING:-10-104}
 
   tmp="${controls_file}.tmp.$$"
   awk -v pause_mapping="${pause_mapping}" '
@@ -1638,6 +1638,50 @@ ensure_ppsspp_pause_menu_mapping() {
   rm -f "${tmp}"
 }
 
+ensure_ppsspp_l2_menu_control_mappings() {
+  controls_file=$1
+  l_mapping=$2
+  r_mapping=$3
+  pause_mapping=$4
+  [ -s "${controls_file}" ] || return 0
+
+  tmp="${controls_file}.tmp.$$"
+  awk -v l_mapping="${l_mapping}" \
+      -v r_mapping="${r_mapping}" \
+      -v pause_mapping="${pause_mapping}" '
+    BEGIN {
+      done_l = 0
+      done_r = 0
+      done_pause = 0
+    }
+    /^L[[:space:]]*=/ {
+      $0 = "L = " l_mapping
+      done_l = 1
+    }
+    /^R[[:space:]]*=/ {
+      $0 = "R = " r_mapping
+      done_r = 1
+    }
+    /^Pause[[:space:]]*=/ {
+      $0 = "Pause = " pause_mapping
+      done_pause = 1
+    }
+    { print }
+    END {
+      if (!done_l) {
+        print "L = " l_mapping
+      }
+      if (!done_r) {
+        print "R = " r_mapping
+      }
+      if (!done_pause) {
+        print "Pause = " pause_mapping
+      }
+    }
+  ' "${controls_file}" >"${tmp}" && mv "${tmp}" "${controls_file}"
+  rm -f "${tmp}"
+}
+
 configure_ppsspp_menu_button() {
   ppsspp_menu_button=${PLUMOS_A30_PSP_MENU_BUTTON:-l2}
   case "${ppsspp_menu_button}" in
@@ -1648,7 +1692,9 @@ configure_ppsspp_menu_button() {
       ;;
     l2|L2|lefttrigger|left_trigger)
       export PLUMOS_A30_PSP_MENU_BUTTON=l2
-      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
+      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+      export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=buttons
+      export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=standard
       export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
     r2|R2|righttrigger|right_trigger)
@@ -1664,7 +1710,9 @@ configure_ppsspp_menu_button() {
     *)
       echo "warning: invalid PLUMOS_A30_PSP_MENU_BUTTON=${ppsspp_menu_button}; using l2" >&2
       export PLUMOS_A30_PSP_MENU_BUTTON=l2
-      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
+      export PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
+      export PLUMOS_STANDALONE_JOYSTICKD_TRIGGER_MODE=buttons
+      export PLUMOS_STANDALONE_JOYSTICKD_SHOULDER_LAYOUT=standard
       export PLUMOS_STANDALONE_JOYSTICKD_FUNCTION_BUTTON=none
       ;;
   esac
@@ -1677,10 +1725,18 @@ sync_ppsspp_pause_menu_mapping_files() {
   legacy_controls_file="${legacy_controls_dir}/controls.ini"
 
   if [ -s "${controls_file}" ]; then
-    ensure_ppsspp_pause_menu_mapping "${controls_file}"
+    if [ "${PLUMOS_A30_PSP_MENU_BUTTON:-l2}" = l2 ]; then
+      ensure_ppsspp_l2_menu_control_mappings "${controls_file}" "10-193" "10-192" "10-104"
+    else
+      ensure_ppsspp_pause_menu_mapping "${controls_file}"
+    fi
   fi
   if [ "${legacy_controls_file}" != "${controls_file}" ] && [ -s "${legacy_controls_file}" ]; then
-    ensure_ppsspp_pause_menu_mapping "${legacy_controls_file}"
+    if [ "${PLUMOS_A30_PSP_MENU_BUTTON:-l2}" = l2 ]; then
+      ensure_ppsspp_l2_menu_control_mappings "${legacy_controls_file}" "1-45,10-193" "1-51,10-192" "10-104"
+    else
+      ensure_ppsspp_pause_menu_mapping "${legacy_controls_file}"
+    fi
   fi
 }
 
@@ -2379,7 +2435,7 @@ PLUMOS_A30_DISPLAY_FORCE_LANDSCAPE=1
 PLUMOS_A30_UI_ROTATION=none
 
 PLUMOS_A30_PSP_MENU_BUTTON=l2
-PLUMOS_A30_PSP_PAUSE_MAPPING=10-4008
+PLUMOS_A30_PSP_PAUSE_MAPPING=10-104
 PLUMOS_A30_PSP_JOYSTICKD_TRIGGER_MODE=buttons
 PLUMOS_A30_PSP_JOYSTICKD_SHOULDER_LAYOUT=standard
 PLUMOS_A30_PSP_JOYSTICKD_X_SOURCE=axisYR
