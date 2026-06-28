@@ -12784,6 +12784,7 @@ static enum ui_action action_from_key_code(unsigned int code) {
   case KEY_X:
     return ACTION_X;
   case BTN_WEST:
+  case KEY_LEFTALT:
   case KEY_Y:
     return ACTION_Y;
   case KEY_ENTER:
