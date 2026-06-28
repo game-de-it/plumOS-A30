@@ -127,6 +127,8 @@
 - `PPSSPP メニューボタン` は UI Settings の choice とし、
   `plumos/config/standalone/ppsspp.env` に保存する。変更対象は standalone PPSSPP の
   pause menu binding だけで、候補は `Function` と `L2`、既定値は `L2` とする。
+- ROM list と Gallery では Y で選択 ROM の Favorite 追加/解除を行う。
+  Favorites 一覧では Y で選択 ROM を Favorites から解除する。
 
 ## Graphic Mode
 
@@ -160,7 +162,8 @@
 - Graphic mode の ROM list では X で Gallery list に入る。Gallery は背景、中央の選択ROM画像、
   左右端に見切れる前後ROM画像を表示し、左右で 1 件ずつ横 slide する。中央のROM画像枠は
   4:3を基準にし、下部のROM名は通常ROM listより大きく表示する。上下は 5 件 jump、A は起動、
-  B は TOP に戻り、次に通常systemへ入る時も Gallery で開く。X は元の ROM list に戻る。
+  Y は Favorite 追加/解除、B は TOP に戻り、次に通常systemへ入る時も Gallery で開く。
+  X は元の ROM list に戻る。
 - ROM list から B で TOP に戻った場合は、次に通常systemへ入る時も ROM list で開く。
 - Gallery のROM画像は背景パネルや影を描かず、画像だけを表示する。ROM名 marquee と左右slide は
   60fps 相当の再描画周期を維持する。

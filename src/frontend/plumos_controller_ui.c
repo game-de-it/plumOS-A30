@@ -88,6 +88,9 @@ struct input_event {
 #ifndef KEY_X
 #define KEY_X 45
 #endif
+#ifndef KEY_Y
+#define KEY_Y 21
+#endif
 #ifndef KEY_SPACE
 #define KEY_SPACE 57
 #endif
@@ -237,6 +240,7 @@ struct rom_entry {
   char extension[32];
   int resume_available;
   int is_navigation_directory;
+  int is_favorite;
 };
 
 struct rom_cursor_memory {
@@ -499,6 +503,7 @@ enum ui_action {
   ACTION_START,
   ACTION_SELECT,
   ACTION_X,
+  ACTION_Y,
   ACTION_FUNCTION,
   ACTION_POWER,
   ACTION_VOLUME_DOWN,
@@ -926,6 +931,39 @@ static int file_is_directory(const char *path) {
   return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+static int ensure_dir_recursive(const char *path) {
+  char tmp[PATH_MAX];
+  char *p;
+
+  if (!path || !path[0]) {
+    return 0;
+  }
+  if (!copy_string(tmp, sizeof(tmp), path)) {
+    return 0;
+  }
+  for (p = tmp + 1; *p; p++) {
+    if (*p == '/') {
+      *p = '\0';
+      if (tmp[0] && mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+        return 0;
+      }
+      *p = '/';
+    }
+  }
+  if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+    return 0;
+  }
+  return 1;
+}
+
+static int ensure_parent_dir_for_file(const char *path) {
+  char dir[PATH_MAX];
+  if (!dirname_path(dir, sizeof(dir), path)) {
+    return 0;
+  }
+  return ensure_dir_recursive(dir);
+}
+
 static int valid_system_id(const char *s) {
   if (!s || !s[0]) {
     return 0;
@@ -935,6 +973,19 @@ static int valid_system_id(const char *s) {
     if (!(isalnum(c) || c == '_' || c == '-')) {
       return 0;
     }
+  }
+  return 1;
+}
+
+static int valid_relative_rom_path(const char *path) {
+  size_t len;
+  if (!path || !path[0] || path[0] == '/') {
+    return 0;
+  }
+  len = strlen(path);
+  if (strstr(path, "/../") || strncmp(path, "../", 3) == 0 ||
+      strcmp(path, "..") == 0 || (len >= 3 && strcmp(path + len - 3, "/..") == 0)) {
+    return 0;
   }
   return 1;
 }
@@ -6061,6 +6112,7 @@ static int load_favorite_entries(struct ui_state *ui) {
     if (!entry.title[0]) {
       copy_string(entry.title, sizeof(entry.title), entry.relative_path);
     }
+    entry.is_favorite = 1;
     {
       size_t pos = 0;
       append_string(entry.detail, sizeof(entry.detail), &pos, entry.system_id);
@@ -6070,6 +6122,235 @@ static int load_favorite_entries(struct ui_state *ui) {
     ui->rom_entries[ui->rom_count++] = entry;
   }
   free(json);
+  return 1;
+}
+
+static int favorite_entry_index(const struct rom_entry *entries, size_t count,
+                                const char *system_id,
+                                const char *relative_path) {
+  size_t i;
+
+  if (!entries || !system_id || !relative_path) {
+    return -1;
+  }
+  for (i = 0; i < count; i++) {
+    if (strcmp(entries[i].system_id, system_id) == 0 &&
+        strcmp(entries[i].relative_path, relative_path) == 0) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+static void update_top_favorites_count(struct ui_state *ui, size_t count) {
+  size_t i;
+
+  if (!ui) {
+    return;
+  }
+  for (i = 0; i < ui->top_count; i++) {
+    if (strcmp(ui->top_entries[i].id, "favorites") == 0) {
+      ui->top_entries[i].rom_count = (long)count;
+      return;
+    }
+  }
+}
+
+static int current_rom_is_favorite(const struct ui_state *ui,
+                                   const struct rom_entry *entry) {
+  if (!ui || !entry || entry->is_navigation_directory ||
+      !entry->relative_path[0]) {
+    return 0;
+  }
+  if (ui->screen == SCREEN_FAVORITES) {
+    return 1;
+  }
+  return entry->is_favorite;
+}
+
+static void mark_favorite_flags(struct ui_state *ui) {
+  struct ui_state *favorites;
+  size_t i;
+
+  if (!ui || ui->screen == SCREEN_FAVORITES) {
+    return;
+  }
+  for (i = 0; i < ui->rom_count; i++) {
+    ui->rom_entries[i].is_favorite = 0;
+  }
+  favorites = calloc(1, sizeof(*favorites));
+  if (!favorites) {
+    return;
+  }
+  copy_string(favorites->favorites_path, sizeof(favorites->favorites_path),
+              ui->favorites_path);
+  if (load_favorite_entries(favorites)) {
+    for (i = 0; i < ui->rom_count; i++) {
+      const char *system_id =
+          ui->rom_entries[i].system_id[0] ? ui->rom_entries[i].system_id
+                                          : ui->current_system_id;
+      if (ui->rom_entries[i].is_navigation_directory ||
+          !valid_system_id(system_id) ||
+          !valid_relative_rom_path(ui->rom_entries[i].relative_path)) {
+        continue;
+      }
+      ui->rom_entries[i].is_favorite =
+          favorite_entry_index(favorites->rom_entries, favorites->rom_count,
+                               system_id,
+                               ui->rom_entries[i].relative_path) >= 0;
+    }
+  }
+  free(favorites);
+}
+
+static int save_favorite_entries(const struct ui_state *ui,
+                                 const struct rom_entry *entries,
+                                 size_t count) {
+  char tmp_path[PATH_MAX];
+  FILE *f;
+  int fd;
+  size_t i;
+
+  if (!ui || !entries || count > UI_MAX_ROMS ||
+      !ensure_parent_dir_for_file(ui->favorites_path)) {
+    return 0;
+  }
+  if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", ui->favorites_path) >=
+      (int)sizeof(tmp_path)) {
+    return 0;
+  }
+  f = fopen(tmp_path, "wb");
+  if (!f) {
+    return 0;
+  }
+  fprintf(f, "{\n  \"version\": 1,\n  \"favorites\": [\n");
+  for (i = 0; i < count; i++) {
+    fprintf(f, "    { \"system_id\": ");
+    fprint_json_string(f, entries[i].system_id);
+    fprintf(f, ", \"relative_path\": ");
+    fprint_json_string(f, entries[i].relative_path);
+    fprintf(f, ", \"title\": ");
+    fprint_json_string(f, entries[i].title);
+    fprintf(f, ", \"path\": ");
+    fprint_json_string(f, entries[i].path);
+    fprintf(f, ", \"media\": { \"thumbnail\": ");
+    fprint_json_string(f, entries[i].thumbnail);
+    fprintf(f, " } }%s\n", i + 1 < count ? "," : "");
+  }
+  fprintf(f, "  ]\n}\n");
+
+  fd = fileno(f);
+  if (fflush(f) != 0 || (fd >= 0 && fsync(fd) != 0) || fclose(f) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  if (rename(tmp_path, ui->favorites_path) != 0) {
+    unlink(tmp_path);
+    return 0;
+  }
+  sync();
+  return 1;
+}
+
+static int toggle_current_favorite(struct ui_state *ui) {
+  struct ui_state *temp;
+  struct rom_entry *entry;
+  const char *system_id;
+  int idx;
+
+  if (!ui) {
+    return 0;
+  }
+  if (ui->rom_count == 0 || ui->rom_cursor >= ui->rom_count) {
+    set_status(ui, "no ROM selected");
+    return 0;
+  }
+  entry = &ui->rom_entries[ui->rom_cursor];
+  if (entry->is_navigation_directory) {
+    set_status(ui, "directory cannot be favorited");
+    return 0;
+  }
+  system_id = entry->system_id[0] ? entry->system_id : ui->current_system_id;
+  if (!valid_system_id(system_id) ||
+      !valid_relative_rom_path(entry->relative_path)) {
+    set_status(ui, "favorite target is invalid");
+    return 0;
+  }
+
+  temp = calloc(1, sizeof(*temp));
+  if (!temp) {
+    set_status(ui, "cannot load Favorites");
+    return 0;
+  }
+  copy_string(temp->favorites_path, sizeof(temp->favorites_path), ui->favorites_path);
+  if (!load_favorite_entries(temp)) {
+    free(temp);
+    set_status(ui, "cannot load Favorites");
+    return 0;
+  }
+
+  idx = favorite_entry_index(temp->rom_entries, temp->rom_count, system_id,
+                             entry->relative_path);
+  if (idx >= 0) {
+    if ((size_t)idx + 1 < temp->rom_count) {
+      memmove(&temp->rom_entries[idx], &temp->rom_entries[idx + 1],
+              (temp->rom_count - (size_t)idx - 1) * sizeof(temp->rom_entries[0]));
+    }
+    temp->rom_count--;
+    if (!save_favorite_entries(ui, temp->rom_entries, temp->rom_count)) {
+      free(temp);
+      set_status(ui, "cannot update Favorites");
+      return 0;
+    }
+    update_top_favorites_count(ui, temp->rom_count);
+    if (ui->screen == SCREEN_FAVORITES ||
+        (ui->screen == SCREEN_GALLERY &&
+         ui->gallery_back_screen == SCREEN_FAVORITES)) {
+      size_t old_cursor = ui->rom_cursor;
+      load_favorite_entries(ui);
+      if (ui->rom_count > 0 && old_cursor >= ui->rom_count) {
+        ui->rom_cursor = ui->rom_count - 1;
+      } else if (ui->rom_count > 0) {
+        ui->rom_cursor = old_cursor;
+      }
+    } else {
+      entry->is_favorite = 0;
+    }
+    free(temp);
+    set_status(ui, "removed from Favorites");
+    return 1;
+  }
+
+  if (temp->rom_count >= UI_MAX_ROMS) {
+    free(temp);
+    set_status(ui, "Favorites is full");
+    return 0;
+  }
+  memset(&temp->rom_entries[temp->rom_count], 0,
+         sizeof(temp->rom_entries[temp->rom_count]));
+  copy_string(temp->rom_entries[temp->rom_count].system_id,
+              sizeof(temp->rom_entries[temp->rom_count].system_id), system_id);
+  copy_string(temp->rom_entries[temp->rom_count].relative_path,
+              sizeof(temp->rom_entries[temp->rom_count].relative_path),
+              entry->relative_path);
+  copy_string(temp->rom_entries[temp->rom_count].title,
+              sizeof(temp->rom_entries[temp->rom_count].title),
+              entry->title[0] ? entry->title : entry->relative_path);
+  copy_string(temp->rom_entries[temp->rom_count].path,
+              sizeof(temp->rom_entries[temp->rom_count].path), entry->path);
+  copy_string(temp->rom_entries[temp->rom_count].thumbnail,
+              sizeof(temp->rom_entries[temp->rom_count].thumbnail),
+              entry->thumbnail);
+  temp->rom_count++;
+  if (!save_favorite_entries(ui, temp->rom_entries, temp->rom_count)) {
+    free(temp);
+    set_status(ui, "cannot update Favorites");
+    return 0;
+  }
+  update_top_favorites_count(ui, temp->rom_count);
+  entry->is_favorite = 1;
+  free(temp);
+  set_status(ui, "added to Favorites");
   return 1;
 }
 
@@ -6139,6 +6420,7 @@ static int load_recent_entries(struct ui_state *ui) {
     ui->rom_entries[ui->rom_count++] = entry;
   }
   free(json);
+  mark_favorite_flags(ui);
   return 1;
 }
 
@@ -6413,6 +6695,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
       qsort(ui->rom_entries, ui->rom_count, sizeof(ui->rom_entries[0]), cmp_rom_entry_name);
     }
   }
+  mark_favorite_flags(ui);
   return 1;
 }
 
@@ -7405,7 +7688,7 @@ static void render_roms(struct ui_state *ui) {
   size_t end;
   const char *title = "ROMS";
   const char *subtitle =
-      "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
+      "A: launch  Y: favorite  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
 
   if (window == 0) {
     window = 1;
@@ -7419,17 +7702,17 @@ static void render_roms(struct ui_state *ui) {
   if (ui->screen == SCREEN_FAVORITES) {
     title = "FAVORITES";
     subtitle =
-        "A: launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
+        "A: launch  Y: remove  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else if (ui->screen == SCREEN_RECENT) {
     title = "RECENT";
     subtitle =
-        "A: resume  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
+        "A: resume  Y: favorite  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else if (ui->rom_directory[0]) {
     subtitle =
-        "A: open/launch  B: parent  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
+        "A: open/launch  Y: favorite  B: parent  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   } else {
     subtitle =
-        "A: open/launch  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
+        "A: open/launch  Y: favorite  B: TOP  LEFT/RIGHT: page  START: menu  SELECT: core menu  POWER: power menu  Q: quit";
   }
 
   if (ui_uses_graphic_mode(ui)) {
@@ -7456,12 +7739,15 @@ static void render_roms(struct ui_state *ui) {
   for (i = start; i < end; i++) {
     const struct rom_entry *entry = &ui->rom_entries[i];
     const char *detail = entry->detail[0] ? entry->detail : entry->relative_path;
+    char favorite_marker = current_rom_is_favorite(ui, entry) ? '*' : ' ';
     if (ui->renderer_mali) {
-      ui_printf(ui, "%c %3zu  %s\n",
-                i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title);
+      ui_printf(ui, "%c%c %3zu  %s\n",
+                i == ui->rom_cursor ? '>' : ' ', favorite_marker, i + 1,
+                entry->title);
     } else {
-      ui_printf(ui, "%c %3zu  %-30s %s\n",
-                i == ui->rom_cursor ? '>' : ' ', i + 1, entry->title, detail);
+      ui_printf(ui, "%c%c %3zu  %-30s %s\n",
+                i == ui->rom_cursor ? '>' : ' ', favorite_marker, i + 1,
+                entry->title, detail);
     }
   }
   if (ui->rom_count == 0) {
@@ -12065,6 +12351,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
       reset_marquee(ui);
       return;
     }
+    if (action == ACTION_Y && ui->rom_count > 0) {
+      toggle_current_favorite(ui);
+      reset_marquee(ui);
+      return;
+    }
     if (action == ACTION_A && ui->rom_count > 0) {
       const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
       launch_rom_entry(ui, entry);
@@ -12443,6 +12734,11 @@ static void handle_action(struct ui_state *ui, enum ui_action action) {
     set_status(ui, "back to TOP");
     return;
   }
+  if (action == ACTION_Y && ui->rom_count > 0) {
+    toggle_current_favorite(ui);
+    reset_marquee(ui);
+    return;
+  }
   if (action == ACTION_A && ui->rom_count > 0) {
     const struct rom_entry *entry = &ui->rom_entries[ui->rom_cursor];
     launch_rom_entry(ui, entry);
@@ -12487,6 +12783,9 @@ static enum ui_action action_from_key_code(unsigned int code) {
   case BTN_NORTH:
   case KEY_X:
     return ACTION_X;
+  case BTN_WEST:
+  case KEY_Y:
+    return ACTION_Y;
   case KEY_ENTER:
   case KEY_MENU:
   case BTN_START:
@@ -12547,6 +12846,9 @@ static enum ui_action action_from_stdin_char(int ch) {
   case 'x':
   case 'X':
     return ACTION_X;
+  case 'y':
+  case 'Y':
+    return ACTION_Y;
   case '-':
   case '[':
     return ACTION_VOLUME_DOWN;
@@ -12589,6 +12891,10 @@ static enum ui_action action_from_script_token(const char *token) {
   }
   if (strcmp(token, "x") == 0 || strcmp(token, "gallery") == 0) {
     return ACTION_X;
+  }
+  if (strcmp(token, "y") == 0 || strcmp(token, "favorite") == 0 ||
+      strcmp(token, "fav") == 0) {
+    return ACTION_Y;
   }
   if (strcmp(token, "power") == 0 || strcmp(token, "power_menu") == 0 ||
       strcmp(token, "safe") == 0) {

@@ -11,6 +11,7 @@ by runtime and emulator.
 | D-pad Left/Right | Page, or change a setting value |
 | A | Confirm / run |
 | B | Back / cancel |
+| Y | Toggle Favorite on ROM list/Gallery screens |
 | START | Open the START menu |
 | Short POWER press | Open the Power menu |
 | Function | Usually reserved for emulator menus |
@@ -28,9 +29,12 @@ Favorites and Recent are shown alongside the system list.
 ## ROM List
 
 - A: launch the selected ROM
+- Y: add/remove the selected ROM from Favorites
 - B: return to TOP
 - START: open the START menu
 - Left/Right: page
+
+On the Favorites screen, Y removes the selected ROM from Favorites.
 
 `ROM Cursor Wrap` in UI Settings controls whether the cursor wraps at the first
 and last ROM.

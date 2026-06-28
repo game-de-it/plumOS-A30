@@ -545,6 +545,8 @@ rules:
 
 - favorite の key は `system_id` と ROM alias root からの `relative_path` の組み合わせ
   とする
+- controller UI では ROM list と Gallery で Y を押すと Favorite 追加/解除を行う。
+  Favorites 一覧では Y で選択 ROM を解除する
 - ROM list では favorite entry に text marker を表示する。text mode では icon や
   thumbnail に依存しない
 - Favorites 一覧は `favorites.json` に保存した title/path snapshot から表示できる

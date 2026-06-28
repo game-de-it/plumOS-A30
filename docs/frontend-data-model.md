@@ -568,6 +568,8 @@ Rules:
 
 - A favorite is keyed by `system_id` plus the ROM `relative_path` from the ROM
   alias root.
+- The controller UI toggles Favorites with Y on ROM list and Gallery screens.
+  On the Favorites list, Y removes the selected ROM.
 - ROM lists show a text marker for favorite entries. Text mode does not depend
   on icons or thumbnails.
 - The Favorites list can be displayed from the title/path snapshot stored in
