@@ -547,8 +547,8 @@ rules:
   とする
 - controller UI では ROM list と Gallery で Y を押すと Favorite 追加/解除を行う。
   Favorites 一覧では Y で選択 ROM を解除する
-- ROM list では favorite entry に text marker を表示する。text mode では icon や
-  thumbnail に依存しない
+- ROM list では favorite entry に marker を表示する。Text mode では marker 欄を使い、
+  Graphic ROM list/Gallery では favorite title の先頭に `*` を付ける
 - Favorites 一覧は `favorites.json` に保存した title/path snapshot から表示できる
 - ROM を移動/rename した場合、favorite は自動追跡しない。後で stale entry cleanup を
   settings/tool として用意する

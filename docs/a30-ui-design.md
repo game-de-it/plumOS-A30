@@ -164,6 +164,8 @@ The current Linux-console-style TOP/list UI should follow these rules.
   ROM and B returns to TOP.
 - On ROM lists and Gallery, Y toggles the selected ROM in Favorites. On the
   Favorites list, Y removes the selected ROM from Favorites.
+- Graphic ROM list and Gallery prefix favorite ROM titles with `*` so the
+  favorite state is visible without relying on thumbnail artwork.
 - TOP/ROM list pages are based on the number of rows that actually fit on
   screen. TTY `2x` uses 8 rows per page.
 - When entries do not fit on screen, render only the page that contains the

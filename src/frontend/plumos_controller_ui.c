@@ -7445,13 +7445,20 @@ static void ui_emit_graphic_rom_entry(struct ui_state *ui,
                                       const char *prefix,
                                       int selected) {
   const char *detail;
+  const char *display_title;
+  char marked_title[UI_RENDER_LINE_MAX];
 
   if (!ui || !entry || !prefix) {
     return;
   }
   detail = entry->detail[0] ? entry->detail : entry->relative_path;
+  display_title = entry->title;
+  if (current_rom_is_favorite(ui, entry)) {
+    snprintf(marked_title, sizeof(marked_title), "* %s", entry->title);
+    display_title = marked_title;
+  }
   ui_printf(ui, "%s\t%d\t%s\t%s\t%s\n", prefix, selected ? 1 : 0,
-            entry->title, detail, entry->thumbnail);
+            display_title, detail, entry->thumbnail);
 }
 
 static void render_top_graphic(struct ui_state *ui, size_t start, size_t end) {

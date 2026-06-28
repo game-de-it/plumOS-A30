@@ -35,6 +35,8 @@ Favorites and Recent are shown alongside the system list.
 - Left/Right: page
 
 On the Favorites screen, Y removes the selected ROM from Favorites.
+Favorite ROMs are marked with `*`; in Graphic and Gallery mode the mark appears
+at the start of the ROM title.
 
 `ROM Cursor Wrap` in UI Settings controls whether the cursor wraps at the first
 and last ROM.

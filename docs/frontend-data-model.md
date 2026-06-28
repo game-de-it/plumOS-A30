@@ -570,8 +570,8 @@ Rules:
   alias root.
 - The controller UI toggles Favorites with Y on ROM list and Gallery screens.
   On the Favorites list, Y removes the selected ROM.
-- ROM lists show a text marker for favorite entries. Text mode does not depend
-  on icons or thumbnails.
+- ROM lists mark favorite entries. Text mode uses a marker column, and Graphic
+  ROM list/Gallery mode prefix favorite titles with `*`.
 - The Favorites list can be displayed from the title/path snapshot stored in
   `favorites.json`.
 - Moving or renaming a ROM does not automatically move the favorite. Add stale

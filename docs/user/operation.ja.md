@@ -37,6 +37,8 @@ ROM list では、選択した system の ROM を起動できます。
 - 左右: ページ移動
 
 Favorites 画面では、Y で選択 ROM を Favorites から解除できます。
+Favorite ROM には `*` が表示されます。Graphic/Gallery mode では ROM title の
+先頭に `*` が付きます。
 
 UI Settings の `ROMカーソル折返し` で、先頭/末尾のカーソル移動を折り返すかを
 切り替えできます。

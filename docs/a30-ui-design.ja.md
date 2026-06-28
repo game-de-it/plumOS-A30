@@ -129,6 +129,8 @@
   pause menu binding だけで、候補は `Function` と `L2`、既定値は `L2` とする。
 - ROM list と Gallery では Y で選択 ROM の Favorite 追加/解除を行う。
   Favorites 一覧では Y で選択 ROM を Favorites から解除する。
+- Graphic ROM list と Gallery では、画像に依存せず Favorite 状態を判別できるように
+  Favorite ROM の title 先頭に `*` を付ける。
 
 ## Graphic Mode
 
