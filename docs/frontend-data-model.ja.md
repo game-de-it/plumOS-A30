@@ -204,6 +204,8 @@ subdirectory だけに投影します。
 - `scan_directories=true` の system で生成される directory ROM entry は起動対象であり、
   ROM list navigation 用の仮想 directory entry とは区別する
 - scanner cache format は変更しない。directory navigation entry は FE 表示時だけ作る
+- controller FE と補助 text UI は表示対象の ROM list を動的配列として保持する。選択中
+  system の cache にある ROM entry は、固定件数上限ではなく利用可能メモリの範囲で全件読み込む。
 
 ### Artwork lookup
 

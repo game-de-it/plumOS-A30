@@ -166,7 +166,7 @@ struct input_event {
 #endif
 
 #define UI_MAX_TOP 128
-#define UI_MAX_ROMS 256
+#define UI_ROM_INITIAL_CAPACITY 256
 #define UI_ROM_CURSOR_MEMORY_MAX 64
 #define UI_MAX_MENU 64
 #define UI_MAX_SETTINGS 64
@@ -568,8 +568,9 @@ struct ui_state {
   size_t power_cursor;
   struct top_entry top_entries[UI_MAX_TOP];
   size_t top_count;
-  struct rom_entry rom_entries[UI_MAX_ROMS];
+  struct rom_entry *rom_entries;
   size_t rom_count;
+  size_t rom_capacity;
   struct rom_cursor_memory rom_cursor_memory[UI_ROM_CURSOR_MEMORY_MAX];
   size_t rom_cursor_memory_count;
   struct menu_entry menu_entries[UI_MAX_MENU];
@@ -685,6 +686,66 @@ struct ui_state {
 
 static int load_top_entries(struct ui_state *ui);
 static void set_status(struct ui_state *ui, const char *text);
+
+static void ui_clear_rom_entries(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  ui->rom_count = 0;
+  ui->rom_cursor = 0;
+}
+
+static void ui_free_rom_entries(struct ui_state *ui) {
+  if (!ui) {
+    return;
+  }
+  free(ui->rom_entries);
+  ui->rom_entries = NULL;
+  ui->rom_count = 0;
+  ui->rom_capacity = 0;
+  ui->rom_cursor = 0;
+}
+
+static int ui_reserve_rom_entries(struct ui_state *ui, size_t min_capacity) {
+  struct rom_entry *next_entries;
+  const size_t max_capacity = ((size_t)-1) / sizeof(ui->rom_entries[0]);
+  size_t next_capacity;
+
+  if (!ui) {
+    return 0;
+  }
+  if (min_capacity > max_capacity) {
+    return 0;
+  }
+  if (ui->rom_capacity >= min_capacity) {
+    return 1;
+  }
+
+  next_capacity = ui->rom_capacity ? ui->rom_capacity : UI_ROM_INITIAL_CAPACITY;
+  while (next_capacity < min_capacity) {
+    if (next_capacity > max_capacity / 2) {
+      next_capacity = max_capacity;
+      break;
+    }
+    next_capacity *= 2;
+  }
+  next_entries = (struct rom_entry *)realloc(
+      ui->rom_entries, next_capacity * sizeof(ui->rom_entries[0]));
+  if (!next_entries) {
+    return 0;
+  }
+  ui->rom_entries = next_entries;
+  ui->rom_capacity = next_capacity;
+  return 1;
+}
+
+static int ui_append_rom_entry(struct ui_state *ui, const struct rom_entry *entry) {
+  if (!ui || !entry || !ui_reserve_rom_entries(ui, ui->rom_count + 1)) {
+    return 0;
+  }
+  ui->rom_entries[ui->rom_count++] = *entry;
+  return 1;
+}
 
 static const struct power_entry POWER_ENTRIES[] = {
     {"sleep", "Sleep", "sync and enter sleep"},
@@ -6077,8 +6138,7 @@ static int load_favorite_entries(struct ui_state *ui) {
   const char *end;
   const char *cursor;
 
-  ui->rom_count = 0;
-  ui->rom_cursor = 0;
+  ui_clear_rom_entries(ui);
   json = read_file(ui->favorites_path, &json_size);
   if (!json) {
     return file_exists(ui->favorites_path) ? 0 : 1;
@@ -6088,7 +6148,7 @@ static int load_favorite_entries(struct ui_state *ui) {
     return 0;
   }
   cursor = start;
-  while (ui->rom_count < UI_MAX_ROMS) {
+  while (1) {
     const char *obj_start;
     const char *obj_end;
     const char *media_start;
@@ -6119,7 +6179,10 @@ static int load_favorite_entries(struct ui_state *ui) {
       append_string(entry.detail, sizeof(entry.detail), &pos, " / ");
       append_string(entry.detail, sizeof(entry.detail), &pos, entry.relative_path);
     }
-    ui->rom_entries[ui->rom_count++] = entry;
+    if (!ui_append_rom_entry(ui, &entry)) {
+      free(json);
+      return 0;
+    }
   }
   free(json);
   return 1;
@@ -6200,6 +6263,7 @@ static void mark_favorite_flags(struct ui_state *ui) {
                                ui->rom_entries[i].relative_path) >= 0;
     }
   }
+  ui_free_rom_entries(favorites);
   free(favorites);
 }
 
@@ -6211,7 +6275,7 @@ static int save_favorite_entries(const struct ui_state *ui,
   int fd;
   size_t i;
 
-  if (!ui || !entries || count > UI_MAX_ROMS ||
+  if (!ui || (!entries && count > 0) ||
       !ensure_parent_dir_for_file(ui->favorites_path)) {
     return 0;
   }
@@ -6284,6 +6348,7 @@ static int toggle_current_favorite(struct ui_state *ui) {
   }
   copy_string(temp->favorites_path, sizeof(temp->favorites_path), ui->favorites_path);
   if (!load_favorite_entries(temp)) {
+    ui_free_rom_entries(temp);
     free(temp);
     set_status(ui, "cannot load Favorites");
     return 0;
@@ -6298,6 +6363,7 @@ static int toggle_current_favorite(struct ui_state *ui) {
     }
     temp->rom_count--;
     if (!save_favorite_entries(ui, temp->rom_entries, temp->rom_count)) {
+      ui_free_rom_entries(temp);
       free(temp);
       set_status(ui, "cannot update Favorites");
       return 0;
@@ -6316,39 +6382,38 @@ static int toggle_current_favorite(struct ui_state *ui) {
     } else {
       entry->is_favorite = 0;
     }
+    ui_free_rom_entries(temp);
     free(temp);
     set_status(ui, "removed from Favorites");
     return 1;
   }
 
-  if (temp->rom_count >= UI_MAX_ROMS) {
-    free(temp);
-    set_status(ui, "Favorites is full");
-    return 0;
+  {
+    struct rom_entry favorite;
+    memset(&favorite, 0, sizeof(favorite));
+    copy_string(favorite.system_id, sizeof(favorite.system_id), system_id);
+    copy_string(favorite.relative_path, sizeof(favorite.relative_path),
+                entry->relative_path);
+    copy_string(favorite.title, sizeof(favorite.title),
+                entry->title[0] ? entry->title : entry->relative_path);
+    copy_string(favorite.path, sizeof(favorite.path), entry->path);
+    copy_string(favorite.thumbnail, sizeof(favorite.thumbnail), entry->thumbnail);
+    if (!ui_append_rom_entry(temp, &favorite)) {
+      ui_free_rom_entries(temp);
+      free(temp);
+      set_status(ui, "cannot update Favorites");
+      return 0;
+    }
   }
-  memset(&temp->rom_entries[temp->rom_count], 0,
-         sizeof(temp->rom_entries[temp->rom_count]));
-  copy_string(temp->rom_entries[temp->rom_count].system_id,
-              sizeof(temp->rom_entries[temp->rom_count].system_id), system_id);
-  copy_string(temp->rom_entries[temp->rom_count].relative_path,
-              sizeof(temp->rom_entries[temp->rom_count].relative_path),
-              entry->relative_path);
-  copy_string(temp->rom_entries[temp->rom_count].title,
-              sizeof(temp->rom_entries[temp->rom_count].title),
-              entry->title[0] ? entry->title : entry->relative_path);
-  copy_string(temp->rom_entries[temp->rom_count].path,
-              sizeof(temp->rom_entries[temp->rom_count].path), entry->path);
-  copy_string(temp->rom_entries[temp->rom_count].thumbnail,
-              sizeof(temp->rom_entries[temp->rom_count].thumbnail),
-              entry->thumbnail);
-  temp->rom_count++;
   if (!save_favorite_entries(ui, temp->rom_entries, temp->rom_count)) {
+    ui_free_rom_entries(temp);
     free(temp);
     set_status(ui, "cannot update Favorites");
     return 0;
   }
   update_top_favorites_count(ui, temp->rom_count);
   entry->is_favorite = 1;
+  ui_free_rom_entries(temp);
   free(temp);
   set_status(ui, "added to Favorites");
   return 1;
@@ -6361,8 +6426,7 @@ static int load_recent_entries(struct ui_state *ui) {
   const char *end;
   const char *cursor;
 
-  ui->rom_count = 0;
-  ui->rom_cursor = 0;
+  ui_clear_rom_entries(ui);
   json = read_file(ui->recent_path, &json_size);
   if (!json) {
     return file_exists(ui->recent_path) ? 0 : 1;
@@ -6372,7 +6436,7 @@ static int load_recent_entries(struct ui_state *ui) {
     return 0;
   }
   cursor = start;
-  while (ui->rom_count < UI_MAX_ROMS) {
+  while (1) {
     const char *obj_start;
     const char *obj_end;
     const char *media_start;
@@ -6417,7 +6481,10 @@ static int load_recent_entries(struct ui_state *ui) {
       append_string(entry.detail, sizeof(entry.detail), &pos, " / ");
       append_string(entry.detail, sizeof(entry.detail), &pos, last_played_at);
     }
-    ui->rom_entries[ui->rom_count++] = entry;
+    if (!ui_append_rom_entry(ui, &entry)) {
+      free(json);
+      return 0;
+    }
   }
   free(json);
   mark_favorite_flags(ui);
@@ -6570,9 +6637,6 @@ static int add_navigation_directory_entry(struct ui_state *ui,
       rom_navigation_directory_exists(ui, relative_path)) {
     return 1;
   }
-  if (ui->rom_count >= UI_MAX_ROMS) {
-    return 0;
-  }
   memset(&entry, 0, sizeof(entry));
   copy_string(entry.system_id, sizeof(entry.system_id), source->system_id);
   written = snprintf(entry.title, sizeof(entry.title), "[DIR] %s", display_name);
@@ -6584,8 +6648,7 @@ static int add_navigation_directory_entry(struct ui_state *ui,
   copy_string(entry.detail, sizeof(entry.detail), "Directory");
   copy_string(entry.extension, sizeof(entry.extension), "dir");
   entry.is_navigation_directory = 1;
-  ui->rom_entries[ui->rom_count++] = entry;
-  return 1;
+  return ui_append_rom_entry(ui, &entry);
 }
 
 static int load_rom_entries(struct ui_state *ui, const char *system_id) {
@@ -6600,8 +6663,7 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
   int scan_on_enter;
   int with_thumbnails;
 
-  ui->rom_count = 0;
-  ui->rom_cursor = 0;
+  ui_clear_rom_entries(ui);
   ui->rom_scan_background_started = 0;
   if (strcmp(system_id, "favorites") == 0) {
     return load_favorite_entries(ui);
@@ -6680,11 +6742,15 @@ static int load_rom_entries(struct ui_state *ui, const char *system_id) {
       continue;
     }
     if (child_is_directory) {
-      add_navigation_directory_entry(ui, &entry, dir_relative_path, child_name);
+      if (!add_navigation_directory_entry(ui, &entry, dir_relative_path, child_name)) {
+        free(json);
+        return 0;
+      }
       continue;
     }
-    if (ui->rom_count < UI_MAX_ROMS) {
-      ui->rom_entries[ui->rom_count++] = entry;
+    if (!ui_append_rom_entry(ui, &entry)) {
+      free(json);
+      return 0;
     }
   }
   free(json);
@@ -9427,9 +9493,6 @@ static void open_rom_screen(struct ui_state *ui, const struct top_entry *entry) 
   set_status(ui, "loading ROM list");
   if (!load_rom_entries(ui, entry->id)) {
     set_status(ui, "cannot load ROM list");
-  } else if (ui->rom_count == UI_MAX_ROMS) {
-    restore_current_rom_cursor(ui);
-    set_status(ui, "ROM list truncated at prototype limit");
   } else if (ui->rom_scan_background_started) {
     restore_current_rom_cursor(ui);
     set_status(ui, "ROM list ready; refreshing scan");
@@ -13831,5 +13894,6 @@ int main(int argc, char **argv) {
     shutdown_ui_renderer(&ui);
   }
 #endif
+  ui_free_rom_entries(&ui);
   return exit_code;
 }

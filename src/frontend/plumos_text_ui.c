@@ -15,7 +15,7 @@
 #endif
 
 #define MAX_TOP_ENTRIES 128
-#define MAX_ROM_ENTRIES 4096
+#define ROM_ENTRY_INITIAL_CAPACITY 256
 #define MAX_MENU_ENTRIES 64
 #define MAX_APP_ENTRIES 128
 #define MAX_CORE_PROFILES 32
@@ -234,6 +234,47 @@ static int append_string(char *out, size_t out_size, size_t *pos, const char *in
   memcpy(out + *pos, in, len);
   *pos += len;
   out[*pos] = '\0';
+  return 1;
+}
+
+static int reserve_rom_entries(struct rom_entry **entries, size_t *capacity,
+                               size_t min_capacity) {
+  struct rom_entry *next_entries;
+  const size_t max_capacity = ((size_t)-1) / sizeof((*entries)[0]);
+  size_t next_capacity;
+
+  if (!entries || !capacity || min_capacity > max_capacity) {
+    return 0;
+  }
+  if (*capacity >= min_capacity) {
+    return 1;
+  }
+
+  next_capacity = *capacity ? *capacity : ROM_ENTRY_INITIAL_CAPACITY;
+  while (next_capacity < min_capacity) {
+    if (next_capacity > max_capacity / 2) {
+      next_capacity = max_capacity;
+      break;
+    }
+    next_capacity *= 2;
+  }
+
+  next_entries = (struct rom_entry *)realloc(*entries, next_capacity * sizeof((*entries)[0]));
+  if (!next_entries) {
+    return 0;
+  }
+  *entries = next_entries;
+  *capacity = next_capacity;
+  return 1;
+}
+
+static int append_rom_entry(struct rom_entry **entries, size_t *count, size_t *capacity,
+                            const struct rom_entry *entry) {
+  if (!entries || !count || !capacity || !entry ||
+      !reserve_rom_entries(entries, capacity, *count + 1)) {
+    return 0;
+  }
+  (*entries)[(*count)++] = *entry;
   return 1;
 }
 
@@ -3184,15 +3225,19 @@ static int load_top_entries(const char *path, struct top_entry *entries, size_t 
   return 1;
 }
 
-static int load_rom_entries(const char *path, const char *system_id, struct rom_entry *entries,
-                            size_t max_entries, size_t *count_out, long *ready_ms_out) {
+static int load_rom_entries(const char *path, const char *system_id,
+                            struct rom_entry **entries_out, size_t *count_out,
+                            long *ready_ms_out) {
   char *json;
   size_t json_size;
   const char *systems_start;
   const char *systems_end;
   const char *system_cursor;
+  struct rom_entry *entries = NULL;
   size_t count = 0;
+  size_t capacity = 0;
 
+  *entries_out = NULL;
   *count_out = 0;
   *ready_ms_out = -1;
   json = read_file(path, &json_size);
@@ -3221,6 +3266,7 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
     system_obj = range_dup(system_start, system_end);
     if (!system_obj) {
       free(json);
+      free(entries);
       return 0;
     }
     json_get_string(system_obj, system_obj + strlen(system_obj), "id", id, sizeof(id));
@@ -3233,11 +3279,12 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
                          &roms_end)) {
       free(system_obj);
       free(json);
+      free(entries);
       return 0;
     }
 
     rom_cursor = roms_start;
-    while (count < max_entries) {
+    while (1) {
       const char *rom_start;
       const char *rom_end;
       const char *media_start;
@@ -3252,6 +3299,7 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
       if (!rom_obj) {
         free(system_obj);
         free(json);
+        free(entries);
         return 0;
       }
 
@@ -3277,7 +3325,13 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
         copy_string(entry.title, sizeof(entry.title),
                     entry.file_name[0] ? entry.file_name : entry.relative_path);
       }
-      entries[count++] = entry;
+      if (!append_rom_entry(&entries, &count, &capacity, &entry)) {
+        free(rom_obj);
+        free(system_obj);
+        free(json);
+        free(entries);
+        return 0;
+      }
       free(rom_obj);
     }
 
@@ -3285,6 +3339,7 @@ static int load_rom_entries(const char *path, const char *system_id, struct rom_
     break;
   }
 
+  *entries_out = entries;
   *count_out = count;
   free(json);
   return 1;
@@ -3311,13 +3366,7 @@ static int load_selected_rom(const char *plumos_root, const char *sdcard_root,
       !run_scanner(plumos_root, sdcard_root, system_id, 0)) {
     return 0;
   }
-  entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
-  if (!entries) {
-    fprintf(stderr, "error: out of memory\n");
-    return 0;
-  }
-  if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
-                        &ready_ms)) {
+  if (!load_rom_entries(system_cache_path, system_id, &entries, &count, &ready_ms)) {
     fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
     free(entries);
     return 0;
@@ -4150,24 +4199,16 @@ int main(int argc, char **argv) {
       return 0;
     }
 
-    entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
-    if (!entries) {
-      fprintf(stderr, "error: out of memory\n");
-      return 1;
-    }
     if (!build_system_cache_path(system_cache_path, sizeof(system_cache_path), plumos_root,
                                  system_id)) {
       fprintf(stderr, "error: system cache path is too long\n");
-      free(entries);
       return 1;
     }
     if ((scan || !file_exists(system_cache_path)) &&
         !run_scanner(plumos_root, sdcard_root, system_id, 0)) {
-      free(entries);
       return 1;
     }
-    if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
-                          &ready_ms)) {
+    if (!load_rom_entries(system_cache_path, system_id, &entries, &count, &ready_ms)) {
       fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
       free(entries);
       return 1;
@@ -4283,13 +4324,7 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
-    if (!entries) {
-      fprintf(stderr, "error: out of memory\n");
-      return 1;
-    }
-    if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
-                          &ready_ms)) {
+    if (!load_rom_entries(system_cache_path, system_id, &entries, &count, &ready_ms)) {
       fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
       free(entries);
       return 1;
@@ -5098,13 +5133,7 @@ int main(int argc, char **argv) {
           !run_scanner(plumos_root, sdcard_root, system_id, 0)) {
         return 1;
       }
-      entries = (struct rom_entry *)calloc(MAX_ROM_ENTRIES, sizeof(entries[0]));
-      if (!entries) {
-        fprintf(stderr, "error: out of memory\n");
-        return 1;
-      }
-      if (!load_rom_entries(system_cache_path, system_id, entries, MAX_ROM_ENTRIES, &count,
-                            &ready_ms)) {
+      if (!load_rom_entries(system_cache_path, system_id, &entries, &count, &ready_ms)) {
         fprintf(stderr, "error: cannot read ROM cache: %s\n", system_cache_path);
         free(entries);
         return 1;

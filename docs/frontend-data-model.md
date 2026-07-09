@@ -216,6 +216,9 @@ directly under the current directory.
   targets and are distinct from FE-only navigation directory entries
 - The scanner cache format does not change; navigation entries are created only
   while rendering the FE ROM list
+- The controller FE and text helper keep ROM lists in dynamically sized runtime
+  arrays. They should load every ROM entry present in the selected system cache,
+  bounded by available memory rather than a fixed item cap.
 
 ### Artwork Lookup
 
