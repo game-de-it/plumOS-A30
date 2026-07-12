@@ -2378,10 +2378,16 @@ static int plumos_mali_is_entry_line(const char *line) {
     return 0;
   }
   if (*p == '>') {
-    return 1;
+    p++;
   }
   while (*p == ' ') {
     p++;
+  }
+  if (*p == '*') {
+    p++;
+    while (*p == ' ') {
+      p++;
+    }
   }
   return *p >= '0' && *p <= '9';
 }
@@ -2493,7 +2499,8 @@ static void plumos_mali_ascii_upper_inplace(char *s) {
 }
 
 static int plumos_mali_entry_head(const char *line, char *marker, char *number,
-                                  size_t number_size, const char **rest) {
+                                  size_t number_size, const char **rest,
+                                  int *favorite) {
   const char *p = line;
   size_t n = 0;
 
@@ -2502,12 +2509,24 @@ static int plumos_mali_entry_head(const char *line, char *marker, char *number,
   }
   *marker = ' ';
   number[0] = '\0';
+  if (favorite) {
+    *favorite = 0;
+  }
   if (*p == '>') {
     *marker = '>';
     p++;
   }
   while (*p == ' ') {
     p++;
+  }
+  if (*p == '*') {
+    if (favorite) {
+      *favorite = 1;
+    }
+    p++;
+    while (*p == ' ') {
+      p++;
+    }
   }
   while (*p >= '0' && *p <= '9' && n + 1 < number_size) {
     number[n++] = *p++;
@@ -2525,8 +2544,10 @@ static int plumos_mali_make_rom_entry(const char *line, char *out, size_t out_si
   char number[16];
   char title[128];
   const char *rest;
+  int favorite = 0;
 
-  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest)) {
+  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest,
+                              &favorite)) {
     return 0;
   }
   memset(title, 0, sizeof(title));
@@ -2535,7 +2556,8 @@ static int plumos_mali_make_rom_entry(const char *line, char *out, size_t out_si
   if (!title[0]) {
     return 0;
   }
-  snprintf(out, out_size, "%c %s %s", marker, number, title);
+  snprintf(out, out_size, "%c %s %s%s", marker, number,
+           favorite ? "* " : "", title);
   return 1;
 }
 
@@ -2546,7 +2568,8 @@ static int plumos_mali_make_safe_entry(const char *line, char *out, size_t out_s
   const char *rest;
   size_t n = 0;
 
-  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest)) {
+  if (!plumos_mali_entry_head(line, &marker, number, sizeof(number), &rest,
+                              NULL)) {
     return 0;
   }
   while (rest[n] && rest[n] != ' ' && n + 1 < sizeof(action)) {
@@ -3951,7 +3974,8 @@ static int plumos_mali_tty_entry_parts(const char *line, int *selected,
   if (count && count_size > 0) {
     count[0] = '\0';
   }
-  if (!plumos_mali_entry_head(line, &marker, raw_number, sizeof(raw_number), &rest)) {
+  if (!plumos_mali_entry_head(line, &marker, raw_number, sizeof(raw_number),
+                              &rest, NULL)) {
     return 0;
   }
   if (selected) {
