@@ -104,6 +104,7 @@ PY
 PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"
 PYXEL_SITE="${PLUMOS_PYXEL_A30_SITE:-${PLUMOS_ROOT}/experiments/pyxel-a30-site}"
 PYXEL_SHIM_SITE="${PLUMOS_PYXEL_A30_SHIM_SITE:-${PLUMOS_ROOT}/share/pyxel-a30}"
+PLUMOS_CA_BUNDLE="${PLUMOS_ROOT}/ssl/certs/ca-certificates.crt"
 export HOME="${PLUMOS_PYXEL_HOME:-/mnt/SDCARD}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-a30mali}"
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
@@ -112,6 +113,10 @@ export SDL_EGL_LIBRARY="${SDL_EGL_LIBRARY:-/usr/lib/libEGL.so}"
 export PLUMOS_A30MALI_ROTATION="${PLUMOS_A30MALI_ROTATION:-cw}"
 export SDL_GAMECONTROLLERCONFIG="${SDL_GAMECONTROLLERCONFIG:-030003f05e0400008e0200005e040000,plumOS A30 Gamepad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,lefttrigger:b6,righttrigger:b7,back:b8,start:b9,guide:b10,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,}"
 export PYTHONPATH="${PYXEL_SHIM_SITE}${PYTHONPATH:+:${PYTHONPATH}}"
+if [ -f "${PLUMOS_CA_BUNDLE}" ]; then
+  export SSL_CERT_FILE="${SSL_CERT_FILE:-${PLUMOS_CA_BUNDLE}}"
+  export REQUESTS_CA_BUNDLE="${REQUESTS_CA_BUNDLE:-${PLUMOS_CA_BUNDLE}}"
+fi
 
 case "${PLUMOS_PYXEL_USE_PATCHED:-0}" in
   1|yes|YES|true|TRUE|on|ON)

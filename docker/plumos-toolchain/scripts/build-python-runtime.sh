@@ -168,6 +168,25 @@ copy_loader() {
   die "armhf dynamic loader not found"
 }
 
+copy_ca_bundle() {
+  local ca_src
+  local ca_dst="${PLUMOS_DIR}/ssl/certs/ca-certificates.crt"
+
+  for ca_src in \
+    /etc/ssl/certs/ca-certificates.crt \
+    /usr/lib/ssl/cert.pem \
+    /etc/ssl/cert.pem; do
+    if [ -f "$ca_src" ]; then
+      mkdir -p "$(dirname "$ca_dst")"
+      install -m 0644 "$ca_src" "$ca_dst"
+      return 0
+    fi
+  done
+
+  printf 'warning: CA certificate bundle not found; HTTPS verification may fail\n' >&2
+  return 0
+}
+
 build_host_python() {
   local build_python
 
@@ -299,9 +318,14 @@ write_python_wrapper() {
     printf '%s\n' 'PLUMOS_ROOT="${PLUMOS_ROOT:-/mnt/SDCARD/plumos}"'
     printf '%s\n' 'PLUMOS_LIB="${PLUMOS_ROOT}/lib"'
     printf '%s\n' 'PLUMOS_PYTHON="${PLUMOS_ROOT}/python"'
+    printf '%s\n' 'PLUMOS_CA_BUNDLE="${PLUMOS_ROOT}/ssl/certs/ca-certificates.crt"'
     printf 'PLUMOS_ARGV0="${PLUMOS_ROOT}/bin/%s"\n' "$name"
     printf '%s\n' 'PLUMOS_LIBRARY_PATH="${PLUMOS_PYTHON}/lib:${PLUMOS_LIB}"'
     printf '%s\n' 'export PATH="${PLUMOS_PYTHON}/bin:${PLUMOS_ROOT}/bin:${PATH:-/bin:/usr/bin}"'
+    printf '%s\n' 'if [ -f "${PLUMOS_CA_BUNDLE}" ]; then'
+    printf '%s\n' '  export SSL_CERT_FILE="${SSL_CERT_FILE:-${PLUMOS_CA_BUNDLE}}"'
+    printf '%s\n' '  export REQUESTS_CA_BUNDLE="${REQUESTS_CA_BUNDLE:-${PLUMOS_CA_BUNDLE}}"'
+    printf '%s\n' 'fi'
     printf '%s\n' 'exec "${PLUMOS_LIB}/ld-linux-armhf.so.3" \'
     printf '%s\n' '  --library-path "${PLUMOS_LIBRARY_PATH}:/usr/lib:/lib" \'
     printf '%s\n' '  --argv0 "${PLUMOS_ARGV0}" \'
@@ -415,6 +439,7 @@ main() {
   materialize_symlinks
   strip_elfs
   copy_all_runtime_deps
+  copy_ca_bundle
   write_wrappers
   write_sitecustomize
   write_manifest
