@@ -116,6 +116,7 @@ SD カードを作り直す前に、必要に応じて以下をバックアッ�
 - `Saves/`
 - `plumos/config/`
 - `plumos/state/`
+- `plumos/retroarch/cheats/`
 - `plumos/retroarch/home/.config/retroarch/`
 
 ROM、BIOS、save/state、個人設定は配布物に含まれません。

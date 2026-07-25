@@ -232,8 +232,6 @@ build_retroarch() {
     --disable-update_assets \
     --disable-update_cores \
     --disable-update_core_info \
-    --disable-online_updater \
-    --disable-cheats \
     --disable-translate \
     --disable-shaderpipeline \
     --disable-glx \
@@ -264,6 +262,7 @@ stage_dist() {
     "${TARGET_DIR}/plumos/retroarch/autoconfig/sdl2" \
     "${TARGET_DIR}/plumos/retroarch/autoconfig/udev" \
     "${TARGET_DIR}/plumos/retroarch/bin" \
+    "${TARGET_DIR}/plumos/retroarch/cheats" \
     "${TARGET_DIR}/plumos/retroarch/config" \
     "${TARGET_DIR}/plumos/retroarch/cores" \
     "${TARGET_DIR}/plumos/retroarch/home" \
@@ -336,7 +335,8 @@ quit_press_twice = "false"
 joypad_autoconfig_dir = "/mnt/SDCARD/plumos/retroarch/autoconfig"
 menu_driver = "rgui"
 menu_enable_widgets = "false"
-menu_show_online_updater = "false"
+menu_show_online_updater = "true"
+menu_show_core_updater = "false"
 menu_show_load_core = "false"
 menu_show_load_content = "false"
 menu_show_information = "true"
@@ -349,6 +349,8 @@ network_cmd_enable = "true"
 network_cmd_port = "55355"
 
 assets_directory = "/mnt/SDCARD/plumos/retroarch/assets"
+cheat_database_path = "/mnt/SDCARD/plumos/retroarch/cheats"
+core_updater_buildbot_assets_url = "http://buildbot.libretro.com/assets/"
 libretro_directory = "/mnt/SDCARD/plumos/retroarch/cores"
 libretro_info_path = "/mnt/SDCARD/plumos/retroarch/info"
 log_dir = "/mnt/SDCARD/plumos/retroarch/logs"

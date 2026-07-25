@@ -47,6 +47,7 @@ The practical RetroArch config currently sets:
 | `savestate_auto_save` | `true` |
 | `savestate_auto_load` | `false` |
 | `savestate_auto_index` | `true` |
+| `cheat_database_path` | `/mnt/SDCARD/plumos/retroarch/cheats` |
 | `screenshot_directory` | `/mnt/SDCARD/Images` |
 
 Because `savefiles_in_content_dir` and `savestates_in_content_dir` are enabled,
@@ -66,6 +67,13 @@ save data.
 
 If you change RetroArch directory settings from the RetroArch menu, follow the
 paths shown in RetroArch itself and include those paths in your backup.
+
+RetroArch cheat files downloaded from `Online Updater` > `Update Cheats`, or
+copied manually by the user, are stored in:
+
+```text
+plumos/retroarch/cheats/
+```
 
 ## PicoArch Profiles
 

@@ -146,6 +146,31 @@ Typical app entries:
 
 The Power menu is opened by short POWER press regardless of runtime.
 
+## RetroArch Cheats
+
+RetroArch cheats are available from the RetroArch menu when a game is launched
+through an `RA` profile.
+
+To download the standard libretro cheat database on the device:
+
+1. Connect the A30 to Wi-Fi from Network Settings.
+2. Launch a game with a RetroArch core.
+3. Press the Function button to open the RetroArch menu.
+4. Open `Online Updater`.
+5. Select `Update Cheats`.
+6. Return to the game menu and open `Quick Menu` > `Cheats`.
+7. Load or append a cheat file, then enable the cheats you want to use.
+
+Downloaded and manually copied RetroArch cheat files are stored under:
+
+```text
+plumos/retroarch/cheats/
+```
+
+This path maps to `/mnt/SDCARD/plumos/retroarch/cheats/` on the A30. Keep cheat
+files on the SD card only if you trust their source; bad or incompatible cheat
+codes can crash games or corrupt saves.
+
 ## Japanese Counterpart
 
 - [Japanese operation guide](operation.ja.md)

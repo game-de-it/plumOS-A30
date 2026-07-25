@@ -76,6 +76,7 @@ Video4Linux2 no
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | stock は OSS/ALSA 両方有効。A30 実機では音声 device の掴み方を検証する。 |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | stock SDL1 ではなく、plumOS は `plumos-joystickd --device-mode xbox` と SDL2/evdev を優先する。 |
 | screenshots/images | rpng/rjpeg/screenshots | 手動 screenshot を gallery/scraping fallback に使う可能性があるため有効化する。 |
+| cheats | cheat support + `Update Cheats` 用 Online Updater 表示 | ユーザー要望により RetroArch cheat を有効化する。cheat database は plumOS 側 RetroArch tree に保存する。 |
 | content | `--enable-chd`, `--enable-flac` candidate | PS1/PCE CD/Mega CD/Neo Geo CD を残すなら CHD/CDDA 対応を検証する。 |
 | info | core info cache optional | FE が launch profile を管理するため必須ではないが、core metadata には便利。 |
 
@@ -98,7 +99,7 @@ Video4Linux2 no
 | heavy media | FFmpeg, V4L2, camera, microphone | emulator runtime の初期用途では不要。 |
 | desktop audio | PulseAudio, PipeWire, Jack, OpenAL, RSound, RoarAudio | A30 rootfs に合わせない。OSS/ALSA を先に検証する。 |
 | HID extras | libusb, blissbox, parport, bluetooth | A30 builtin buttons/joystickd を優先する。 |
-| online updater | update cores/assets/info, SSL, Discord | plumOS package 管理で扱い、実機から更新しない。 |
+| online updater core/assets 更新 | update cores/assets/info, SSL, Discord | RetroArch runtime/core/assets 更新は plumOS package 管理で扱う。ただし practical build では `Update Cheats` のために Online Updater 表示だけ許可する。 |
 | shader stack | Cg, HLSL, Slang, glslang, SPIRV-Cross | GLES2/Mali-400 では GLSL 以外は不要。 |
 | EGL loading | `--enable-dynamic_egl` | A30 minimal probe で `eglGetDisplay` fallback 後に SIGSEGV したため使わない。 |
 
@@ -180,6 +181,10 @@ RetroArch 1.22.2 practical:
 - A30 の landscape FBO 経路では、GPU viewport screenshot は表示用の回転途中の絵を保存し、
   PNG が横倒しになることがある。手動 screenshot を `Images/<system_id>/` の thumbnail fallback
   として使えるよう、既定は `video_gpu_screenshot = "false"` にし、core framebuffer の向きで保存する。
+- practical runtime では RetroArch cheat support を有効化する。Online Updater menu は
+  `Update Cheats` 用に表示するが、core updater / core-info updater は引き続き無効にする。
+  cheat database path は `/mnt/SDCARD/plumos/retroarch/cheats` とし、ダウンロードした cheat file
+  と手動配置した cheat file を plumOS の directory layout 内に集約する。
 
 ## 次の実用 build の狙い
 

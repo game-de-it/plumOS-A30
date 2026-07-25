@@ -47,6 +47,7 @@ frontend から起動する RetroArch は以下を使います。
 | `savestate_auto_save` | `true` |
 | `savestate_auto_load` | `false` |
 | `savestate_auto_index` | `true` |
+| `cheat_database_path` | `/mnt/SDCARD/plumos/retroarch/cheats` |
 | `screenshot_directory` | `/mnt/SDCARD/Images` |
 
 `savefiles_in_content_dir` と `savestates_in_content_dir` が有効なので、通常の
@@ -65,6 +66,13 @@ screenshot は `Images/` に保存されます。これは画像/ユーザーメ
 
 RetroArch menu から directory 設定を変更した場合は、RetroArch 側に表示されている path を
 正として、その path もバックアップ対象にしてください。
+
+`Online Updater` > `Update Cheats` で取得した RetroArch cheat file と、ユーザーが手動で
+配置した cheat file は以下に保存されます。
+
+```text
+plumos/retroarch/cheats/
+```
 
 ## PicoArch
 

@@ -147,3 +147,27 @@ Runtime によって menu の出し方が異なります。
 - Standalone: emulator ごとに menu 操作が異なります。
 
 Power menu は runtime に関係なく POWER 短押しで表示する方針です。
+
+## RetroArch のチート
+
+`RA` profile でゲームを起動した場合、RetroArch menu からチート機能を利用できます。
+
+標準の libretro cheat database を実機で取得する手順は以下です。
+
+1. Network Settings で A30 を Wi-Fi に接続します。
+2. RetroArch core でゲームを起動します。
+3. Function button で RetroArch menu を開きます。
+4. `Online Updater` を開きます。
+5. `Update Cheats` を選択します。
+6. ゲーム側の menu に戻り、`Quick Menu` > `Cheats` を開きます。
+7. cheat file を load または append し、使いたい cheat を ON にします。
+
+ダウンロードした cheat file と、ユーザーが手動で配置する cheat file は以下に保存されます。
+
+```text
+plumos/retroarch/cheats/
+```
+
+実機上の絶対 path は `/mnt/SDCARD/plumos/retroarch/cheats/` です。入手元が不明な cheat file
+や、ゲーム/リージョンに合わない cheat code は、ゲームのクラッシュや save data 破損の原因に
+なる場合があります。

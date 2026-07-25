@@ -110,6 +110,7 @@ Back up these paths before recreating an SD card:
 - `Saves/`
 - `plumos/config/`
 - `plumos/state/`
+- `plumos/retroarch/cheats/`
 - `plumos/retroarch/home/.config/retroarch/`
 
 `Saves/` is only needed if you manually placed data there or imported data from

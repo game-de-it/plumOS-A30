@@ -78,6 +78,7 @@ Video4Linux2 no
 | audio | `--enable-oss` first, `--enable-alsa` if sysroot/deps are stable | Stock has both OSS and ALSA. Verify actual A30 device behavior. |
 | input | `--enable-sdl2` and/or `--enable-udev` candidate | Avoid stock SDL1; plumOS prefers `plumos-joystickd --device-mode xbox` with SDL2/evdev. |
 | screenshots/images | rpng/rjpeg/screenshots | Enable because manually captured screenshots may be used as gallery/scraping fallbacks. |
+| cheats | cheat support + Online Updater entry for `Update Cheats` | User-requested RetroArch cheat support. Cheat database downloads are kept under the plumOS RetroArch tree. |
 | content | `--enable-chd`, `--enable-flac` candidate | Needed if PS1/PCE CD/Mega CD/Neo Geo CD remain in the practical target set. |
 | info | core info cache optional | Not required because the FE owns launch profiles, but useful for core metadata. |
 
@@ -100,7 +101,7 @@ Video4Linux2 no
 | heavy media | FFmpeg, V4L2, camera, microphone | Not needed for the initial emulator runtime. |
 | desktop audio | PulseAudio, PipeWire, Jack, OpenAL, RSound, RoarAudio | Use OSS/ALSA first on the A30 rootfs. |
 | HID extras | libusb, blissbox, parport, bluetooth | Prioritize builtin controls and joystickd. |
-| online updater | update cores/assets/info, SSL, Discord | Keep updates in plumOS package management, not on-device RetroArch updates. |
+| online updater core/assets updates | update cores/assets/info, SSL, Discord | Keep RetroArch runtime/core/assets updates in plumOS package management. The practical build may still expose Online Updater for `Update Cheats` only. |
 | shader stack | Cg, HLSL, Slang, glslang, SPIRV-Cross | Mali-400/GLES2 only needs GLSL here. |
 | EGL loading | `--enable-dynamic_egl` | The A30 minimal probe hit SIGSEGV after the `eglGetDisplay` fallback; do not use it. |
 
@@ -197,6 +198,11 @@ RetroArch 1.22.2 practical:
   screenshots usable as `Images/<system_id>/` thumbnail fallbacks, the default is
   `video_gpu_screenshot = "false"` so screenshots are saved from the core
   framebuffer orientation.
+- RetroArch cheat support is enabled in the practical runtime. The Online
+  Updater menu is visible so users can run `Update Cheats`; core updater and
+  core-info updater remain disabled. The cheat database path is
+  `/mnt/SDCARD/plumos/retroarch/cheats`, so downloaded and manually copied cheat
+  files stay inside the plumOS directory layout.
 
 ## Next Practical Build Target
 
