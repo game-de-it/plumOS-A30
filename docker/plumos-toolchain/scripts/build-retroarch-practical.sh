@@ -367,6 +367,13 @@ savestate_directory = "/mnt/SDCARD/plumos/retroarch/states"
 system_directory = "/mnt/SDCARD/Bios"
 EOF
 
+  cat > "${TARGET_DIR}/plumos/retroarch/cheats/README.txt" <<'EOF'
+RetroArch cheat database files are stored here.
+
+Use RetroArch Online Updater > Update Cheats to download the standard libretro
+cheat database on the device, or copy trusted cheat files here manually.
+EOF
+
   cat > "${TARGET_DIR}/plumos/retroarch/config/retroarch-practical-alsa-append.cfg" <<'EOF'
 audio_driver = "alsa"
 audio_device = "default"
@@ -1229,7 +1236,7 @@ esac
 [ -n "$ROM" ] || { echo "error: --rom is required or no ROM was found for --system" >&2; exit 2; }
 [ -x "$RA" ] || { echo "error: RetroArch wrapper not found: $RA" >&2; exit 1; }
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$PLUMOS_ROOT/retroarch/cheats"
 trap cleanup EXIT INT TERM
 apply_system_volume
 
@@ -1238,6 +1245,10 @@ config_save_on_exit = "false"
 state_slot = "$SAFE_STATE_SLOT"
 vrr_runloop_enable = "$VRR_RUNLOOP"
 system_directory = "$BIOS_ROOT"
+menu_show_online_updater = "true"
+menu_show_core_updater = "false"
+cheat_database_path = "$PLUMOS_ROOT/retroarch/cheats"
+core_updater_buildbot_assets_url = "http://buildbot.libretro.com/assets/"
 APPEND
 if [ -n "$QUIT_PRESS_TWICE" ]; then
   cat >> "$APPEND" <<APPEND
